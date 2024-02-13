@@ -3,4 +3,6 @@
 *.cmake linguist-detectable=false
 *.json linguist-detectable=false
 *.nsis linguist-detectable=false
+*.nsi linguist-detectable=false
+*.nsh linguist-detectable=false
 *.css linguist-detectable=false
