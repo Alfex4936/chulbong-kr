@@ -1,6 +1,6 @@
-import * as Styled from "./Header.style";
-import useModalStore from "../../store/useModalStore";
 import { Button } from "@mui/material";
+import useModalStore from "../../store/useModalStore";
+import * as Styled from "./Header.style";
 
 const Header = () => {
   const modalState = useModalStore();
@@ -13,7 +13,6 @@ const Header = () => {
   return (
     <Styled.HeaderContainer>
       <div>철봉</div>
-      {/* <button onClick={handleOpen}>로그인/회원가입</button> */}
       <Button onClick={handleOpen} sx={{ color: "#333" }}>
         로그인/회원가입
       </Button>
