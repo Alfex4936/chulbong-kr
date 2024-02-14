@@ -11,7 +11,7 @@ const BasicModal = ({ children }: Props) => {
   return (
     <Styled.ModalWrap
       onClick={() => {
-        modalState.closeLogin();
+        modalState.close();
       }}
     >
       <Styled.Modal
