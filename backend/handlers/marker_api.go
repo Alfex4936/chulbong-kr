@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"chulbong-kr/database"
+	"chulbong-kr/dto"
 	"chulbong-kr/models"
 	"chulbong-kr/services"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -55,16 +58,56 @@ func QueryParamsExample(c *fiber.Ctx) error {
 }
 
 // CreateMarker handler
-func CreateMarker(c *fiber.Ctx) error {
-	var marker models.Marker
-	if err := c.BodyParser(&marker); err != nil {
+func CreateMarkerHandler(c *fiber.Ctx) error {
+	// assert the photo has been uploaded first.
+	var markerDto dto.MarkerRequest
+	userId := c.Locals("userID").(int)
+	username := c.Locals("username").(string)
+
+	if err := c.BodyParser(&markerDto); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
-	err := services.CreateMarker(&marker)
+
+	marker, err := services.CreateMarker(&markerDto, userId)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.Status(fiber.StatusCreated).JSON(marker)
+
+	// Start a transaction
+	tx, err := database.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	// Insert photo
+	photo := &models.Photo{
+		MarkerID:   marker.MarkerID,
+		PhotoURL:   markerDto.PhotoURL,
+		UploadedAt: time.Now(),
+	}
+	photoQuery := `INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())`
+	_, err = tx.Exec(photoQuery, photo.MarkerID, photo.PhotoURL)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	// Map the models.Marker to dto.MarkerResponse
+	response := dto.MarkerResponse{
+		MarkerID:    marker.MarkerID,
+		Latitude:    marker.Latitude,
+		Longitude:   marker.Longitude,
+		Description: marker.Description,
+		Username:    username,
+		PhotoURL:    markerDto.PhotoURL,
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(response)
 }
 
 // GetMarker handler
@@ -83,15 +126,31 @@ func GetMarker(c *fiber.Ctx) error {
 // UpdateMarker updates an existing marker
 func UpdateMarker(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
-	marker, _ := services.GetMarker(id)
+	markerWithPhoto, _ := services.GetMarker(id)
 
-	if err := c.BodyParser(marker); err != nil {
+	if err := c.BodyParser(markerWithPhoto); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	if err := services.UpdateMarker(marker); err != nil {
+	if err := services.UpdateMarker(&markerWithPhoto.Marker); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(marker)
+	return c.JSON(markerWithPhoto)
+}
+
+// UploadMarkerPhotoToS3Handler to upload a file to S3
+func UploadMarkerPhotoToS3Handler(c *fiber.Ctx) error {
+	file, err := c.FormFile("file")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Could not get uploaded file"})
+	}
+
+	fileURL, err := services.UploadFileToS3(file)
+	if err != nil {
+		// Interpret the error message to set the appropriate HTTP status code
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"url": fileURL})
 }
