@@ -1,3 +1,4 @@
+import type { KaKaoMapMouseEvent } from "@/types/KakaoMap.types";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import Fab from "@mui/material/Fab";
 import { useEffect, useRef } from "react";
@@ -5,42 +6,43 @@ import useMap from "../../hooks/useMap";
 import * as Styled from "./Map.style";
 
 const Map = () => {
-  const mapRef = useRef();
+  const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
 
   useEffect(() => {
     if (map) {
-      kakao.maps.event.addListener(map, "click", (mouseEvent) => {
-        const latlng = mouseEvent.latLng;
+      window.kakao.maps.event.addListener(
+        map,
+        "click",
+        (mouseEvent: KaKaoMapMouseEvent) => {
+          const latlng = mouseEvent.latLng;
 
-        const marker = new kakao.maps.Marker({
-          position: map.getCenter(),
-        });
+          const marker = new window.kakao.maps.Marker({
+            position: map.getCenter(),
+          });
 
-        marker.setMap(map);
+          marker.setMap(map);
+          marker.setPosition(latlng);
 
-        marker.setPosition(latlng);
+          let message = `클릭한 위치의 위도는 ${latlng.getLat()} 이고, `;
+          message += `경도는 ${latlng.getLng()} 입니다`;
 
-        let message = "클릭한 위치의 위도는 " + latlng.getLat() + " 이고, ";
-        message += "경도는 " + latlng.getLng() + " 입니다";
-
-        console.log(message);
-      });
+          console.log(message);
+        }
+      );
     }
-  }, [map]);
+  }, []);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const newPos = new window.kakao.maps.LatLng(
+          const moveLatLon = new window.kakao.maps.LatLng(
             position.coords.latitude,
             position.coords.longitude
           );
-          map.setLevel(3);
-          map.setCenter(newPos);
-
-          console.log(position);
+          map.setCenter(moveLatLon);
+          console.log(position.coords.latitude, position.coords.longitude);
         },
         (error) => {
           console.error(error);
@@ -59,9 +61,7 @@ const Map = () => {
       <Fab
         color="secondary"
         aria-label="locate"
-        onClick={() => {
-          centerMapOnCurrentPosition();
-        }}
+        onClick={centerMapOnCurrentPosition}
         sx={{
           position: "absolute",
           bottom: 32,
