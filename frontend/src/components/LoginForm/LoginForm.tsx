@@ -21,12 +21,10 @@ const LoginForm = () => {
       <Styled.FormWrap>
         <Styled.FormTitle>로그인</Styled.FormTitle>
         <Styled.InputWrap>
-          <label htmlFor="email">이메일</label>
-          <Input type="email" id="email" />
+          <Input type="email" id="email" placeholder="이메일" />
         </Styled.InputWrap>
         <Styled.InputWrap>
-          <label htmlFor="password">비밀번호</label>
-          <Input type="password" id="password" />
+          <Input type="password" id="password" placeholder="비밀번호" />
         </Styled.InputWrap>
         <Button
           onClick={handleSubmit}
@@ -34,7 +32,7 @@ const LoginForm = () => {
             color: "#fff",
             width: "100%",
             backgroundColor: "#333",
-            marginTop: "1.5rem",
+            marginTop: "1rem",
             "&:hover": {
               backgroundColor: "#555",
             },

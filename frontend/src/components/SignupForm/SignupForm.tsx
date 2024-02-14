@@ -12,20 +12,20 @@ const SignupForm = () => {
       <Styled.FormWrap>
         <Styled.FormTitle>회원가입</Styled.FormTitle>
         <Styled.InputWrap>
-          <label htmlFor="name">닉네임</label>
-          <Input type="text" id="name" />
+          <Input type="text" id="name" placeholder="닉네임" />
         </Styled.InputWrap>
         <Styled.InputWrap>
-          <label htmlFor="email">이메일</label>
-          <Input type="email" id="email" />
+          <Input type="email" id="email" placeholder="이메일" />
         </Styled.InputWrap>
         <Styled.InputWrap>
-          <label htmlFor="password">비밀번호</label>
-          <Input type="password" id="password" />
+          <Input type="password" id="password" placeholder="비밀번호" />
         </Styled.InputWrap>
         <Styled.InputWrap>
-          <label htmlFor="verify-password">비밀번호 확인</label>
-          <Input type="password" id="verify-password" />
+          <Input
+            type="password"
+            id="verify-password"
+            placeholder="비밀번호 확인"
+          />
         </Styled.InputWrap>
         <Button
           onClick={handleSubmit}
@@ -33,7 +33,7 @@ const SignupForm = () => {
             color: "#fff",
             width: "100%",
             backgroundColor: "#333",
-            margin: "1.5rem 0",
+            margin: "1rem 0",
             "&:hover": {
               backgroundColor: "#555",
             },

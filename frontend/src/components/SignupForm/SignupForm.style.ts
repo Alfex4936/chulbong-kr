@@ -14,7 +14,7 @@ export const InputWrap = styled.div`
   display: flex;
   flex-direction: column;
 
-  margin-bottom: 1rem;
+  margin-bottom: 1.7rem;
 
   & label {
     text-align: left;
