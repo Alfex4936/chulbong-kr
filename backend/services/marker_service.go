@@ -2,49 +2,73 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"chulbong-kr/database"
+	"chulbong-kr/dto"
 	"chulbong-kr/models"
 )
 
 // CreateMarker creates a new marker in the database after checking for nearby markers
-func CreateMarker(marker *models.Marker) error {
+func CreateMarker(markerDto *dto.MarkerRequest, userId int) (*models.Marker, error) {
 	// First, check if there is a nearby marker
-	nearby, err := IsMarkerNearby(marker.Latitude, marker.Longitude)
+	nearby, err := IsMarkerNearby(markerDto.Latitude, markerDto.Longitude)
 	if err != nil {
-		return err // Return any error encountered
+		return nil, err // Return any error encountered
 	}
 	if nearby {
-		return errors.New("a marker is already nearby")
+		return nil, errors.New("a marker is already nearby")
 	}
 
-	// If no nearby marker, proceed to insert the new marker
-	const query = `INSERT INTO Markers (UserID, Latitude, Longitude, Description) 
-                   VALUES (?, ?, ?, ?)`
-	res, err := database.DB.Exec(query, marker.UserID, marker.Latitude, marker.Longitude, marker.Description)
+	// Insert the new marker
+	const insertQuery = `INSERT INTO Markers (UserID, Latitude, Longitude, Description, CreatedAt, UpdatedAt) 
+                         VALUES (?, ?, ?, ?, NOW(), NOW())`
+	res, err := database.DB.Exec(insertQuery, userId, markerDto.Latitude, markerDto.Longitude, markerDto.Description)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("inserting marker: %w", err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("getting last insert ID: %w", err)
 	}
 
-	marker.MarkerID = int(id)
-	return nil
+	// Create a marker model instance to hold the full marker information
+	marker := &models.Marker{
+		MarkerID:    int(id),
+		UserID:      userId,
+		Latitude:    markerDto.Latitude,
+		Longitude:   markerDto.Longitude,
+		Description: markerDto.Description,
+		// CreatedAt and UpdatedAt will be populated in the next step
+	}
+
+	// Fetch the newly created marker to populate all fields, including CreatedAt and UpdatedAt
+	const selectQuery = `SELECT CreatedAt, UpdatedAt FROM Markers WHERE MarkerID = ?`
+	err = database.DB.QueryRow(selectQuery, marker.MarkerID).Scan(&marker.CreatedAt, &marker.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("fetching created marker: %w", err)
+	}
+
+	return marker, nil
 }
 
-// GetMarker retrieves a single marker by its ID
-func GetMarker(markerID int) (*models.Marker, error) {
-	const query = `SELECT * FROM Markers WHERE MarkerID = ?`
-	var marker models.Marker
-	err := database.DB.Get(&marker, query, markerID)
+// GetMarker retrieves a single marker and its associated photo by the marker's ID
+func GetMarker(markerID int) (*models.MarkerWithPhoto, error) {
+	const query = `
+	SELECT m.*, p.PhotoID, p.PhotoURL, p.UploadedAt 
+	FROM Markers m
+	LEFT JOIN Photos p ON m.MarkerID = p.MarkerID
+	WHERE m.MarkerID = ?`
+
+	var markerWithPhoto models.MarkerWithPhoto
+	err := database.DB.Get(&markerWithPhoto, query, markerID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetching marker with photo: %w", err)
 	}
-	return &marker, nil
+
+	return &markerWithPhoto, nil
 }
 
 // UpdateMarker updates an existing marker's latitude, longitude, and description
