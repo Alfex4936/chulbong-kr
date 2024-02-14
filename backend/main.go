@@ -3,7 +3,8 @@ package main
 import (
 	"chulbong-kr/database"
 	"chulbong-kr/handlers"
-	"fmt"
+	"chulbong-kr/middlewares"
+	"chulbong-kr/services"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -14,8 +15,6 @@ func main() {
 	if err := database.Connect(); err != nil {
 		panic(err)
 	}
-
-	fmt.Println("Connected to MySQL!")
 
 	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
@@ -39,7 +38,19 @@ func main() {
 		markerGroup.Post("/", handlers.CreateMarker)
 		markerGroup.Get("/:id", handlers.GetMarker)
 		markerGroup.Put("/:id", handlers.UpdateMarker)
-		// Add more marker-related routes here
+	}
+
+	userGroup := app.Group("/users")
+	{
+		userGroup.Post("/signup", handlers.SignUpHandler)
+		userGroup.Get("/login", handlers.LoginHandler)
+	}
+
+	apiGroup := app.Group("/api")
+	{
+		apiGroup.Use(middlewares.AuthMiddleware)
+		apiGroup.Get("/", func(c *fiber.Ctx) error { return c.JSON("yo") })
+
 	}
 
 	app.Get("/example-get", handlers.GetExample)
@@ -49,6 +60,8 @@ func main() {
 
 	app.Get("/example/:string/:id", handlers.DynamicRouteExample)
 	app.Get("/example-optional/:param?", handlers.QueryParamsExample)
+
+	services.CronCleanUpToken()
 
 	// Start the Fiber app
 	if err := app.Listen(":9452"); err != nil {
