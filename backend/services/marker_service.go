@@ -1,28 +1,38 @@
 package services
 
 import (
+	"errors"
 	"math"
-	"time"
 
 	"chulbong-kr/database"
 	"chulbong-kr/models"
 )
 
-// CreateMarker creates a new marker in the database
+// CreateMarker creates a new marker in the database after checking for nearby markers
 func CreateMarker(marker *models.Marker) error {
-	const query = `INSERT INTO Markers (UserID, Latitude, Longitude, Description, CreatedAt, UpdatedAt) 
-                   VALUES (?, ?, ?, ?, NOW(), NOW())`
+	// First, check if there is a nearby marker
+	nearby, err := IsMarkerNearby(marker.Latitude, marker.Longitude)
+	if err != nil {
+		return err // Return any error encountered
+	}
+	if nearby {
+		return errors.New("a marker is already nearby")
+	}
+
+	// If no nearby marker, proceed to insert the new marker
+	const query = `INSERT INTO Markers (UserID, Latitude, Longitude, Description) 
+                   VALUES (?, ?, ?, ?)`
 	res, err := database.DB.Exec(query, marker.UserID, marker.Latitude, marker.Longitude, marker.Description)
 	if err != nil {
 		return err
 	}
+
 	id, err := res.LastInsertId()
 	if err != nil {
 		return err
 	}
+
 	marker.MarkerID = int(id)
-	marker.CreatedAt = time.Now()
-	marker.UpdatedAt = time.Now()
 	return nil
 }
 
