@@ -6,7 +6,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
 )
 
 // DB is a global variable to hold the connection to the database.
@@ -14,11 +13,7 @@ import (
 var DB *sqlx.DB
 
 func Connect() error {
-	// Load .env file
-	err := godotenv.Load()
-	if err != nil {
-		return fmt.Errorf("error loading .env file: %v", err)
-	}
+	var err error
 
 	// Get environment variables
 	dbUsername := os.Getenv("DB_USERNAME")

@@ -12,3 +12,9 @@ type Marker struct {
 	CreatedAt   time.Time `json:"createdAt" db:"CreatedAt"`
 	UpdatedAt   time.Time `json:"updatedAt" db:"UpdatedAt"`
 }
+
+// MarkerWithPhoto includes information about the marker and its associated photo.
+type MarkerWithPhoto struct {
+	Marker
+	Photo Photo `json:"photo,omitempty"` // Embedded Photo struct
+}

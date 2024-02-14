@@ -3,6 +3,7 @@ package middlewares
 import (
 	"chulbong-kr/database"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -10,10 +11,18 @@ import (
 
 // AuthMiddleware checks for a valid opaque token in the Authorization header
 func AuthMiddleware(c *fiber.Ctx) error {
-	token := c.Get("Authorization")
-	if token == "" {
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
 	}
+
+	// Split the Authorization header to extract the token
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Authorization header format must be Bearer {token}"})
+	}
+
+	token := parts[1] // The actual token part
 
 	query := `SELECT Email, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?`
 	var email string
@@ -37,6 +46,21 @@ func AuthMiddleware(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token expired"})
 	}
 
-	c.Locals("email", email) // Store email in locals for use in the handler
+	// Fetch UserID and Username based on Email
+	userQuery := `SELECT UserID, Username FROM Users WHERE Email = ?`
+	var userID int
+	var username string
+	err = database.DB.QueryRow(userQuery, email).Scan(&userID, &username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "User not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error fetching user details"})
+	}
+
+	// Store UserID, Username and Email in locals for use in subsequent handlers
+	c.Locals("userID", userID)
+	c.Locals("username", username)
+	c.Locals("email", email)
 	return c.Next()
 }
