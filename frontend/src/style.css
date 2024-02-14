@@ -16,12 +16,22 @@ div {
   box-sizing: border-box;
 }
 
-input {
-  border: 1px solid #444;
-  outline: none;
-  border-radius: 0.2rem;
-  font-family: inherit;
-  padding: 0.3rem;
+p,
+h1,
+h3 {
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  display: inline-block;
+}
+
+ul,
+li {
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }
 
 @font-face {
