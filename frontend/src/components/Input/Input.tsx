@@ -27,6 +27,7 @@ const Input = ({ type, id, placeholder }: Props) => {
         {placeholder}
       </Styled.Placeholder>
       <Styled.Input
+        action={action}
         type={type}
         id={id}
         ref={inputRef}
