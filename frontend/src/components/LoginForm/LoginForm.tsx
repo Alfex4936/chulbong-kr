@@ -1,20 +1,24 @@
 import { Button } from "@mui/material";
 import { useState } from "react";
+import login from "../../api/auth/login";
 import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
 import emailValidate from "../../utils/emailValidate";
 import passwordValidate from "../../utils/passwordValidate";
 import Input from "../Input/Input";
 import * as Styled from "./LoginForm.style";
+import useUserStore from "../../store/useUserStore";
 
 const LoginForm = () => {
   const modalState = useModalStore();
+  const userState = useUserStore();
 
   const emailInput = useInput("");
   const passwordInput = useInput("");
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [loginError, setLoginError] = useState("");
 
   const handleSubmit = () => {
     let isValid = true;
@@ -40,10 +44,28 @@ const LoginForm = () => {
     }
 
     if (isValid) {
-      console.log({
-        email: emailInput.value,
-        password: passwordInput.value,
+      login({
+        email: "test2@com",
+        password: "hello",
+      }).then((res) => {
+        if (res === "Invalid email or password") {
+          setLoginError("유요하지 않은 회원 정보입니다.");
+        } else {
+          setLoginError("");
+          userState.setUser(res.data);
+          modalState.close();
+          // console.log(res.data);
+        }
       });
+      // login({
+      //   email: emailInput.value,
+      //   password: passwordInput.value,
+      // }).then((res) => {
+      //   console.log(res);
+      //   if (res === "Invalid email or password") {
+      //     setLoginError("유요하지 않은 회원 정보입니다.");
+      //   }
+      // });
     }
   };
 
@@ -82,6 +104,7 @@ const LoginForm = () => {
         />
         <Styled.ErrorBox>{passwordError}</Styled.ErrorBox>
       </Styled.InputWrap>
+      <Styled.ErrorBox>{loginError}</Styled.ErrorBox>
       <Button
         onClick={handleSubmit}
         sx={{
