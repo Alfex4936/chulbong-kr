@@ -75,7 +75,6 @@ const SignupForm = () => {
         email: emailInput.value,
         password: passwordInput.value,
       }).then((res) => {
-        console.log(res);
         if (res.error && res.error.code === 409) {
           setSigninError("이미 등록된 이메일 입니다.");
         } else if (res.error && res.error.code === 500) {
@@ -84,7 +83,6 @@ const SignupForm = () => {
           toastState.open();
           modalState.close();
           modalState.openLogin();
-          console.log("성공");
         }
       });
     }
