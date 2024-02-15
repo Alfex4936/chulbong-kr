@@ -1,16 +1,16 @@
-import { useRef, useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import * as Styled from "./Input.style";
-import useInput from "../../hooks/useInput";
 
 interface Props {
   id: string;
   type: "text" | "email" | "password";
   placeholder: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
-const Input = ({ type, id, placeholder }: Props) => {
+const Input = ({ type, id, placeholder, value, onChange }: Props) => {
   const [action, setAction] = useState(0);
-  const input = useInput("");
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -31,13 +31,13 @@ const Input = ({ type, id, placeholder }: Props) => {
         type={type}
         id={id}
         ref={inputRef}
-        value={input.value}
-        onChange={input.onChange}
+        value={value}
+        onChange={onChange}
         onFocus={() => {
           setAction(1);
         }}
         onBlur={() => {
-          if (input.value === "") setAction(0);
+          if (value === "") setAction(0);
         }}
       />
     </Styled.InputWrap>

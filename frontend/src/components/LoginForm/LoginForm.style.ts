@@ -1,9 +1,5 @@
 import styled from "@emotion/styled";
 
-export const HiddenBox = styled.div``;
-
-export const FormWrap = styled.div``;
-
 export const FormTitle = styled.h1`
   margin: 1rem;
 
@@ -47,4 +43,12 @@ export const SigninLinkButton = styled.div`
   font-weight: bold;
 
   color: #333;
+`;
+
+export const ErrorBox = styled.div`
+  text-align: left;
+
+  font-size: 0.7rem;
+
+  color: red;
 `;
