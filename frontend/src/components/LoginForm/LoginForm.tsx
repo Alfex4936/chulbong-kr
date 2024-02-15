@@ -60,7 +60,6 @@ const LoginForm = () => {
   };
 
   const handleClickEmailSignin = () => {
-    console.log("이메일 회원가입 하기");
     modalState.openSignup();
     modalState.closeLogin();
   };

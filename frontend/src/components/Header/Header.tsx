@@ -9,11 +9,9 @@ const Header = () => {
 
   const handleOpen = () => {
     modalState.openLogin();
-    console.log("로그인 클릭");
   };
   const handleLogin = () => {
     userState.resetUser();
-    console.log("로그아웃");
   };
 
   return (
