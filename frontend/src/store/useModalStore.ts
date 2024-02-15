@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-interface BearState {
+interface ModalState {
   loginModal: boolean;
   signupModal: boolean;
   close: VoidFunction;
@@ -10,7 +10,7 @@ interface BearState {
   closeSignup: VoidFunction;
 }
 
-const useModalStore = create<BearState>()((set) => ({
+const useModalStore = create<ModalState>()((set) => ({
   loginModal: false,
   signupModal: false,
   close: () => set({ loginModal: false, signupModal: false }),

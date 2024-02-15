@@ -45,8 +45,8 @@ const LoginForm = () => {
 
     if (isValid) {
       login({
-        email: "test2@com",
-        password: "hello",
+        email: emailInput.value,
+        password: passwordInput.value,
       }).then((res) => {
         if (res === "Invalid email or password") {
           setLoginError("유요하지 않은 회원 정보입니다.");
@@ -54,18 +54,8 @@ const LoginForm = () => {
           setLoginError("");
           userState.setUser(res.data);
           modalState.close();
-          // console.log(res.data);
         }
       });
-      // login({
-      //   email: emailInput.value,
-      //   password: passwordInput.value,
-      // }).then((res) => {
-      //   console.log(res);
-      //   if (res === "Invalid email or password") {
-      //     setLoginError("유요하지 않은 회원 정보입니다.");
-      //   }
-      // });
     }
   };
 

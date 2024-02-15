@@ -2,13 +2,13 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { LoginRes } from "@/api/auth/login";
 
-interface Props {
+interface UserState {
   user: LoginRes;
   setUser: (user: LoginRes) => void;
   resetUser: VoidFunction;
 }
 
-const useUserStore = create<Props>()(
+const useUserStore = create<UserState>()(
   persist(
     (set) => ({
       user: {
