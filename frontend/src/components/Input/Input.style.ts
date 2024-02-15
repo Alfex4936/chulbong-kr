@@ -11,6 +11,8 @@ export const Placeholder = styled.div`
 
   text-align: left;
 
+  color: ${({ action }: { action: number }) =>
+    action === 0 ? "#333" : "#000"};
   font-size: ${({ action }: { action: number }) =>
     action === 0 ? ".9rem" : ".7rem"};
 
@@ -19,7 +21,8 @@ export const Placeholder = styled.div`
 
 export const Input = styled.input`
   border: none;
-  border-bottom: 1px solid #555;
+  border-bottom: ${({ action }: { action: number }) =>
+    action === 0 ? "1px solid #888" : "1px solid #000"};
 
   width: 100%;
 
