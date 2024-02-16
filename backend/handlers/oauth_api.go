@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"chulbong-kr/dto"
 	"chulbong-kr/services"
+	"fmt"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/oauth2"
@@ -43,6 +46,27 @@ func GetGoogleCallbackHandler(conf *oauth2.Config) fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve user profile"})
 		}
 
-		return c.JSON(profile)
+		// Prepare the SignUpRequest for the OAuth2 user
+		signUpReq := dto.SignUpRequest{
+			Email:      profile.Email,
+			Username:   &profile.Name, // Assuming profile.Name is the user's name from Google
+			Provider:   "google",
+			ProviderID: profile.SUB, // The unique ID from Google for the user
+		}
+
+		// Call the SaveUser function to create or find the OAuth2 user
+		user, err := services.SaveUser(&signUpReq)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": fmt.Sprintf("Failed to create or find OAuth user: %v", err)})
+		}
+
+		loginToken, err := services.GenerateAndSaveToken(user.UserID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate login token"})
+		}
+
+		// Respond with the user information or a success message
+		clientAddr := fmt.Sprintf("%s/%s=%s", os.Getenv("CLIENT_ADRR"), os.Getenv("CLIENT_REDIRECT_ENDPOINT"), loginToken)
+		return c.Redirect(clientAddr)
 	}
 }

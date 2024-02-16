@@ -5,12 +5,18 @@ import (
 	"chulbong-kr/handlers"
 	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
+	"fmt"
 	"log"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 func main() {
@@ -20,9 +26,20 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	setTokenExpirationTime()
+
 	// Initialize database connection
 	if err := database.Connect(); err != nil {
 		panic(err)
+	}
+
+	// OAuth2 Configuration
+	conf := &oauth2.Config{
+		ClientID:     os.Getenv("G_CLIENT_ID"),
+		ClientSecret: os.Getenv("G_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("G_REDIRECT"),
+		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
+		Endpoint:     google.Endpoint,
 	}
 
 	// Initialize Fiber app
@@ -45,11 +62,20 @@ func main() {
 	// Setup routes
 	api := app.Group("/api/v1")
 
+	api.Get("/google", handlers.GetGoogleAuthHandler(conf))
+
 	// Authentication routes
 	authGroup := api.Group("/auth")
 	{
 		authGroup.Post("/signup", handlers.SignUpHandler)
 		authGroup.Post("/login", handlers.LoginHandler)
+		authGroup.Get("/google/callback", handlers.GetGoogleCallbackHandler(conf))
+	}
+
+	userGroup := api.Group("/users")
+	{
+		userGroup.Use(middlewares.AuthMiddleware)
+		userGroup.Delete("/me", handlers.DeleteUserHandler)
 	}
 
 	// Marker routes
@@ -62,17 +88,6 @@ func main() {
 		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
 	}
 
-	// Group routes under /api
-	apiGroup := api.Group("/api")
-	{
-		apiGroup.Use(middlewares.AuthMiddleware)
-		apiGroup.Get("/", func(c *fiber.Ctx) error {
-			email := c.Locals("email").(string)
-
-			return c.JSON(email)
-		})
-	}
-
 	app.Get("/example-get", handlers.GetExample)
 	app.Put("/example-put", handlers.PutExample)
 	app.Delete("/example-delete", handlers.DeleteExample)
@@ -83,8 +98,24 @@ func main() {
 	// Cron jobs
 	services.CronCleanUpToken()
 
+	serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))
+
 	// Start the Fiber app
-	if err := app.Listen("0.0.0.0:9452"); err != nil {
+	if err := app.Listen(serverAddr); err != nil {
 		panic(err)
 	}
+}
+
+func setTokenExpirationTime() {
+	// Get the token expiration interval from the environment variable
+	durationStr := os.Getenv("TOKEN_EXPIRATION_INTERVAL")
+
+	// Convert the duration from string to int
+	durationInt, err := strconv.Atoi(durationStr)
+	if err != nil {
+		log.Fatalf("Error converting TOKEN_EXPIRATION_INTERVAL to int: %v", err)
+	}
+
+	// Assign the converted duration to the global variable
+	services.TOKEN_DURATION = time.Duration(durationInt) * time.Hour
 }
