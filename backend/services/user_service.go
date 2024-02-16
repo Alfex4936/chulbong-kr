@@ -75,7 +75,7 @@ func SaveUser(signUpReq *dto.SignUpRequest) (*models.User, error) {
 // Login checks if a user exists with the given email and password.
 func Login(email, password string) (*models.User, error) {
 	user := &models.User{}
-	query := `SELECT UserID, Username, Email, PasswordHash FROM Users WHERE Email = ?`
+	query := `SELECT UserID, Username, Email, PasswordHash, Provider FROM Users WHERE Email = ?`
 	err := database.DB.Get(user, query, email)
 	if err != nil {
 		return nil, err // User not found or db error
