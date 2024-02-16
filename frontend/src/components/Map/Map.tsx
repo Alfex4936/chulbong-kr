@@ -4,6 +4,7 @@ import Fab from "@mui/material/Fab";
 import { useEffect, useRef } from "react";
 import useMap from "../../hooks/useMap";
 import * as Styled from "./Map.style";
+import customMarkerImage from "../../assets/images/cb1.png";
 
 const Map = () => {
   const mapRef = useRef<HTMLDivElement | null>(null);
@@ -11,17 +12,27 @@ const Map = () => {
 
   useEffect(() => {
     if (map) {
+      const imageSize = new window.kakao.maps.Size(60, 69);
+      const imageOption = { offset: new window.kakao.maps.Point(27, 60) };
+
+      const markerImage = new window.kakao.maps.MarkerImage(
+        customMarkerImage,
+        imageSize,
+        imageOption
+      );
+
+      const marker = new window.kakao.maps.Marker({
+        position: map.getCenter(),
+        image: markerImage,
+      });
+
+      marker.setMap(map);
       window.kakao.maps.event.addListener(
         map,
         "click",
         (mouseEvent: KaKaoMapMouseEvent) => {
           const latlng = mouseEvent.latLng;
 
-          const marker = new window.kakao.maps.Marker({
-            position: map.getCenter(),
-          });
-
-          marker.setMap(map);
           marker.setPosition(latlng);
 
           let message = `클릭한 위치의 위도는 ${latlng.getLat()} 이고, `;
@@ -31,7 +42,7 @@ const Map = () => {
         }
       );
     }
-  }, []);
+  }, [map]);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
