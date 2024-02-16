@@ -34,7 +34,9 @@ func SignUpHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	user, err := services.SignUp(&signUpReq)
+	signUpReq.Provider = "website"
+
+	user, err := services.SaveUser(&signUpReq)
 	if err != nil {
 		// Handle the duplicate email error
 		if strings.Contains(err.Error(), "already registered") {
@@ -53,9 +55,14 @@ func LoginHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	user, token, err := services.Login(request.Email, request.Password)
+	user, err := services.Login(request.Email, request.Password)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
+	}
+
+	token, err := services.GenerateAndSaveToken(user.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
 	}
 
 	// Create a response object that includes both the user and the token

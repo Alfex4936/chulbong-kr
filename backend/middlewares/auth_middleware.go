@@ -3,6 +3,7 @@ package middlewares
 import (
 	"chulbong-kr/database"
 	"database/sql"
+	"log"
 	"strings"
 	"time"
 
@@ -24,10 +25,10 @@ func AuthMiddleware(c *fiber.Ctx) error {
 
 	token := parts[1] // The actual token part
 
-	query := `SELECT Email, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?`
-	var email string
+	query := `SELECT UserID, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?`
+	var userID int
 	var expiresAt time.Time
-	err := database.DB.QueryRow(query, token).Scan(&email, &expiresAt)
+	err := database.DB.QueryRow(query, token).Scan(&userID, &expiresAt)
 
 	// Adjust the error check to specifically look for no rows found, indicating an invalid or expired token.
 	if err == sql.ErrNoRows {
@@ -47,10 +48,10 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	}
 
 	// Fetch UserID and Username based on Email
-	userQuery := `SELECT UserID, Username FROM Users WHERE Email = ?`
-	var userID int
+	userQuery := `SELECT Username, Email FROM Users WHERE UserID = ?`
 	var username string
-	err = database.DB.QueryRow(userQuery, email).Scan(&userID, &username)
+	var email string
+	err = database.DB.QueryRow(userQuery, userID).Scan(&username, &email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "User not found"})
@@ -62,5 +63,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	c.Locals("userID", userID)
 	c.Locals("username", username)
 	c.Locals("email", email)
+
+	log.Printf("[DEBUG] Authenticated. %s", email)
 	return c.Next()
 }
