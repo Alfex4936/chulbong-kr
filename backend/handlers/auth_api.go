@@ -4,6 +4,7 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
 	"chulbong-kr/services"
+	"log"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -31,17 +32,19 @@ func PostExample(c *fiber.Ctx) error {
 func SignUpHandler(c *fiber.Ctx) error {
 	var signUpReq dto.SignUpRequest
 	if err := c.BodyParser(&signUpReq); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse JSON, wrong sign up form."})
 	}
 
-	user, err := services.SignUp(&signUpReq)
+	signUpReq.Provider = "website"
+
+	user, err := services.SaveUser(&signUpReq)
 	if err != nil {
 		// Handle the duplicate email error
 		if strings.Contains(err.Error(), "already registered") {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
 		}
 		// For other errors, return a generic error message
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "An error occurred while creating the user"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "An error occurred while creating the user: " + err.Error()})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(user)
@@ -53,9 +56,15 @@ func LoginHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	user, token, err := services.Login(request.Email, request.Password)
+	user, err := services.Login(request.Email, request.Password)
 	if err != nil {
+		log.Printf("Error logging in: %v", err)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
+	}
+
+	token, err := services.GenerateAndSaveToken(user.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
 	}
 
 	// Create a response object that includes both the user and the token
