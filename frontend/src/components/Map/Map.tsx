@@ -11,17 +11,17 @@ const Map = () => {
 
   useEffect(() => {
     if (map) {
+      const marker = new window.kakao.maps.Marker({
+        position: map.getCenter(),
+      });
+
+      marker.setMap(map);
       window.kakao.maps.event.addListener(
         map,
         "click",
         (mouseEvent: KaKaoMapMouseEvent) => {
           const latlng = mouseEvent.latLng;
 
-          const marker = new window.kakao.maps.Marker({
-            position: map.getCenter(),
-          });
-
-          marker.setMap(map);
           marker.setPosition(latlng);
 
           let message = `클릭한 위치의 위도는 ${latlng.getLat()} 이고, `;
@@ -31,7 +31,7 @@ const Map = () => {
         }
       );
     }
-  }, []);
+  }, [map]);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
