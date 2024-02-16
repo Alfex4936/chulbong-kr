@@ -12,10 +12,10 @@ const Map = () => {
 
   useEffect(() => {
     if (map) {
-      var imageSize = new window.kakao.maps.Size(60, 69),
-        imageOption = { offset: new window.kakao.maps.Point(27, 60) };
+      const imageSize = new window.kakao.maps.Size(60, 69);
+      const imageOption = { offset: new window.kakao.maps.Point(27, 60) };
 
-      var markerImage = new window.kakao.maps.MarkerImage(
+      const markerImage = new window.kakao.maps.MarkerImage(
         customMarkerImage,
         imageSize,
         imageOption
