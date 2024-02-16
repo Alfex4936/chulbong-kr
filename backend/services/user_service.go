@@ -4,21 +4,29 @@ import (
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
+	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// SignUp creates a new user with hashed password
-func SignUp(signUpReq *dto.SignUpRequest) (*models.User, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(signUpReq.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, err
+var TOKEN_DURATION time.Duration
+
+// SaveUser creates a new user with hashed password
+func SaveUser(signUpReq *dto.SignUpRequest) (*models.User, error) {
+	var hashedPassword string
+	var err error
+
+	// Hash password only for traditional sign-up
+	if signUpReq.Password != "" {
+		hashedBytes, err := bcrypt.GenerateFromPassword([]byte(signUpReq.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, err
+		}
+		hashedPassword = string(hashedBytes) // Convert the []byte to a string
 	}
 
 	// Generate username from email if not provided
@@ -27,33 +35,25 @@ func SignUp(signUpReq *dto.SignUpRequest) (*models.User, error) {
 		username = *signUpReq.Username
 	} else {
 		emailParts := strings.Split(signUpReq.Email, "@")
-		if len(emailParts) > 0 {
-			username = emailParts[0]
-		}
+		username = emailParts[0]
 	}
 
-	// Check if the username is already taken
+	// Check if the user is already registered
 	var existingUserID int
-	checkQuery := `SELECT UserID FROM Users WHERE Username = ? LIMIT 1`
-	err = database.DB.QueryRow(checkQuery, username).Scan(&existingUserID)
+	checkQuery := `SELECT UserID FROM Users WHERE Email = ? AND (Provider = ? OR Provider IS NULL) LIMIT 1`
+	err = database.DB.QueryRow(checkQuery, signUpReq.Email, signUpReq.Provider).Scan(&existingUserID)
 	if err == nil {
-		return nil, errors.New("username already taken")
+		return nil, fmt.Errorf("user with email %q is already registered", signUpReq.Email)
 	} else if err != sql.ErrNoRows {
-		// Handle unexpected errors
-		return nil, err
+		return nil, err // Handle unexpected errors
 	}
 
-	// Proceed with user creation if the username is not taken
-	query := `INSERT INTO Users (Username, Email, PasswordHash, CreatedAt, UpdatedAt) VALUES (?, ?, ?, NOW(), NOW())`
-	res, err := database.DB.Exec(query, username, signUpReq.Email, string(hashedPassword))
+	// Insert new user into database
+	query := `INSERT INTO Users (Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())`
+	res, err := database.DB.Exec(query, username, signUpReq.Email, hashedPassword, signUpReq.Provider, signUpReq.ProviderID)
 	if err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Check if the error message contains 'Email' to determine it's a duplicate email error
-			if strings.Contains(mysqlErr.Message, "Email") {
-				return nil, fmt.Errorf("%q is already registered", signUpReq.Email)
-			}
-		}
-		return nil, err
+		// Handle potential duplicate error
+		return nil, fmt.Errorf("error registering user: %w", err)
 	}
 
 	userID, err := res.LastInsertId()
@@ -61,47 +61,39 @@ func SignUp(signUpReq *dto.SignUpRequest) (*models.User, error) {
 		return nil, err
 	}
 
-	// Fetch the newly created user from the database
+	// Fetch the newly created user
 	var newUser models.User
-	query = `SELECT UserID, Username, Email, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?`
-	err = database.DB.QueryRow(query, userID).Scan(&newUser.UserID, &newUser.Username, &newUser.Email, &newUser.CreatedAt, &newUser.UpdatedAt)
+	query = `SELECT UserID, Username, Email, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?`
+	err = database.DB.QueryRow(query, userID).Scan(&newUser.UserID, &newUser.Username, &newUser.Email, &newUser.Provider, &newUser.ProviderID, &newUser.CreatedAt, &newUser.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 
-	// Optionally clear the password hash for security before returning
-	// newUser.PasswordHash = ""
-
 	return &newUser, nil
 }
 
-// Login checks if a user exists with the given email and password
-func Login(email, password string) (*models.User, string, error) {
+// Login checks if a user exists with the given email and password.
+func Login(email, password string) (*models.User, error) {
 	user := &models.User{}
-	query := `SELECT UserID, Username, Email, PasswordHash FROM Users WHERE Email = ?`
+	query := `SELECT UserID, Username, Email, PasswordHash, Provider FROM Users WHERE Email = ?`
 	err := database.DB.Get(user, query, email)
 	if err != nil {
-		return nil, "", err
+		return nil, err // User not found or db error
+	}
+
+	// Check if the user was registered through an external provider
+	if user.Provider != "website" {
+		// The user did not register through the website's traditional sign-up process
+		return nil, fmt.Errorf("external provider login not supported here")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
 		// Password does not match
-		return nil, "", err
+		return nil, fmt.Errorf("invalid credentials")
 	}
 
-	token, err := GenerateOpaqueToken()
-	if err != nil {
-		return nil, "", err
-	}
-
-	expiresAt := time.Now().Add(24 * time.Hour) // Token expires in 24 hours
-	err = SaveOrUpdateOpaqueToken(user.Email, token, expiresAt)
-	if err != nil {
-		return nil, "", err
-	}
-
-	return user, token, nil
+	return user, nil
 }
 
 // UpdateUserProfile updates the user's profile information
@@ -118,6 +110,40 @@ func UpdateUserProfile(user *models.User, newPassword string) error {
 	_, err := database.DB.Exec(query, user.Username, user.PasswordHash, user.UserID)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func DeleteUserWithRelatedData(ctx context.Context, userID int) error {
+	// Begin a transaction
+	tx, err := database.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+
+	// Define deletion queries for related tables
+	// Note: Order matters due to foreign key constraints
+	deletionQueries := []string{
+		"DELETE FROM OpaqueTokens WHERE UserID = ?",
+		"DELETE FROM Comments WHERE UserID = ?",
+		"DELETE FROM MarkerLikes WHERE UserID = ?",
+		"DELETE FROM Photos WHERE MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)",
+		"UPDATE Markers SET UserID = NULL WHERE UserID = ?", // Set UserID to NULL for Markers instead of deleting
+		"DELETE FROM Users WHERE UserID = ?",
+	}
+
+	// Execute each deletion query within the transaction
+	for _, query := range deletionQueries {
+		if _, err := tx.ExecContext(ctx, query, userID); err != nil {
+			tx.Rollback() // Attempt to rollback, but don't override the original error
+			return fmt.Errorf("executing deletion query (%s): %w", query, err)
+		}
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
 	}
 
 	return nil

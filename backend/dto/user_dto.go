@@ -3,9 +3,11 @@ package dto
 import "chulbong-kr/models"
 
 type SignUpRequest struct {
-	Username *string `json:"username,omitempty"` // optional
-	Email    string  `json:"email"`
-	Password string  `json:"password"`
+	Username   *string `json:"username,omitempty"` // Optional for traditional, used if provided for OAuth2
+	Email      string  `json:"email"`
+	Password   string  `json:"password,omitempty"`   // Optional, not used for OAuth2 sign-ups
+	Provider   string  `json:"provider,omitempty"`   // e.g., "google", "kakao", empty for traditional sign-ups
+	ProviderID string  `json:"providerId,omitempty"` // Unique ID from the provider, empty for traditional sign-ups
 }
 
 type LoginRequest struct {

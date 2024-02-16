@@ -3,6 +3,7 @@ package services
 import (
 	"chulbong-kr/database"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"time"
 )
@@ -16,14 +17,30 @@ func GenerateOpaqueToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+// GenerateAndSaveToken generates a new token for a user and saves it in the database.
+func GenerateAndSaveToken(userID int) (string, error) {
+	token, err := GenerateOpaqueToken() // a secure, random token.
+	if err != nil {
+		return "", err
+	}
+
+	expiresAt := time.Now().Add(TOKEN_DURATION) // Use the global duration.
+	err = SaveOrUpdateOpaqueToken(userID, token, expiresAt)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
 // SaveOrUpdateOpaqueToken stores a new opaque token in the database
-func SaveOrUpdateOpaqueToken(email, token string, expiresAt time.Time) error {
+func SaveOrUpdateOpaqueToken(userID int, token string, expiresAt time.Time) error {
 	// Attempt to update the token if it exists for the user
 	query := `
-    INSERT INTO OpaqueTokens (Email, OpaqueToken, ExpiresAt) 
+    INSERT INTO OpaqueTokens (UserID, OpaqueToken, ExpiresAt) 
     VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE 
     OpaqueToken=VALUES(OpaqueToken), ExpiresAt=VALUES(ExpiresAt), UpdatedAt=NOW()`
-	_, err := database.DB.Exec(query, email, token, expiresAt)
+	_, err := database.DB.Exec(query, userID, token, expiresAt)
 	return err
 }
 
@@ -31,4 +48,10 @@ func DeleteExpiredTokens() error {
 	query := `DELETE FROM OpaqueTokens WHERE ExpiresAt < NOW()`
 	_, err := database.DB.Exec(query)
 	return err
+}
+
+func GenerateState() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return base64.URLEncoding.EncodeToString(b)
 }
