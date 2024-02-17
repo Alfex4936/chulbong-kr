@@ -18,3 +18,8 @@ type MarkerWithPhoto struct {
 	Marker
 	Photo Photo `json:"photo,omitempty"` // Embedded Photo struct
 }
+
+type MarkerWithPhotos struct {
+	Marker
+	Photos []Photo `json:"photos,omitempty"`
+}

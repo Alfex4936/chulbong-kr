@@ -10,6 +10,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// TODO: Change to cookie authentication
+// c.Cookie(&fiber.Cookie{
+//     Name:     "token",
+//     Value:    "token",
+//     Expires:  time.Now().Add(24 * time.Hour),
+//     HttpOnly: true,
+//     Secure:   true, // if your site uses HTTPS
+//     SameSite: "Lax", // or "Strict" depending on your requirements
+// })
+
 // AuthMiddleware checks for a valid opaque token in the Authorization header
 func AuthMiddleware(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")

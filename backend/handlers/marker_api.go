@@ -110,6 +110,15 @@ func CreateMarkerHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(response)
 }
 
+func GetAllMarkersHandler(c *fiber.Ctx) error {
+	markersWithPhotos, err := services.GetAllMarkers()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(markersWithPhotos)
+}
+
 // GetMarker handler
 func GetMarker(c *fiber.Ctx) error {
 	id, err := strconv.Atoi(c.Params("id"))

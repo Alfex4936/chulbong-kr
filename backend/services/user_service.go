@@ -82,12 +82,12 @@ func Login(email, password string) (*models.User, error) {
 	}
 
 	// Check if the user was registered through an external provider
-	if user.Provider != "website" {
+	if user.Provider.Valid && user.Provider.String != "website" {
 		// The user did not register through the website's traditional sign-up process
 		return nil, fmt.Errorf("external provider login not supported here")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(password))
 	if err != nil {
 		// Password does not match
 		return nil, fmt.Errorf("invalid credentials")
@@ -98,20 +98,26 @@ func Login(email, password string) (*models.User, error) {
 
 // UpdateUserProfile updates the user's profile information
 func UpdateUserProfile(user *models.User, newPassword string) error {
+	// Check if a new password is provided and needs hashing
 	if newPassword != "" {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		hashedBytes, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 		if err != nil {
 			return err
 		}
-		user.PasswordHash = string(hashedPassword)
+		// Update the PasswordHash field to have a valid hashed password string
+		user.PasswordHash = sql.NullString{String: string(hashedBytes), Valid: true}
+	} else if !user.PasswordHash.Valid {
+		// If no new password is provided and the existing password is not valid,
+		// ensure PasswordHash is an empty, valid sql.NullString to avoid SQL null constraint issues.
+		user.PasswordHash = sql.NullString{String: "", Valid: false}
 	}
-
+	// Prepare the SQL query
 	query := `UPDATE Users SET Username = ?, PasswordHash = ?, UpdatedAt = NOW() WHERE UserID = ?`
+	// Execute the query with the user's information
 	_, err := database.DB.Exec(query, user.Username, user.PasswordHash, user.UserID)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 

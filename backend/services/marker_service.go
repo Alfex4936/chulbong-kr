@@ -54,6 +54,37 @@ func CreateMarker(markerDto *dto.MarkerRequest, userId int) (*models.Marker, err
 	return marker, nil
 }
 
+func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
+	// Query to select all markers
+	const markerQuery = `SELECT * FROM Markers`
+
+	// Query to select photos for a marker
+	const photoQuery = `SELECT * FROM Photos WHERE MarkerID = ?`
+
+	// Slice to hold the results
+	var markers []models.Marker
+	err := database.DB.Select(&markers, markerQuery)
+	if err != nil {
+		return nil, fmt.Errorf("fetching markers: %w", err)
+	}
+
+	var markersWithPhotos []models.MarkerWithPhotos
+	for _, marker := range markers {
+		var photos []models.Photo
+		err := database.DB.Select(&photos, photoQuery, marker.MarkerID)
+		if err != nil {
+			return nil, fmt.Errorf("fetching photos for marker %d: %w", marker.MarkerID, err)
+		}
+
+		markersWithPhotos = append(markersWithPhotos, models.MarkerWithPhotos{
+			Marker: marker,
+			Photos: photos,
+		})
+	}
+
+	return markersWithPhotos, nil
+}
+
 // GetMarker retrieves a single marker and its associated photo by the marker's ID
 func GetMarker(markerID int) (*models.MarkerWithPhoto, error) {
 	const query = `
