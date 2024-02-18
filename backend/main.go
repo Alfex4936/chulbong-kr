@@ -27,6 +27,8 @@ func main() {
 	}
 
 	setTokenExpirationTime()
+	services.AWS_REGION = os.Getenv("AWS_REGION")
+	services.S3_BUCKET_NAME = os.Getenv("AWS_BUCKET_NAME")
 
 	// Initialize database connection
 	if err := database.Connect(); err != nil {
@@ -84,8 +86,10 @@ func main() {
 		markerGroup.Use(middlewares.AuthMiddleware)
 		markerGroup.Post("/", handlers.CreateMarkerHandler)
 		markerGroup.Get("/:id", handlers.GetMarker)
+		markerGroup.Get("/", handlers.GetAllMarkersHandler)
 		markerGroup.Put("/:id", handlers.UpdateMarker)
 		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
+		markerGroup.Delete("/:markerID", handlers.DeleteMarkerHandler)
 	}
 
 	app.Get("/example-get", handlers.GetExample)
