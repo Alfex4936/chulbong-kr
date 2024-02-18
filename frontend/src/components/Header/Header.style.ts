@@ -14,7 +14,7 @@ export const HeaderContainer = styled.div`
   width: 100vw;
   height: 60px;
 
-  background-color: #fff;
+  background-color: transparent;
   color: #333;
 
   box-shadow: rgba(50, 50, 93, 0.25) 0px 2px 5px -1px,

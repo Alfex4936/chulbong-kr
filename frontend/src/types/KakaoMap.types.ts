@@ -17,4 +17,5 @@ export interface KakaoMap {
   getCenter: VoidFunction;
   setLevel: (level: number) => void;
   setCenter: (pos: Pos) => void;
+  getLevel: () => number;
 }

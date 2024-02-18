@@ -10,7 +10,7 @@ const Header = () => {
   const handleOpen = () => {
     modalState.openLogin();
   };
-  const handleLogin = () => {
+  const handleLogout = () => {
     userState.resetUser();
   };
 
@@ -22,7 +22,7 @@ const Header = () => {
           로그인/회원가입
         </Button>
       ) : (
-        <Button onClick={handleLogin} sx={{ color: "#333" }}>
+        <Button onClick={handleLogout} sx={{ color: "#333" }}>
           {userState.user.user.username}
         </Button>
       )}
