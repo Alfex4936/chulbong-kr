@@ -7,7 +7,7 @@ import (
 
 // User corresponds to the Users table in the database
 type User struct {
-	UserID       int            `json:"userId" db:"UserID"`
+	UserID       int            `json:"userId" db:"UserID"` // TODO: UUID?
 	Username     string         `json:"username" db:"Username"`
 	Email        string         `json:"email" db:"Email"`
 	PasswordHash sql.NullString `json:"-" db:"PasswordHash"` // Can be empty for OAuth2 users

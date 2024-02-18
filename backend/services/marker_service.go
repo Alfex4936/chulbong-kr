@@ -110,6 +110,65 @@ func UpdateMarker(marker *models.Marker) error {
 	return err
 }
 
+// DeleteMarker deletes a marker and its associated photos from the database and S3.
+func DeleteMarker(userID, markerID int) error {
+	// Start a transaction
+	tx, err := database.DB.Beginx()
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+
+	// Check if the marker belongs to the user
+	var ownerID int
+	const checkOwnerQuery = `SELECT UserID FROM Markers WHERE MarkerID = ?`
+	err = tx.Get(&ownerID, checkOwnerQuery, markerID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("checking marker ownership: %w", err)
+	}
+	if ownerID != userID {
+		tx.Rollback()
+		return fmt.Errorf("user %d is not authorized to delete marker %d", userID, markerID)
+	}
+
+	// fetch photo URLs associated with the marker
+	var photoURLs []string
+	const selectPhotosQuery = `SELECT PhotoURL FROM Photos WHERE MarkerID = ?`
+	err = tx.Select(&photoURLs, selectPhotosQuery, markerID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("fetching photos: %w", err)
+	}
+
+	// Delete associated photos from the database
+	const deletePhotosQuery = `DELETE FROM Photos WHERE MarkerID = ?`
+	if _, err := tx.Exec(deletePhotosQuery, markerID); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("deleting photos: %w", err)
+	}
+
+	// Now delete the marker
+	const deleteMarkerQuery = `DELETE FROM Markers WHERE MarkerID = ?`
+	if _, err := tx.Exec(deleteMarkerQuery, markerID); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("deleting marker: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
+	// After successfully deleting from the database, delete photos from S3
+	for _, photoURL := range photoURLs {
+		if err := DeleteDataFromS3(photoURL); err != nil {
+			return fmt.Errorf("deleting photo from S3: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // meters_per_degree = 40075000 / 360 / 1000
 // IsMarkerNearby checks if there's a marker within 5 meters of the given latitude and longitude
 func IsMarkerNearby(lat, long float64) (bool, error) {
@@ -120,7 +179,7 @@ func IsMarkerNearby(lat, long float64) (bool, error) {
 		return false, err
 	}
 	for _, m := range markers {
-		if distance(lat, long, m.Latitude, m.Longitude) <= 5 {
+		if math.Abs(distance(lat, long, m.Latitude, m.Longitude)-5) < 1 { // allow 1 meter error
 			return true, nil
 		}
 	}

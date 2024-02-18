@@ -148,6 +148,27 @@ func UpdateMarker(c *fiber.Ctx) error {
 	return c.JSON(markerWithPhoto)
 }
 
+// DeleteMarkerHandler handles the HTTP request to delete a marker.
+func DeleteMarkerHandler(c *fiber.Ctx) error {
+	// Auth
+	userID := c.Locals("userID").(int)
+
+	// Get MarkerID from the URL parameter
+	markerIDParam := c.Params("markerID")
+	markerID, err := strconv.Atoi(markerIDParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid marker ID"})
+	}
+
+	// Call the service function to delete the marker, now passing userID as well
+	err = services.DeleteMarker(userID, markerID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete marker: " + err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
 // UploadMarkerPhotoToS3Handler to upload a file to S3
 func UploadMarkerPhotoToS3Handler(c *fiber.Ctx) error {
 	file, err := c.FormFile("file")
