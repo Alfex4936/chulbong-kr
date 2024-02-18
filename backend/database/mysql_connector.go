@@ -9,7 +9,6 @@ import (
 )
 
 // DB is a global variable to hold the connection to the database.
-// It's now of type *sqlx.DB instead of *sql.DB
 var DB *sqlx.DB
 
 func Connect() error {
