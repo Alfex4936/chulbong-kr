@@ -110,6 +110,7 @@ func UpdateMarker(marker *models.Marker) error {
 	return err
 }
 
+// meters_per_degree = 40075000 / 360 / 1000
 // IsMarkerNearby checks if there's a marker within 5 meters of the given latitude and longitude
 func IsMarkerNearby(lat, long float64) (bool, error) {
 	const query = `SELECT Latitude, Longitude FROM Markers`
