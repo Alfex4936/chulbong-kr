@@ -117,7 +117,11 @@ const Map = () => {
       )}
       <Button
         onClick={() => {
-          setOpenForm(true);
+          if (userState.user.token === "") {
+            modalState.openLogin();
+          } else {
+            setOpenForm(true);
+          }
         }}
         sx={{
           position: "absolute",
