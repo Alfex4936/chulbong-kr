@@ -2,12 +2,16 @@ import { Button } from "@mui/material";
 import Input from "../Input/Input";
 import * as Styled from "./AddChinupBarForm.style";
 import useInput from "../../hooks/useInput";
+import UploadImage from "../UploadImage/UploadImage";
 
 const AddChinupBarForm = () => {
   const descriptionValue = useInput("");
   return (
     <form>
       <Styled.FormTitle>위치 등록</Styled.FormTitle>
+
+      <UploadImage />
+
       <Styled.InputWrap>
         <Input
           type="text"

@@ -1,15 +1,24 @@
 import type { KaKaoMapMouseEvent } from "@/types/KakaoMap.types";
+import AddIcon from "@mui/icons-material/Add";
+import GpsOffIcon from "@mui/icons-material/GpsOff";
+import LoginIcon from "@mui/icons-material/Login";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
+import RemoveIcon from "@mui/icons-material/Remove";
 import { Button } from "@mui/material";
-import Fab from "@mui/material/Fab";
 import { useEffect, useRef, useState } from "react";
 import customMarkerImage from "../../assets/images/cb1.png";
 import useMap from "../../hooks/useMap";
+import useModalStore from "../../store/useModalStore";
+import useUserStore from "../../store/useUserStore";
 import AddChinupBarForm from "../AddChinupBarForm/AddChinupBarForm";
+import FloatingButton from "../FloatingButton/FloatingButton";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
 
 const Map = () => {
+  const modalState = useModalStore();
+  const userState = useUserStore();
+
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
 
@@ -74,28 +83,33 @@ const Map = () => {
     }
   };
 
+  const resetCurrentPosition = () => {
+    const moveLatLon = new window.kakao.maps.LatLng(37.566535, 126.9779692);
+    map?.setCenter(moveLatLon);
+  };
+
+  const handleOpen = () => {
+    modalState.openLogin();
+  };
+  const handleLogout = () => {
+    userState.resetUser();
+  };
+
+  const zoomIn = () => {
+    const level = map?.getLevel();
+
+    map?.setLevel((level as number) - 1);
+  };
+
+  const zoomOut = () => {
+    const level = map?.getLevel();
+
+    map?.setLevel((level as number) + 1);
+  };
+
   return (
     <div>
       <Styled.MapContainer ref={mapRef} />
-      <Fab
-        color="secondary"
-        aria-label="locate"
-        onClick={centerMapOnCurrentPosition}
-        sx={{
-          position: "absolute",
-          bottom: 32,
-          right: 32,
-          color: "white",
-          bgcolor: "black",
-          "&:hover": {
-            bgcolor: "gray",
-          },
-          boxShadow: "0px 0px 10px rgba(0, 0, 0, 0.5)",
-          border: "2px solid white",
-        }}
-      >
-        <MyLocationIcon />
-      </Fab>
       {openForm && (
         <BasicModal setState={setOpenForm}>
           <AddChinupBarForm />
@@ -103,7 +117,11 @@ const Map = () => {
       )}
       <Button
         onClick={() => {
-          setOpenForm(true);
+          if (userState.user.token === "") {
+            modalState.openLogin();
+          } else {
+            setOpenForm(true);
+          }
         }}
         sx={{
           position: "absolute",
@@ -132,6 +150,50 @@ const Map = () => {
         </Styled.ExitButton>
         위치 등록하기
       </Button>
+      <FloatingButton
+        text={
+          userState.user.token ? (
+            userState.user.user.email[0].toUpperCase()
+          ) : (
+            <LoginIcon />
+          )
+        }
+        top={20}
+        right={20}
+        shape="circle"
+        tooltip={userState.user.token ? "로그아웃" : "로그인"}
+        onClickFn={userState.user.token ? handleLogout : handleOpen}
+      />
+
+      <FloatingButton
+        text={<MyLocationIcon />}
+        top={200}
+        right={20}
+        tooltip="내 위치"
+        onClickFn={centerMapOnCurrentPosition}
+      />
+      <FloatingButton
+        text={<GpsOffIcon />}
+        top={240}
+        right={20}
+        tooltip="위치 초기화"
+        onClickFn={resetCurrentPosition}
+      />
+
+      <FloatingButton
+        text={<AddIcon />}
+        top={300}
+        right={20}
+        tooltip="확대"
+        onClickFn={zoomIn}
+      />
+      <FloatingButton
+        text={<RemoveIcon />}
+        top={340}
+        right={20}
+        tooltip="축소"
+        onClickFn={zoomOut}
+      />
     </div>
   );
 };

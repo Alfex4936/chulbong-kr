@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { Flip, ToastContainer, toast } from "react-toastify";
-import Header from "./components/Header/Header";
 import LoginForm from "./components/LoginForm/LoginForm";
 import Map from "./components/Map/Map";
 import BasicModal from "./components/Modal/Modal";
@@ -24,7 +23,6 @@ const App = () => {
 
   return (
     <div>
-      <Header />
       <Map />
       {modalState.loginModal && (
         <BasicModal>
