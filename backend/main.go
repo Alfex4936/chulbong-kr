@@ -55,8 +55,11 @@ func main() {
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept",
+		AllowOrigins:     "*",                                           // Allows all origins
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                 // Explicitly list allowed methods
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization", // Explicitly list allowed headers
+		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers",
+		AllowCredentials: true,
 	}))
 
 	app.Use(logger.New())
@@ -84,7 +87,7 @@ func main() {
 	markerGroup := api.Group("/markers")
 	{
 		markerGroup.Use(middlewares.AuthMiddleware)
-		markerGroup.Post("/", handlers.CreateMarkerHandler)
+		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
 		markerGroup.Get("/:id", handlers.GetMarker)
 		markerGroup.Get("/", handlers.GetAllMarkersHandler)
 		markerGroup.Put("/:id", handlers.UpdateMarker)
