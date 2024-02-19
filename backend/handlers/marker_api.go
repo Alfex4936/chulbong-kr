@@ -1,12 +1,9 @@
 package handlers
 
 import (
-	"chulbong-kr/database"
 	"chulbong-kr/dto"
-	"chulbong-kr/models"
 	"chulbong-kr/services"
 	"strconv"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -57,58 +54,108 @@ func QueryParamsExample(c *fiber.Ctx) error {
 	})
 }
 
-// CreateMarker handler
-func CreateMarkerHandler(c *fiber.Ctx) error {
-	// assert the photo has been uploaded first.
-	var markerDto dto.MarkerRequest
+func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
+	// Parse the multipart form
+	form, err := c.MultipartForm()
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to parse form"})
+	}
+
+	// Check if latitude and longitude are provided
+	latValues, latExists := form.Value["latitude"]
+	longValues, longExists := form.Value["longitude"]
+	if !latExists || !longExists || len(latValues[0]) == 0 || len(longValues[0]) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Latitude and longitude are required"})
+	}
+
+	// Convert latitude and longitude to float64
+	latitude, err := strconv.ParseFloat(latValues[0], 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+	}
+	longitude, err := strconv.ParseFloat(longValues[0], 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+
+	// Set default description if it's empty or not provided
+	description := "설명 없음" // Default description
+	if descValues, exists := form.Value["description"]; exists && len(descValues[0]) > 0 {
+		description = descValues[0]
+	}
+
 	userId := c.Locals("userID").(int)
 	username := c.Locals("username").(string)
 
-	if err := c.BodyParser(&markerDto); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	// Construct the marker object from form values
+	markerDto := dto.MarkerRequest{
+		Latitude:    latitude,
+		Longitude:   longitude,
+		Description: description,
 	}
 
-	marker, err := services.CreateMarker(&markerDto, userId)
+	marker, err := services.CreateMarkerWithPhotos(&markerDto, userId, form)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Start a transaction
-	tx, err := database.DB.Begin()
-	if err != nil {
-		return err
-	}
+	marker.Username = username
 
-	// Insert photo
-	photo := &models.Photo{
-		MarkerID:   marker.MarkerID,
-		PhotoURL:   markerDto.PhotoURL,
-		UploadedAt: time.Now(),
-	}
-	photoQuery := `INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())`
-	_, err = tx.Exec(photoQuery, photo.MarkerID, photo.PhotoURL)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Commit transaction
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-
-	// Map the models.Marker to dto.MarkerResponse
-	response := dto.MarkerResponse{
-		MarkerID:    marker.MarkerID,
-		Latitude:    marker.Latitude,
-		Longitude:   marker.Longitude,
-		Description: marker.Description,
-		Username:    username,
-		PhotoURL:    markerDto.PhotoURL,
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(response)
+	return c.Status(fiber.StatusCreated).JSON(marker)
 }
+
+// // CreateMarker handler
+// func CreateMarkerHandler(c *fiber.Ctx) error {
+// 	// assert the photo has been uploaded first.
+// 	var markerDto dto.MarkerRequest
+// 	userId := c.Locals("userID").(int)
+// 	username := c.Locals("username").(string)
+
+// 	if err := c.BodyParser(&markerDto); err != nil {
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+// 	}
+
+// 	marker, err := services.CreateMarker(&markerDto, userId)
+// 	if err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+// 	}
+
+// 	// Start a transaction
+// 	tx, err := database.DB.Begin()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	// Insert photo
+// 	photo := &models.Photo{
+// 		MarkerID:   marker.MarkerID,
+// 		PhotoURL:   markerDto.PhotoURL,
+// 		UploadedAt: time.Now(),
+// 	}
+// 	photoQuery := `INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())`
+// 	_, err = tx.Exec(photoQuery, photo.MarkerID, photo.PhotoURL)
+// 	if err != nil {
+// 		tx.Rollback()
+// 		return err
+// 	}
+
+// 	// Commit transaction
+// 	if err := tx.Commit(); err != nil {
+// 		return err
+// 	}
+
+// 	// Map the models.Marker to dto.MarkerResponse
+// 	response := dto.MarkerResponse{
+// 		MarkerID:    marker.MarkerID,
+// 		Latitude:    marker.Latitude,
+// 		Longitude:   marker.Longitude,
+// 		Description: marker.Description,
+// 		Username:    username,
+// 		PhotoURL:    markerDto.PhotoURL,
+// 	}
+
+// 	return c.Status(fiber.StatusCreated).JSON(response)
+// }
 
 func GetAllMarkersHandler(c *fiber.Ctx) error {
 	markersWithPhotos, err := services.GetAllMarkers()
