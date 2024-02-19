@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"mime/multipart"
 
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
@@ -52,6 +53,63 @@ func CreateMarker(markerDto *dto.MarkerRequest, userId int) (*models.Marker, err
 	}
 
 	return marker, nil
+}
+
+func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
+	// Begin a transaction for database operations
+	tx, err := database.DB.Beginx()
+	if err != nil {
+		return nil, err
+	}
+
+	// Insert the marker into the database
+	const insertQuery = `INSERT INTO Markers (UserID, Latitude, Longitude, Description, CreatedAt, UpdatedAt) 
+                         VALUES (?, ?, ?, ?, NOW(), NOW())`
+
+	res, err := tx.Exec(insertQuery, userID, markerDto.Latitude, markerDto.Longitude, markerDto.Description)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	markerID, _ := res.LastInsertId()
+
+	// Initialize a slice to hold the URLs of the uploaded files
+	var photoURLs []string
+
+	// Process file uploads from the multipart form
+	files := form.File["photos"] // Assuming "photos" is the field name for files
+	for _, file := range files {
+		fileURL, err := UploadFileToS3(file)
+		if err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+
+		photoURLs = append(photoURLs, fileURL)
+
+		// Associate each photo with the marker in database
+		_, err = tx.Exec("INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())", markerID, fileURL)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("could not insert photo record: %w", err)
+		}
+	}
+
+	// Commit the transaction after all operations succeed
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	// Construct and return the response
+	return &dto.MarkerResponse{
+		MarkerID:    int(markerID),
+		Latitude:    markerDto.Latitude,
+		Longitude:   markerDto.Longitude,
+		Description: markerDto.Description,
+		PhotoURLs:   photoURLs,
+	}, nil
 }
 
 func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
