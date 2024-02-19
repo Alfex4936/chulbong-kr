@@ -84,7 +84,7 @@ func main() {
 	markerGroup := api.Group("/markers")
 	{
 		markerGroup.Use(middlewares.AuthMiddleware)
-		markerGroup.Post("/", handlers.CreateMarkerHandler)
+		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
 		markerGroup.Get("/:id", handlers.GetMarker)
 		markerGroup.Get("/", handlers.GetAllMarkersHandler)
 		markerGroup.Put("/:id", handlers.UpdateMarker)
