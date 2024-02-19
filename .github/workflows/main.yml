@@ -1,0 +1,40 @@
+name: Notify Slack on Backend Change
+on:
+  push:
+    paths:
+      - 'backend/**'
+
+jobs:
+  notifySlack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          fields: repo,message,commit,author,action
+          custom_payload: |
+            {
+              "channel": "#백엔드",
+              "username": "GitHub",
+              "text": "A new commit has been pushed to `backend/`: ${{ github.event.head_commit.message }}",
+              "icon_emoji": ":octocat:",
+              "attachments": [{
+                "color": "#42e2f4",
+                "fields": [{
+                    "title": "Commit",
+                    "value": "${{ github.sha }}",
+                    "short": true
+                  },{
+                    "title": "Author",
+                    "value": "${{ github.actor }}",
+                    "short": true
+                  },{
+                    "title": "Message",
+                    "value": "${{ github.event.head_commit.message }}",
+                    "short": false // Setting this to false to ensure the commit message isn't truncated
+                  }]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

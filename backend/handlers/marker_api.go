@@ -231,3 +231,30 @@ func UploadMarkerPhotoToS3Handler(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"url": fileURL})
 }
+
+// DeleteObjectFromS3Handler handles requests to delete objects from S3.
+func DeleteObjectFromS3Handler(c *fiber.Ctx) error {
+	var requestBody struct {
+		ObjectURL string `json:"objectUrl"`
+	}
+	if err := c.BodyParser(&requestBody); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Request body is not valid"})
+	}
+
+	// Ensure the object URL is not empty
+	if requestBody.ObjectURL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Object URL is required"})
+	}
+
+	// Call the service function to delete the object from S3
+	if err := services.DeleteDataFromS3(requestBody.ObjectURL); err != nil {
+		// Determine if the error should be a 404 not found or a 500 internal server error
+		if err.Error() == "object not found" {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Object not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete object from S3"})
+	}
+
+	// Return a success response
+	return c.SendStatus(fiber.StatusNoContent)
+}
