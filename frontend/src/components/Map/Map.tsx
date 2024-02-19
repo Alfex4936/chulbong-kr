@@ -1,4 +1,4 @@
-import type { KaKaoMapMouseEvent } from "@/types/KakaoMap.types";
+import { type KaKaoMapMouseEvent } from "@/types/KakaoMap.types";
 import AddIcon from "@mui/icons-material/Add";
 import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import customMarkerImage from "../../assets/images/cb1.png";
 import useMap from "../../hooks/useMap";
 import useModalStore from "../../store/useModalStore";
+import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import useUserStore from "../../store/useUserStore";
 import AddChinupBarForm from "../AddChinupBarForm/AddChinupBarForm";
 import FloatingButton from "../FloatingButton/FloatingButton";
@@ -18,6 +19,7 @@ import * as Styled from "./Map.style";
 const Map = () => {
   const modalState = useModalStore();
   const userState = useUserStore();
+  const formState = useUploadFormDataStore();
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
@@ -52,10 +54,7 @@ const Map = () => {
 
           marker.setPosition(latlng);
 
-          let message = `클릭한 위치의 위도는 ${latlng.getLat()} 이고, `;
-          message += `경도는 ${latlng.getLng()} 입니다`;
-
-          console.log(message);
+          formState.setPosition(latlng.getLat(), latlng.getLng());
         }
       );
     }

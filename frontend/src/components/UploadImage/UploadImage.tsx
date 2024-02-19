@@ -3,6 +3,7 @@ import * as Styled from "./UploadImage.tyle";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import CameraEnhanceIcon from "@mui/icons-material/CameraEnhance";
 import { Tooltip } from "@mui/material";
+import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 
 interface ImageUploadState {
   file: File | null;
@@ -10,6 +11,8 @@ interface ImageUploadState {
 }
 
 const UploadImage = () => {
+  const formState = useUploadFormDataStore();
+
   const [image, setImage] = useState<ImageUploadState>({
     file: null,
     previewURL: null,
@@ -31,6 +34,8 @@ const UploadImage = () => {
       };
 
       reader.readAsDataURL(file);
+
+      formState.setImageForm(file);
     }
   };
 
