@@ -92,5 +92,6 @@ func DeleteDataFromS3(dataURL string) error {
 		return fmt.Errorf("failed to delete object from S3: %w", err)
 	}
 
+	// Wait until the object is deleted
 	return nil
 }
