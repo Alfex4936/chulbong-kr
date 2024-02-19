@@ -63,11 +63,7 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 	}
 
 	// Insert the marker into the database
-	const insertQuery = `INSERT INTO Markers (UserID, Latitude, Longitude, Description, CreatedAt, UpdatedAt) 
-                         VALUES (?, ?, ?, ?, NOW(), NOW())`
-
-	res, err := tx.Exec(insertQuery, userID, markerDto.Latitude, markerDto.Longitude, markerDto.Description)
-
+	res, err := tx.Exec("INSERT INTO Markers (UserID, Latitude, Longitude, Description, CreatedAt, UpdatedAt)", userID, markerDto.Latitude, markerDto.Longitude, markerDto.Description)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -75,7 +71,12 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 
 	markerID, _ := res.LastInsertId()
 
-	// Initialize a slice to hold the URLs of the uploaded files
+	// Commit the transaction after successfully creating the marker
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	// After successfully creating the marker, process and upload the files
 	var photoURLs []string
 
 	// Process file uploads from the multipart form
@@ -83,17 +84,21 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 	for _, file := range files {
 		fileURL, err := UploadFileToS3(file)
 		if err != nil {
-			tx.Rollback()
-			return nil, err
+			fmt.Printf("Failed to upload file to S3: %v\n", err)
+			continue // Skip this file and continue with the next
 		}
 
 		photoURLs = append(photoURLs, fileURL)
 
-		// Associate each photo with the marker in database
-		_, err = tx.Exec("INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())", markerID, fileURL)
-		if err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("could not insert photo record: %w", err)
+		// Associate each photo with the marker in the database
+		// This operation is separate from the marker creation transaction
+		if _, err := database.DB.Exec("INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())", markerID, fileURL); err != nil {
+			fmt.Printf("Could not insert photo record: %v\n", err)
+
+			// Attempt to delete the uploaded file from S3
+			if delErr := DeleteDataFromS3(fileURL); delErr != nil {
+				fmt.Printf("Also failed to delete the file from S3: %v\n", delErr)
+			}
 		}
 	}
 
