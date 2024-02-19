@@ -55,9 +55,9 @@ func main() {
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "*",                                           // Allows all origins
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                 // Explicitly list allowed methods
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization", // Explicitly list allowed headers
+		AllowOrigins:     "*",                           // Allows all origins
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS", // Explicitly list allowed methods
+		AllowHeaders:     "*",                           // TODO: Allow specific headers
 		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers",
 		AllowCredentials: true,
 	}))
@@ -77,10 +77,12 @@ func main() {
 		authGroup.Get("/google/callback", handlers.GetGoogleCallbackHandler(conf))
 	}
 
+	// User routes
 	userGroup := api.Group("/users")
 	{
 		userGroup.Use(middlewares.AuthMiddleware)
 		userGroup.Delete("/me", handlers.DeleteUserHandler)
+		userGroup.Delete("/s3/objects", handlers.DeleteObjectFromS3Handler)
 	}
 
 	// Marker routes
@@ -104,6 +106,7 @@ func main() {
 
 	// Cron jobs
 	services.CronCleanUpToken()
+	services.StartOrphanedPhotosCleanupCron()
 
 	serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))
 
