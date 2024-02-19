@@ -4,8 +4,8 @@ export type Pos = {
 };
 
 export type LatLngFunctions = {
-  getLat: VoidFunction;
-  getLng: VoidFunction;
+  getLat: () => number;
+  getLng: () => number;
 };
 
 export interface KaKaoMapMouseEvent {
