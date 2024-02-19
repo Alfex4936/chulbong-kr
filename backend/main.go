@@ -26,6 +26,7 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	// Initialize global variables
 	setTokenExpirationTime()
 	services.AWS_REGION = os.Getenv("AWS_REGION")
 	services.S3_BUCKET_NAME = os.Getenv("AWS_BUCKET_NAME")
@@ -95,6 +96,15 @@ func main() {
 		markerGroup.Put("/:id", handlers.UpdateMarker)
 		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
 		markerGroup.Delete("/:markerID", handlers.DeleteMarkerHandler)
+	}
+
+	// Comment routes
+	commentGroup := api.Group("/comments")
+	{
+		commentGroup.Use(middlewares.AuthMiddleware)
+		commentGroup.Post("/", handlers.PostComment)
+		commentGroup.Put("/:commentId", handlers.UpdateComment)
+		commentGroup.Delete("/:commentId", handlers.DeleteComment)
 	}
 
 	app.Get("/example-get", handlers.GetExample)
