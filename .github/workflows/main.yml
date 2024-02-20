@@ -23,7 +23,7 @@ jobs:
                 "color": "#42e2f4",
                 "fields": [{
                     "title": "Commit",
-                    "value": "${{ github.sha }}",
+                    "value": "<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
                     "short": true
                   },{
                     "title": "Author",
