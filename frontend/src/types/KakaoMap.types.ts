@@ -19,3 +19,8 @@ export interface KakaoMap {
   setCenter: (pos: Pos) => void;
   getLevel: () => number;
 }
+
+export interface KakaoMarker {
+  setPosition: (data: Pos & LatLngFunctions) => void;
+  setMap: (data: KakaoMap | null | number) => void;
+}
