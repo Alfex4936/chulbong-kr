@@ -7,6 +7,7 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import { Button } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import customMarkerImage from "../../assets/images/cb1.png";
+import customMarkerImage2 from "../../assets/images/cb2.png";
 import useMap from "../../hooks/useMap";
 import useModalStore from "../../store/useModalStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
@@ -15,6 +16,30 @@ import AddChinupBarForm from "../AddChinupBarForm/AddChinupBarForm";
 import FloatingButton from "../FloatingButton/FloatingButton";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
+import getAllMarker from "../../api/markers/getAllMarker";
+
+interface Photo {
+  photoId: number;
+  markerId: number;
+  photoUrl: string;
+  uploadedAt: string;
+}
+
+interface Marker {
+  markerId: number;
+  userId: number;
+  latitude: number;
+  longitude: number;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  photos: Photo[];
+}
+
+interface Markers {
+  title: string;
+  latlng: () => number;
+}
 
 const Map = () => {
   const modalState = useModalStore();
@@ -27,16 +52,54 @@ const Map = () => {
   const [isMarked, setIsMarked] = useState(false);
   const [openForm, setOpenForm] = useState(false);
 
+  const [markers, setMarkers] = useState<Markers[]>([]);
+
   useEffect(() => {
-    if (map) {
+    getAllMarker()
+      .then((res) => {
+        const newMarkers = res?.data.map((marker: Marker) => {
+          return {
+            title: marker.description,
+            latlng: new window.kakao.maps.LatLng(
+              marker.latitude,
+              marker.longitude
+            ),
+          };
+        });
+
+        setMarkers(newMarkers);
+        console.log(res);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (map && markers.length > 0) {
       const imageSize = new window.kakao.maps.Size(50, 59);
       const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
       const markerImage = new window.kakao.maps.MarkerImage(
-        customMarkerImage,
+        customMarkerImage2,
         imageSize,
         imageOption
       );
+
+      for (var i = 0; i < markers.length; i++) {
+        const markerImage2 = new window.kakao.maps.MarkerImage(
+          customMarkerImage,
+          imageSize,
+          imageOption
+        );
+
+        new window.kakao.maps.Marker({
+          map: map,
+          position: markers[i].latlng,
+          title: markers[i].title,
+          image: markerImage2,
+        });
+      }
 
       const marker = new window.kakao.maps.Marker({
         image: markerImage,
@@ -55,10 +118,11 @@ const Map = () => {
           marker.setPosition(latlng);
 
           formState.setPosition(latlng.getLat(), latlng.getLng());
+          console.log(latlng.getLat(), latlng.getLng());
         }
       );
     }
-  }, [map]);
+  }, [map, markers]);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
