@@ -9,7 +9,7 @@ import (
 
 // PostComment creates a new comment
 func PostComment(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(int) // Extract userID from middleware
+	userID := c.Locals("userID").(int)
 	markerID, _ := strconv.Atoi(c.FormValue("markerId"))
 	commentText := c.FormValue("commentText")
 
