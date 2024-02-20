@@ -52,7 +52,12 @@ func main() {
 		StrictRouting: true,
 		ServerHeader:  "",
 		BodyLimit:     10 * 1024 * 1024, // limit to 10 MB
+		IdleTimeout:   120 * time.Second,
+		ReadTimeout:   10 * time.Second,
+		WriteTimeout:  10 * time.Second,
 	})
+
+	app.Server().MaxConnsPerIP = 100
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
@@ -91,8 +96,9 @@ func main() {
 	{
 		markerGroup.Use(middlewares.AuthMiddleware)
 		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
-		markerGroup.Get("/:id", handlers.GetMarker)
 		markerGroup.Get("/", handlers.GetAllMarkersHandler)
+		markerGroup.Get("", handlers.GetAllMarkersHandler)
+		markerGroup.Get("/:id", handlers.GetMarker)
 		markerGroup.Put("/:id", handlers.UpdateMarker)
 		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
 		markerGroup.Delete("/:markerID", handlers.DeleteMarkerHandler)
