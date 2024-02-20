@@ -1,4 +1,4 @@
-import { type KaKaoMapMouseEvent } from "@/types/KakaoMap.types";
+import type { KaKaoMapMouseEvent, KakaoMarker } from "@/types/KakaoMap.types";
 import AddIcon from "@mui/icons-material/Add";
 import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
@@ -6,6 +6,7 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { Button } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
+import getAllMarker from "../../api/markers/getAllMarker";
 import customMarkerImage from "../../assets/images/cb1.png";
 import customMarkerImage2 from "../../assets/images/cb2.png";
 import useMap from "../../hooks/useMap";
@@ -16,7 +17,6 @@ import AddChinupBarForm from "../AddChinupBarForm/AddChinupBarForm";
 import FloatingButton from "../FloatingButton/FloatingButton";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
-import getAllMarker from "../../api/markers/getAllMarker";
 
 interface Photo {
   photoId: number;
@@ -36,7 +36,7 @@ interface Marker {
   photos: Photo[];
 }
 
-interface Markers {
+export interface Markers {
   title: string;
   latlng: () => number;
 }
@@ -52,31 +52,10 @@ const Map = () => {
   const [isMarked, setIsMarked] = useState(false);
   const [openForm, setOpenForm] = useState(false);
 
-  const [markers, setMarkers] = useState<Markers[]>([]);
+  const [marker, setMarker] = useState<KakaoMarker | null>(null);
 
   useEffect(() => {
-    getAllMarker()
-      .then((res) => {
-        const newMarkers = res?.data.map((marker: Marker) => {
-          return {
-            title: marker.description,
-            latlng: new window.kakao.maps.LatLng(
-              marker.latitude,
-              marker.longitude
-            ),
-          };
-        });
-
-        setMarkers(newMarkers);
-        console.log(res);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-  }, []);
-
-  useEffect(() => {
-    if (map && markers.length > 0) {
+    if (map) {
       const imageSize = new window.kakao.maps.Size(50, 59);
       const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
@@ -86,26 +65,41 @@ const Map = () => {
         imageOption
       );
 
-      for (var i = 0; i < markers.length; i++) {
-        const markerImage2 = new window.kakao.maps.MarkerImage(
-          customMarkerImage,
-          imageSize,
-          imageOption
-        );
+      const markerImage2 = new window.kakao.maps.MarkerImage(
+        customMarkerImage,
+        imageSize,
+        imageOption
+      );
 
-        new window.kakao.maps.Marker({
-          map: map,
-          position: markers[i].latlng,
-          title: markers[i].title,
-          image: markerImage2,
-        });
-      }
-
-      const marker = new window.kakao.maps.Marker({
+      const marker: KakaoMarker = new window.kakao.maps.Marker({
         image: markerImage,
       });
-
       marker.setMap(map);
+      setMarker(marker);
+
+      getAllMarker()
+        .then((res) => {
+          const newMarkers = res?.data.map((marker: Marker) => {
+            return {
+              title: marker.description,
+              latlng: new window.kakao.maps.LatLng(
+                marker.latitude,
+                marker.longitude
+              ),
+            };
+          });
+          for (var i = 0; i < newMarkers.length; i++) {
+            new window.kakao.maps.Marker({
+              map: map,
+              position: newMarkers[i].latlng,
+              title: newMarkers[i].title,
+              image: markerImage2,
+            });
+          }
+        })
+        .catch((error) => {
+          console.log(error);
+        });
 
       window.kakao.maps.event.addListener(
         map,
@@ -119,10 +113,11 @@ const Map = () => {
 
           formState.setPosition(latlng.getLat(), latlng.getLng());
           console.log(latlng.getLat(), latlng.getLng());
+          marker.setMap(map);
         }
       );
     }
-  }, [map, markers]);
+  }, [map]);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
@@ -175,7 +170,12 @@ const Map = () => {
       <Styled.MapContainer ref={mapRef} />
       {openForm && (
         <BasicModal setState={setOpenForm}>
-          <AddChinupBarForm />
+          <AddChinupBarForm
+            setState={setOpenForm}
+            setIsMarked={setIsMarked}
+            map={map}
+            marker={marker}
+          />
         </BasicModal>
       )}
       <Button
@@ -207,6 +207,7 @@ const Map = () => {
           onClick={(e) => {
             e.stopPropagation();
             setIsMarked(false);
+            marker?.setMap(null);
           }}
         >
           X
