@@ -15,6 +15,7 @@ import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import useUserStore from "../../store/useUserStore";
 import AddChinupBarForm from "../AddChinupBarForm/AddChinupBarForm";
 import FloatingButton from "../FloatingButton/FloatingButton";
+import MarkerInfoModal from "../MarkerInfoModal/MarkerInfoModal";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
 
@@ -25,7 +26,7 @@ interface Photo {
   uploadedAt: string;
 }
 
-interface Marker {
+export interface Marker {
   markerId: number;
   userId: number;
   latitude: number;
@@ -33,7 +34,7 @@ interface Marker {
   description: string;
   createdAt: string;
   updatedAt: string;
-  photos: Photo[];
+  photos?: Photo[];
 }
 
 export interface Markers {
@@ -51,6 +52,12 @@ const Map = () => {
 
   const [isMarked, setIsMarked] = useState(false);
   const [openForm, setOpenForm] = useState(false);
+
+  const [markerInfoModal, setMarkerInfoModal] = useState(false);
+
+  const [currentMarkerInfo, setCurrentMarkerInfo] = useState<Marker | null>(
+    null
+  );
 
   const [marker, setMarker] = useState<KakaoMarker | null>(null);
 
@@ -88,19 +95,23 @@ const Map = () => {
               ),
             };
           });
-          for (var i = 0; i < newMarkers.length; i++) {
-            new window.kakao.maps.Marker({
+          for (let i = 0; i < newMarkers.length; i++) {
+            const newMarker = new window.kakao.maps.Marker({
               map: map,
               position: newMarkers[i].latlng,
               title: newMarkers[i].title,
               image: markerImage2,
+            });
+
+            window.kakao.maps.event.addListener(newMarker, "click", () => {
+              setMarkerInfoModal(true);
+              setCurrentMarkerInfo(res?.data[i]);
             });
           }
         })
         .catch((error) => {
           console.log(error);
         });
-
       window.kakao.maps.event.addListener(
         map,
         "click",
@@ -176,6 +187,11 @@ const Map = () => {
             map={map}
             marker={marker}
           />
+        </BasicModal>
+      )}
+      {markerInfoModal && (
+        <BasicModal setState={setMarkerInfoModal}>
+          <MarkerInfoModal currentMarkerInfo={currentMarkerInfo as Marker} />
         </BasicModal>
       )}
       <Button
