@@ -1,24 +1,35 @@
 import { Button } from "@mui/material";
-import Input from "../Input/Input";
-import * as Styled from "./AddChinupBarForm.style";
+import { useState } from "react";
+import setNewMarker from "../../api/markers/setNewMarker";
 import useInput from "../../hooks/useInput";
-import UploadImage from "../UploadImage/UploadImage";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
+import Input from "../Input/Input";
+import UploadImage from "../UploadImage/UploadImage";
+import * as Styled from "./AddChinupBarForm.style";
 
 const AddChinupBarForm = () => {
   const formState = useUploadFormDataStore();
 
   const descriptionValue = useInput("");
 
+  const [error, setError] = useState("");
+
   const handleSubmit = () => {
     const data = {
       description: descriptionValue.value,
-      photoUrl: formState.photoUrl,
+      photos: formState.imageForm as File,
       latitude: formState.latitude,
       longitude: formState.longitude,
     };
+    setNewMarker(data)
+      .then((res) => {
+        console.log(res);
+      })
+      .catch((error) => {
+        console.log(error);
+        setError(error);
+      });
     console.log(data);
-    console.log(formState.imageForm);
   };
 
   return (
@@ -37,7 +48,7 @@ const AddChinupBarForm = () => {
             descriptionValue.onChange(e);
           }}
         />
-        {/* <Styled.ErrorBox>{emailError}</Styled.ErrorBox> */}
+        <Styled.ErrorBox>{error}</Styled.ErrorBox>
       </Styled.InputWrap>
 
       <Button
