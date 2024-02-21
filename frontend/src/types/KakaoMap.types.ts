@@ -4,8 +4,8 @@ export type Pos = {
 };
 
 export type LatLngFunctions = {
-  getLat: VoidFunction;
-  getLng: VoidFunction;
+  getLat: () => number;
+  getLng: () => number;
 };
 
 export interface KaKaoMapMouseEvent {
@@ -18,4 +18,9 @@ export interface KakaoMap {
   setLevel: (level: number) => void;
   setCenter: (pos: Pos) => void;
   getLevel: () => number;
+}
+
+export interface KakaoMarker {
+  setPosition: (data: Pos & LatLngFunctions) => void;
+  setMap: (data: KakaoMap | null | number) => void;
 }

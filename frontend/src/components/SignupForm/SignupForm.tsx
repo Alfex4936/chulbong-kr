@@ -26,6 +26,7 @@ const SignupForm = () => {
 
   useEffect(() => {
     toastState.close();
+    toastState.setToastText("");
   }, []);
 
   const handleSubmit = () => {
@@ -80,6 +81,7 @@ const SignupForm = () => {
         } else if (res.error && res.error.code === 500) {
           setSigninError("서버 에러");
         } else {
+          toastState.setToastText("회원 가입 완료");
           toastState.open();
           modalState.close();
           modalState.openLogin();
