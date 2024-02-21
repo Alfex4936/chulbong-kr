@@ -1,19 +1,33 @@
-# README
+# chulbong-kr
 
-## About
+![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/2f4e8a80-4a25-44a2-8f35-506477823255)
 
-This is the official Wails React template.
+### 프로젝트 소개
+**chulbong-kr**은 공공장소에 있는 턱걸이 바를 찾고 공유하기 위한 커뮤니티 플랫폼입니다. 카카오맵 API를 활용하여 사용자는 가입 및 로그인 후 턱걸이 바의 위치를 마커로 추가할 수 있으며, 사진 한 장과 간단한 설명을 함께 업로드할 수 있습니다. 로그인한 다른 사용자는 해당 마커에 댓글을 남길 수 있어, 정보 공유 및 소통이 용이합니다.
 
-You can configure the project by editing `wails.json`. More information about the project settings can be found
-here: https://wails.io/docs/reference/project-config
+### 기능
+- **회원가입 및 로그인**: 사용자 인증을 위한 기본적인 회원가입 및 로그인 기능.
+- **마커 추가**: 턱걸이 바의 위치를 지도에 마커로 표시. 사진과 간단한 설명을 포함할 수 있음.
+- **댓글 기능**: 로그인한 사용자는 각 마커에 댓글을 남길 수 있어 정보 공유가 가능.
 
-## Live Development
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+### TODO 아이디어
+- **커뮤니티 포럼**: 사용자들이 운동 팁, 턱걸이 바 추천 등을 공유할 수 있는 커뮤니티 공간.
+- **인기 장소 확인**: 사용자들이 자주 방문하는 인기 턱걸이 바 위치 확인 기능.
+- **근처 턱걸이 바 검색**: 사용자의 현재 위치에서 가까운 턱걸이 바를 찾을 수 있는 기능.
+- **사용자 평가 시스템**: 턱걸이 바 이용 후기와 평가를 남길 수 있는 기능.
+- **신고 시스템**: 없어진 턱걸이 바나 잘못된 마커 위치를 신고할 수 있는 기능.
+- **이벤트 및 챌린지**: 사용자들이 참여할 수 있는 운동 관련 이벤트 및 챌린지 개최.
 
-## Building
+### 기술 스택
+- **백엔드**: Go언어 Fiber v2, MySQL, AWS S3, AWS EC2
+- **프론트엔드**: React.js (TypeScript)
 
-To build a redistributable, production mode package, use `wails build`.
+### 시작하기
+프로젝트를 로컬에서 실행하기 위한 간단한 안내입니다.
+
+1. **저장소 복제**: `git clone https://github.com/yourusername/chulbong-kr.git`
+2. **백엔드 설정**: `cd backend` 후 필요한 패키지 설치 및 설정.
+3. **프론트엔드 설정**: `cd frontend` 후 `npm install`을 실행하여 필요한 패키지 설치.
+4. **환경 변수 설정**: `.env` 파일을 생성하고 필요한 환경 변수 설정 (DB 접속 정보, AWS 설정 등).
+5. **서버 실행**: 백엔드 폴더에서 `go run main.go` 실행, 프론트엔드 폴더에서 `npm start` 실행.
