@@ -92,12 +92,11 @@ func main() {
 	}
 
 	// Marker routes
+	api.Get("/markers", handlers.GetAllMarkersHandler)
 	markerGroup := api.Group("/markers")
 	{
 		markerGroup.Use(middlewares.AuthMiddleware)
 		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
-		markerGroup.Get("/", handlers.GetAllMarkersHandler)
-		markerGroup.Get("", handlers.GetAllMarkersHandler)
 		markerGroup.Get("/:id", handlers.GetMarker)
 		markerGroup.Put("/:id", handlers.UpdateMarker)
 		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
