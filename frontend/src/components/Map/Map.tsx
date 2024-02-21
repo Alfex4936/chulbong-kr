@@ -37,6 +37,10 @@ export interface Marker {
   photos?: Photo[];
 }
 
+export interface MarkerInfo extends Marker {
+  index: number;
+}
+
 export interface Markers {
   title: string;
   latlng: () => number;
@@ -53,9 +57,11 @@ const Map = () => {
   const [isMarked, setIsMarked] = useState(false);
   const [openForm, setOpenForm] = useState(false);
 
+  const [markers, setMarkers] = useState<KakaoMarker[]>([]);
+
   const [markerInfoModal, setMarkerInfoModal] = useState(false);
 
-  const [currentMarkerInfo, setCurrentMarkerInfo] = useState<Marker | null>(
+  const [currentMarkerInfo, setCurrentMarkerInfo] = useState<MarkerInfo | null>(
     null
   );
 
@@ -105,7 +111,16 @@ const Map = () => {
 
             window.kakao.maps.event.addListener(newMarker, "click", () => {
               setMarkerInfoModal(true);
-              setCurrentMarkerInfo(res?.data[i]);
+              setCurrentMarkerInfo({
+                ...res?.data[i],
+                index: i,
+              });
+            });
+
+            setMarkers((prev) => {
+              const copy = [...prev];
+              copy.push(newMarker);
+              return copy;
             });
           }
         })
@@ -191,7 +206,11 @@ const Map = () => {
       )}
       {markerInfoModal && (
         <BasicModal setState={setMarkerInfoModal}>
-          <MarkerInfoModal currentMarkerInfo={currentMarkerInfo as Marker} />
+          <MarkerInfoModal
+            currentMarkerInfo={currentMarkerInfo as MarkerInfo}
+            setMarkerInfoModal={setMarkerInfoModal}
+            markers={markers}
+          />
         </BasicModal>
       )}
       <Button

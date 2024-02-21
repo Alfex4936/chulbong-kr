@@ -5,6 +5,9 @@ export const imageWrap = styled.div`
     object-fit: cover;
     background-position: center;
     background-size: cover;
+
+    border-radius: 1rem;
+    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
   }
 `;
 
