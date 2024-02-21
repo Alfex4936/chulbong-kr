@@ -1,8 +1,9 @@
-import { ChangeEvent, useRef, useState } from "react";
-import * as Styled from "./UploadImage.tyle";
-import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import CameraEnhanceIcon from "@mui/icons-material/CameraEnhance";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import { Tooltip } from "@mui/material";
+import { ChangeEvent, useRef, useState } from "react";
+import useUploadFormDataStore from "../../store/useUploadFormDataStore";
+import * as Styled from "./UploadImage.tyle";
 
 interface ImageUploadState {
   file: File | null;
@@ -10,6 +11,8 @@ interface ImageUploadState {
 }
 
 const UploadImage = () => {
+  const formState = useUploadFormDataStore();
+
   const [image, setImage] = useState<ImageUploadState>({
     file: null,
     previewURL: null,
@@ -31,6 +34,8 @@ const UploadImage = () => {
       };
 
       reader.readAsDataURL(file);
+
+      formState.setImageForm(file);
     }
   };
 

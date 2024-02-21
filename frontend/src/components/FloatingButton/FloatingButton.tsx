@@ -80,12 +80,13 @@ const FloatingButton = ({
           borderRadius: shape === "square" ? "3px" : "50%",
 
           "&:hover": {
-            backgroundColor: "#ccc",
+            backgroundColor: "#888",
+            color: "#fff",
           },
         }}
         onClick={onClickFn}
       >
-        <div style={{ color: "#333" }}>{text}</div>
+        <div>{text}</div>
       </IconButton>
     </Tooltip>
   );
