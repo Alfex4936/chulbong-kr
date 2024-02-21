@@ -26,6 +26,7 @@ const MarkerInfoModal = ({
 
   useEffect(() => {
     toastState.close();
+    toastState.setToastText("");
 
     if (currentMarkerInfo.photos) {
       console.log(currentMarkerInfo.photos[0].photoUrl);
@@ -37,6 +38,7 @@ const MarkerInfoModal = ({
   const handleDelete = () => {
     DeleteMarker(currentMarkerInfo.markerId).then((res) => {
       console.log(res);
+      toastState.setToastText("삭제 완료");
       toastState.open();
       markers[currentMarkerInfo.index].setMap(null);
       setMarkerInfoModal(false);

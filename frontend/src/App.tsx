@@ -13,7 +13,7 @@ const App = () => {
   const modalState = useModalStore();
   const toastState = useToastStore();
 
-  const notify = () => toast("회원가입 완료");
+  const notify = () => toast(toastState.toastText);
 
   useEffect(() => {
     if (toastState.isToast) {
