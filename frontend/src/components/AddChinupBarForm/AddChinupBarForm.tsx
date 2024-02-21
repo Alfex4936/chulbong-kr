@@ -6,17 +6,31 @@ import useInput from "../../hooks/useInput";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import Input from "../Input/Input";
+import type { MarkerInfo } from "../Map/Map";
 import UploadImage from "../UploadImage/UploadImage";
 import * as Styled from "./AddChinupBarForm.style";
 
 interface Props {
   setState: React.Dispatch<React.SetStateAction<boolean>>;
   setIsMarked: React.Dispatch<React.SetStateAction<boolean>>;
+  setMarkerInfoModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setCurrentMarkerInfo: React.Dispatch<React.SetStateAction<MarkerInfo | null>>;
+  setMarkers: React.Dispatch<React.SetStateAction<KakaoMarker[]>>;
   map: KakaoMap | null;
+  markers: KakaoMarker[];
   marker: KakaoMarker | null;
 }
 
-const AddChinupBarForm = ({ setState, setIsMarked, map, marker }: Props) => {
+const AddChinupBarForm = ({
+  setState,
+  setIsMarked,
+  setMarkerInfoModal,
+  setCurrentMarkerInfo,
+  setMarkers,
+  map,
+  markers,
+  marker,
+}: Props) => {
   const formState = useUploadFormDataStore();
 
   const descriptionValue = useInput("");
@@ -42,7 +56,7 @@ const AddChinupBarForm = ({ setState, setIsMarked, map, marker }: Props) => {
           imageOption
         );
 
-        new window.kakao.maps.Marker({
+        const newMarker = new window.kakao.maps.Marker({
           map: map,
           position: new window.kakao.maps.LatLng(
             formState.latitude,
@@ -50,6 +64,20 @@ const AddChinupBarForm = ({ setState, setIsMarked, map, marker }: Props) => {
           ),
           title: descriptionValue.value,
           image: markerImage2,
+        });
+
+        window.kakao.maps.event.addListener(newMarker, "click", () => {
+          setMarkerInfoModal(true);
+          setCurrentMarkerInfo({
+            ...res?.data,
+            index: markers.length,
+          });
+        });
+
+        setMarkers((prev) => {
+          const copy = [...prev];
+          copy.push(newMarker);
+          return copy;
         });
 
         setState(false);

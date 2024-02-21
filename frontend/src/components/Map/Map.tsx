@@ -199,6 +199,10 @@ const Map = () => {
           <AddChinupBarForm
             setState={setOpenForm}
             setIsMarked={setIsMarked}
+            setMarkerInfoModal={setMarkerInfoModal}
+            setCurrentMarkerInfo={setCurrentMarkerInfo}
+            setMarkers={setMarkers}
+            markers={markers}
             map={map}
             marker={marker}
           />
