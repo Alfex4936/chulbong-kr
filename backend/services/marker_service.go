@@ -116,30 +116,37 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 }
 
 func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
-	// Query to select all markers
-	const markerQuery = `SELECT * FROM Markers`
+	// Assuming an updated query that joins Markers with Users to select the username as well
+	const markerQuery = `
+	SELECT Markers.*, Users.Username
+	FROM Markers
+	JOIN Users ON Markers.UserID = Users.UserID`
 
 	// Query to select photos for a marker
 	const photoQuery = `SELECT * FROM Photos WHERE MarkerID = ?`
 
-	// Slice to hold the results
-	var markers []models.Marker
-	err := database.DB.Select(&markers, markerQuery)
+	var markersWithUsernames []struct {
+		models.Marker
+		Username string `db:"Username"`
+	}
+	err := database.DB.Select(&markersWithUsernames, markerQuery)
 	if err != nil {
-		return nil, fmt.Errorf("fetching markers: %w", err)
+		return nil, fmt.Errorf("fetching markers with usernames: %w", err)
 	}
 
 	var markersWithPhotos []models.MarkerWithPhotos
-	for _, marker := range markers {
+	for _, markerWithUsername := range markersWithUsernames {
 		var photos []models.Photo
-		err := database.DB.Select(&photos, photoQuery, marker.MarkerID)
+		err := database.DB.Select(&photos, photoQuery, markerWithUsername.MarkerID)
 		if err != nil {
-			return nil, fmt.Errorf("fetching photos for marker %d: %w", marker.MarkerID, err)
+			return nil, fmt.Errorf("fetching photos for marker %d: %w", markerWithUsername.MarkerID, err)
 		}
 
+		// Adding Username to the MarkerWithPhotos
 		markersWithPhotos = append(markersWithPhotos, models.MarkerWithPhotos{
-			Marker: marker,
-			Photos: photos,
+			Marker:   markerWithUsername.Marker, // Marker includes all previous fields
+			Photos:   photos,
+			Username: markerWithUsername.Username, // Include the fetched Username
 		})
 	}
 

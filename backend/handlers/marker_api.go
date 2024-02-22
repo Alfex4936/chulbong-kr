@@ -100,6 +100,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	marker.Username = username
+	marker.UserID = userId
 
 	return c.Status(fiber.StatusCreated).JSON(marker)
 }

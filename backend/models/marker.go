@@ -21,5 +21,6 @@ type MarkerWithPhoto struct {
 
 type MarkerWithPhotos struct {
 	Marker
-	Photos []Photo `json:"photos,omitempty"`
+	Username string  `json:"username,omitempty"`
+	Photos   []Photo `json:"photos,omitempty"`
 }
