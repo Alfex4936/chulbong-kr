@@ -1,6 +1,6 @@
 import * as Styled from "./SignupForm.style";
 import Input from "../Input/Input";
-import { Button } from "@mui/material";
+import { Button, CircularProgress } from "@mui/material";
 import useInput from "../../hooks/useInput";
 import { useEffect, useState } from "react";
 import emailValidate from "../../utils/emailValidate";
@@ -23,6 +23,8 @@ const SignupForm = () => {
   const [passwordError, setPasswordError] = useState("");
   const [verifyPasswordError, setVerifyPasswordError] = useState("");
   const [signinError, setSigninError] = useState("");
+
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     toastState.close();
@@ -71,22 +73,29 @@ const SignupForm = () => {
     }
 
     if (isValid) {
+      setLoading(true);
       signin({
         username: nameInput.value,
         email: emailInput.value,
         password: passwordInput.value,
-      }).then((res) => {
-        if (res.error && res.error.code === 409) {
-          setSigninError("이미 등록된 이메일 입니다.");
-        } else if (res.error && res.error.code === 500) {
-          setSigninError("서버 에러");
-        } else {
-          toastState.setToastText("회원 가입 완료");
-          toastState.open();
-          modalState.close();
-          modalState.openLogin();
-        }
-      });
+      })
+        .then((res) => {
+          if (res.error && res.error.code === 409) {
+            setSigninError("이미 등록된 이메일 입니다.");
+          } else if (res.error && res.error.code === 500) {
+            setSigninError("서버 에러");
+          } else {
+            toastState.setToastText("회원 가입 완료");
+            toastState.open();
+            modalState.close();
+            modalState.openLogin();
+          }
+        })
+        .catch((error) => {
+          setLoading(false);
+          console.log(error);
+          setSigninError("잠시 후 다시 시도해 주세요.");
+        });
     }
   };
 
@@ -151,14 +160,20 @@ const SignupForm = () => {
         sx={{
           color: "#fff",
           width: "100%",
+          height: "40px",
           backgroundColor: "#333",
           margin: "1rem 0",
           "&:hover": {
             backgroundColor: "#555",
           },
         }}
+        disabled={loading}
       >
-        회원가입
+        {loading ? (
+          <CircularProgress size={20} sx={{ color: "#fff" }} />
+        ) : (
+          "회원가입"
+        )}
       </Button>
     </form>
   );

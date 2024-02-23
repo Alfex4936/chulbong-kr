@@ -23,21 +23,7 @@ const signin = async (body: SigninReq): Promise<SigninResponse> => {
 
     return { data: res };
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      console.error(
-        `회원가입 실패: ${error.response.status} - ${error.response.data.error}`
-      );
-
-      return {
-        error: {
-          code: error.response.status,
-          msg: error.response.data.error,
-        },
-      };
-    } else {
-      console.error(`회원가입 실패: ${error}`);
-      return { error: { code: 0, msg: "Unknown error" } };
-    }
+    throw error;
   }
 };
 
