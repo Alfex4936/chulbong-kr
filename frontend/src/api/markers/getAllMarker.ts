@@ -6,13 +6,7 @@ const getAllMarker = async () => {
 
     return res;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      console.error(
-        `마커 불러오기 실패: ${error.response.status} - ${error.response.data.error}`
-      );
-    } else {
-      console.error(`마커 불러오기 실패: ${error}`);
-    }
+    throw error;
   }
 };
 
