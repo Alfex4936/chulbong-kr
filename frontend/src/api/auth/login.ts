@@ -19,7 +19,7 @@ export interface LoginRes {
 const login = async (body: LoginReq) => {
   try {
     const res = await axios.post(
-      `${import.meta.env.VITE_LOCAL_URL}/api/v1/auth/login`,
+      `/api/v1/auth/login`,
       body
     );
 
