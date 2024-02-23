@@ -4,7 +4,7 @@ import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import RemoveIcon from "@mui/icons-material/Remove";
-import { Button } from "@mui/material";
+import { Button, CircularProgress } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import getAllMarker from "../../api/markers/getAllMarker";
 import customMarkerImage from "../../assets/images/cb1.png";
@@ -14,6 +14,7 @@ import useModalStore from "../../store/useModalStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import useUserStore from "../../store/useUserStore";
 import AddChinupBarForm from "../AddChinupBarForm/AddChinupBarForm";
+import BackgroundBlack from "../BackgroundBlack/BackgroundBlack";
 import FloatingButton from "../FloatingButton/FloatingButton";
 import MarkerInfoModal from "../MarkerInfoModal/MarkerInfoModal";
 import BasicModal from "../Modal/Modal";
@@ -67,7 +68,12 @@ const Map = () => {
 
   const [marker, setMarker] = useState<KakaoMarker | null>(null);
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
   useEffect(() => {
+    setLoading(true);
+    setError(false);
     if (map) {
       const imageSize = new window.kakao.maps.Size(50, 59);
       const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
@@ -92,6 +98,7 @@ const Map = () => {
 
       getAllMarker()
         .then((res) => {
+          setError(false);
           const newMarkers = res?.data.map((marker: Marker) => {
             return {
               title: marker.description,
@@ -132,7 +139,11 @@ const Map = () => {
           }
         })
         .catch((error) => {
+          setError(true);
           console.log(error);
+        })
+        .finally(() => {
+          setLoading(false);
         });
       window.kakao.maps.event.addListener(
         map,
@@ -199,6 +210,40 @@ const Map = () => {
   return (
     <div>
       <Styled.MapContainer ref={mapRef} />
+      {loading && (
+        <BackgroundBlack>
+          <CircularProgress
+            size={50}
+            sx={{
+              color: "#fff",
+            }}
+          />
+        </BackgroundBlack>
+      )}
+
+      {!loading && error && (
+        <BasicModal>
+          <div>철봉 마커를 가져오는 데 실패하였습니다.</div>
+          <Button
+            onClick={() => {
+              window.location.reload();
+            }}
+            sx={{
+              color: "#fff",
+              width: "100%",
+              height: "40px",
+              backgroundColor: "#333",
+              marginTop: "1rem",
+              "&:hover": {
+                backgroundColor: "#555",
+              },
+            }}
+          >
+            다시 시도하기
+          </Button>
+        </BasicModal>
+      )}
+
       {openForm && (
         <BasicModal setState={setOpenForm}>
           <AddChinupBarForm
