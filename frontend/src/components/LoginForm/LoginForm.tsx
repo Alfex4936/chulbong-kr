@@ -1,4 +1,4 @@
-import { Button } from "@mui/material";
+import { Button, CircularProgress } from "@mui/material";
 import { useState } from "react";
 import login from "../../api/auth/login";
 import useInput from "../../hooks/useInput";
@@ -19,6 +19,8 @@ const LoginForm = () => {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [loginError, setLoginError] = useState("");
+
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = () => {
     let isValid = true;
@@ -44,18 +46,27 @@ const LoginForm = () => {
     }
 
     if (isValid) {
+      setLoading(true);
       login({
         email: emailInput.value,
         password: passwordInput.value,
-      }).then((res) => {
-        if (res === "Invalid email or password") {
-          setLoginError("유요하지 않은 회원 정보입니다.");
-        } else {
-          setLoginError("");
-          userState.setUser(res.data);
-          modalState.close();
-        }
-      });
+      })
+        .then((res) => {
+          if (res === "Invalid email or password") {
+            setLoginError("유요하지 않은 회원 정보입니다.");
+          } else {
+            setLoginError("");
+            userState.setUser(res.data);
+            modalState.close();
+          }
+        })
+        .catch((error) => {
+          console.log(error);
+          setLoginError("잠시 후 다시 시도해 주세요");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   };
 
@@ -99,14 +110,20 @@ const LoginForm = () => {
         sx={{
           color: "#fff",
           width: "100%",
+          height: "40px",
           backgroundColor: "#333",
           marginTop: "1rem",
           "&:hover": {
             backgroundColor: "#555",
           },
         }}
+        disabled={loading}
       >
-        로그인
+        {loading ? (
+          <CircularProgress size={20} sx={{ color: "#fff" }} />
+        ) : (
+          "로그인"
+        )}
       </Button>
       <Styled.SignupButtonWrap>
         <p>계정이 없으신가요?</p>
