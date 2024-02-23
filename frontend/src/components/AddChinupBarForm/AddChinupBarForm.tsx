@@ -1,4 +1,4 @@
-import { Button } from "@mui/material";
+import { Button, CircularProgress } from "@mui/material";
 import { useState } from "react";
 import setNewMarker from "../../api/markers/setNewMarker";
 import customMarkerImage from "../../assets/images/cb1.png";
@@ -37,6 +37,8 @@ const AddChinupBarForm = ({
 
   const [error, setError] = useState("");
 
+  const [loading, setLoading] = useState(false);
+
   const handleSubmit = () => {
     const data = {
       description: descriptionValue.value,
@@ -44,6 +46,7 @@ const AddChinupBarForm = ({
       latitude: formState.latitude,
       longitude: formState.longitude,
     };
+    setLoading(true);
 
     setNewMarker(data)
       .then((res) => {
@@ -85,11 +88,13 @@ const AddChinupBarForm = ({
         setState(false);
         setIsMarked(false);
         marker?.setMap(null);
-        
       })
       .catch((error) => {
         console.log(error);
         setError(error);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   };
 
@@ -117,14 +122,20 @@ const AddChinupBarForm = ({
         sx={{
           color: "#fff",
           width: "100%",
+          height: "40px",
           backgroundColor: "#333",
           marginTop: "1rem",
           "&:hover": {
             backgroundColor: "#555",
           },
         }}
+        disabled={loading}
       >
-        등록하기
+        {loading ? (
+          <CircularProgress size={20} sx={{ color: "#fff" }} />
+        ) : (
+          "등록하기"
+        )}
       </Button>
     </form>
   );

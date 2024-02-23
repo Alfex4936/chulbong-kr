@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const DeleteMarker = async (id: number) => {
+const deleteMarker = async (id: number) => {
   const token = JSON.parse(localStorage.getItem("user") as string).state.user
     .token;
 
@@ -13,16 +13,8 @@ const DeleteMarker = async (id: number) => {
 
     return res;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      console.error(
-        `삭제 실패: ${error.response.status} - ${error.response.data.error}`
-      );
-
-      return error.response.data.error;
-    } else {
-      console.error(`삭제 실패: ${error}`);
-    }
+    throw error;
   }
 };
 
-export default DeleteMarker;
+export default deleteMarker;

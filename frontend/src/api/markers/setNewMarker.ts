@@ -26,15 +26,7 @@ const setNewMarker = async (multipart: setMarkerReq) => {
 
     return res;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      console.error(
-        `이미지 업로드 실패: ${error.response.status} - ${error.response.data.error}`
-      );
-
-      return error.response.data.error;
-    } else {
-      console.error(`이미지 업로드 실패: ${error}`);
-    }
+    throw error;
   }
 };
 

@@ -1,7 +1,7 @@
 import RemoveIcon from "@mui/icons-material/Remove";
-import { IconButton, Tooltip } from "@mui/material";
-import { useEffect } from "react";
-import DeleteMarker from "../../api/markers/DeleteMarker";
+import { CircularProgress, IconButton, Tooltip } from "@mui/material";
+import { useEffect, useState } from "react";
+import deleteMarker from "../../api/markers/DeleteMarker";
 import noimg from "../../assets/images/noimg.png";
 import useToastStore from "../../store/useToastStore";
 import useUserStore from "../../store/useUserStore";
@@ -24,19 +24,30 @@ const MarkerInfoModal = ({
   const userState = useUserStore();
   const toastState = useToastStore();
 
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     toastState.close();
     toastState.setToastText("");
   }, []);
 
   const handleDelete = () => {
-    DeleteMarker(currentMarkerInfo.markerId).then(() => {
-      toastState.setToastText("삭제 완료");
-      toastState.open();
+    setLoading(true);
+    deleteMarker(currentMarkerInfo.markerId)
+      .then(() => {
+        toastState.setToastText("삭제 완료");
+        toastState.open();
 
-      markers[currentMarkerInfo.index].setMap(null);
-      setMarkerInfoModal(false);
-    });
+        markers[currentMarkerInfo.index].setMap(null);
+        setMarkerInfoModal(false);
+      })
+      .catch((error) => {
+        // 임시(확인용)
+        alert(error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   return (
@@ -52,18 +63,18 @@ const MarkerInfoModal = ({
               right: ".4rem",
             }}
           >
-            <RemoveIcon />
+            {loading ? (
+              <CircularProgress color="inherit" size={20} />
+            ) : (
+              <RemoveIcon />
+            )}
           </IconButton>
         </Tooltip>
       )}
 
       <Styled.imageWrap>
         <img
-          src={
-            currentMarkerInfo.photos
-              ? currentMarkerInfo.photos[0]
-              : noimg
-          }
+          src={currentMarkerInfo.photos ? currentMarkerInfo.photos[0] : noimg}
           alt=""
           width={"90%"}
           height={300}
