@@ -1,7 +1,7 @@
 import RemoveIcon from "@mui/icons-material/Remove";
 import { CircularProgress, IconButton, Tooltip } from "@mui/material";
 import { useEffect, useState } from "react";
-import deleteMarker from "../../api/markers/DeleteMarker";
+import deleteMarker from "../../api/markers/deleteMarker";
 import noimg from "../../assets/images/noimg.png";
 import useToastStore from "../../store/useToastStore";
 import useUserStore from "../../store/useUserStore";
