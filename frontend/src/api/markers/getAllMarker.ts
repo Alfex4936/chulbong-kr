@@ -1,17 +1,9 @@
 import axios from "axios";
 
 const getAllMarker = async () => {
-  const token = JSON.parse(localStorage.getItem("user") as string).state.user
-    .token;
-
   try {
     const res = await axios.get(
-      `${import.meta.env.VITE_LOCAL_URL}/api/v1/markers/`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${import.meta.env.VITE_LOCAL_URL}/api/v1/markers`
     );
 
     return res;
