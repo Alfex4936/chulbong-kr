@@ -19,12 +19,12 @@ import MarkerInfoModal from "../MarkerInfoModal/MarkerInfoModal";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
 
-interface Photo {
-  photoId: number;
-  markerId: number;
-  photoUrl: string;
-  uploadedAt: string;
-}
+// interface Photo {
+//   photoId: number;
+//   markerId: number;
+//   photoUrl: string;
+//   uploadedAt: string;
+// }
 
 export interface Marker {
   markerId: number;
@@ -34,7 +34,7 @@ export interface Marker {
   description: string;
   createdAt: string;
   updatedAt: string;
-  photos?: Photo[];
+  photos?: string[];
 }
 
 export interface MarkerInfo extends Marker {
@@ -101,7 +101,13 @@ const Map = () => {
               ),
             };
           });
+
           for (let i = 0; i < newMarkers.length; i++) {
+            const images = res?.data[i].photos?.map(
+              (photo: { photoUrl: string }) => {
+                return photo.photoUrl;
+              }
+            );
             const newMarker = new window.kakao.maps.Marker({
               map: map,
               position: newMarkers[i].latlng,
@@ -114,6 +120,7 @@ const Map = () => {
               setCurrentMarkerInfo({
                 ...res?.data[i],
                 index: i,
+                photos: images || undefined,
               });
             });
 
@@ -138,7 +145,6 @@ const Map = () => {
           marker.setPosition(latlng);
 
           formState.setPosition(latlng.getLat(), latlng.getLng());
-          console.log(latlng.getLat(), latlng.getLng());
           marker.setMap(map);
         }
       );
@@ -154,7 +160,6 @@ const Map = () => {
             position.coords.longitude
           );
           map.setCenter(moveLatLon);
-          console.log(position.coords.latitude, position.coords.longitude);
         },
         (error) => {
           console.error(error);
