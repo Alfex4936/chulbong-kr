@@ -5,14 +5,11 @@ const DeleteMarker = async (id: number) => {
     .token;
 
   try {
-    const res = await axios.delete(
-      `${import.meta.env.VITE_LOCAL_URL}/api/v1/markers/${id}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const res = await axios.delete(`/api/v1/markers/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     return res;
   } catch (error) {

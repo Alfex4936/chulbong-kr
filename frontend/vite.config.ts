@@ -12,10 +12,9 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/v1": {
-        target: "http://128.134.184.2:9452",
+        target: "http://localhost:9452",
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api\/v1/, '')
       },
     },
   },

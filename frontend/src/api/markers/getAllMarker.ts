@@ -2,9 +2,7 @@ import axios from "axios";
 
 const getAllMarker = async () => {
   try {
-    const res = await axios.get(
-      `${import.meta.env.VITE_LOCAL_URL}/api/v1/markers`
-    );
+    const res = await axios.get(`/api/v1/markers`);
 
     return res;
   } catch (error) {

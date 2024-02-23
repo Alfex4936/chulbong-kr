@@ -18,15 +18,11 @@ const setNewMarker = async (multipart: setMarkerReq) => {
   formData.append("description", multipart.description);
 
   try {
-    const res = await axios.post(
-      `${import.meta.env.VITE_LOCAL_URL}/api/v1/markers/new`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const res = await axios.post(`/api/v1/markers/new`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     return res;
   } catch (error) {
