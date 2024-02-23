@@ -19,10 +19,7 @@ interface SigninResponse {
 
 const signin = async (body: SigninReq): Promise<SigninResponse> => {
   try {
-    const res = await axios.post(
-      `${import.meta.env.VITE_LOCAL_URL}/api/v1/auth/signup`,
-      body
-    );
+    const res = await axios.post(`/api/v1/auth/signup`, body);
 
     return { data: res };
   } catch (error) {
