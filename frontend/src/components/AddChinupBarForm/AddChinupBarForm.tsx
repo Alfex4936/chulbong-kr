@@ -71,6 +71,8 @@ const AddChinupBarForm = ({
           setCurrentMarkerInfo({
             ...res?.data,
             index: markers.length,
+            userId: res?.data.userID,
+            photos: res?.data.photoUrls,
           });
         });
 
@@ -83,8 +85,7 @@ const AddChinupBarForm = ({
         setState(false);
         setIsMarked(false);
         marker?.setMap(null);
-
-        console.log(res);
+        
       })
       .catch((error) => {
         console.log(error);

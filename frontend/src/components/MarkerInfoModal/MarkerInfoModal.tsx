@@ -27,19 +27,13 @@ const MarkerInfoModal = ({
   useEffect(() => {
     toastState.close();
     toastState.setToastText("");
-
-    if (currentMarkerInfo.photos) {
-      console.log(currentMarkerInfo.photos[0].photoUrl);
-    }
-
-    console.log(currentMarkerInfo);
   }, []);
 
   const handleDelete = () => {
-    DeleteMarker(currentMarkerInfo.markerId).then((res) => {
-      console.log(res);
+    DeleteMarker(currentMarkerInfo.markerId).then(() => {
       toastState.setToastText("삭제 완료");
       toastState.open();
+
       markers[currentMarkerInfo.index].setMap(null);
       setMarkerInfoModal(false);
     });
@@ -67,7 +61,7 @@ const MarkerInfoModal = ({
         <img
           src={
             currentMarkerInfo.photos
-              ? currentMarkerInfo.photos[0].photoUrl
+              ? currentMarkerInfo.photos[0]
               : noimg
           }
           alt=""
