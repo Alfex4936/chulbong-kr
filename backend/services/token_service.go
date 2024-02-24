@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"time"
+
+	"github.com/gofiber/fiber"
 )
 
 // GenerateOpaqueToken creates a random token
@@ -54,4 +56,16 @@ func GenerateState() string {
 	b := make([]byte, 16)
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
+}
+
+func GenerateCookie(value string) fiber.Cookie {
+	return fiber.Cookie{
+		Name:     "jwt",
+		Value:    value,                          // The token generated for the user
+		Expires:  time.Now().Add(24 * time.Hour), // Set the cookie to expire in 24 hours
+		HTTPOnly: true,                           // Ensure the cookie is not accessible through client-side scripts
+		Secure:   true,                           // Ensure the cookie is sent over HTTPS
+		SameSite: "Lax",                          // Lax, None, or Strict. Lax is a reasonable default
+		Path:     "/",                            // Scope of the cookie
+	}
 }

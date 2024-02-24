@@ -23,17 +23,25 @@ import (
 // AuthMiddleware checks for a valid opaque token in the Authorization header
 func AuthMiddleware(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
-	if authHeader == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
-	}
 
-	// Split the Authorization header to extract the token
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Authorization header format must be Bearer {token}"})
-	}
+	var token string
 
-	token := parts[1] // The actual token part
+	// Check if the Authorization header is provided
+	if authHeader != "" {
+		// Split the Authorization header to extract the token
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Authorization header format must be Bearer {token}"})
+		}
+		token = parts[1] // The actual token part
+	} else {
+		// If Authorization header is missing, check for the cookie
+		jwtCookie := c.Cookies("jwt")
+		if jwtCookie == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
+		}
+		token = jwtCookie
+	}
 
 	query := `SELECT UserID, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?`
 	var userID int

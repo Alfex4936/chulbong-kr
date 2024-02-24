@@ -72,5 +72,9 @@ func LoginHandler(c *fiber.Ctx) error {
 	response.User = user
 	response.Token = token
 
-	return c.JSON(response) // Return the response object as JSON
+	// Setting the token in a secure cookie
+	cookie := services.GenerateCookie(token)
+	c.Cookie(&cookie)
+
+	return c.JSON(response)
 }
