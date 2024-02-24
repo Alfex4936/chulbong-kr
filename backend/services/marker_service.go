@@ -116,14 +116,11 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 }
 
 func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
-	// Assuming an updated query that joins Markers with Users to select the username as well
+	// a query that joins Markers with Users to select the username as well
 	const markerQuery = `
 	SELECT Markers.*, Users.Username
 	FROM Markers
 	JOIN Users ON Markers.UserID = Users.UserID`
-
-	// Query to select photos for a marker
-	const photoQuery = `SELECT * FROM Photos WHERE MarkerID = ?`
 
 	var markersWithUsernames []struct {
 		models.Marker
@@ -131,22 +128,30 @@ func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
 	}
 	err := database.DB.Select(&markersWithUsernames, markerQuery)
 	if err != nil {
-		return nil, fmt.Errorf("fetching markers with usernames: %w", err)
+		return nil, err
 	}
 
-	var markersWithPhotos []models.MarkerWithPhotos
-	for _, markerWithUsername := range markersWithUsernames {
-		var photos []models.Photo
-		err := database.DB.Select(&photos, photoQuery, markerWithUsername.MarkerID)
-		if err != nil {
-			return nil, fmt.Errorf("fetching photos for marker %d: %w", markerWithUsername.MarkerID, err)
-		}
+	// Fetch all photos at once
+	const photoQuery = `SELECT * FROM Photos`
+	var allPhotos []models.Photo
+	err = database.DB.Select(&allPhotos, photoQuery)
+	if err != nil {
+		return nil, err
+	}
 
-		// Adding Username to the MarkerWithPhotos
+	// Map photos to their markers
+	photoMap := make(map[int][]models.Photo) // markerID to photos
+	for _, photo := range allPhotos {
+		photoMap[photo.MarkerID] = append(photoMap[photo.MarkerID], photo)
+	}
+
+	// Assemble the final structure
+	var markersWithPhotos []models.MarkerWithPhotos
+	for _, marker := range markersWithUsernames {
 		markersWithPhotos = append(markersWithPhotos, models.MarkerWithPhotos{
-			Marker:   markerWithUsername.Marker, // Marker includes all previous fields
-			Photos:   photos,
-			Username: markerWithUsername.Username, // Include the fetched Username
+			Marker:   marker.Marker,
+			Photos:   photoMap[marker.MarkerID],
+			Username: marker.Username,
 		})
 	}
 
