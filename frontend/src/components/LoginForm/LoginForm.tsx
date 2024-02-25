@@ -3,11 +3,11 @@ import { useState } from "react";
 import login from "../../api/auth/login";
 import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
+import useUserStore from "../../store/useUserStore";
 import emailValidate from "../../utils/emailValidate";
 import passwordValidate from "../../utils/passwordValidate";
 import Input from "../Input/Input";
 import * as Styled from "./LoginForm.style";
-import useUserStore from "../../store/useUserStore";
 
 const LoginForm = () => {
   const modalState = useModalStore();
@@ -52,17 +52,13 @@ const LoginForm = () => {
         password: passwordInput.value,
       })
         .then((res) => {
-          if (res === "Invalid email or password") {
-            setLoginError("유요하지 않은 회원 정보입니다.");
-          } else {
-            setLoginError("");
-            userState.setUser(res.data);
-            modalState.close();
-          }
+          setLoginError("");
+          userState.setUser(res);
+          modalState.close();
         })
         .catch((error) => {
           console.log(error);
-          setLoginError("잠시 후 다시 시도해 주세요");
+          setLoginError("유요하지 않은 회원 정보입니다.");
         })
         .finally(() => {
           setLoading(false);

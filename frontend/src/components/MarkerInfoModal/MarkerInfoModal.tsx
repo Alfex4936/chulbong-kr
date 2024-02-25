@@ -43,7 +43,8 @@ const MarkerInfoModal = ({
       })
       .catch((error) => {
         // 임시(확인용)
-        alert(error);
+        console.log(error);
+        alert("삭제 실패 잠시 후 다시 시도해주세요!");
       })
       .finally(() => {
         setLoading(false);

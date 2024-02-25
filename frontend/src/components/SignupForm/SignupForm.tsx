@@ -1,13 +1,13 @@
-import * as Styled from "./SignupForm.style";
-import Input from "../Input/Input";
 import { Button, CircularProgress } from "@mui/material";
-import useInput from "../../hooks/useInput";
 import { useEffect, useState } from "react";
-import emailValidate from "../../utils/emailValidate";
-import passwordValidate from "../../utils/passwordValidate";
 import signin from "../../api/auth/signin";
+import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
+import emailValidate from "../../utils/emailValidate";
+import passwordValidate from "../../utils/passwordValidate";
+import Input from "../Input/Input";
+import * as Styled from "./SignupForm.style";
 
 const SignupForm = () => {
   const modalState = useModalStore();
@@ -79,22 +79,20 @@ const SignupForm = () => {
         email: emailInput.value,
         password: passwordInput.value,
       })
-        .then((res) => {
-          if (res.error && res.error.code === 409) {
-            setSigninError("이미 등록된 이메일 입니다.");
-          } else if (res.error && res.error.code === 500) {
-            setSigninError("서버 에러");
-          } else {
-            toastState.setToastText("회원 가입 완료");
-            toastState.open();
-            modalState.close();
-            modalState.openLogin();
-          }
+        .then(() => {
+          toastState.setToastText("회원 가입 완료");
+          toastState.open();
+          modalState.close();
+          modalState.openLogin();
         })
         .catch((error) => {
           setLoading(false);
+          if (error.response.status === 409) {
+            setSigninError("이미 등록된 회원입니다.");
+          } else {
+            setSigninError("잠시 후 다시 시도해 주세요.");
+          }
           console.log(error);
-          setSigninError("잠시 후 다시 시도해 주세요.");
         });
     }
   };
