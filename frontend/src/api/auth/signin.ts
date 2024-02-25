@@ -1,27 +1,21 @@
-import axios, { AxiosResponse } from "axios";
+import axios from "axios";
+import { User } from "@/types/User.types";
 
-interface SigninReq {
+export interface SigninReq {
   username?: string;
   email: string;
   password: string;
 }
 
-export interface SigninRes {
-  userId: number;
-  username: string;
-  email: string;
+export interface SigninRes extends Omit<User, "username"> {
+  username?: string;
 }
 
-interface SigninResponse {
-  data?: AxiosResponse<SigninRes>;
-  error?: { code: number; msg: string };
-}
-
-const signin = async (body: SigninReq): Promise<SigninResponse> => {
+const signin = async (body: SigninReq): Promise<SigninRes> => {
   try {
     const res = await axios.post(`/api/v1/auth/signup`, body);
 
-    return { data: res };
+    return res.data;
   } catch (error) {
     throw error;
   }

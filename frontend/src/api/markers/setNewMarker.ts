@@ -1,16 +1,20 @@
+import { Marker } from "@/types/Marker.types";
 import axios from "axios";
 
-interface setMarkerReq {
+export interface SetMarkerReq {
   photos: File;
   latitude: number;
   longitude: number;
   description: string;
 }
 
-const setNewMarker = async (multipart: setMarkerReq) => {
+export interface SetMarkerRes
+  extends Omit<Marker, "photos" | "createdAt" | "updatedAt"> {
+  photoUrls?: string[];
+}
+
+const setNewMarker = async (multipart: SetMarkerReq): Promise<SetMarkerRes> => {
   const formData = new FormData();
-  const token = JSON.parse(localStorage.getItem("user") as string).state.user
-    .token;
 
   formData.append("photos", multipart.photos);
   formData.append("latitude", multipart.latitude.toString());
@@ -19,12 +23,10 @@ const setNewMarker = async (multipart: setMarkerReq) => {
 
   try {
     const res = await axios.post(`/api/v1/markers/new`, formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      withCredentials: true,
     });
 
-    return res;
+    return res.data;
   } catch (error) {
     throw error;
   }

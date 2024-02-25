@@ -19,32 +19,11 @@ import FloatingButton from "../FloatingButton/FloatingButton";
 import MarkerInfoModal from "../MarkerInfoModal/MarkerInfoModal";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
+import { Marker, Photo } from "@/types/Marker.types";
 
-// interface Photo {
-//   photoId: number;
-//   markerId: number;
-//   photoUrl: string;
-//   uploadedAt: string;
-// }
-
-export interface Marker {
-  markerId: number;
-  userId: number;
-  latitude: number;
-  longitude: number;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-  photos?: string[];
-}
-
-export interface MarkerInfo extends Marker {
+export interface MarkerInfo extends Omit<Marker, "photos"> {
   index: number;
-}
-
-export interface Markers {
-  title: string;
-  latlng: () => number;
+  photos?: string[];
 }
 
 const Map = () => {
@@ -99,7 +78,7 @@ const Map = () => {
       getAllMarker()
         .then((res) => {
           setError(false);
-          const newMarkers = res?.data.map((marker: Marker) => {
+          const newMarkers = res.map((marker) => {
             return {
               title: marker.description,
               latlng: new window.kakao.maps.LatLng(
@@ -110,11 +89,9 @@ const Map = () => {
           });
 
           for (let i = 0; i < newMarkers.length; i++) {
-            const images = res?.data[i].photos?.map(
-              (photo: { photoUrl: string }) => {
-                return photo.photoUrl;
-              }
-            );
+            const images = res[i].photos?.map((photo: Photo) => {
+              return photo.photoUrl;
+            });
             const newMarker = new window.kakao.maps.Marker({
               map: map,
               position: newMarkers[i].latlng,
@@ -125,7 +102,7 @@ const Map = () => {
             window.kakao.maps.event.addListener(newMarker, "click", () => {
               setMarkerInfoModal(true);
               setCurrentMarkerInfo({
-                ...res?.data[i],
+                ...res[i],
                 index: i,
                 photos: images || undefined,
               });
@@ -145,6 +122,7 @@ const Map = () => {
         .finally(() => {
           setLoading(false);
         });
+
       window.kakao.maps.event.addListener(
         map,
         "click",
