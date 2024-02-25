@@ -1,2 +1,4 @@
 .env
 *.sql
+fly.toml
+Dockerfile

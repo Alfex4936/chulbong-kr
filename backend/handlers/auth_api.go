@@ -73,7 +73,7 @@ func LoginHandler(c *fiber.Ctx) error {
 	response.Token = token
 
 	// Setting the token in a secure cookie
-	cookie := services.GenerateCookie(token)
+	cookie := services.GenerateLoginCookie(token)
 	c.Cookie(&cookie)
 
 	return c.JSON(response)

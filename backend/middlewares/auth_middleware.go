@@ -4,7 +4,6 @@ import (
 	"chulbong-kr/database"
 	"database/sql"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -20,28 +19,28 @@ import (
 //     SameSite: "Lax", // or "Strict" depending on your requirements
 // })
 
+var TOKEN_COOKIE string
+
 // AuthMiddleware checks for a valid opaque token in the Authorization header
 func AuthMiddleware(c *fiber.Ctx) error {
-	authHeader := c.Get("Authorization")
-
-	var token string
-
-	// Check if the Authorization header is provided
-	if authHeader != "" {
-		// Split the Authorization header to extract the token
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Authorization header format must be Bearer {token}"})
-		}
-		token = parts[1] // The actual token part
-	} else {
-		// If Authorization header is missing, check for the cookie
-		jwtCookie := c.Cookies("jwt")
-		if jwtCookie == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
-		}
-		token = jwtCookie
+	// check for the cookie
+	jwtCookie := c.Cookies(TOKEN_COOKIE)
+	if jwtCookie == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
 	}
+	token := jwtCookie
+
+	// // Check if the Authorization header is provided
+	// if authHeader != "" {
+	// 	// Split the Authorization header to extract the token
+	// 	parts := strings.SplitN(authHeader, " ", 2)
+	// 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+	// 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Authorization header format must be Bearer {token}"})
+	// 	}
+	// 	token = parts[1] // The actual token part
+	// } else {
+
+	// }
 
 	query := `SELECT UserID, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?`
 	var userID int
