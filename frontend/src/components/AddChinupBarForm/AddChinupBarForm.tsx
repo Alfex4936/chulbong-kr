@@ -72,11 +72,11 @@ const AddChinupBarForm = ({
         window.kakao.maps.event.addListener(newMarker, "click", () => {
           setMarkerInfoModal(true);
           setCurrentMarkerInfo({
-            ...res?.data,
+            ...res,
             index: markers.length,
-            userId: res?.data.userID,
-            photos: res?.data.photoUrls,
-          });
+            userId: res.userId,
+            photos: res.photoUrls,
+          } as MarkerInfo);
         });
 
         setMarkers((prev) => {
