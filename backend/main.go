@@ -30,6 +30,7 @@ func main() {
 	setTokenExpirationTime()
 	services.AWS_REGION = os.Getenv("AWS_REGION")
 	services.S3_BUCKET_NAME = os.Getenv("AWS_BUCKET_NAME")
+	middlewares.TOKEN_COOKIE = os.Getenv("TOKEN_COOKIE")
 
 	// Initialize database connection
 	if err := database.Connect(); err != nil {

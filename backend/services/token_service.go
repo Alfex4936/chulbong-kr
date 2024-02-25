@@ -2,6 +2,7 @@ package services
 
 import (
 	"chulbong-kr/database"
+	"chulbong-kr/middlewares"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -58,9 +59,9 @@ func GenerateState() string {
 	return base64.URLEncoding.EncodeToString(b)
 }
 
-func GenerateCookie(value string) fiber.Cookie {
+func GenerateLoginCookie(value string) fiber.Cookie {
 	return fiber.Cookie{
-		Name:     "jwt",
+		Name:     middlewares.TOKEN_COOKIE,
 		Value:    value,                          // The token generated for the user
 		Expires:  time.Now().Add(24 * time.Hour), // Set the cookie to expire in 24 hours
 		HTTPOnly: true,                           // Ensure the cookie is not accessible through client-side scripts
