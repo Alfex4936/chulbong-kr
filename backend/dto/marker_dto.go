@@ -14,6 +14,6 @@ type MarkerResponse struct {
 	Longitude   float64  `json:"longitude"`
 	Description string   `json:"description"`
 	Username    string   `json:"username"`
-	UserID      int      `json:"userID"`
+	UserID      int      `json:"userId"`
 	PhotoURLs   []string `json:"photoUrls"`
 }
