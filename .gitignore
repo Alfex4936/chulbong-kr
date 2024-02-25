@@ -1,5 +1,6 @@
 build/bin
 node_modules
 frontend/dist
-
+backend/__pycache__/
+frontend/yarn.lock
 .env
