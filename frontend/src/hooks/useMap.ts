@@ -8,6 +8,7 @@ const useMap = (ref: MutableRefObject<HTMLDivElement | null>) => {
     const options = {
       center: new window.kakao.maps.LatLng(37.566535, 126.9779692),
       level: 5,
+      maxLevel: 12,
     };
 
     const map = new window.kakao.maps.Map(ref.current, options);
