@@ -1,11 +1,13 @@
+import type { MarkerClusterer } from "@/types/Cluster.types";
 import type { KaKaoMapMouseEvent, KakaoMarker } from "@/types/KakaoMap.types";
+import type { Marker } from "@/types/Marker.types";
 import AddIcon from "@mui/icons-material/Add";
 import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { Button, CircularProgress } from "@mui/material";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import getAllMarker from "../../api/markers/getAllMarker";
 import activeMarkerImage from "../../assets/images/cb1.png";
 import pendingMarkerImage from "../../assets/images/cb2.png";
@@ -19,8 +21,6 @@ import FloatingButton from "../FloatingButton/FloatingButton";
 import MarkerInfoModal from "../MarkerInfoModal/MarkerInfoModal";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
-import { Marker, Photo } from "@/types/Marker.types";
-import { MarkerClusterer } from "@/types/Cluster.types";
 
 export interface MarkerInfo extends Omit<Marker, "photos"> {
   index: number;
@@ -35,35 +35,46 @@ const Map = () => {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
 
-  const [isMarked, setIsMarked] = useState(false);
-  const [openForm, setOpenForm] = useState(false);
+  const [isMarked, setIsMarked] = useState(false); // 위치 등록하기 토스트 모달 표시 여부
+  const [openForm, setOpenForm] = useState(false); // 위치 등록 폼 모달 표시 여부
 
-  const [markers, setMarkers] = useState<KakaoMarker[]>([]);
+  const [markers, setMarkers] = useState<KakaoMarker[]>([]); // 실제 화면에 표시되는 마커들
 
-  const [markerInfoModal, setMarkerInfoModal] = useState(false);
+  const [markerInfoModal, setMarkerInfoModal] = useState(false); // 마커 정보 모달 표시 여부
 
   const [currentMarkerInfo, setCurrentMarkerInfo] = useState<MarkerInfo | null>(
     null
-  );
+  ); // 마커 클릭시 표시되는 상세 정보 (클릭하면 변경)
 
-  const [marker, setMarker] = useState<KakaoMarker | null>(null);
+  const [marker, setMarker] = useState<KakaoMarker | null>(null); // 위치 등록 예정인 마커
+
+  const [clusterer, setClusterer] = useState<MarkerClusterer | null>(null); // 클러스터 인스턴스
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const [clusterer, setClusterer] = useState<MarkerClusterer | null>(null);
 
   const imageSize = new window.kakao.maps.Size(50, 59);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
-  const onClick = useCallback((mouseEvent: KaKaoMapMouseEvent) => {
+  useEffect(() => {
+    setLoading(true);
+    setError(false);
+
     if (!map) return;
 
-    const latlng = mouseEvent.latLng;
+    // 클러스터 인스턴스 생성 및 저장
+    const clusterer = new window.kakao.maps.MarkerClusterer({
+      map: map,
+      averageCenter: true,
+      minLevel: 10,
+    });
+    setClusterer(clusterer);
 
-    // Remove existing marker if there is one
-    if (marker) {
-      marker.setMap(null);
-    }
+    const activeMarkerImg = new window.kakao.maps.MarkerImage(
+      activeMarkerImage,
+      imageSize,
+      imageOption
+    );
 
     const pendingMarkerImg = new window.kakao.maps.MarkerImage(
       pendingMarkerImage,
@@ -71,61 +82,25 @@ const Map = () => {
       imageOption
     );
 
+    // 클릭 위치 마커 생성 및 표시
     const clickMarker = new window.kakao.maps.Marker({
-      position: latlng,
-      map: map,
       image: pendingMarkerImg,
     });
-
-    // Update the marker state
+    clickMarker.setMap(map);
+    // 첫 로딩시 화면에서 숨김
+    clickMarker.setVisible(false);
     setMarker(clickMarker);
-    setIsMarked(true); // Indicate that a marker has been placed
-
-    formState.setPosition(latlng.getLat(), latlng.getLng());
-  }, [map, marker, pendingMarkerImage, imageSize, imageOption, setMarker, setIsMarked, formState]);
-
-  // Setting up markers and clusterer
-  useEffect(() => {
-    if (!map) return;
-
-    setLoading(true);
-    setError(false);
-
-    const clusterer = new window.kakao.maps.MarkerClusterer({
-      map: map,
-      averageCenter: true,
-      minLevel: 10,
-    });
-
-    setClusterer(clusterer);
-
-    window.kakao.maps.event.addListener(map, "click", onClick);
-
-    // Cleanup function to remove the event listener
-    return () => {
-      window.kakao.maps.event.removeListener(map, "click", onClick);
-    };
-  }, [map, marker, setIsMarked, setMarker, formState.setPosition]);
-
-  // Fetching and displaying markers
-  useEffect(() => {
-    if (!map || !clusterer) return;
 
     getAllMarker()
       .then((res) => {
         setError(false);
-
-        const activeMarkerImg = new window.kakao.maps.MarkerImage(
-          activeMarkerImage,
-          imageSize,
-          imageOption
-        );
 
         res.forEach((markerData, index) => {
           const markerPosition = new window.kakao.maps.LatLng(
             markerData.latitude,
             markerData.longitude
           );
+
           const newMarker = new window.kakao.maps.Marker({
             map: map,
             position: markerPosition,
@@ -134,18 +109,24 @@ const Map = () => {
           });
 
           window.kakao.maps.event.addListener(newMarker, "click", () => {
-            const images = markerData.photos?.map(photo => photo.photoUrl);
+            const images = markerData.photos?.map((photo) => photo.photoUrl);
+
             setMarkerInfoModal(true);
             setCurrentMarkerInfo({
               ...markerData,
-              photos: images || [],
-              index: index
+              photos: images || undefined,
+              index: index,
             });
+          });
+
+          setMarkers((prev) => {
+            const copy = [...prev];
+            copy.push(newMarker);
+            return copy;
           });
 
           clusterer.addMarker(newMarker);
         });
-
       })
       .catch((error) => {
         setError(true);
@@ -155,11 +136,23 @@ const Map = () => {
         setLoading(false);
       });
 
-    // if (clusterer) { 미작동
-    //   clusterer.redraw();
-    // }
-  }, [map, clusterer, getAllMarker]);
+    window.kakao.maps.event.addListener(
+      map,
+      "click",
+      (mouseEvent: KaKaoMapMouseEvent) => {
+        setIsMarked(true);
 
+        const latlng = mouseEvent.latLng;
+
+        clickMarker.setPosition(latlng);
+
+        clickMarker.setMap(map);
+        clickMarker.setVisible(true);
+
+        formState.setPosition(latlng.getLat(), latlng.getLng());
+      }
+    );
+  }, [map]);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
@@ -254,6 +247,7 @@ const Map = () => {
             markers={markers}
             map={map}
             marker={marker}
+            clusterer={clusterer as MarkerClusterer}
           />
         </BasicModal>
       )}
@@ -296,7 +290,6 @@ const Map = () => {
             e.stopPropagation();
             setIsMarked(false);
             marker?.setMap(null);
-            setMarker(null);
           }}
         >
           X
