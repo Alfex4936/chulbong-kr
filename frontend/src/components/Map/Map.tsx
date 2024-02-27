@@ -5,10 +5,10 @@ import LoginIcon from "@mui/icons-material/Login";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { Button, CircularProgress } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import getAllMarker from "../../api/markers/getAllMarker";
-import customMarkerImage from "../../assets/images/cb1.png";
-import customMarkerImage2 from "../../assets/images/cb2.png";
+import activeMarkerImage from "../../assets/images/cb1.png";
+import pendingMarkerImage from "../../assets/images/cb2.png";
 import useMap from "../../hooks/useMap";
 import useModalStore from "../../store/useModalStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
@@ -20,6 +20,7 @@ import MarkerInfoModal from "../MarkerInfoModal/MarkerInfoModal";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
 import { Marker, Photo } from "@/types/Marker.types";
+import { MarkerClusterer } from "@/types/Cluster.types";
 
 export interface MarkerInfo extends Omit<Marker, "photos"> {
   index: number;
@@ -49,96 +50,116 @@ const Map = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [clusterer, setClusterer] = useState<MarkerClusterer | null>(null);
 
+  const imageSize = new window.kakao.maps.Size(50, 59);
+  const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+  const onClick = useCallback((mouseEvent: KaKaoMapMouseEvent) => {
+    if (!map) return;
+
+    const latlng = mouseEvent.latLng;
+
+    // Remove existing marker if there is one
+    if (marker) {
+      marker.setMap(null);
+    }
+
+    const pendingMarkerImg = new window.kakao.maps.MarkerImage(
+      pendingMarkerImage,
+      imageSize,
+      imageOption
+    );
+
+    const clickMarker = new window.kakao.maps.Marker({
+      position: latlng,
+      map: map,
+      image: pendingMarkerImg,
+    });
+
+    // Update the marker state
+    setMarker(clickMarker);
+    setIsMarked(true); // Indicate that a marker has been placed
+
+    formState.setPosition(latlng.getLat(), latlng.getLng());
+  }, [map, marker, pendingMarkerImage, imageSize, imageOption, setMarker, setIsMarked, formState]);
+
+  // Setting up markers and clusterer
   useEffect(() => {
+    if (!map) return;
+
     setLoading(true);
     setError(false);
-    if (map) {
-      const imageSize = new window.kakao.maps.Size(50, 59);
-      const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
-      const markerImage = new window.kakao.maps.MarkerImage(
-        customMarkerImage2,
-        imageSize,
-        imageOption
-      );
+    const clusterer = new window.kakao.maps.MarkerClusterer({
+      map: map,
+      averageCenter: true,
+      minLevel: 10,
+    });
 
-      const markerImage2 = new window.kakao.maps.MarkerImage(
-        customMarkerImage,
-        imageSize,
-        imageOption
-      );
+    setClusterer(clusterer);
 
-      const marker: KakaoMarker = new window.kakao.maps.Marker({
-        image: markerImage,
-      });
-      marker.setMap(map);
-      setMarker(marker);
+    window.kakao.maps.event.addListener(map, "click", onClick);
 
-      getAllMarker()
-        .then((res) => {
-          setError(false);
-          const newMarkers = res.map((marker) => {
-            return {
-              title: marker.description,
-              latlng: new window.kakao.maps.LatLng(
-                marker.latitude,
-                marker.longitude
-              ),
-            };
+    // Cleanup function to remove the event listener
+    return () => {
+      window.kakao.maps.event.removeListener(map, "click", onClick);
+    };
+  }, [map, marker, setIsMarked, setMarker, formState.setPosition]);
+
+  // Fetching and displaying markers
+  useEffect(() => {
+    if (!map || !clusterer) return;
+
+    getAllMarker()
+      .then((res) => {
+        setError(false);
+
+        const activeMarkerImg = new window.kakao.maps.MarkerImage(
+          activeMarkerImage,
+          imageSize,
+          imageOption
+        );
+
+        res.forEach((markerData, index) => {
+          const markerPosition = new window.kakao.maps.LatLng(
+            markerData.latitude,
+            markerData.longitude
+          );
+          const newMarker = new window.kakao.maps.Marker({
+            map: map,
+            position: markerPosition,
+            title: markerData.description,
+            image: activeMarkerImg,
           });
 
-          for (let i = 0; i < newMarkers.length; i++) {
-            const images = res[i].photos?.map((photo: Photo) => {
-              return photo.photoUrl;
+          window.kakao.maps.event.addListener(newMarker, "click", () => {
+            const images = markerData.photos?.map(photo => photo.photoUrl);
+            setMarkerInfoModal(true);
+            setCurrentMarkerInfo({
+              ...markerData,
+              photos: images || [],
+              index: index
             });
-            const newMarker = new window.kakao.maps.Marker({
-              map: map,
-              position: newMarkers[i].latlng,
-              title: newMarkers[i].title,
-              image: markerImage2,
-            });
+          });
 
-            window.kakao.maps.event.addListener(newMarker, "click", () => {
-              setMarkerInfoModal(true);
-              setCurrentMarkerInfo({
-                ...res[i],
-                index: i,
-                photos: images || undefined,
-              });
-            });
-
-            setMarkers((prev) => {
-              const copy = [...prev];
-              copy.push(newMarker);
-              return copy;
-            });
-          }
-        })
-        .catch((error) => {
-          setError(true);
-          console.log(error);
-        })
-        .finally(() => {
-          setLoading(false);
+          clusterer.addMarker(newMarker);
         });
 
-      window.kakao.maps.event.addListener(
-        map,
-        "click",
-        (mouseEvent: KaKaoMapMouseEvent) => {
-          setIsMarked(true);
+      })
+      .catch((error) => {
+        setError(true);
+        console.error(error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
-          const latlng = mouseEvent.latLng;
+    // if (clusterer) { 미작동
+    //   clusterer.redraw();
+    // }
+  }, [map, clusterer, getAllMarker]);
 
-          marker.setPosition(latlng);
-
-          formState.setPosition(latlng.getLat(), latlng.getLng());
-          marker.setMap(map);
-        }
-      );
-    }
-  }, [map]);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
@@ -275,6 +296,7 @@ const Map = () => {
             e.stopPropagation();
             setIsMarked(false);
             marker?.setMap(null);
+            setMarker(null);
           }}
         >
           X
