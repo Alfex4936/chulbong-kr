@@ -62,9 +62,9 @@ func main() {
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "*",                           // Allows all origins
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS", // Explicitly list allowed methods
-		AllowHeaders:     "*",                           // TODO: Allow specific headers
+		AllowOrigins:     "http://localhost:5173, https://chulbong-kr.vercel.app", // List allowed origins
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                           // Explicitly list allowed methods
+		AllowHeaders:     "*",                                                     // TODO: Allow specific headers
 		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers",
 		AllowCredentials: true,
 	}))
