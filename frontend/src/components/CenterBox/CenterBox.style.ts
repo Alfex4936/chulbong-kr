@@ -10,7 +10,8 @@ export const BlackContainer = styled.div`
 
   z-index: 100;
 
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: ${({ bg }: { bg: "transparent" | "black" }) =>
+    bg === "transparent" ? "transparent" : "rgba(0, 0, 0, 0.6)"};
 `;
 
 export const ChildContainer = styled.div`

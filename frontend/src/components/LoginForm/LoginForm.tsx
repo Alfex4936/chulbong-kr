@@ -1,4 +1,5 @@
-import { Button, CircularProgress } from "@mui/material";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import { useState } from "react";
 import login from "../../api/auth/login";
 import useInput from "../../hooks/useInput";

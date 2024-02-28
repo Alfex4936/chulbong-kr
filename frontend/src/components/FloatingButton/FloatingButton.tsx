@@ -1,4 +1,5 @@
-import { IconButton, Tooltip } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
+import IconButton from "@mui/material/IconButton";
 import { useEffect, useState } from "react";
 
 export interface FloatingProps {

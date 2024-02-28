@@ -1,4 +1,5 @@
-import { Button, ButtonProps } from "@mui/material";
+import { ButtonProps } from "@mui/material";
+import Button from "@mui/material/Button";
 
 interface Props extends ButtonProps {
   bg?: "black" | "gray";

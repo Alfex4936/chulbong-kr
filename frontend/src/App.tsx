@@ -1,13 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Flip, ToastContainer, toast } from "react-toastify";
-import LoginForm from "./components/LoginForm/LoginForm";
 import Map from "./components/Map/Map";
-import BasicModal from "./components/Modal/Modal";
-import SignupForm from "./components/SignupForm/SignupForm";
 import useModalStore from "./store/useModalStore";
 import useToastStore from "./store/useToastStore";
+import Loader from "./components/Loader/Loader";
 
 import "react-toastify/dist/ReactToastify.css";
+
+const LoginForm = lazy(() => import("./components/LoginForm/LoginForm"));
+const SignupForm = lazy(() => import("./components/SignupForm/SignupForm"));
+const BasicModal = lazy(() => import("./components/Modal/Modal"));
 
 const App = () => {
   const modalState = useModalStore();
@@ -25,14 +27,18 @@ const App = () => {
     <div>
       <Map />
       {modalState.loginModal && (
-        <BasicModal>
-          <LoginForm />
-        </BasicModal>
+        <Suspense fallback={<Loader />}>
+          <BasicModal>
+            <LoginForm />
+          </BasicModal>
+        </Suspense>
       )}
       {modalState.signupModal && (
-        <BasicModal>
-          <SignupForm />
-        </BasicModal>
+        <Suspense fallback={<Loader />}>
+          <BasicModal>
+            <SignupForm />
+          </BasicModal>
+        </Suspense>
       )}
 
       <ToastContainer

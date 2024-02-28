@@ -1,6 +1,6 @@
 import CameraEnhanceIcon from "@mui/icons-material/CameraEnhance";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
-import { Tooltip } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
 import { ChangeEvent, useRef, useState } from "react";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import * as Styled from "./UploadImage.tyle";

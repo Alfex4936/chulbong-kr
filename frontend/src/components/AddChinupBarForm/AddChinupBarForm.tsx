@@ -1,7 +1,9 @@
-import { Button, CircularProgress } from "@mui/material";
+import type { MarkerClusterer } from "@/types/Cluster.types";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import { useState } from "react";
 import setNewMarker from "../../api/markers/setNewMarker";
-import customMarkerImage from "../../assets/images/cb1.png";
+import activeMarkerImage from "../../assets/images/cb1.png";
 import useInput from "../../hooks/useInput";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
@@ -19,6 +21,7 @@ interface Props {
   map: KakaoMap | null;
   markers: KakaoMarker[];
   marker: KakaoMarker | null;
+  clusterer: MarkerClusterer;
 }
 
 const AddChinupBarForm = ({
@@ -30,6 +33,7 @@ const AddChinupBarForm = ({
   map,
   markers,
   marker,
+  clusterer,
 }: Props) => {
   const formState = useUploadFormDataStore();
 
@@ -53,8 +57,8 @@ const AddChinupBarForm = ({
         const imageSize = new window.kakao.maps.Size(50, 59);
         const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
-        const markerImage2 = new window.kakao.maps.MarkerImage(
-          customMarkerImage,
+        const activeMarkerImg = new window.kakao.maps.MarkerImage(
+          activeMarkerImage,
           imageSize,
           imageOption
         );
@@ -66,7 +70,7 @@ const AddChinupBarForm = ({
             formState.longitude
           ),
           title: descriptionValue.value,
-          image: markerImage2,
+          image: activeMarkerImg,
         });
 
         window.kakao.maps.event.addListener(newMarker, "click", () => {
@@ -87,11 +91,14 @@ const AddChinupBarForm = ({
 
         setState(false);
         setIsMarked(false);
+
+        clusterer.addMarker(newMarker);
         marker?.setMap(null);
       })
       .catch((error) => {
-        console.log(error);
-        setError(error);
+        if (error.response.status === 401) {
+          setError("로그인 해주세요!");
+        }
       })
       .finally(() => {
         setLoading(false);
