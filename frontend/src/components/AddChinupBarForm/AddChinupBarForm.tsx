@@ -3,7 +3,7 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useState } from "react";
 import setNewMarker from "../../api/markers/setNewMarker";
-import activeMarkerImage from "../../assets/images/cb1.png";
+import activeMarkerImage from "../../assets/images/cb1.webp";
 import useInput from "../../hooks/useInput";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
