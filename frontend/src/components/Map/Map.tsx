@@ -7,7 +7,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { Button, CircularProgress } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import getAllMarker from "../../api/markers/getAllMarker";
 import activeMarkerImage from "../../assets/images/cb1.png";
 import pendingMarkerImage from "../../assets/images/cb2.png";
@@ -15,12 +15,18 @@ import useMap from "../../hooks/useMap";
 import useModalStore from "../../store/useModalStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import useUserStore from "../../store/useUserStore";
-import AddChinupBarForm from "../AddChinupBarForm/AddChinupBarForm";
-import BackgroundBlack from "../BackgroundBlack/BackgroundBlack";
+import CenterBox from "../CenterBox/CenterBox";
 import FloatingButton from "../FloatingButton/FloatingButton";
-import MarkerInfoModal from "../MarkerInfoModal/MarkerInfoModal";
-import BasicModal from "../Modal/Modal";
+import Loader from "../Loader/Loader";
 import * as Styled from "./Map.style";
+
+const AddChinupBarForm = lazy(
+  () => import("../AddChinupBarForm/AddChinupBarForm")
+);
+const MarkerInfoModal = lazy(
+  () => import("../MarkerInfoModal/MarkerInfoModal")
+);
+const BasicModal = lazy(() => import("../Modal/Modal"));
 
 export interface MarkerInfo extends Omit<Marker, "photos"> {
   index: number;
@@ -53,7 +59,7 @@ const Map = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
-  const imageSize = new window.kakao.maps.Size(50, 59);
+  const imageSize = new window.kakao.maps.Size(59, 59);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
   useEffect(() => {
@@ -203,14 +209,14 @@ const Map = () => {
     <div>
       <Styled.MapContainer ref={mapRef} />
       {loading && (
-        <BackgroundBlack>
+        <CenterBox bg="black">
           <CircularProgress
             size={50}
             sx={{
               color: "#fff",
             }}
           />
-        </BackgroundBlack>
+        </CenterBox>
       )}
 
       {!loading && error && (
@@ -237,28 +243,32 @@ const Map = () => {
       )}
 
       {openForm && (
-        <BasicModal setState={setOpenForm}>
-          <AddChinupBarForm
-            setState={setOpenForm}
-            setIsMarked={setIsMarked}
-            setMarkerInfoModal={setMarkerInfoModal}
-            setCurrentMarkerInfo={setCurrentMarkerInfo}
-            setMarkers={setMarkers}
-            markers={markers}
-            map={map}
-            marker={marker}
-            clusterer={clusterer as MarkerClusterer}
-          />
-        </BasicModal>
+        <Suspense fallback={<Loader />}>
+          <BasicModal setState={setOpenForm}>
+            <AddChinupBarForm
+              setState={setOpenForm}
+              setIsMarked={setIsMarked}
+              setMarkerInfoModal={setMarkerInfoModal}
+              setCurrentMarkerInfo={setCurrentMarkerInfo}
+              setMarkers={setMarkers}
+              markers={markers}
+              map={map}
+              marker={marker}
+              clusterer={clusterer as MarkerClusterer}
+            />
+          </BasicModal>
+        </Suspense>
       )}
       {markerInfoModal && (
-        <BasicModal setState={setMarkerInfoModal}>
-          <MarkerInfoModal
-            currentMarkerInfo={currentMarkerInfo as MarkerInfo}
-            setMarkerInfoModal={setMarkerInfoModal}
-            markers={markers}
-          />
-        </BasicModal>
+        <Suspense fallback={<Loader />}>
+          <BasicModal setState={setMarkerInfoModal}>
+            <MarkerInfoModal
+              currentMarkerInfo={currentMarkerInfo as MarkerInfo}
+              setMarkerInfoModal={setMarkerInfoModal}
+              markers={markers}
+            />
+          </BasicModal>
+        </Suspense>
       )}
       <Button
         onClick={() => {
