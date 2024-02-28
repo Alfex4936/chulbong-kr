@@ -1,4 +1,4 @@
-import { CircularProgress } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
 import CenterBox from "../CenterBox/CenterBox";
 
 const Loader = () => {

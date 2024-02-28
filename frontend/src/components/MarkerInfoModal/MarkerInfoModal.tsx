@@ -1,8 +1,10 @@
 import RemoveIcon from "@mui/icons-material/Remove";
-import { CircularProgress, IconButton, Tooltip } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import { useEffect, useState } from "react";
 import deleteMarker from "../../api/markers/deleteMarker";
-import noimg from "../../assets/images/noimg.png";
+import noimg from "../../assets/images/noimg.webp";
 import useToastStore from "../../store/useToastStore";
 import useUserStore from "../../store/useUserStore";
 import type { KakaoMarker } from "../../types/KakaoMap.types";
