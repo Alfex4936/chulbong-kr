@@ -17,8 +17,20 @@ var TOKEN_DURATION time.Duration
 
 // SaveUser creates a new user with hashed password
 func SaveUser(signUpReq *dto.SignUpRequest) (*models.User, error) {
+	// Start a transaction
+	tx, err := database.DB.Beginx()
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure the transaction is rolled back if any step fails
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
 	var hashedPassword string
-	var err error
 
 	// Hash password only for traditional sign-up
 	if signUpReq.Password != "" {
@@ -41,18 +53,17 @@ func SaveUser(signUpReq *dto.SignUpRequest) (*models.User, error) {
 	// Check if the user is already registered
 	var existingUserID int
 	checkQuery := `SELECT UserID FROM Users WHERE Email = ? AND (Provider = ? OR Provider IS NULL) LIMIT 1`
-	err = database.DB.QueryRow(checkQuery, signUpReq.Email, signUpReq.Provider).Scan(&existingUserID)
+	err = tx.QueryRow(checkQuery, signUpReq.Email, signUpReq.Provider).Scan(&existingUserID)
 	if err == nil {
 		return nil, fmt.Errorf("user with email %q is already registered", signUpReq.Email)
 	} else if err != sql.ErrNoRows {
 		return nil, err // Handle unexpected errors
 	}
 
-	// Insert new user into database
+	// Insert new user into the database within the transaction
 	query := `INSERT INTO Users (Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())`
-	res, err := database.DB.Exec(query, username, signUpReq.Email, hashedPassword, signUpReq.Provider, signUpReq.ProviderID)
+	res, err := tx.Exec(query, username, signUpReq.Email, hashedPassword, signUpReq.Provider, signUpReq.ProviderID)
 	if err != nil {
-		// Handle potential duplicate error
 		return nil, fmt.Errorf("error registering user: %w", err)
 	}
 
@@ -64,8 +75,13 @@ func SaveUser(signUpReq *dto.SignUpRequest) (*models.User, error) {
 	// Fetch the newly created user
 	var newUser models.User
 	query = `SELECT UserID, Username, Email, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?`
-	err = database.DB.QueryRow(query, userID).Scan(&newUser.UserID, &newUser.Username, &newUser.Email, &newUser.Provider, &newUser.ProviderID, &newUser.CreatedAt, &newUser.UpdatedAt)
+	err = tx.QueryRowx(query, userID).StructScan(&newUser)
 	if err != nil {
+		return nil, err
+	}
+
+	// Commit the transaction
+	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 
