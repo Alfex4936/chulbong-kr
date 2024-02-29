@@ -1,8 +1,8 @@
-import * as Styled from "./Modal.style";
-import useModalStore from "../../store/useModalStore";
+import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import CloseIcon from "@mui/icons-material/Close";
+import useModalStore from "../../store/useModalStore";
+import * as Styled from "./Modal.style";
 
 interface Props {
   children: React.ReactNode;
@@ -13,14 +13,7 @@ const BasicModal = ({ children, setState }: Props) => {
   const modalState = useModalStore();
 
   return (
-    <Styled.ModalWrap
-      onClick={() => {
-        modalState.close();
-        if (setState) {
-          setState(false);
-        }
-      }}
-    >
+    <Styled.ModalWrap>
       <Styled.Modal
         onClick={(e) => {
           e.stopPropagation();
