@@ -8,36 +8,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// GetExample handler
-func GetExample(c *fiber.Ctx) error {
-	return c.SendString("GET request example")
-}
-
-// PutExample handler
-func PutExample(c *fiber.Ctx) error {
-	return c.SendString("PUT request example")
-}
-
-// DynamicRouteExample handler
-func DynamicRouteExample(c *fiber.Ctx) error {
-	// Capture string and id from the path
-	stringParam := c.Params("string")
-	idParam := c.Params("id")
-
-	// Optionally, convert idParam to integer
-	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "ID must be a number",
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"string": stringParam,
-		"id":     id,
-	})
-}
-
 // QueryParamsExample handler
 func QueryParamsExample(c *fiber.Ctx) error {
 	// Capture query parameters
@@ -169,7 +139,7 @@ func GetAllMarkersHandler(c *fiber.Ctx) error {
 
 // GetMarker handler
 func GetMarker(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("id"))
+	id, err := strconv.Atoi(c.Params("markerID"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
 	}
@@ -182,7 +152,7 @@ func GetMarker(c *fiber.Ctx) error {
 
 // UpdateMarker updates an existing marker
 func UpdateMarker(c *fiber.Ctx) error {
-	id, _ := strconv.Atoi(c.Params("id"))
+	id, _ := strconv.Atoi(c.Params("markerID"))
 	markerWithPhoto, _ := services.GetMarker(id)
 
 	if err := c.BodyParser(markerWithPhoto); err != nil {
@@ -258,4 +228,62 @@ func DeleteObjectFromS3Handler(c *fiber.Ctx) error {
 
 	// Return a success response
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// / DISLIKE
+func LeaveDislikeHandler(c *fiber.Ctx) error {
+	// Auth
+	userID := c.Locals("userID").(int)
+
+	// Get MarkerID from the URL parameter
+	markerIDParam := c.Params("markerID")
+	markerID, err := strconv.Atoi(markerIDParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid marker ID"})
+	}
+
+	// Call the service function to leave a dislike, passing userID and markerID
+	err = services.LeaveDislike(userID, markerID)
+	if err != nil {
+		// Handle specific error cases here, for example, a duplicate dislike
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to leave dislike: " + err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func UndoDislikeHandler(c *fiber.Ctx) error {
+	// Auth
+	userID := c.Locals("userID").(int)
+
+	// Get MarkerID from the URL parameter
+	markerIDParam := c.Params("markerID")
+	markerID, err := strconv.Atoi(markerIDParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid marker ID"})
+	}
+
+	// Call the service function to undo a dislike
+	err = services.UndoDislike(userID, markerID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to undo dislike: " + err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+// CheckDislikeStatus handler
+func CheckDislikeStatus(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(int)
+	markerID, err := strconv.Atoi(c.Params("markerID"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid marker ID"})
+	}
+
+	disliked, err := services.CheckUserDislike(userID, markerID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error checking dislike status"})
+	}
+
+	return c.JSON(fiber.Map{"disliked": disliked})
 }

@@ -118,13 +118,16 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
 	// a query that joins Markers with Users to select the username as well
 	const markerQuery = `
-	SELECT Markers.*, Users.Username
-	FROM Markers
-	JOIN Users ON Markers.UserID = Users.UserID`
+    SELECT Markers.*, Users.Username, COUNT(MarkerDislikes.DislikeID) AS DislikeCount
+    FROM Markers
+    JOIN Users ON Markers.UserID = Users.UserID
+    LEFT JOIN MarkerDislikes ON Markers.MarkerID = MarkerDislikes.MarkerID
+    GROUP BY Markers.MarkerID, Users.Username`
 
 	var markersWithUsernames []struct {
 		models.Marker
-		Username string `db:"Username"`
+		Username     string `db:"Username"`
+		DislikeCount int    `db:"DislikeCount"`
 	}
 	err := database.DB.Select(&markersWithUsernames, markerQuery)
 	if err != nil {
@@ -149,9 +152,10 @@ func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
 	var markersWithPhotos []models.MarkerWithPhotos
 	for _, marker := range markersWithUsernames {
 		markersWithPhotos = append(markersWithPhotos, models.MarkerWithPhotos{
-			Marker:   marker.Marker,
-			Photos:   photoMap[marker.MarkerID],
-			Username: marker.Username,
+			Marker:       marker.Marker,
+			Photos:       photoMap[marker.MarkerID],
+			Username:     marker.Username,
+			DislikeCount: marker.DislikeCount,
 		})
 	}
 
@@ -181,6 +185,47 @@ func UpdateMarker(marker *models.Marker) error {
                    WHERE MarkerID = ?`
 	_, err := database.DB.Exec(query, marker.Latitude, marker.Longitude, marker.Description, marker.MarkerID)
 	return err
+}
+
+// LeaveDislike user's dislike for a marker
+func LeaveDislike(userID int, markerID int) error {
+	_, err := database.DB.Exec(
+		"INSERT INTO MarkerDislikes (MarkerID, UserID) VALUES (?, ?) ON DUPLICATE KEY UPDATE DislikedAt=VALUES(DislikedAt)",
+		markerID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("inserting dislike: %w", err)
+	}
+	return nil
+}
+
+// UndoDislike nudo user's dislike for a marker
+func UndoDislike(userID int, markerID int) error {
+	result, err := database.DB.Exec(
+		"DELETE FROM MarkerDislikes WHERE UserID = ? AND MarkerID = ?",
+		userID, markerID,
+	)
+	if err != nil {
+		return fmt.Errorf("deleting dislike: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking affected rows: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("no dislike found to undo")
+	}
+
+	return nil
+}
+
+// This service function checks if the given user has disliked the specified marker.
+func CheckUserDislike(userID, markerID int) (bool, error) {
+	var exists bool
+	query := "SELECT EXISTS(SELECT 1 FROM MarkerDislikes WHERE UserID = ? AND MarkerID = ?)"
+	err := database.DB.Get(&exists, query, userID, markerID)
+	return exists, err
 }
 
 // DeleteMarker deletes a marker and its associated photos from the database and S3.

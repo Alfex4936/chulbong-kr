@@ -134,6 +134,7 @@ func DeleteUserWithRelatedData(ctx context.Context, userID int) error {
 		"DELETE FROM OpaqueTokens WHERE UserID = ?",
 		"DELETE FROM Comments WHERE UserID = ?",
 		"DELETE FROM MarkerLikes WHERE UserID = ?",
+		"DELETE FROM MarkerDislikes WHERE UserID = ?",
 		"DELETE FROM Photos WHERE MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)",
 		"UPDATE Markers SET UserID = NULL WHERE UserID = ?", // Set UserID to NULL for Markers instead of deleting
 		"DELETE FROM Users WHERE UserID = ?",

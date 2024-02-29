@@ -94,14 +94,18 @@ func main() {
 
 	// Marker routes
 	api.Get("/markers", handlers.GetAllMarkersHandler)
+
 	markerGroup := api.Group("/markers")
 	{
 		markerGroup.Use(middlewares.AuthMiddleware)
 		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
-		markerGroup.Get("/:id", handlers.GetMarker)
-		markerGroup.Put("/:id", handlers.UpdateMarker)
+		// markerGroup.Get("/:markerID", handlers.GetMarker)
+		markerGroup.Get("/:markerID/dislike-status", handlers.CheckDislikeStatus)
+		markerGroup.Put("/:markerID", handlers.UpdateMarker)
 		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
 		markerGroup.Delete("/:markerID", handlers.DeleteMarkerHandler)
+		markerGroup.Post("/:markerID/dislike", handlers.LeaveDislikeHandler)
+		markerGroup.Delete("/:markerID/dislike", handlers.UndoDislikeHandler)
 	}
 
 	// Comment routes
@@ -113,12 +117,7 @@ func main() {
 		commentGroup.Delete("/:commentId", handlers.DeleteComment)
 	}
 
-	app.Get("/example-get", handlers.GetExample)
-	app.Put("/example-put", handlers.PutExample)
-	app.Delete("/example-delete", handlers.DeleteExample)
-	app.Post("/example-post", handlers.PostExample)
-	app.Get("/example/:string/:id", handlers.DynamicRouteExample)
-	app.Get("/example-optional/:param?", handlers.QueryParamsExample)
+	// app.Get("/example-optional/:param?", handlers.QueryParamsExample)
 
 	// Cron jobs
 	services.CronCleanUpToken()
