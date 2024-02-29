@@ -9,6 +9,7 @@ import emailValidate from "../../utils/emailValidate";
 import passwordValidate from "../../utils/passwordValidate";
 import Input from "../Input/Input";
 import * as Styled from "./SignupForm.style";
+import CheckIcon from "@mui/icons-material/Check";
 
 const SignupForm = () => {
   const modalState = useModalStore();
@@ -16,16 +17,24 @@ const SignupForm = () => {
 
   const nameInput = useInput("");
   const emailInput = useInput("");
+  const codeInput = useInput("");
   const passwordInput = useInput("");
   const verifyPasswordInput = useInput("");
 
   const [nameError, setNameError] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [codeError, setCodeError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [verifyPasswordError, setVerifyPasswordError] = useState("");
   const [signinError, setSigninError] = useState("");
 
   const [loading, setLoading] = useState(false);
+
+  const [getCodeLoading, setGetCodeLoading] = useState(false);
+  const [getCodeComplete, setGetCodeComplete] = useState(false);
+
+  const [validateCodeLoading, setValidateCodeLoading] = useState(false);
+  const [validattionComplete, setValidattionComplete] = useState(false);
 
   useEffect(() => {
     toastState.close();
@@ -35,6 +44,13 @@ const SignupForm = () => {
   const handleSubmit = () => {
     toastState.close();
     let isValid = true;
+
+    if (!validattionComplete) {
+      setCodeError("인증을 완료해 주세요");
+      isValid = false;
+    } else {
+      setCodeError("");
+    }
 
     if (nameInput.value === "") {
       setNameError("닉네임을 입력해 주세요");
@@ -98,6 +114,25 @@ const SignupForm = () => {
     }
   };
 
+  const handleGetCode = () => {
+    setGetCodeLoading(true);
+    setTimeout(() => {
+      setGetCodeLoading(false);
+      setGetCodeComplete(true);
+    }, 1000);
+    console.log("코드");
+  };
+
+  const handleSubmitCode = () => {
+    setValidateCodeLoading(true);
+    setTimeout(() => {
+      setValidateCodeLoading(false);
+      setValidattionComplete(true);
+      setCodeError("");
+    }, 1000);
+    console.log("인증확인");
+  };
+
   return (
     <form>
       <Styled.FormTitle>회원가입</Styled.FormTitle>
@@ -116,17 +151,57 @@ const SignupForm = () => {
       </Styled.InputWrap>
       <Styled.InputWrap>
         <Input
+          theme="button"
           type="email"
           id="email"
           placeholder="이메일"
+          buttonText={
+            getCodeLoading ? (
+              <CircularProgress size={15} sx={{ color: "#fff" }} />
+            ) : getCodeComplete ? (
+              "다시 요청"
+            ) : (
+              "인증 요청"
+            )
+          }
           value={emailInput.value}
           onChange={(e) => {
             emailInput.onChange(e);
             setEmailError("");
           }}
+          onClickFn={handleGetCode}
         />
         <Styled.ErrorBox>{emailError}</Styled.ErrorBox>
       </Styled.InputWrap>
+      {getCodeComplete && (
+        <Styled.InputWrap>
+          <Input
+            maxLength={6}
+            theme="button"
+            type="number"
+            id="code"
+            placeholder="인증번호"
+            buttonText={
+              validateCodeLoading ? (
+                <CircularProgress size={15} sx={{ color: "#fff" }} />
+              ) : validattionComplete ? (
+                <CheckIcon />
+              ) : (
+                "인증 확인"
+              )
+            }
+            value={codeInput.value}
+            onChange={(e) => {
+              if (/^\d{0,6}$/.test(e.target.value)) {
+                codeInput.onChange(e);
+              }
+            }}
+            onClickFn={handleSubmitCode}
+          />
+          <Styled.ErrorBox>{codeError}</Styled.ErrorBox>
+        </Styled.InputWrap>
+      )}
+
       <Styled.InputWrap>
         <Input
           type="password"

@@ -31,4 +31,10 @@ export const Input = styled.input`
   padding: 0.3rem;
 
   font-family: inherit;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 `;
