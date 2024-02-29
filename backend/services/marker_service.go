@@ -13,6 +13,23 @@ import (
 
 // CreateMarker creates a new marker in the database after checking for nearby markers
 func CreateMarker(markerDto *dto.MarkerRequest, userId int) (*models.Marker, error) {
+	// Start a transaction
+	tx, err := database.DB.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	// Ensure the transaction is rolled back if any step fails
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // re-throw panic after Rollback
+		} else if err != nil {
+			tx.Rollback() // err is non-nil; don't change it
+		} else {
+			err = tx.Commit() // if Commit returns error update err with commit err
+		}
+	}()
+
 	// First, check if there is a nearby marker
 	nearby, err := IsMarkerNearby(markerDto.Latitude, markerDto.Longitude)
 	if err != nil {
@@ -22,10 +39,10 @@ func CreateMarker(markerDto *dto.MarkerRequest, userId int) (*models.Marker, err
 		return nil, errors.New("a marker is already nearby")
 	}
 
-	// Insert the new marker
+	// Insert the new marker within the transaction
 	const insertQuery = `INSERT INTO Markers (UserID, Latitude, Longitude, Description, CreatedAt, UpdatedAt) 
                          VALUES (?, ?, ?, ?, NOW(), NOW())`
-	res, err := database.DB.Exec(insertQuery, userId, markerDto.Latitude, markerDto.Longitude, markerDto.Description)
+	res, err := tx.Exec(insertQuery, userId, markerDto.Latitude, markerDto.Longitude, markerDto.Description)
 	if err != nil {
 		return nil, fmt.Errorf("inserting marker: %w", err)
 	}
@@ -42,15 +59,14 @@ func CreateMarker(markerDto *dto.MarkerRequest, userId int) (*models.Marker, err
 		Latitude:    markerDto.Latitude,
 		Longitude:   markerDto.Longitude,
 		Description: markerDto.Description,
-		// CreatedAt and UpdatedAt will be populated in the next step
 	}
 
 	// Fetch the newly created marker to populate all fields, including CreatedAt and UpdatedAt
-	const selectQuery = `SELECT CreatedAt, UpdatedAt FROM Markers WHERE MarkerID = ?`
-	err = database.DB.QueryRow(selectQuery, marker.MarkerID).Scan(&marker.CreatedAt, &marker.UpdatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("fetching created marker: %w", err)
-	}
+	// const selectQuery = `SELECT CreatedAt, UpdatedAt FROM Markers WHERE MarkerID = ?`
+	// err = database.DB.QueryRow(selectQuery, marker.MarkerID).Scan(&marker.CreatedAt, &marker.UpdatedAt)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("fetching created marker: %w", err)
+	// }
 
 	return marker, nil
 }
