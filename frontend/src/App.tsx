@@ -1,15 +1,16 @@
-import { useEffect, lazy, Suspense } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Flip, ToastContainer, toast } from "react-toastify";
+import LoginFormSkeleton from "./components/LoginForm/LoginFormSkeleton";
 import Map from "./components/Map/Map";
+import BasicModal from "./components/Modal/Modal";
+import SignupFormSkeleton from "./components/SignupForm/SignupFormSkeleton";
 import useModalStore from "./store/useModalStore";
 import useToastStore from "./store/useToastStore";
-import Loader from "./components/Loader/Loader";
 
 import "react-toastify/dist/ReactToastify.css";
 
 const LoginForm = lazy(() => import("./components/LoginForm/LoginForm"));
 const SignupForm = lazy(() => import("./components/SignupForm/SignupForm"));
-const BasicModal = lazy(() => import("./components/Modal/Modal"));
 
 const App = () => {
   const modalState = useModalStore();
@@ -27,18 +28,18 @@ const App = () => {
     <div>
       <Map />
       {modalState.loginModal && (
-        <Suspense fallback={<Loader />}>
-          <BasicModal>
+        <BasicModal>
+          <Suspense fallback={<LoginFormSkeleton />}>
             <LoginForm />
-          </BasicModal>
-        </Suspense>
+          </Suspense>
+        </BasicModal>
       )}
       {modalState.signupModal && (
-        <Suspense fallback={<Loader />}>
-          <BasicModal>
+        <BasicModal>
+          <Suspense fallback={<SignupFormSkeleton />}>
             <SignupForm />
-          </BasicModal>
-        </Suspense>
+          </Suspense>
+        </BasicModal>
       )}
 
       <ToastContainer
