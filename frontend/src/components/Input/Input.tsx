@@ -1,11 +1,11 @@
+import Button from "@mui/material/Button";
 import {
   ChangeEvent,
-  useRef,
-  useState,
   ComponentProps,
   ReactNode,
+  useRef,
+  useState,
 } from "react";
-import Button from "@mui/material/Button";
 import * as Styled from "./Input.style";
 
 interface Props extends ComponentProps<"input"> {
@@ -13,7 +13,8 @@ interface Props extends ComponentProps<"input"> {
   type: "text" | "email" | "password" | "number";
   placeholder: string;
   value: string;
-  theme?: "button";
+  theme?: "button" | "icon";
+  icon?: string | ReactNode;
   buttonText?: string | ReactNode;
   onClickFn?: VoidFunction;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -25,6 +26,7 @@ const Input = ({
   placeholder,
   value,
   theme,
+  icon,
   buttonText,
   onClickFn,
   onChange,
@@ -81,6 +83,19 @@ const Input = ({
         >
           {buttonText}
         </Button>
+      )}
+      {theme === "icon" && onClickFn && (
+        <div
+          style={{
+            position: "absolute",
+            right: "0",
+            bottom: "0",
+            cursor: "pointer",
+          }}
+          onClick={onClickFn}
+        >
+          {icon}
+        </div>
       )}
     </Styled.InputWrap>
   );

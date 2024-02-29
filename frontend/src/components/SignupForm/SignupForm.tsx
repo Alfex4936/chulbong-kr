@@ -1,3 +1,6 @@
+import CheckIcon from "@mui/icons-material/Check";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useEffect, useState } from "react";
@@ -9,7 +12,6 @@ import emailValidate from "../../utils/emailValidate";
 import passwordValidate from "../../utils/passwordValidate";
 import Input from "../Input/Input";
 import * as Styled from "./SignupForm.style";
-import CheckIcon from "@mui/icons-material/Check";
 
 const SignupForm = () => {
   const modalState = useModalStore();
@@ -35,6 +37,9 @@ const SignupForm = () => {
 
   const [validateCodeLoading, setValidateCodeLoading] = useState(false);
   const [validattionComplete, setValidattionComplete] = useState(false);
+
+  const [viewPassword, setViewPassword] = useState(false);
+  const [viewVerifyPassword, setViewVerifyPassword] = useState(false);
 
   useEffect(() => {
     toastState.close();
@@ -204,7 +209,18 @@ const SignupForm = () => {
 
       <Styled.InputWrap>
         <Input
-          type="password"
+          theme="icon"
+          icon={
+            viewPassword ? (
+              <VisibilityIcon fontSize="small" />
+            ) : (
+              <VisibilityOffIcon fontSize="small" />
+            )
+          }
+          onClickFn={() => {
+            setViewPassword((prev) => !prev);
+          }}
+          type={viewPassword ? "text" : "password"}
           id="password"
           placeholder="비밀번호"
           value={passwordInput.value}
@@ -217,7 +233,18 @@ const SignupForm = () => {
       </Styled.InputWrap>
       <Styled.InputWrap>
         <Input
-          type="password"
+          theme="icon"
+          icon={
+            viewVerifyPassword ? (
+              <VisibilityIcon fontSize="small" />
+            ) : (
+              <VisibilityOffIcon fontSize="small" />
+            )
+          }
+          onClickFn={() => {
+            setViewVerifyPassword((prev) => !prev);
+          }}
+          type={viewVerifyPassword ? "text" : "password"}
           id="verify-password"
           placeholder="비밀번호 확인"
           value={verifyPasswordInput.value}
