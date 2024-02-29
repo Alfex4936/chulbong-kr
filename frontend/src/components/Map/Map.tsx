@@ -16,9 +16,11 @@ import useMap from "../../hooks/useMap";
 import useModalStore from "../../store/useModalStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import useUserStore from "../../store/useUserStore";
+import AddChinupSkeleton from "../AddChinupBarForm/AddChinupSkeleton";
 import CenterBox from "../CenterBox/CenterBox";
 import FloatingButton from "../FloatingButton/FloatingButton";
-import Loader from "../Loader/Loader";
+import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
+import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
 
 const AddChinupBarForm = lazy(
@@ -27,7 +29,6 @@ const AddChinupBarForm = lazy(
 const MarkerInfoModal = lazy(
   () => import("../MarkerInfoModal/MarkerInfoModal")
 );
-const BasicModal = lazy(() => import("../Modal/Modal"));
 
 export interface MarkerInfo extends Omit<Marker, "photos"> {
   index: number;
@@ -244,8 +245,8 @@ const Map = () => {
       )}
 
       {openForm && (
-        <Suspense fallback={<Loader />}>
-          <BasicModal setState={setOpenForm}>
+        <BasicModal setState={setOpenForm}>
+          <Suspense fallback={<AddChinupSkeleton />}>
             <AddChinupBarForm
               setState={setOpenForm}
               setIsMarked={setIsMarked}
@@ -257,19 +258,20 @@ const Map = () => {
               marker={marker}
               clusterer={clusterer as MarkerClusterer}
             />
-          </BasicModal>
-        </Suspense>
+          </Suspense>
+        </BasicModal>
       )}
       {markerInfoModal && (
-        <Suspense fallback={<Loader />}>
-          <BasicModal setState={setMarkerInfoModal}>
+        <BasicModal setState={setMarkerInfoModal}>
+          <Suspense fallback={<MarkerInfoSkeleton />}>
             <MarkerInfoModal
               currentMarkerInfo={currentMarkerInfo as MarkerInfo}
               setMarkerInfoModal={setMarkerInfoModal}
               markers={markers}
             />
-          </BasicModal>
-        </Suspense>
+          </Suspense>
+        </BasicModal>
+        // <MarkerInfoSkeleton />
       )}
       <Button
         onClick={() => {
