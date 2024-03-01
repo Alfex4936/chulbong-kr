@@ -3,14 +3,18 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import { isAxiosError } from "axios";
 import { useEffect, useState } from "react";
+import sendVerifyCode from "../../api/auth/sendVerifyCode";
 import signin from "../../api/auth/signin";
+import verifyCode from "../../api/auth/verifyCode";
 import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
 import emailValidate from "../../utils/emailValidate";
 import passwordValidate from "../../utils/passwordValidate";
 import Input from "../Input/Input";
+import CertificationCount from "./CertificationCount";
 import * as Styled from "./SignupForm.style";
 
 const SignupForm = () => {
@@ -40,6 +44,8 @@ const SignupForm = () => {
 
   const [viewPassword, setViewPassword] = useState(false);
   const [viewVerifyPassword, setViewVerifyPassword] = useState(false);
+
+  const [startTimer, setStartTimer] = useState(false);
 
   useEffect(() => {
     toastState.close();
@@ -119,23 +125,55 @@ const SignupForm = () => {
     }
   };
 
-  const handleGetCode = () => {
+  const handleGetCode = async () => {
+    setStartTimer(false);
+    if (emailInput.value === "") {
+      setEmailError("이메일을 입력해 주세요");
+      return;
+    } else if (!emailValidate(emailInput.value)) {
+      setEmailError("이메일 형식이 아닙니다.");
+      return;
+    }
+
     setGetCodeLoading(true);
-    setTimeout(() => {
-      setGetCodeLoading(false);
+
+    try {
+      const result = await sendVerifyCode(emailInput.value);
+      setStartTimer(true);
       setGetCodeComplete(true);
-    }, 1000);
-    console.log("코드");
+      setEmailError("");
+      console.log(result);
+    } catch (error) {
+      if (isAxiosError(error)) {
+        console.log(error);
+        setEmailError("에러");
+      }
+    } finally {
+      setGetCodeLoading(false);
+    }
   };
 
-  const handleSubmitCode = () => {
+  const handleSubmitCode = async () => {
     setValidateCodeLoading(true);
-    setTimeout(() => {
-      setValidateCodeLoading(false);
-      setValidattionComplete(true);
+    try {
+      const result = await verifyCode({
+        email: emailInput.value,
+        code: codeInput.value,
+      });
+
       setCodeError("");
-    }, 1000);
-    console.log("인증확인");
+      setValidattionComplete(true);
+      console.log(result);
+    } catch (error) {
+      if (isAxiosError(error)) {
+        console.log(error.response?.status);
+        if (error.response?.status === 400) {
+          setCodeError("유효하지 않은 코드입니다. 다시 시도해 주세요.");
+        }
+      }
+    } finally {
+      setValidateCodeLoading(false);
+    }
   };
 
   return (
@@ -203,7 +241,13 @@ const SignupForm = () => {
             }}
             onClickFn={handleSubmitCode}
           />
-          <Styled.ErrorBox>{codeError}</Styled.ErrorBox>
+          <div style={{ display: "flex" }}>
+            <Styled.ErrorBox>{codeError}</Styled.ErrorBox>
+            <div style={{ flexGrow: "1" }} />
+            <Styled.TimerContainer>
+              <CertificationCount start={startTimer} setStart={setStartTimer} />
+            </Styled.TimerContainer>
+          </div>
         </Styled.InputWrap>
       )}
 
