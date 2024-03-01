@@ -15,6 +15,27 @@ import (
 
 var TOKEN_DURATION time.Duration
 
+// GetUserByEmail retrieves a user by their email address
+func GetUserByEmail(email string) (*models.User, error) {
+	var user models.User
+
+	// Define the query to select the user
+	query := `SELECT UserID, Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE Email = ?`
+
+	// Execute the query
+	err := database.DB.Get(&user, query, email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// No user found with the provided email
+			return nil, fmt.Errorf("no user found with email %s", email)
+		}
+		// An error occurred during the query execution
+		return nil, fmt.Errorf("error fetching user by email: %w", err)
+	}
+
+	return &user, nil
+}
+
 // SaveUser creates a new user with hashed password
 func SaveUser(signUpReq *dto.SignUpRequest) (*models.User, error) {
 	// Start a transaction
@@ -80,7 +101,15 @@ func SaveUser(signUpReq *dto.SignUpRequest) (*models.User, error) {
 		return nil, err
 	}
 
-	// Commit the transaction
+	// After successfully creating the user, remove the verified token
+	_, err = tx.Exec("DELETE FROM PasswordTokens WHERE Email = ? AND Verified = TRUE", newUser.Email)
+	if err != nil {
+		// If there's an error deleting the token, roll back the user creation
+		tx.Rollback()
+		return nil, fmt.Errorf("error removing verified token: %w", err)
+	}
+
+	// Commit the transaction if the user was created and the token was successfully removed
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
