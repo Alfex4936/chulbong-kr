@@ -48,6 +48,18 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
 	}
 
+	// Location Must Be Inside South Korea
+	yes := services.IsInSouthKorea(latitude, longitude)
+	if yes {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operation not allowed within South Korea."})
+	}
+
+	// Checking if a Marker is Nearby
+	yes, _ = services.IsMarkerNearby(latitude, longitude)
+	if yes {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "There is a marker already nearby."})
+	}
+
 	// Set default description if it's empty or not provided
 	description := "설명 없음" // Default description
 	if descValues, exists := form.Value["description"]; exists && len(descValues[0]) > 0 {

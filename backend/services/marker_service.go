@@ -11,6 +11,36 @@ import (
 	"chulbong-kr/models"
 )
 
+/*
+북한 제외
+극동: 경상북도 울릉군의 독도(獨島)로 동경 131° 52′20“, → 131.87222222
+극서: 전라남도 신안군의 소흑산도(小黑山島)로 동경 125° 04′, → 125.06666667
+극북: 강원도 고성군 현내면 송현진으로 북위 38° 27′00, → 38.45000000
+극남: 제주도 남제주군 마라도(馬羅島)로 북위 33° 06′00" → 33.10000000
+섬 포함 우리나라의 중심점은 강원도 양구군 남면 도촌리 산48번지
+북위 38도 03분 37.5초, 동경 128도 02분 2.5초 → 38.05138889, 128.03388889
+섬을 제외하고 육지만을 놓고 한반도의 중심점을 계산하면 북한에 위치한 강원도 회양군 현리 인근
+북위(lon): 38도 39분 00초, 동경(lat) 127도 28분 55초 → 33.10000000, 127.48194444
+대한민국
+도분초: 37° 34′ 8″ N, 126° 58′ 36″ E
+소수점 좌표: 37.568889, 126.976667
+*/
+// South Korea's bounding box
+const (
+	SouthKoreaMinLat  = 33.0
+	SouthKoreaMaxLat  = 38.615
+	SouthKoreaMinLong = 124.0
+	SouthKoreaMaxLong = 132.0
+)
+
+// Tsushima (Uni Island) bounding box
+const (
+	TsushimaMinLat  = 34.080
+	TsushimaMaxLat  = 34.708
+	TsushimaMinLong = 129.164396
+	TsushimaMaxLong = 129.4938
+)
+
 // CreateMarker creates a new marker in the database after checking for nearby markers
 func CreateMarker(markerDto *dto.MarkerRequest, userId int) (*models.Marker, error) {
 	// Start a transaction
@@ -312,12 +342,50 @@ func IsMarkerNearby(lat, long float64) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	// Channel to communicate results of the distance checks
+	resultChan := make(chan bool)
+	// Channel to signal the completion of all goroutines
+	doneChan := make(chan bool)
+
 	for _, m := range markers {
-		if math.Abs(distance(lat, long, m.Latitude, m.Longitude)-5) < 1 { // allow 1 meter error
-			return true, nil
-		}
+		go func(m models.Marker) {
+			// Perform the distance check
+			if math.Abs(distance(lat, long, m.Latitude, m.Longitude)-5) < 1 { // allow 1 meter error
+				resultChan <- true
+			} else {
+				resultChan <- false
+			}
+		}(m)
 	}
-	return false, nil
+
+	// Collect results
+	go func() {
+		nearby := false
+		for i := 0; i < len(markers); i++ {
+			if <-resultChan {
+				nearby = true
+				break // If any marker is nearby, no need to check further
+			}
+		}
+		doneChan <- nearby
+	}()
+
+	// Wait for the result
+	result := <-doneChan
+	return result, nil
+}
+
+// Haversine formula
+func approximateDistance(lat1, long1, lat2, long2 float64) float64 {
+	const R = 6371000 // Radius of the Earth in meters
+	lat1Rad := lat1 * (math.Pi / 180)
+	lat2Rad := lat2 * (math.Pi / 180)
+	deltaLat := (lat2 - lat1) * (math.Pi / 180)
+	deltaLong := (long2 - long1) * (math.Pi / 180)
+	x := deltaLong * math.Cos((lat1Rad+lat2Rad)/2)
+	y := deltaLat
+	return math.Sqrt(x*x+y*y) * R
 }
 
 // distance calculates the distance between two geographic coordinates in meters
@@ -329,4 +397,15 @@ func distance(lat1, long1, lat2, long2 float64) float64 {
 			math.Sin(deltaLong/2)*math.Sin(deltaLong/2)
 	var c = 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 	return 6371000 * c // Earth radius in meters
+}
+
+// IsInSouthKorea checks if given latitude and longitude are within South Korea (roughly)
+func IsInSouthKorea(lat, long float64) bool {
+	// Check if within Tsushima (Uni Island) and return false if true
+	if lat >= TsushimaMinLat && lat <= TsushimaMaxLat && long >= TsushimaMinLong && long <= TsushimaMaxLong {
+		return false // The point is within Tsushima Island, not South Korea
+	}
+
+	// Check if within South Korea's bounding box
+	return lat >= SouthKoreaMinLat && lat <= SouthKoreaMaxLat && long >= SouthKoreaMinLong && long <= SouthKoreaMaxLong
 }
