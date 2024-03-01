@@ -9,7 +9,6 @@ import (
 
 // DeleteUserHandler deletes the currently authenticated user
 func DeleteUserHandler(c *fiber.Ctx) error {
-	// Retrieve the userID from the context, set by authentication middleware
 	userID, ok := c.Locals("userID").(int)
 	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})

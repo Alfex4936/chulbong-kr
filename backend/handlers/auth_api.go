@@ -97,7 +97,7 @@ func SendVerificationEmailHandler(c *fiber.Ctx) error {
 		// If GetUserByEmail does not return an error, it means the email is already in use
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already registered"})
 	} else if err != sql.ErrNoRows {
-		// Handle unexpected errors differently, perhaps with a 500 internal server error
+		// if db couldn't find a user, then it's valid. other errors are bad.
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "An unexpected error occurred"})
 	}
 

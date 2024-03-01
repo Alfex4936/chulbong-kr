@@ -53,6 +53,12 @@ func DeleteExpiredTokens() error {
 	return err
 }
 
+func DeleteExpiredPasswordTokens() error {
+	query := `DELETE FROM PasswordTokens WHERE ExpiresAt < NOW()`
+	_, err := database.DB.Exec(query)
+	return err
+}
+
 func GenerateState() string {
 	b := make([]byte, 16)
 	rand.Read(b)

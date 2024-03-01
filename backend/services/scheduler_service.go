@@ -8,6 +8,28 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
+func CronCleanUpPasswordTokens() {
+	c := cron.New()
+	_, err := c.AddFunc("@hourly", func() {
+		fmt.Println("Running cleanup job...")
+		if err := DeleteExpiredPasswordTokens(); err != nil {
+			// Log the error
+			fmt.Printf("Error deleting expired tokens: %v\n", err)
+		} else {
+			fmt.Println("Expired tokens cleanup executed successfully")
+		}
+	})
+	if err != nil {
+		// Handle the error
+		fmt.Printf("Error scheduling the token cleanup job: %v\n", err)
+		return
+	}
+	c.Start()
+
+	// Optionally, keep the scheduler running indefinitely
+	// select {}
+}
+
 func CronCleanUpToken() {
 	c := cron.New()
 	_, err := c.AddFunc("@daily", func() {

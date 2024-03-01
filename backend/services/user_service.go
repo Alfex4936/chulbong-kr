@@ -25,12 +25,13 @@ func GetUserByEmail(email string) (*models.User, error) {
 	// Execute the query
 	err := database.DB.Get(&user, query, email)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			// No user found with the provided email
-			return nil, fmt.Errorf("no user found with email %s", email)
-		}
-		// An error occurred during the query execution
-		return nil, fmt.Errorf("error fetching user by email: %w", err)
+		return nil, err
+		// if err == sql.ErrNoRows {
+		// 	// No user found with the provided email
+		// 	return nil, fmt.Errorf("no user found with email %s", email)
+		// }
+		// // An error occurred during the query execution
+		// return nil, fmt.Errorf("error fetching user by email: %w", err)
 	}
 
 	return &user, nil
