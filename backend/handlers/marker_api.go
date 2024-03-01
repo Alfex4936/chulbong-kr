@@ -50,7 +50,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 
 	// Location Must Be Inside South Korea
 	yes := services.IsInSouthKorea(latitude, longitude)
-	if yes {
+	if !yes {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operation not allowed within South Korea."})
 	}
 
