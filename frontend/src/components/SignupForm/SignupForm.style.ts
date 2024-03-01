@@ -7,6 +7,8 @@ export const FormTitle = styled.h1`
 `;
 
 export const InputWrap = styled.div`
+  position: relative;
+
   display: flex;
   flex-direction: column;
 
@@ -25,4 +27,8 @@ export const ErrorBox = styled.div`
   font-size: 0.7rem;
 
   color: red;
+`;
+
+export const TimerContainer = styled.div`
+  font-size: 0.8rem;
 `;
