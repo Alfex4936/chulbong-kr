@@ -82,6 +82,8 @@ func main() {
 		authGroup.Post("/signup", handlers.SignUpHandler)
 		authGroup.Post("/login", handlers.LoginHandler)
 		authGroup.Get("/google/callback", handlers.GetGoogleCallbackHandler(conf))
+		authGroup.Post("/verify-email/send", handlers.SendVerificationEmailHandler)
+		authGroup.Post("/verify-email/confirm", handlers.ValidateTokenHandler)
 	}
 
 	// User routes

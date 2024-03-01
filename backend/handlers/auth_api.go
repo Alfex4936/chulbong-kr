@@ -4,6 +4,8 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
 	"chulbong-kr/services"
+	"database/sql"
+	"fmt"
 	"log"
 	"strings"
 
@@ -33,6 +35,15 @@ func SignUpHandler(c *fiber.Ctx) error {
 	var signUpReq dto.SignUpRequest
 	if err := c.BodyParser(&signUpReq); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse JSON, wrong sign up form."})
+	}
+
+	// Check if the token is verified before proceeding
+	verified, err := services.IsTokenVerified(signUpReq.Email)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to check verification status"})
+	}
+	if !verified {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Email not verified"})
 	}
 
 	signUpReq.Provider = "website"
@@ -77,4 +88,65 @@ func LoginHandler(c *fiber.Ctx) error {
 	c.Cookie(&cookie)
 
 	return c.JSON(response)
+}
+
+func SendVerificationEmailHandler(c *fiber.Ctx) error {
+	userEmail := c.FormValue("email")
+	_, err := services.GetUserByEmail(userEmail)
+	if err == nil {
+		// If GetUserByEmail does not return an error, it means the email is already in use
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already registered"})
+	} else if err != sql.ErrNoRows {
+		// Handle unexpected errors differently, perhaps with a 500 internal server error
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "An unexpected error occurred"})
+	}
+
+	// No matter if it's verified, send again.
+	// Check if there's already a verified token for this user
+	// verified, err := services.IsTokenVerified(userEmail)
+	// if err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to check verification status"})
+	// }
+	// if verified {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Email already verified"})
+	// }
+
+	// token, err := services.GenerateAndSaveSignUpToken(userEmail)
+	// if err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
+	// }
+
+	// Use a goroutine to send the email without blocking
+	go func(email string) {
+		token, err := services.GenerateAndSaveSignUpToken(email)
+		if err != nil {
+			fmt.Printf("Failed to generate token: %v\n", err)
+			return
+		}
+
+		err = services.SendVerificationEmail(email, token)
+		if err != nil {
+			fmt.Printf("Failed to send verification email: %v\n", err)
+			return
+		}
+	}(userEmail)
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func ValidateTokenHandler(c *fiber.Ctx) error {
+	token := c.FormValue("token")
+	email := c.FormValue("email")
+
+	valid, err := services.ValidateToken(token, email)
+	if err != nil {
+		// If err is not nil, it could be a database error or token not found
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error validating token"})
+	}
+	if !valid {
+		// Handle both not found and expired cases
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid or expired token"})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
 }
