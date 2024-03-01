@@ -7,7 +7,7 @@ interface Props {
 }
 
 const CertificationCount = ({ start, setStart }: Props) => {
-  const [time, setTime] = useState(3);
+  const [time, setTime] = useState(300);
   const [fontColor, setFontColor] = useState("#6767ff");
 
   useEffect(() => {
