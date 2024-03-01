@@ -110,9 +110,10 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 
 	// Insert the marker into the database
 	res, err := tx.Exec(
-		"INSERT INTO Markers (UserID, Latitude, Longitude, Description, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())",
-		userID, markerDto.Latitude, markerDto.Longitude, markerDto.Description,
+		"INSERT INTO Markers (UserID, Location, Description, CreatedAt, UpdatedAt) VALUES (?, ST_PointFromText(?), ?, NOW(), NOW())",
+		userID, fmt.Sprintf("POINT(%f %f)", markerDto.Longitude, markerDto.Latitude), markerDto.Description,
 	)
+
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -164,11 +165,13 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
 	// a query that joins Markers with Users to select the username as well
 	const markerQuery = `
-    SELECT Markers.*, Users.Username, COUNT(MarkerDislikes.DislikeID) AS DislikeCount
-    FROM Markers
-    JOIN Users ON Markers.UserID = Users.UserID
-    LEFT JOIN MarkerDislikes ON Markers.MarkerID = MarkerDislikes.MarkerID
-    GROUP BY Markers.MarkerID, Users.Username`
+SELECT Markers.MarkerID, ST_Y(Location) AS Latitude, ST_X(Location) AS Longitude, 
+Markers.Description, Users.Username, Markers.CreatedAt, Markers.UpdatedAt, 
+COUNT(MarkerDislikes.DislikeID) AS DislikeCount
+FROM Markers
+JOIN Users ON Markers.UserID = Users.UserID
+LEFT JOIN MarkerDislikes ON Markers.MarkerID = MarkerDislikes.MarkerID
+GROUP BY Markers.MarkerID, Users.Username, Markers.CreatedAt, Markers.UpdatedAt`
 
 	var markersWithUsernames []struct {
 		models.Marker
@@ -195,7 +198,7 @@ func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
 	}
 
 	// Assemble the final structure
-	var markersWithPhotos []models.MarkerWithPhotos
+	markersWithPhotos := make([]models.MarkerWithPhotos, 0)
 	for _, marker := range markersWithUsernames {
 		markersWithPhotos = append(markersWithPhotos, models.MarkerWithPhotos{
 			Marker:       marker.Marker,
@@ -336,44 +339,23 @@ func DeleteMarker(userID, markerID int) error {
 // meters_per_degree = 40075000 / 360 / 1000
 // IsMarkerNearby checks if there's a marker within 5 meters of the given latitude and longitude
 func IsMarkerNearby(lat, long float64) (bool, error) {
-	const query = `SELECT Latitude, Longitude FROM Markers`
-	var markers []models.Marker
-	err := database.DB.Select(&markers, query)
+	// Format the point representation of the input coordinates
+	point := fmt.Sprintf("POINT(%f %f)", long, lat) // Note: MySQL expects longitude first
+
+	// Query to find if there's a marker within 5 meters
+	query := `
+SELECT EXISTS (
+    SELECT 1 FROM Markers
+    WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?)) < 5
+) AS Nearby`
+
+	var nearby bool
+	err := database.DB.Get(&nearby, query, point)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("error checking for nearby markers: %w", err)
 	}
 
-	// Channel to communicate results of the distance checks
-	resultChan := make(chan bool)
-	// Channel to signal the completion of all goroutines
-	doneChan := make(chan bool)
-
-	for _, m := range markers {
-		go func(m models.Marker) {
-			// Perform the distance check
-			if math.Abs(distance(lat, long, m.Latitude, m.Longitude)-5) < 1 { // allow 1 meter error
-				resultChan <- true
-			} else {
-				resultChan <- false
-			}
-		}(m)
-	}
-
-	// Collect results
-	go func() {
-		nearby := false
-		for i := 0; i < len(markers); i++ {
-			if <-resultChan {
-				nearby = true
-				break // If any marker is nearby, no need to check further
-			}
-		}
-		doneChan <- nearby
-	}()
-
-	// Wait for the result
-	result := <-doneChan
-	return result, nil
+	return nearby, nil
 }
 
 // Haversine formula
