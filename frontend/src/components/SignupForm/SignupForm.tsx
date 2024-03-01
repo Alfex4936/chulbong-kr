@@ -46,6 +46,7 @@ const SignupForm = () => {
   const [viewVerifyPassword, setViewVerifyPassword] = useState(false);
 
   const [startTimer, setStartTimer] = useState(false);
+  const [viewTimer, setViewTimer] = useState(true);
 
   useEffect(() => {
     toastState.close();
@@ -146,7 +147,11 @@ const SignupForm = () => {
     } catch (error) {
       if (isAxiosError(error)) {
         console.log(error);
-        setEmailError("에러");
+        if (error.response?.status === 409) {
+          setEmailError("이미 등록된 이메일입니다.");
+        } else {
+          setEmailError("에러");
+        }
       }
     } finally {
       setGetCodeLoading(false);
@@ -163,6 +168,7 @@ const SignupForm = () => {
 
       setCodeError("");
       setValidattionComplete(true);
+      setViewTimer(false);
       console.log(result);
     } catch (error) {
       if (isAxiosError(error)) {
@@ -244,9 +250,14 @@ const SignupForm = () => {
           <div style={{ display: "flex" }}>
             <Styled.ErrorBox>{codeError}</Styled.ErrorBox>
             <div style={{ flexGrow: "1" }} />
-            <Styled.TimerContainer>
-              <CertificationCount start={startTimer} setStart={setStartTimer} />
-            </Styled.TimerContainer>
+            {viewTimer && (
+              <Styled.TimerContainer>
+                <CertificationCount
+                  start={startTimer}
+                  setStart={setStartTimer}
+                />
+              </Styled.TimerContainer>
+            )}
           </div>
         </Styled.InputWrap>
       )}

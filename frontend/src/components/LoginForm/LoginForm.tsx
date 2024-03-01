@@ -1,3 +1,5 @@
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useState } from "react";
@@ -20,6 +22,8 @@ const LoginForm = () => {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [loginError, setLoginError] = useState("");
+
+  const [viewPassword, setViewPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -89,8 +93,30 @@ const LoginForm = () => {
         <Styled.ErrorBox>{emailError}</Styled.ErrorBox>
       </Styled.InputWrap>
       <Styled.InputWrap>
-        <Input
+        {/* <Input
           type="password"
+          id="password"
+          placeholder="비밀번호"
+          value={passwordInput.value}
+          onChange={(e) => {
+            passwordInput.onChange(e);
+            setPasswordError("");
+          }}
+        />
+        <Styled.ErrorBox>{passwordError}</Styled.ErrorBox> */}
+        <Input
+          theme="icon"
+          icon={
+            viewPassword ? (
+              <VisibilityIcon fontSize="small" />
+            ) : (
+              <VisibilityOffIcon fontSize="small" />
+            )
+          }
+          onClickFn={() => {
+            setViewPassword((prev) => !prev);
+          }}
+          type={viewPassword ? "text" : "password"}
           id="password"
           placeholder="비밀번호"
           value={passwordInput.value}
