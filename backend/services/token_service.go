@@ -4,8 +4,10 @@ import (
 	"chulbong-kr/database"
 	"chulbong-kr/middlewares"
 	"crypto/rand"
+
 	"encoding/base64"
 	"encoding/hex"
+	mrand "math/rand"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,6 +20,15 @@ func GenerateOpaqueToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+func GenerateRandomString(n int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	s := make([]rune, n)
+	for i := range s {
+		s[i] = rune(letters[mrand.Intn(len(letters))])
+	}
+	return string(s)
 }
 
 // GenerateAndSaveToken generates a new token for a user and saves it in the database.

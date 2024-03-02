@@ -13,7 +13,7 @@ import (
 
 // SignUp User godoc
 //
-//	@Summary		Sign up a new user
+//	@Summary		Sign up a new user [normal]
 //	@Description	This endpoint is responsible for registering a new user in the system.
 //	@Description	It checks the verification status of the user's email before proceeding.
 //	@Description	If the email is not verified, it returns an error.

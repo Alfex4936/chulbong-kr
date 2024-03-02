@@ -13,6 +13,7 @@ type User struct {
 	PasswordHash sql.NullString `json:"-" db:"PasswordHash"` // Can be empty for OAuth2 users
 	Provider     sql.NullString `json:"-" db:"Provider"`     // e.g., "google", "kakao"
 	ProviderID   sql.NullString `json:"-" db:"ProviderID"`   // Unique ID from the OAuth provider
+	Role         string         `json:"-" db:"Role"`
 	CreatedAt    time.Time      `json:"-" db:"CreatedAt"`
 	UpdatedAt    time.Time      `json:"-" db:"UpdatedAt"`
 }

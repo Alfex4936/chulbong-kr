@@ -84,3 +84,44 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	log.Printf("[DEBUG] Authenticated. %s", email)
 	return c.Next()
 }
+
+// AdminOnly checks admin permission
+func AdminOnly(c *fiber.Ctx) error {
+	// Check for the cookie
+	jwtCookie := c.Cookies(TOKEN_COOKIE)
+	if jwtCookie == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
+	}
+
+	// query to also fetch the user's role
+	query := `
+    SELECT u.UserID, u.Role, ot.ExpiresAt 
+    FROM OpaqueTokens ot
+    JOIN Users u ON ot.UserID = u.UserID
+    WHERE ot.OpaqueToken = ?`
+
+	var userID int
+	var role string
+	var expiresAt time.Time
+	err := database.DB.QueryRow(query, jwtCookie).Scan(&userID, &role, &expiresAt)
+
+	// Check for no rows found or other errors
+	if err == sql.ErrNoRows {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
+	} else if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+	}
+
+	// Check if the token has expired
+	if time.Now().After(expiresAt) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token expired"})
+	}
+
+	// Check if the user role is not admin
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Access denied"})
+	}
+
+	// Proceed to the next handler if the user is an admin
+	return c.Next()
+}
