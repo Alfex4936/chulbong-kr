@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -68,6 +69,8 @@ func main() {
 		IdleTimeout:   120 * time.Second,
 		ReadTimeout:   10 * time.Second,
 		WriteTimeout:  10 * time.Second,
+		JSONEncoder:   json.Marshal,
+		JSONDecoder:   json.Unmarshal,
 	})
 
 	app.Server().MaxConnsPerIP = 100
