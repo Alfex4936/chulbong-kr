@@ -201,3 +201,69 @@ func DeleteUserWithRelatedData(ctx context.Context, userID int) error {
 
 	return nil
 }
+
+func ResetPassword(token string, newPassword string) error {
+	// Start a transaction
+	tx, err := database.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	// Ensure the transaction is rolled back if an error occurs
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var userID int
+	// Use the transaction (tx) to perform the query
+	err = tx.Get(&userID, "SELECT UserID FROM PasswordResetTokens WHERE Token = ? AND ExpiresAt > NOW()", token)
+	if err != nil {
+		return err // Token not found or expired
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	// Use the transaction (tx) to update the user's password
+	_, err = tx.Exec("UPDATE Users SET PasswordHash = ? WHERE UserID = ?", string(hashedPassword), userID)
+	if err != nil {
+		return err
+	}
+
+	// Use the transaction (tx) to delete the reset token
+	_, err = tx.Exec("DELETE FROM PasswordResetTokens WHERE Token = ?", token)
+	if err != nil {
+		return err
+	}
+
+	// Commit the transaction
+	return tx.Commit()
+}
+
+func GeneratePasswordResetToken(email string) (string, error) {
+	user := models.User{}
+	err := database.DB.Get(&user, "SELECT UserID FROM Users WHERE Email = ?", email)
+	if err != nil {
+		return "", err // User not found or db error
+	}
+
+	token, err := GenerateOpaqueToken()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = database.DB.Exec(`
+    INSERT INTO PasswordResetTokens (UserID, Token, ExpiresAt)
+    VALUES (?, ?, ?)
+    ON DUPLICATE KEY UPDATE Token = VALUES(Token), ExpiresAt = VALUES(ExpiresAt)`,
+		user.UserID, token, time.Now().Add(24*time.Hour))
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}

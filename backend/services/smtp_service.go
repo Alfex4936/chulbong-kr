@@ -13,10 +13,11 @@ import (
 )
 
 var (
-	smtpServer   = os.Getenv("SMTP_SERVER")
-	smtpPort     = os.Getenv("SMTP_PORT")
-	smtpUsername = os.Getenv("SMTP_USERNAME")
-	smtpPassword = os.Getenv("SMTP_PASSWORD")
+	smtpServer          = os.Getenv("SMTP_SERVER")
+	smtpPort            = os.Getenv("SMTP_PORT")
+	smtpUsername        = os.Getenv("SMTP_USERNAME")
+	smtpPassword        = os.Getenv("SMTP_PASSWORD")
+	frontendResetRouter = os.Getenv("FRONTEND_RESET_ROUTER")
 )
 
 var emailTemplate = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -44,6 +45,40 @@ var emailTemplate = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//
                 <tr>
                     <td align="center">
                         <div style="background-color: #fff; border: 2px dashed #e5b000; padding: 10px 20px; margin-top: 20px; font-size: 20px; font-weight: bold; letter-spacing: 2px;">{{TOKEN}}</div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>`
+
+var emailTemplateForReset = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Password Reset for chulbong-kr</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+<table style="background-color: #f3f3f3; color: #333; font-size: 16px; text-align: center; margin: 0; padding: 0;" width="100%%" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center">
+            <table style="margin: 40px auto; border-collapse: separate;" width="600" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td style="padding-bottom: 20px;" align="center">
+                        <h1 style="color: #e5b000;">Password Reset Request</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding-bottom: 20px;" align="center">
+                        <p>You have requested to reset your password. Please click the link below to proceed:</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center">
+                        <a href="{{RESET_LINK}}" style="display: inline-block; background-color: #e5b000; color: #fff; padding: 10px 20px; margin-top: 20px; font-size: 20px; font-weight: bold; text-decoration: none; letter-spacing: 2px;">Reset Password</a>
                     </td>
                 </tr>
             </table>
@@ -138,6 +173,26 @@ func SendVerificationEmail(to, token string) error {
 
 	// Replace the {{TOKEN}} placeholder in the template with the actual token
 	htmlBody := strings.Replace(emailTemplate, "{{TOKEN}}", token, -1)
+
+	// Combine headers and HTML body into a single raw email message
+	message := []byte(headers + htmlBody)
+
+	// Connect to the SMTP server and send the email
+	auth := smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer)
+	err := smtp.SendMail(smtpServer+":"+smtpPort, auth, smtpUsername, []string{to}, message)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SendPasswordResetEmail(to, token string) error {
+	// Define email headers
+	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: Password Reset for chulbong-kr\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", smtpUsername, to)
+
+	// Replace the {{RESET_LINK}} placeholder with the actual reset link
+	clientUrl := fmt.Sprintf("%s?token=%s&email=%s", frontendResetRouter, token, to)
+	htmlBody := strings.Replace(emailTemplateForReset, "{{RESET_LINK}}", clientUrl, -1)
 
 	// Combine headers and HTML body into a single raw email message
 	message := []byte(headers + htmlBody)
