@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"mime/multipart"
@@ -41,66 +40,6 @@ const (
 	TsushimaMaxLong = 129.4938
 )
 
-// CreateMarker creates a new marker in the database after checking for nearby markers
-func CreateMarker(markerDto *dto.MarkerRequest, userId int) (*models.Marker, error) {
-	// Start a transaction
-	tx, err := database.DB.Beginx()
-	if err != nil {
-		return nil, err
-	}
-	// Ensure the transaction is rolled back if any step fails
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p) // re-throw panic after Rollback
-		} else if err != nil {
-			tx.Rollback() // err is non-nil; don't change it
-		} else {
-			err = tx.Commit() // if Commit returns error update err with commit err
-		}
-	}()
-
-	// First, check if there is a nearby marker
-	nearby, err := IsMarkerNearby(markerDto.Latitude, markerDto.Longitude)
-	if err != nil {
-		return nil, err // Return any error encountered
-	}
-	if nearby {
-		return nil, errors.New("a marker is already nearby")
-	}
-
-	// Insert the new marker within the transaction
-	const insertQuery = `INSERT INTO Markers (UserID, Latitude, Longitude, Description, CreatedAt, UpdatedAt) 
-                         VALUES (?, ?, ?, ?, NOW(), NOW())`
-	res, err := tx.Exec(insertQuery, userId, markerDto.Latitude, markerDto.Longitude, markerDto.Description)
-	if err != nil {
-		return nil, fmt.Errorf("inserting marker: %w", err)
-	}
-
-	id, err := res.LastInsertId()
-	if err != nil {
-		return nil, fmt.Errorf("getting last insert ID: %w", err)
-	}
-
-	// Create a marker model instance to hold the full marker information
-	marker := &models.Marker{
-		MarkerID:    int(id),
-		UserID:      userId,
-		Latitude:    markerDto.Latitude,
-		Longitude:   markerDto.Longitude,
-		Description: markerDto.Description,
-	}
-
-	// Fetch the newly created marker to populate all fields, including CreatedAt and UpdatedAt
-	// const selectQuery = `SELECT CreatedAt, UpdatedAt FROM Markers WHERE MarkerID = ?`
-	// err = database.DB.QueryRow(selectQuery, marker.MarkerID).Scan(&marker.CreatedAt, &marker.UpdatedAt)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("fetching created marker: %w", err)
-	// }
-
-	return marker, nil
-}
-
 func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
 	// Begin a transaction for database operations
 	tx, err := database.DB.Beginx()
@@ -125,7 +64,7 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 	var photoURLs []string
 
 	// Process file uploads from the multipart form
-	files := form.File["photos"] // Assuming "photos" is the field name for files
+	files := form.File["photos"]
 	for _, file := range files {
 		fileURL, err := UploadFileToS3(file)
 		if err != nil {

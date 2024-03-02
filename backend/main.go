@@ -84,6 +84,10 @@ func main() {
 		authGroup.Get("/google/callback", handlers.GetGoogleCallbackHandler(conf))
 		authGroup.Post("/verify-email/send", handlers.SendVerificationEmailHandler)
 		authGroup.Post("/verify-email/confirm", handlers.ValidateTokenHandler)
+
+		// Finding password
+		authGroup.Post("/request-password-reset", handlers.RequestResetPasswordHandler)
+		authGroup.Post("/reset-password", handlers.ResetPasswordHandler)
 	}
 
 	// User routes

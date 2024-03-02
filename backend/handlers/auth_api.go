@@ -150,3 +150,39 @@ func ValidateTokenHandler(c *fiber.Ctx) error {
 
 	return c.SendStatus(fiber.StatusOK)
 }
+
+func RequestResetPasswordHandler(c *fiber.Ctx) error {
+	email := c.FormValue("email")
+
+	// Generate the password reset token
+	token, err := services.GeneratePasswordResetToken(email)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to request reset password: " + err.Error()})
+	}
+
+	// Use a goroutine to send the email without blocking
+	go func(email string) {
+
+		// Send the reset email
+		err = services.SendPasswordResetEmail(email, token)
+		if err != nil {
+			// Log the error; cannot respond to the client at this point
+			log.Printf("Error sending reset email to %s: %v", email, err)
+			return
+		}
+	}(email)
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func ResetPasswordHandler(c *fiber.Ctx) error {
+	token := c.FormValue("token")
+	newPassword := c.FormValue("password")
+
+	err := services.ResetPassword(token, newPassword)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to reset password"})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
