@@ -299,7 +299,7 @@ SELECT EXISTS (
 
 // Haversine formula
 func approximateDistance(lat1, long1, lat2, long2 float64) float64 {
-	const R = 6371000 // Radius of the Earth in meters
+	const R = 6370986 // Radius of the Earth in meters
 	lat1Rad := lat1 * (math.Pi / 180)
 	lat2Rad := lat2 * (math.Pi / 180)
 	deltaLat := (lat2 - lat1) * (math.Pi / 180)
@@ -317,7 +317,7 @@ func distance(lat1, long1, lat2, long2 float64) float64 {
 		math.Cos(lat1*(math.Pi/180))*math.Cos(lat2*(math.Pi/180))*
 			math.Sin(deltaLong/2)*math.Sin(deltaLong/2)
 	var c = 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-	return 6371000 * c // Earth radius in meters
+	return 6370986 * c // Earth radius in meters
 }
 
 // IsInSouthKorea checks if given latitude and longitude are within South Korea (roughly)

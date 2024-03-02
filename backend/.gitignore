@@ -2,3 +2,6 @@
 *.sql
 fly.toml
 Dockerfile
+swagger.json
+swagger.yaml
+swagformat.txt

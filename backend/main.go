@@ -14,11 +14,23 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/swagger"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+
+	_ "chulbong-kr/docs"
 )
 
+// @title			chulbong-kr API
+// @version		1.0
+// @description	Pullup bar locations with KakaoMap API
+// @contact.name	API Support
+// @contact.email	chulbong.kr@gmail.com
+// @license.name	MIT
+// @license.url	https://github.com/Alfex4936/chulbong-kr/blob/main/LICENSE
+// @host			localhost:9452
+// @BasePath		/api/v1/
 func main() {
 	// Load .env file
 	err := godotenv.Load()
@@ -62,14 +74,16 @@ func main() {
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:5173, https://chulbong-kr.vercel.app", // List allowed origins
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                           // Explicitly list allowed methods
-		AllowHeaders:     "*",                                                     // TODO: Allow specific headers
+		AllowOrigins:     "http://localhost:5173,https://chulbong-kr.vercel.app", // List allowed origins
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                          // Explicitly list allowed methods
+		AllowHeaders:     "*",                                                    // TODO: Allow specific headers
 		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers",
 		AllowCredentials: true,
 	}))
 
 	app.Use(logger.New())
+	app.Get("/", healthCheck)
+	app.Get("/swagger/*", swagger.HandlerDefault) // default
 
 	// Setup routes
 	api := app.Group("/api/v1")
@@ -149,4 +163,16 @@ func setTokenExpirationTime() {
 
 	// Assign the converted duration to the global variable
 	services.TOKEN_DURATION = time.Duration(durationInt) * time.Hour
+}
+
+func healthCheck(c *fiber.Ctx) error {
+	res := map[string]interface{}{
+		"data": "Server is up and running",
+	}
+
+	if err := c.JSON(res); err != nil {
+		return err
+	}
+
+	return nil
 }
