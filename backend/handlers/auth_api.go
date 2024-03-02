@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"chulbong-kr/dto"
-	"chulbong-kr/models"
 	"chulbong-kr/services"
 	"database/sql"
 	"fmt"
@@ -12,25 +11,25 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// DeleteExample handler
-func DeleteExample(c *fiber.Ctx) error {
-	return c.SendString("DELETE request example")
-}
-
-// PostExample handler
-func PostExample(c *fiber.Ctx) error {
-	user := new(models.User)
-
-	// Parse the body into the struct
-	if err := c.BodyParser(user); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Cannot parse JSON",
-		})
-	}
-	// Return the user as JSON
-	return c.Status(fiber.StatusOK).JSON(user)
-}
-
+// SignUp User godoc
+//
+//	@Summary		Sign up a new user
+//	@Description	This endpoint is responsible for registering a new user in the system.
+//	@Description	It checks the verification status of the user's email before proceeding.
+//	@Description	If the email is not verified, it returns an error.
+//	@Description	On successful creation, it returns the user's information.
+//	@ID				sign-up-user
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			signUpRequest	body	dto.SignUpRequest	true	"SignUp Request"
+//	@Security		ApiKeyAuth
+//	@Success		201	{object}	models.User		"User registered successfully"
+//	@Failure		400	{object}	map[string]interface{}	"Cannot parse JSON, wrong sign up form."
+//	@Failure		400	{object}	map[string]interface{}	"Email not verified"
+//	@Failure		409	{object}	map[string]interface{}	"Email already registered"
+//	@Failure		500	{object}	map[string]interface{}	"An error occurred while creating the user"
+//	@Router			/auth/signup [post]
 func SignUpHandler(c *fiber.Ctx) error {
 	var signUpReq dto.SignUpRequest
 	if err := c.BodyParser(&signUpReq); err != nil {
@@ -61,6 +60,25 @@ func SignUpHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(user)
 }
 
+// Login User godoc
+//
+// @Summary		Log in a user
+// @Description	This endpoint is responsible for authenticating a user in the system.
+// @Description	It validates the user's login credentials (email and password).
+// @Description	If the credentials are invalid, it returns an error.
+// @Description	On successful authentication, it returns the user's information along with a token.
+// @Description	The token is also set in a secure cookie for client-side storage.
+// @ID			login-user
+// @Tags		auth
+// @Accept		json
+// @Produce	json
+// @Param		loginRequest	body	dto.LoginRequest	true	"Login Request"
+// @Security	ApiKeyAuth
+// @Success	200	{object}	dto.LoginResponse	"User logged in successfully, includes user info and token"
+// @Failure	400	{object}	map[string]interface{}	"Cannot parse JSON, wrong login form."
+// @Failure	401	{object}	map[string]interface{}	"Invalid email or password"
+// @Failure	500	{object}	map[string]interface{}	"Failed to generate token"
+// @Router		/auth/login [post]
 func LoginHandler(c *fiber.Ctx) error {
 	var request dto.LoginRequest
 	if err := c.BodyParser(&request); err != nil {
@@ -90,6 +108,24 @@ func LoginHandler(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
+// Send Verification Email godoc
+//
+// @Summary		Send verification email
+// @Description	This endpoint triggers sending a verification email to the user.
+// @Description	It checks if the email is already registered in the system.
+// @Description	If the email is already in use, it returns an error.
+// @Description	If the email is not in use, it asynchronously sends a verification email to the user.
+// @Description	The operation of sending the email does not block the API response, making use of a goroutine for asynchronous execution.
+// @ID			send-verification-email
+// @Tags		auth
+// @Accept		json
+// @Produce	json
+// @Param		email	formData	string	true	"User Email"
+// @Security	ApiKeyAuth
+// @Success	200	"Email sending initiated successfully"
+// @Failure	409	{object}	map[string]interface{}	"Email already registered"
+// @Failure	500	{object}	map[string]interface{}	"An unexpected error occurred"
+// @Router		/auth/send-verification-email [post]
 func SendVerificationEmailHandler(c *fiber.Ctx) error {
 	userEmail := c.FormValue("email")
 	_, err := services.GetUserByEmail(userEmail)
@@ -134,6 +170,24 @@ func SendVerificationEmailHandler(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
+// Validate Token godoc
+//
+// @Summary		Validate token
+// @Description	This endpoint is responsible for validating a user's token.
+// @Description	It checks the token's validity against the provided email.
+// @Description	If the token is invalid or expired, it returns an error.
+// @Description	On successful validation, it returns a success status.
+// @ID			validate-token
+// @Tags		auth
+// @Accept		json
+// @Produce	json
+// @Param		token	formData	string	true	"Token for validation"
+// @Param		email	formData	string	true	"User's email associated with the token"
+// @Security	ApiKeyAuth
+// @Success	200	"Token validated successfully"
+// @Failure	400	{object}	map[string]interface{}	"Invalid or expired token"
+// @Failure	500	{object}	map[string]interface{}	"Error validating token"
+// @Router		/auth/validate-token [post]
 func ValidateTokenHandler(c *fiber.Ctx) error {
 	token := c.FormValue("token")
 	email := c.FormValue("email")
@@ -151,6 +205,22 @@ func ValidateTokenHandler(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
+// Request Reset Password godoc
+//
+// @Summary		Request password reset
+// @Description	This endpoint initiates the password reset process for a user.
+// @Description	It generates a password reset token and sends a reset password email to the user.
+// @Description	The email sending process is executed in a non-blocking manner using a goroutine.
+// @Description	If there is an issue generating the token or sending the email, it returns an error.
+// @ID			request-reset-password
+// @Tags		auth
+// @Accept		json
+// @Produce	json
+// @Param		email	formData	string	true	"User's email address for password reset"
+// @Security	ApiKeyAuth
+// @Success	200	"Password reset request initiated successfully"
+// @Failure	500	{object}	map[string]interface{}	"Failed to request reset password"
+// @Router		/auth/request-reset-password [post]
 func RequestResetPasswordHandler(c *fiber.Ctx) error {
 	email := c.FormValue("email")
 
@@ -175,6 +245,23 @@ func RequestResetPasswordHandler(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
+// Reset Password godoc
+//
+// @Summary		Reset password
+// @Description	This endpoint allows a user to reset their password using a valid token.
+// @Description	The token is typically obtained from a password reset email.
+// @Description	If the token is invalid or the reset fails, it returns an error.
+// @Description	On successful password reset, it returns a success status.
+// @ID			reset-password
+// @Tags		auth
+// @Accept		json
+// @Produce	json
+// @Param		token		formData	string	true	"Password reset token"
+// @Param		password	formData	string	true	"New password"
+// @Security	ApiKeyAuth
+// @Success	200	"Password reset successfully"
+// @Failure	500	{object}	map[string]interface{}	"Failed to reset password"
+// @Router		/auth/reset-password [post]
 func ResetPasswordHandler(c *fiber.Ctx) error {
 	token := c.FormValue("token")
 	newPassword := c.FormValue("password")
