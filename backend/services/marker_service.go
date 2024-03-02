@@ -297,6 +297,27 @@ SELECT EXISTS (
 	return nearby, nil
 }
 
+// FindClosestNMarkersWithinDistance
+func FindClosestNMarkersWithinDistance(lat, long float64, distance, n int) ([]dto.MarkerWithDistance, error) {
+	point := fmt.Sprintf("POINT(%f %f)", long, lat) // Note: MySQL expects longitude first
+
+	// Modify the query to also select the distance
+	query := `
+SELECT MarkerID, UserID, ST_Y(Location) AS Latitude, ST_X(Location) AS Longitude, Description, CreatedAt, UpdatedAt, ST_Distance_Sphere(Location, ST_GeomFromText(?)) AS distance 
+FROM Markers
+WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?)) <= ?
+ORDER BY distance ASC
+LIMIT ?`
+
+	var markers []dto.MarkerWithDistance
+	err := database.DB.Select(&markers, query, point, point, distance, n)
+	if err != nil {
+		return nil, fmt.Errorf("error checking for nearby markers: %w", err)
+	}
+
+	return markers, nil
+}
+
 // Haversine formula
 func approximateDistance(lat1, long1, lat2, long2 float64) float64 {
 	const R = 6370986 // Radius of the Earth in meters

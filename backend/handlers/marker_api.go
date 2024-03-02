@@ -299,3 +299,23 @@ func CheckDislikeStatus(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"disliked": disliked})
 }
+
+func FindCloseMarkersHandler(c *fiber.Ctx) error {
+	var params dto.QueryParams
+	if err := c.QueryParser(&params); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid query parameters"})
+	}
+
+	// Find nearby markers within the specified distance
+	markers, err := services.FindClosestNMarkersWithinDistance(params.Latitude, params.Longitude, params.Distance, params.N)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	if len(markers) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "No markers found within the specified distance"})
+	}
+
+	// Return the found markers
+	return c.JSON(markers)
+}
