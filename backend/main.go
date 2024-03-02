@@ -14,9 +14,14 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/healthcheck"
+	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/gofiber/fiber/v2/middleware/monitor"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/swagger"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
@@ -72,8 +77,30 @@ func main() {
 		JSONEncoder:   json.Marshal,
 		JSONDecoder:   json.Unmarshal,
 	})
-
 	app.Server().MaxConnsPerIP = 100
+
+	// Middlewares
+	app.Use(healthcheck.New(healthcheck.Config{
+		LivenessProbe: func(c *fiber.Ctx) bool {
+			return true
+		},
+		LivenessEndpoint: "/",
+	}))
+	logger, _ := zap.NewProduction()
+
+	app.Use(middlewares.ZapLogMiddleware(logger))
+
+	app.Use(helmet.New())
+	app.Use(limiter.New(limiter.Config{
+		Max:               100,
+		Expiration:        30 * time.Second,
+		LimiterMiddleware: limiter.SlidingWindow{},
+	}))
+	app.Get("/metrics", monitor.New(monitor.Config{
+		Title:   "chulbong-kr System Metrics",
+		Refresh: time.Second * 60,
+	}))
+	app.Use(requestid.New())
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
@@ -84,14 +111,14 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	app.Use(logger.New())
-	app.Get("/", healthCheck)
+	// app.Use(logger.New())
 	app.Get("/swagger/*", swagger.HandlerDefault) // default
 
 	// Setup routes
 	api := app.Group("/api/v1")
 
 	api.Get("/google", handlers.GetGoogleAuthHandler(conf))
+	api.Get("/admin", func(c *fiber.Ctx) error { return c.JSON("good") }, middlewares.AdminOnly)
 
 	// Authentication routes
 	authGroup := api.Group("/auth")
@@ -166,16 +193,4 @@ func setTokenExpirationTime() {
 
 	// Assign the converted duration to the global variable
 	services.TOKEN_DURATION = time.Duration(durationInt) * time.Hour
-}
-
-func healthCheck(c *fiber.Ctx) error {
-	res := map[string]interface{}{
-		"data": "Server is up and running",
-	}
-
-	if err := c.JSON(res); err != nil {
-		return err
-	}
-
-	return nil
 }

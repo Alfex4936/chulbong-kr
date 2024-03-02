@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -39,83 +40,42 @@ func GetUserByEmail(email string) (*models.User, error) {
 
 // SaveUser creates a new user with hashed password
 func SaveUser(signUpReq *dto.SignUpRequest) (*models.User, error) {
-	// Start a transaction
 	tx, err := database.DB.Beginx()
 	if err != nil {
 		return nil, err
 	}
-
-	// Ensure the transaction is rolled back if any step fails
 	defer func() {
 		if err != nil {
 			tx.Rollback()
 		}
 	}()
 
-	var hashedPassword string
-
-	// Hash password only for traditional sign-up
-	if signUpReq.Password != "" {
-		hashedBytes, err := bcrypt.GenerateFromPassword([]byte(signUpReq.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return nil, err
-		}
-		hashedPassword = string(hashedBytes) // Convert the []byte to a string
-	}
-
-	// Generate username from email if not provided
-	username := signUpReq.Email
-	if signUpReq.Username != nil && *signUpReq.Username != "" {
-		username = *signUpReq.Username
-	} else {
-		emailParts := strings.Split(signUpReq.Email, "@")
-		username = emailParts[0]
-	}
-
-	// Check if the user is already registered
-	var existingUserID int
-	checkQuery := `SELECT UserID FROM Users WHERE Email = ? AND (Provider = ? OR Provider IS NULL) LIMIT 1`
-	err = tx.QueryRow(checkQuery, signUpReq.Email, signUpReq.Provider).Scan(&existingUserID)
-	if err == nil {
-		return nil, fmt.Errorf("user with email %q is already registered", signUpReq.Email)
-	} else if err != sql.ErrNoRows {
-		return nil, err // Handle unexpected errors
-	}
-
-	// Insert new user into the database within the transaction
-	query := `INSERT INTO Users (Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())`
-	res, err := tx.Exec(query, username, signUpReq.Email, hashedPassword, signUpReq.Provider, signUpReq.ProviderID)
-	if err != nil {
-		return nil, fmt.Errorf("error registering user: %w", err)
-	}
-
-	userID, err := res.LastInsertId()
+	hashedPassword, err := hashPassword(signUpReq.Password)
 	if err != nil {
 		return nil, err
 	}
 
-	// Fetch the newly created user
-	var newUser models.User
-	query = `SELECT UserID, Username, Email, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?`
-	err = tx.QueryRowx(query, userID).StructScan(&newUser)
+	userID, err := insertUserWithRetry(tx, signUpReq, hashedPassword)
 	if err != nil {
 		return nil, err
 	}
 
-	// After successfully creating the user, remove the verified token
+	newUser, err := fetchNewUser(tx, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	_, err = tx.Exec("DELETE FROM PasswordTokens WHERE Email = ? AND Verified = TRUE", newUser.Email)
 	if err != nil {
-		// If there's an error deleting the token, roll back the user creation
 		tx.Rollback()
 		return nil, fmt.Errorf("error removing verified token: %w", err)
 	}
 
-	// Commit the transaction if the user was created and the token was successfully removed
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 
-	return &newUser, nil
+	return newUser, nil
 }
 
 // Login checks if a user exists with the given email and password.
@@ -266,4 +226,50 @@ func GeneratePasswordResetToken(email string) (string, error) {
 	}
 
 	return token, nil
+}
+
+// private
+func hashPassword(password string) (string, error) {
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedBytes), nil
+}
+
+func generateUsername(signUpReq *dto.SignUpRequest) string {
+	if signUpReq.Username != nil && *signUpReq.Username != "" {
+		return *signUpReq.Username
+	}
+	emailParts := strings.Split(signUpReq.Email, "@")
+	return emailParts[0]
+}
+
+func insertUserWithRetry(tx *sqlx.Tx, signUpReq *dto.SignUpRequest, hashedPassword string) (int64, error) {
+	username := generateUsername(signUpReq)
+	const maxRetries = 5
+	for i := 0; i < maxRetries; i++ {
+		res, err := tx.Exec(`INSERT INTO Users (Username, Email, PasswordHash, Provider, ProviderID, Role, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, 'user', NOW(), NOW())`,
+			username, signUpReq.Email, hashedPassword, signUpReq.Provider, signUpReq.ProviderID)
+		if err != nil {
+			if strings.Contains(err.Error(), "Duplicate entry") && strings.Contains(err.Error(), "for key 'idx_users_username'") {
+				username = fmt.Sprintf("%s_%s", username, GenerateRandomString(5))
+				continue
+			}
+			return 0, fmt.Errorf("error registering user: %w", err)
+		}
+		userID, _ := res.LastInsertId()
+		return userID, nil
+	}
+	return 0, fmt.Errorf("failed to insert user after retries")
+}
+
+func fetchNewUser(tx *sqlx.Tx, userID int64) (*models.User, error) {
+	var newUser models.User
+	query := `SELECT UserID, Username, Email, Provider, ProviderID, Role, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?`
+	err := tx.QueryRowx(query, userID).StructScan(&newUser)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching newly created user: %w", err)
+	}
+	return &newUser, nil
 }
