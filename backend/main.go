@@ -156,6 +156,7 @@ func main() {
 		markerGroup.Delete("/:markerID", handlers.DeleteMarkerHandler)
 		markerGroup.Post("/:markerID/dislike", handlers.LeaveDislikeHandler)
 		markerGroup.Delete("/:markerID/dislike", handlers.UndoDislikeHandler)
+		markerGroup.Get("/close", handlers.FindCloseMarkersHandler)
 	}
 
 	// Comment routes
