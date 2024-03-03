@@ -1,18 +1,22 @@
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import RateReviewIcon from "@mui/icons-material/RateReview";
+import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
+import ThumbDownOffAltIcon from "@mui/icons-material/ThumbDownOffAlt";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useEffect, useState } from "react";
 import deleteMarker from "../../api/markers/deleteMarker";
+import getDislikeState from "../../api/markers/getDislikeState";
+import markerDislike from "../../api/markers/markerDislike";
+import markerUnDislike from "../../api/markers/markerUnDislike";
 import noimg from "../../assets/images/noimg.webp";
 import useToastStore from "../../store/useToastStore";
 import useUserStore from "../../store/useUserStore";
+import type { MarkerClusterer } from "../../types/Cluster.types";
 import type { KakaoMarker } from "../../types/KakaoMap.types";
 import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
-import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
-import type { MarkerClusterer } from "../../types/Cluster.types";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
@@ -32,15 +36,32 @@ const MarkerInfoModal = ({
   const userState = useUserStore();
   const toastState = useToastStore();
 
-  const [loading, setLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [dislikeLoading, setDislikeLoading] = useState(true);
+
+  const [disLike, setDislike] = useState(false);
 
   useEffect(() => {
+    const getDislike = async () => {
+      try {
+        const result = await getDislikeState(currentMarkerInfo.markerId);
+        console.log(result);
+        setDislike(result.disliked);
+      } catch (error) {
+        setDislike(false);
+        console.log(error);
+      } finally {
+        setDislikeLoading(false);
+      }
+    };
+
+    getDislike();
     toastState.close();
     toastState.setToastText("");
   }, []);
 
   const handleDelete = () => {
-    setLoading(true);
+    setDeleteLoading(true);
     deleteMarker(currentMarkerInfo.markerId)
       .then(() => {
         toastState.setToastText("삭제 완료");
@@ -63,7 +84,7 @@ const MarkerInfoModal = ({
         alert("삭제 실패 잠시 후 다시 시도해주세요!");
       })
       .finally(() => {
-        setLoading(false);
+        setDeleteLoading(false);
       });
   };
 
@@ -71,8 +92,23 @@ const MarkerInfoModal = ({
     console.log("리뷰 보기");
   };
 
-  const handleDislike = () => {
-    console.log("싫어요");
+  const handleDislike = async () => {
+    setDislikeLoading(true);
+    try {
+      if (disLike) {
+        const result = await markerUnDislike(currentMarkerInfo.markerId);
+        console.log(result);
+        setDislike(false);
+      } else {
+        const result = await markerDislike(currentMarkerInfo.markerId);
+        console.log(result);
+        setDislike(true);
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setDislikeLoading(false);
+    }
   };
 
   return (
@@ -92,15 +128,32 @@ const MarkerInfoModal = ({
             <RateReviewIcon />
           </IconButton>
         </Tooltip>
-        <Tooltip title="싫어요" arrow disableInteractive>
-          <IconButton onClick={handleDislike} aria-label="dislike">
-            <ThumbDownAltIcon />
-          </IconButton>
-        </Tooltip>
+        {disLike ? (
+          <Tooltip title="싫어요 취소" arrow disableInteractive>
+            <IconButton onClick={handleDislike} aria-label="dislike">
+              {dislikeLoading ? (
+                <CircularProgress color="inherit" size={20} />
+              ) : (
+                <ThumbDownAltIcon />
+              )}
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <Tooltip title="싫어요" arrow disableInteractive>
+            <IconButton onClick={handleDislike} aria-label="dislike">
+              {dislikeLoading ? (
+                <CircularProgress color="inherit" size={20} />
+              ) : (
+                <ThumbDownOffAltIcon />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
+
         {userState.user.user.userId === currentMarkerInfo.userId && (
           <Tooltip title="삭제 하기" arrow disableInteractive>
             <IconButton onClick={handleDelete} aria-label="delete">
-              {loading ? (
+              {deleteLoading ? (
                 <CircularProgress color="inherit" size={20} />
               ) : (
                 <DeleteOutlineIcon />
