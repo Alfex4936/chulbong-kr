@@ -3,26 +3,11 @@ package handlers
 import (
 	"chulbong-kr/dto"
 	"chulbong-kr/services"
+	"chulbong-kr/utils"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
-
-// QueryParamsExample handler
-func QueryParamsExample(c *fiber.Ctx) error {
-	// Capture query parameters
-	query1 := c.Query("query")
-	query2 := c.Query("query2")
-
-	// You can also provide a default value if a query parameter is missing
-	query3 := c.Query("query3", "default value")
-
-	return c.JSON(fiber.Map{
-		"query1": query1,
-		"query2": query2,
-		"query3": query3,
-	})
-}
 
 func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	// Parse the multipart form
@@ -49,7 +34,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Location Must Be Inside South Korea
-	yes := services.IsInSouthKorea(latitude, longitude)
+	yes := utils.IsInSouthKorea(latitude, longitude)
 	if !yes {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operation not allowed within South Korea."})
 	}
@@ -284,6 +269,24 @@ func UndoDislikeHandler(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
+func GetUserMarkersHandler(c *fiber.Ctx) error {
+	// Retrieve userID from c.Locals, which is set during authentication
+	userID, ok := c.Locals("userID").(int)
+	if !ok {
+		// If userID is not available, return an error response
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User not authenticated"})
+	}
+
+	// Call the modified service function with the userID
+	markersWithPhotos, err := services.GetAllMarkersByUser(userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Return the filtered markers
+	return c.JSON(markersWithPhotos)
+}
+
 // CheckDislikeStatus handler
 func CheckDislikeStatus(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(int)
@@ -300,10 +303,35 @@ func CheckDislikeStatus(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"disliked": disliked})
 }
 
+// Find Close Markers godoc
+//
+// @Summary		Find close markers
+// @Description	This endpoint retrieves markers that are close to a specified location within a given distance.
+// @Description	It requires latitude, longitude, distance, and the number of markers (N) to return.
+// @Description	If no markers are found within the specified distance, it returns a "No markers found" message.
+// @Description	Returns a list of markers that meet the criteria. (maximum 3km distance allowed)
+// @ID			find-close-markers
+// @Tags		markers
+// @Accept		json
+// @Produce	json
+// @Param		latitude	query	number	true	"Latitude of the location (float)"
+// @Param		longitude	query	number	true	"Longitude of the location (float)"
+// @Param		distance	query	int		true	"Search radius distance (meters)"
+// @Param		N			query	int		true	"Number of markers to return"
+// @Security	ApiKeyAuth
+// @Success	200	{array}	dto.MarkerWithDistance	"Markers found successfully (with distance)"
+// @Failure	400	{object}	map[string]interface{}	"Invalid query parameters"
+// @Failure	404	{object}	map[string]interface{}	"No markers found within the specified distance"
+// @Failure	500	{object}	map[string]interface{}	"Internal server error"
+// @Router		/markers/close [get]
 func FindCloseMarkersHandler(c *fiber.Ctx) error {
 	var params dto.QueryParams
 	if err := c.QueryParser(&params); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid query parameters"})
+	}
+
+	if params.Distance > 3000 {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Distance cannot be greater than 3,000m (3km)"})
 	}
 
 	// Find nearby markers within the specified distance

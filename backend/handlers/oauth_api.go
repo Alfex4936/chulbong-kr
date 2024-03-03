@@ -3,6 +3,7 @@ package handlers
 import (
 	"chulbong-kr/dto"
 	"chulbong-kr/services"
+	"chulbong-kr/utils"
 	"fmt"
 	"os"
 
@@ -14,7 +15,7 @@ import (
 func GetGoogleAuthHandler(conf *oauth2.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Generate a state string for CSRF protection
-		state := services.GenerateState()
+		state := utils.GenerateState()
 		c.Cookie(&fiber.Cookie{
 			Name:  "oauthstate",
 			Value: state,

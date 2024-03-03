@@ -1,4 +1,4 @@
-package services
+package utils
 
 // Go convention to keep test files alongside the files they're testing, typically in the same package.
 
@@ -44,8 +44,16 @@ func TestDistance(t *testing.T) {
 			lat1:           37.8580352854713,
 			long1:          126.80789827370542,
 			lat2:           37.85803307018021,
-			long2:          126.80792100630472, // Approximately 5 meters away in longitude
-			expectedResult: 2,                  // Expecting the result to be close to 5 meters
+			long2:          126.80792100630472,
+			expectedResult: 2, // Expecting the result to be close to 5 meters
+		},
+		{
+			name:           "Very close distance 3", // actual 7.418885708137619m distance
+			lat1:           37.293536,
+			long1:          127.061558, // gwangyo
+			lat2:           37.29355,
+			long2:          127.061476,
+			expectedResult: 7, // Expecting the result to be close to 7 meters
 		},
 	}
 
@@ -99,6 +107,15 @@ func TestIsInSouthKorea(t *testing.T) {
 		{"Uni Island3", 34.636217082470296, 129.4828167691493, false},
 		{"Uni Island4", 34.29666974505072, 129.3871993238883, false},
 		{"Uni Island5", 34.0854739629158, 129.2154168085643, false},
+		{"Fukuoka 1 (Japan)", 33.784029222960406, 130.53443527389945, false},
+		{"Fukuoka 2 (Japan)", 34.296085822281455, 130.93051474444093, false},
+		{"Fukuoka 3 (Japan)", 32.69461329871054, 128.79495039442563, false},
+		{"Fukuoka 4 (Japan)", 32.95445481630956, 129.09330313600782, false},
+		{"Fukuoka 5 (Japan)", 33.53700218298737, 130.3983824405139, false},
+		{"Shimanae (Japan)", 35.03719336610837, 132.4915325911786, false},
+		{"Okinoshimajo (Japan)", 36.27042331297408, 133.24889805463428, false},
+		{"Shimayama Island (Japan)", 32.683327616680096, 128.64905526405005, false},
+		{"Kyoto (Japan)", 35.277030942449066, 135.4727941919809, false},
 		{"Yantai (China)", 37.45460313491269, 122.43159543394779, false},
 		{"평양 (N.Korea)", 39.040122308158885, 125.75997459218848, false},
 		// {"Iki Island", 33.833510640897295, 129.6794423356137, false},

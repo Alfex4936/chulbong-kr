@@ -148,15 +148,16 @@ func main() {
 	markerGroup := api.Group("/markers")
 	{
 		markerGroup.Use(middlewares.AuthMiddleware)
-		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
+		markerGroup.Get("/my", handlers.GetUserMarkersHandler)
 		// markerGroup.Get("/:markerID", handlers.GetMarker)
-		markerGroup.Get("/:markerID/dislike-status", handlers.CheckDislikeStatus)
-		markerGroup.Put("/:markerID", handlers.UpdateMarker)
-		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
-		markerGroup.Delete("/:markerID", handlers.DeleteMarkerHandler)
-		markerGroup.Post("/:markerID/dislike", handlers.LeaveDislikeHandler)
-		markerGroup.Delete("/:markerID/dislike", handlers.UndoDislikeHandler)
 		markerGroup.Get("/close", handlers.FindCloseMarkersHandler)
+		markerGroup.Get("/:markerID/dislike-status", handlers.CheckDislikeStatus)
+		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
+		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
+		markerGroup.Post("/:markerID/dislike", handlers.LeaveDislikeHandler)
+		markerGroup.Put("/:markerID", handlers.UpdateMarker)
+		markerGroup.Delete("/:markerID", handlers.DeleteMarkerHandler)
+		markerGroup.Delete("/:markerID/dislike", handlers.UndoDislikeHandler)
 	}
 
 	// Comment routes

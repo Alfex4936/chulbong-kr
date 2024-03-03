@@ -240,7 +240,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Sign up a new user",
+                "summary": "Sign up a new user [normal]",
                 "operationId": "sign-up-user",
                 "parameters": [
                     {
@@ -339,6 +339,89 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/markers/close": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "This endpoint retrieves markers that are close to a specified location within a given distance.\nIt requires latitude, longitude, distance, and the number of markers (N) to return.\nIf no markers are found within the specified distance, it returns a \"No markers found\" message.\nReturns a list of markers that meet the criteria. (maximum 3km distance allowed)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "markers"
+                ],
+                "summary": "Find close markers",
+                "operationId": "find-close-markers",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude of the location (float)",
+                        "name": "latitude",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude of the location (float)",
+                        "name": "longitude",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Search radius distance (meters)",
+                        "name": "distance",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of markers to return",
+                        "name": "N",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Markers found successfully (with distance)",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.MarkerWithDistance"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "No markers found within the specified distance",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -361,6 +444,36 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/models.User"
+                }
+            }
+        },
+        "dto.MarkerWithDistance": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "distance": {
+                    "description": "Distance in meters",
+                    "type": "number"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "markerId": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "integer"
                 }
             }
         },
