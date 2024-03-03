@@ -11,17 +11,23 @@ import useUserStore from "../../store/useUserStore";
 import type { KakaoMarker } from "../../types/KakaoMap.types";
 import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
+import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
+import type { MarkerClusterer } from "../../types/Cluster.types";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
   setMarkerInfoModal: React.Dispatch<React.SetStateAction<boolean>>;
   markers: KakaoMarker[];
+  setMarkers: React.Dispatch<React.SetStateAction<KakaoMarker[]>>;
+  clusterer: MarkerClusterer;
 }
 
 const MarkerInfoModal = ({
   currentMarkerInfo,
   setMarkerInfoModal,
   markers,
+  setMarkers,
+  clusterer,
 }: Props) => {
   const userState = useUserStore();
   const toastState = useToastStore();
@@ -40,7 +46,15 @@ const MarkerInfoModal = ({
         toastState.setToastText("삭제 완료");
         toastState.open();
 
+        const newMarkers = markers.filter(
+          (_, index) => index !== currentMarkerInfo.index
+        );
+
         markers[currentMarkerInfo.index].setMap(null);
+        setMarkers(newMarkers);
+
+        clusterer.removeMarker(markers[currentMarkerInfo.index]);
+
         setMarkerInfoModal(false);
       })
       .catch((error) => {
@@ -51,6 +65,14 @@ const MarkerInfoModal = ({
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  const handleViewReview = () => {
+    console.log("리뷰 보기");
+  };
+
+  const handleDislike = () => {
+    console.log("싫어요");
   };
 
   return (
@@ -66,8 +88,13 @@ const MarkerInfoModal = ({
       </Styled.imageWrap>
       <Styled.BottomButtons>
         <Tooltip title="리뷰 보기" arrow disableInteractive>
-          <IconButton onClick={handleDelete} aria-label="delete">
+          <IconButton onClick={handleViewReview} aria-label="review">
             <RateReviewIcon />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="싫어요" arrow disableInteractive>
+          <IconButton onClick={handleDislike} aria-label="dislike">
+            <ThumbDownAltIcon />
           </IconButton>
         </Tooltip>
         {userState.user.user.userId === currentMarkerInfo.userId && (
