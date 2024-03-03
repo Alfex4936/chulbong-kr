@@ -97,7 +97,7 @@ const AddChinupBarForm = ({
       })
       .catch((error) => {
         if (error.response.status === 401) {
-          setError("로그인 해주세요!");
+          setError("인증이 만료 되었습니다. 다시 로그인 해주세요!");
         }
       })
       .finally(() => {

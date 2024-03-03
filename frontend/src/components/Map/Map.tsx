@@ -268,10 +268,11 @@ const Map = () => {
               currentMarkerInfo={currentMarkerInfo as MarkerInfo}
               setMarkerInfoModal={setMarkerInfoModal}
               markers={markers}
+              setMarkers={setMarkers}
+              clusterer={clusterer as MarkerClusterer}
             />
           </Suspense>
         </BasicModal>
-        // <MarkerInfoSkeleton />
       )}
       <Button
         onClick={() => {

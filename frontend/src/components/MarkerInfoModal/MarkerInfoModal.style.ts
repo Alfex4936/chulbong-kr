@@ -31,8 +31,10 @@ export const description = styled.div`
   font-size: 1.3rem;
   margin-top: 1rem;
   color: #fff;
-  white-space: normal;
+
+  white-space: nowrap;
   overflow: hidden;
+
   text-overflow: ellipsis;
 
   width: 100%;
@@ -45,7 +47,7 @@ export const description = styled.div`
   border-bottom-right-radius: 1rem;
 
   &:hover {
-    word-wrap: break-word;
+    white-space: normal;
   }
 `;
 
