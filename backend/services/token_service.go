@@ -3,37 +3,16 @@ package services
 import (
 	"chulbong-kr/database"
 	"chulbong-kr/middlewares"
-	"crypto/rand"
+	"chulbong-kr/utils"
 
-	"encoding/base64"
-	"encoding/hex"
-	mrand "math/rand"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-// GenerateOpaqueToken creates a random token
-func GenerateOpaqueToken() (string, error) {
-	bytes := make([]byte, 16) // Generates a 128-bit token
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
-}
-
-func GenerateRandomString(n int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	s := make([]rune, n)
-	for i := range s {
-		s[i] = rune(letters[mrand.Intn(len(letters))])
-	}
-	return string(s)
-}
-
 // GenerateAndSaveToken generates a new token for a user and saves it in the database.
 func GenerateAndSaveToken(userID int) (string, error) {
-	token, err := GenerateOpaqueToken() // a secure, random token.
+	token, err := utils.GenerateOpaqueToken() // a secure, random token.
 	if err != nil {
 		return "", err
 	}
@@ -68,12 +47,6 @@ func DeleteExpiredPasswordTokens() error {
 	query := `DELETE FROM PasswordTokens WHERE ExpiresAt < NOW()`
 	_, err := database.DB.Exec(query)
 	return err
-}
-
-func GenerateState() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return base64.URLEncoding.EncodeToString(b)
 }
 
 func GenerateLoginCookie(value string) fiber.Cookie {

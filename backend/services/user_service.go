@@ -4,6 +4,7 @@ import (
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
+	"chulbong-kr/utils"
 	"context"
 	"database/sql"
 	"fmt"
@@ -211,7 +212,7 @@ func GeneratePasswordResetToken(email string) (string, error) {
 		return "", err // User not found or db error
 	}
 
-	token, err := GenerateOpaqueToken()
+	token, err := utils.GenerateOpaqueToken()
 	if err != nil {
 		return "", err
 	}
@@ -253,7 +254,7 @@ func insertUserWithRetry(tx *sqlx.Tx, signUpReq *dto.SignUpRequest, hashedPasswo
 			username, signUpReq.Email, hashedPassword, signUpReq.Provider, signUpReq.ProviderID)
 		if err != nil {
 			if strings.Contains(err.Error(), "Duplicate entry") && strings.Contains(err.Error(), "for key 'idx_users_username'") {
-				username = fmt.Sprintf("%s_%s", username, GenerateRandomString(5))
+				username = fmt.Sprintf("%s_%s", username, utils.GenerateRandomString(5))
 				continue
 			}
 			return 0, fmt.Errorf("error registering user: %w", err)
