@@ -45,6 +45,9 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gofiber/contrib/fiberzap/v2 v2.1.2 // indirect
 	github.com/gofiber/swagger v1.0.0 // indirect
+	github.com/gofiber/template v1.8.3 // indirect
+	github.com/gofiber/template/html/v2 v2.1.1 // indirect
+	github.com/gofiber/utils v1.1.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.7 // indirect
