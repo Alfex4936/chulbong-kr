@@ -64,6 +64,8 @@ func main() {
 		Endpoint:     google.Endpoint,
 	}
 
+	// engine := html.New("./views", ".html")
+
 	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
 		Prefork:       true, // Enable prefork mode for high-concurrency
@@ -76,8 +78,11 @@ func main() {
 		WriteTimeout:  10 * time.Second,
 		JSONEncoder:   json.Marshal,
 		JSONDecoder:   json.Unmarshal,
+		// Views:         engine,
 	})
 	app.Server().MaxConnsPerIP = 100
+
+	app.Static("/toss/", "./public")
 
 	// Middlewares
 	app.Use(healthcheck.New(healthcheck.Config{
@@ -96,7 +101,7 @@ func main() {
 		Expiration:        30 * time.Second,
 		LimiterMiddleware: limiter.SlidingWindow{},
 	}))
-	app.Get("/metrics", monitor.New(monitor.Config{
+	app.Get("/metrics", middlewares.AdminOnly, monitor.New(monitor.Config{
 		Title:   "chulbong-kr System Metrics",
 		Refresh: time.Second * 60,
 	}))
@@ -104,27 +109,28 @@ func main() {
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:5173,https://chulbong-kr.vercel.app", // List allowed origins
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                          // Explicitly list allowed methods
-		AllowHeaders:     "*",                                                    // TODO: Allow specific headers
+		AllowOrigins:     "http://localhost:5173,https://chulbong-kr.vercel.app,https://developers.tosspayments.com", // List allowed origins
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                                                              // Explicitly list allowed methods
+		AllowHeaders:     "*",                                                                                        // TODO: Allow specific headers
 		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers",
 		AllowCredentials: true,
 	}))
 
 	// app.Use(logger.New())
-	app.Get("/swagger/*", swagger.HandlerDefault) // default
+	app.Get("/swagger/*", middlewares.AdminOnly, swagger.HandlerDefault)
 
 	// Setup routes
 	api := app.Group("/api/v1")
 
 	api.Get("/google", handlers.GetGoogleAuthHandler(conf))
-	api.Get("/admin", func(c *fiber.Ctx) error { return c.JSON("good") }, middlewares.AdminOnly)
+	api.Get("/admin", middlewares.AdminOnly, func(c *fiber.Ctx) error { return c.JSON("good") })
 
 	// Authentication routes
 	authGroup := api.Group("/auth")
 	{
 		authGroup.Post("/signup", handlers.SignUpHandler)
 		authGroup.Post("/login", handlers.LoginHandler)
+		authGroup.Post("/logout", handlers.LogoutHandler)
 		authGroup.Get("/google/callback", handlers.GetGoogleCallbackHandler(conf))
 		authGroup.Post("/verify-email/send", handlers.SendVerificationEmailHandler)
 		authGroup.Post("/verify-email/confirm", handlers.ValidateTokenHandler)
@@ -167,6 +173,13 @@ func main() {
 		commentGroup.Post("/", handlers.PostComment)
 		commentGroup.Put("/:commentId", handlers.UpdateComment)
 		commentGroup.Delete("/:commentId", handlers.DeleteComment)
+	}
+
+	tossGroup := api.Group("/payments/toss")
+	{
+		tossGroup.Post("/confirm", handlers.ConfirmToss)
+		// tossGroup.Get("/success", handlers.SuccessToss)
+		// tossGroup.Get("/fail", handlers.FailToss)
 	}
 
 	// app.Get("/example-optional/:param?", handlers.QueryParamsExample)
