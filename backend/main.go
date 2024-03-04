@@ -130,7 +130,7 @@ func main() {
 	{
 		authGroup.Post("/signup", handlers.SignUpHandler)
 		authGroup.Post("/login", handlers.LoginHandler)
-		authGroup.Post("/logout", handlers.LogoutHandler)
+		authGroup.Post("/logout", middlewares.AuthMiddleware, handlers.LogoutHandler)
 		authGroup.Get("/google/callback", handlers.GetGoogleCallbackHandler(conf))
 		authGroup.Post("/verify-email/send", handlers.SendVerificationEmailHandler)
 		authGroup.Post("/verify-email/confirm", handlers.ValidateTokenHandler)
@@ -144,6 +144,8 @@ func main() {
 	userGroup := api.Group("/users")
 	{
 		userGroup.Use(middlewares.AuthMiddleware)
+		userGroup.Get("/me", handlers.ProfileHandler)
+		userGroup.Patch("/me", handlers.UpdateUserHandler)
 		userGroup.Delete("/me", handlers.DeleteUserHandler)
 		userGroup.Delete("/s3/objects", handlers.DeleteObjectFromS3Handler)
 	}
