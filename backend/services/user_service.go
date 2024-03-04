@@ -17,6 +17,25 @@ import (
 
 var TOKEN_DURATION time.Duration
 
+// GetUserById retrieves a user by their email address
+func GetUserById(userID int) (*models.User, error) {
+	var user models.User
+
+	// Define the query to select the user
+	query := `SELECT UserID, Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?`
+
+	// Execute the query
+	err := database.DB.Get(&user, query, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("no user found with userID %d", userID)
+		}
+		return nil, fmt.Errorf("error fetching user by userID: %w", err)
+	}
+
+	return &user, nil
+}
+
 // GetUserByEmail retrieves a user by their email address
 func GetUserByEmail(email string) (*models.User, error) {
 	var user models.User
@@ -103,30 +122,97 @@ func Login(email, password string) (*models.User, error) {
 	return user, nil
 }
 
-// UpdateUserProfile updates the user's profile information
-func UpdateUserProfile(user *models.User, newPassword string) error {
-	// Check if a new password is provided and needs hashing
-	if newPassword != "" {
-		hashedBytes, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-		if err != nil {
-			return err
-		}
-		// Update the PasswordHash field to have a valid hashed password string
-		user.PasswordHash = sql.NullString{String: string(hashedBytes), Valid: true}
-	} else if !user.PasswordHash.Valid {
-		// If no new password is provided and the existing password is not valid,
-		// ensure PasswordHash is an empty, valid sql.NullString to avoid SQL null constraint issues.
-		user.PasswordHash = sql.NullString{String: "", Valid: false}
-	}
-	// Prepare the SQL query
-	query := `UPDATE Users SET Username = ?, PasswordHash = ?, UpdatedAt = NOW() WHERE UserID = ?`
-	// Execute the query with the user's information
-	_, err := database.DB.Exec(query, user.Username, user.PasswordHash, user.UserID)
+func UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*models.User, error) {
+	tx, err := database.DB.Beginx()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	defer tx.Rollback()
+
+	if updateReq.Username != nil {
+		var existingID int
+		err = tx.Get(&existingID, "SELECT UserID FROM Users WHERE Username = ?", *updateReq.Username)
+		if err == nil || err != sql.ErrNoRows {
+			return nil, fmt.Errorf("username %s is already in use", *updateReq.Username)
+		}
+	}
+
+	if updateReq.Email != nil {
+		var existingID int
+		err = tx.Get(&existingID, "SELECT UserID FROM Users WHERE Email = ?", *updateReq.Email)
+		if err == nil || err != sql.ErrNoRows {
+			return nil, fmt.Errorf("email %s is already in use", *updateReq.Email)
+		}
+	}
+
+	setParts := []string{}
+	args := []interface{}{}
+
+	if updateReq.Username != nil {
+		setParts = append(setParts, "Username = ?")
+		args = append(args, *updateReq.Username)
+	}
+
+	if updateReq.Email != nil {
+		setParts = append(setParts, "Email = ?")
+		args = append(args, *updateReq.Email)
+	}
+
+	if updateReq.Password != nil {
+		hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(*updateReq.Password), bcrypt.DefaultCost)
+		if hashErr != nil {
+			return nil, hashErr
+		}
+		setParts = append(setParts, "PasswordHash = ?")
+		args = append(args, string(hashedPassword))
+	}
+
+	if len(setParts) > 0 {
+		args = append(args, userID)
+		query := fmt.Sprintf("UPDATE Users SET %s WHERE UserID = ?", strings.Join(setParts, ", "))
+		_, err = tx.Exec(query, args...)
+		if err != nil {
+			return nil, fmt.Errorf("error updating user: %w", err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, fmt.Errorf("error committing update: %w", err)
+	}
+
+	// Fetch the updated user details
+	updatedUser, err := GetUserById(userID)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching updated user: %w", err)
+	}
+
+	return updatedUser, nil
 }
+
+//// UpdateUserProfile updates the user's profile information
+// func UpdateUserProfile(user *models.User, newPassword string) error {
+// 	// Check if a new password is provided and needs hashing
+// 	if newPassword != "" {
+// 		hashedBytes, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		// Update the PasswordHash field to have a valid hashed password string
+// 		user.PasswordHash = sql.NullString{String: string(hashedBytes), Valid: true}
+// 	} else if !user.PasswordHash.Valid {
+// 		// If no new password is provided and the existing password is not valid,
+// 		// ensure PasswordHash is an empty, valid sql.NullString to avoid SQL null constraint issues.
+// 		user.PasswordHash = sql.NullString{String: "", Valid: false}
+// 	}
+// 	// Prepare the SQL query
+// 	query := `UPDATE Users SET Username = ?, PasswordHash = ?, UpdatedAt = NOW() WHERE UserID = ?`
+// 	// Execute the query with the user's information
+// 	_, err := database.DB.Exec(query, user.Username, user.PasswordHash, user.UserID)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func DeleteUserWithRelatedData(ctx context.Context, userID int) error {
 	// Begin a transaction

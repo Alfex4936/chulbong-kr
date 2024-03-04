@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"chulbong-kr/dto"
+	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
 	"database/sql"
 	"fmt"
@@ -113,29 +114,30 @@ func LogoutHandler(c *fiber.Ctx) error {
 	// Retrieve user ID from context or session
 	userID, ok := c.Locals("userID").(int)
 	if !ok {
-		// Handle error: User ID not found in context/session
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID missing in session"})
+		// If user ID is missing, continue with logout without error
+		// Log the occurrence for internal tracking
+		log.Println("LogoutHandler: UserID missing in session. Proceeding with client-side logout.")
 	}
 
-	// Delete the token from the database
+	// Attempt to delete the token from the database
 	if err := services.DeleteOpaqueToken(userID); err != nil {
-		// Handle error: Failed to delete token
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete session token"})
+		// Log the error but do not disrupt the logout process
+		log.Printf("LogoutHandler: Failed to delete session token for user ID %d: %v\n", userID, err)
 	}
 
-	// Clear the authentication cookie as previously shown
+	// Clear the authentication cookie
 	logoutCookie := fiber.Cookie{
-		Name:     "token_cookie_name", // Use the correct cookie name
+		Name:     middlewares.TOKEN_COOKIE,
 		Value:    "",
-		Expires:  time.Now().Add(-time.Hour),
+		Expires:  time.Now().Add(-time.Hour), // Set expiration to past to remove the cookie
 		HTTPOnly: true,
-		Secure:   true,
+		Secure:   true, // Set to false if not using HTTPS
 		SameSite: "Lax",
 		Path:     "/",
 	}
 	c.Cookie(&logoutCookie)
 
-	// Return a logout success response
+	// Return a logout success response regardless of server-side token deletion status
 	return c.JSON(fiber.Map{"message": "Logged out successfully"})
 }
 

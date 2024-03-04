@@ -19,3 +19,9 @@ type LoginResponse struct {
 	Token string       `json:"token"`
 	User  *models.User `json:"user"`
 }
+
+type UpdateUserRequest struct {
+	Username *string `json:"username,omitempty"`
+	Email    *string `json:"email,omitempty"`
+	Password *string `json:"password,omitempty"`
+}
