@@ -15,4 +15,5 @@ export interface Marker {
   updatedAt: Date;
   username: string;
   photos?: Photo[];
+  dislikeCount?: number;
 }

@@ -21,8 +21,8 @@ import CenterBox from "../CenterBox/CenterBox";
 import FloatingButton from "../FloatingButton/FloatingButton";
 import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
-import * as Styled from "./Map.style";
 import MyInfoModal from "../MyInfoModal/MyInfoModal";
+import * as Styled from "./Map.style";
 
 const AddChinupBarForm = lazy(
   () => import("../AddChinupBarForm/AddChinupBarForm")
@@ -325,7 +325,15 @@ const Map = () => {
         right={20}
         shape="circle"
         tooltip={userState.user.token ? "메뉴" : "로그인"}
-        onClickFn={userState.user.token ? handleMyInfo : handleOpen}
+        onClickFn={
+          userState.user.token
+            ? myInfoModal
+              ? () => {
+                  setMyInfoModal(false);
+                }
+              : handleMyInfo
+            : handleOpen
+        }
       />
 
       <FloatingButton

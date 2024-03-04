@@ -40,6 +40,9 @@ const MarkerInfoModal = ({
   const [dislikeLoading, setDislikeLoading] = useState(true);
 
   const [disLike, setDislike] = useState(false);
+  const [dislikeCount, setDislikeCount] = useState(0);
+
+  console.log(currentMarkerInfo);
 
   useEffect(() => {
     const getDislike = async () => {
@@ -58,6 +61,12 @@ const MarkerInfoModal = ({
     getDislike();
     toastState.close();
     toastState.setToastText("");
+  }, []);
+
+  useEffect(() => {
+    if (currentMarkerInfo.dislikeCount) {
+      setDislikeCount(currentMarkerInfo.dislikeCount);
+    }
   }, []);
 
   const handleDelete = () => {
@@ -99,10 +108,12 @@ const MarkerInfoModal = ({
         const result = await markerUnDislike(currentMarkerInfo.markerId);
         console.log(result);
         setDislike(false);
+        setDislikeCount((prev) => prev - 1);
       } else {
         const result = await markerDislike(currentMarkerInfo.markerId);
         console.log(result);
         setDislike(true);
+        setDislikeCount((prev) => prev + 1);
       }
     } catch (error) {
       console.log(error);
@@ -134,7 +145,16 @@ const MarkerInfoModal = ({
               {dislikeLoading ? (
                 <CircularProgress color="inherit" size={20} />
               ) : (
-                <ThumbDownAltIcon />
+                <div
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    position: "relative",
+                  }}
+                >
+                  <Styled.DislikeCount>{dislikeCount}</Styled.DislikeCount>
+                  <ThumbDownAltIcon />
+                </div>
               )}
             </IconButton>
           </Tooltip>
