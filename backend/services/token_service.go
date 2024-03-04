@@ -37,6 +37,13 @@ func SaveOrUpdateOpaqueToken(userID int, token string, expiresAt time.Time) erro
 	return err
 }
 
+// DeleteOpaqueToken removes an opaque token from the database for a user
+func DeleteOpaqueToken(userID int) error {
+	query := "DELETE FROM OpaqueTokens WHERE UserID = ?"
+	_, err := database.DB.Exec(query, userID)
+	return err
+}
+
 func DeleteExpiredTokens() error {
 	query := `DELETE FROM OpaqueTokens WHERE ExpiresAt < NOW()`
 	_, err := database.DB.Exec(query)
