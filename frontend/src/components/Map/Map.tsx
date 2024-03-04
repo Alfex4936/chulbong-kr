@@ -22,6 +22,7 @@ import FloatingButton from "../FloatingButton/FloatingButton";
 import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
+import MyInfoModal from "../MyInfoModal/MyInfoModal";
 
 const AddChinupBarForm = lazy(
   () => import("../AddChinupBarForm/AddChinupBarForm")
@@ -60,6 +61,8 @@ const Map = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+
+  const [myInfoModal, setMyInfoModal] = useState(false); // 내 정보 모달 여부
 
   const imageSize = new window.kakao.maps.Size(59, 59);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
@@ -191,8 +194,8 @@ const Map = () => {
   const handleOpen = () => {
     modalState.openLogin();
   };
-  const handleLogout = () => {
-    userState.resetUser();
+  const handleMyInfo = () => {
+    setMyInfoModal(true);
   };
 
   const zoomIn = () => {
@@ -321,8 +324,8 @@ const Map = () => {
         top={20}
         right={20}
         shape="circle"
-        tooltip={userState.user.token ? "로그아웃" : "로그인"}
-        onClickFn={userState.user.token ? handleLogout : handleOpen}
+        tooltip={userState.user.token ? "메뉴" : "로그인"}
+        onClickFn={userState.user.token ? handleMyInfo : handleOpen}
       />
 
       <FloatingButton
@@ -354,6 +357,7 @@ const Map = () => {
         tooltip="축소"
         onClickFn={zoomOut}
       />
+      {myInfoModal && <MyInfoModal setMyInfoModal={setMyInfoModal} />}
     </div>
   );
 };
