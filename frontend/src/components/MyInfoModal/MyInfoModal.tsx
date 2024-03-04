@@ -8,6 +8,9 @@ import { useState } from "react";
 import logout from "../../api/auth/logout";
 import useUserStore from "../../store/useUserStore";
 import ActionButton from "../ActionButton/ActionButton";
+import AroundMarker from "../AroundMarker/AroundMarker";
+import MyMarker from "../MyMarker/MyMarker";
+import PaymentInfo from "../PaymentInfo/PaymentInfo";
 import * as Styled from "./MyInfoModal.style";
 
 interface Props {
@@ -16,8 +19,14 @@ interface Props {
 
 const MyInfoModal = ({ setMyInfoModal }: Props) => {
   const userState = useUserStore();
+  const tabs = [
+    { title: "주변 검색", content: <AroundMarker /> },
+    { title: "내 장소", content: <MyMarker /> },
+    { title: "결제 정보", content: <PaymentInfo /> },
+  ];
 
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [curTab, setCurTab] = useState<number | null>(null);
 
   const handleLogout = async () => {
     setLogoutLoading(true);
@@ -93,10 +102,23 @@ const MyInfoModal = ({ setMyInfoModal }: Props) => {
         </Styled.LogoutButtonContainer>
       </Styled.InfoTop>
       <Styled.InfoBottom>
-        <Button sx={{ width: "33.33%", color: "#333" }}>주변 검색</Button>
-        <Button sx={{ width: "33.33%", color: "#333" }}>내 장소</Button>
-        <Button sx={{ width: "33.33%", color: "#333" }}>결제 정보</Button>
+        {tabs.map((tab, index) => {
+          return (
+            <Button
+              key={index}
+              sx={{ width: "33.33%", color: "#333" }}
+              onClick={() => {
+                setCurTab(index);
+              }}
+            >
+              {tab.title}
+            </Button>
+          );
+        })}
       </Styled.InfoBottom>
+      {curTab !== null && (
+        <Styled.TabContainer>{tabs[curTab].content}</Styled.TabContainer>
+      )}
     </Styled.Container>
   );
 };
