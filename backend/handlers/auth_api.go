@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -106,6 +107,36 @@ func LoginHandler(c *fiber.Ctx) error {
 	c.Cookie(&cookie)
 
 	return c.JSON(response)
+}
+
+func LogoutHandler(c *fiber.Ctx) error {
+	// Retrieve user ID from context or session
+	userID, ok := c.Locals("userID").(int)
+	if !ok {
+		// Handle error: User ID not found in context/session
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID missing in session"})
+	}
+
+	// Delete the token from the database
+	if err := services.DeleteOpaqueToken(userID); err != nil {
+		// Handle error: Failed to delete token
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete session token"})
+	}
+
+	// Clear the authentication cookie as previously shown
+	logoutCookie := fiber.Cookie{
+		Name:     "token_cookie_name", // Use the correct cookie name
+		Value:    "",
+		Expires:  time.Now().Add(-time.Hour),
+		HTTPOnly: true,
+		Secure:   true,
+		SameSite: "Lax",
+		Path:     "/",
+	}
+	c.Cookie(&logoutCookie)
+
+	// Return a logout success response
+	return c.JSON(fiber.Map{"message": "Logged out successfully"})
 }
 
 // Send Verification Email godoc
