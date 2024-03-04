@@ -4,6 +4,7 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
+	"math"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -270,21 +271,32 @@ func UndoDislikeHandler(c *fiber.Ctx) error {
 }
 
 func GetUserMarkersHandler(c *fiber.Ctx) error {
-	// Retrieve userID from c.Locals, which is set during authentication
 	userID, ok := c.Locals("userID").(int)
 	if !ok {
-		// If userID is not available, return an error response
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User not authenticated"})
 	}
 
-	// Call the modified service function with the userID
-	markersWithPhotos, err := services.GetAllMarkersByUser(userID)
+	// Parse query parameters for pagination
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil || page < 1 {
+		page = 1 // default to first page
+	}
+	pageSize := 4
+
+	markersWithPhotos, total, err := services.GetAllMarkersByUserWithPagination(userID, page, pageSize)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Return the filtered markers
-	return c.JSON(markersWithPhotos)
+	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
+
+	// Return the filtered markers with pagination info
+	return c.JSON(fiber.Map{
+		"markers":      markersWithPhotos,
+		"currentPage":  page,
+		"totalPages":   totalPages,
+		"totalMarkers": total,
+	})
 }
 
 // CheckDislikeStatus handler
@@ -318,8 +330,9 @@ func CheckDislikeStatus(c *fiber.Ctx) error {
 // @Param		longitude	query	number	true	"Longitude of the location (float)"
 // @Param		distance	query	int		true	"Search radius distance (meters)"
 // @Param		N			query	int		true	"Number of markers to return"
+// @Param		page			query	int		true	"Page Index number"
 // @Security	ApiKeyAuth
-// @Success	200	{array}	dto.MarkerWithDistance	"Markers found successfully (with distance)"
+// @Success	200	{object}	map[string]interface{}	"Markers found successfully (with distance) in pages"
 // @Failure	400	{object}	map[string]interface{}	"Invalid query parameters"
 // @Failure	404	{object}	map[string]interface{}	"No markers found within the specified distance"
 // @Failure	500	{object}	map[string]interface{}	"Internal server error"
@@ -334,16 +347,35 @@ func FindCloseMarkersHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Distance cannot be greater than 3,000m (3km)"})
 	}
 
-	// Find nearby markers within the specified distance
-	markers, err := services.FindClosestNMarkersWithinDistance(params.Latitude, params.Longitude, params.Distance, params.N)
+	// Set default page to 1 if not specified
+	if params.Page < 1 {
+		params.Page = 1
+	}
+
+	pageSize := 4 // Define page size
+	offset := (params.Page - 1) * pageSize
+
+	// Find nearby markers within the specified distance and page
+	markers, total, err := services.FindClosestNMarkersWithinDistance(params.Latitude, params.Longitude, params.Distance, pageSize, offset)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	if len(markers) == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "No markers found within the specified distance"})
+	// if len(markers) == 0 {
+	// 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "No markers found within the specified distance"})
+	// }
+
+	// Calculate total pages
+	totalPages := total / pageSize
+	if total%pageSize != 0 {
+		totalPages++
 	}
 
-	// Return the found markers
-	return c.JSON(markers)
+	// Return the found markers along with pagination info
+	return c.JSON(fiber.Map{
+		"markers":      markers,
+		"currentPage":  params.Page,
+		"totalPages":   totalPages,
+		"totalMarkers": total,
+	})
 }

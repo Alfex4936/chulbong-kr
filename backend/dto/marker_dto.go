@@ -25,9 +25,16 @@ type QueryParams struct {
 	Longitude float64 `query:"longitude"`
 	Distance  int     `query:"distance"`
 	N         int     `query:"n"`
+	Page      int     `query:"page"`
 }
 
 type MarkerWithDistance struct {
 	models.Marker
 	Distance float64 `db:"distance"` // Distance in meters
+}
+
+type MarkerWithDislike struct {
+	models.Marker
+	Username     string `db:"Username"`
+	DislikeCount int    `db:"DislikeCount"`
 }
