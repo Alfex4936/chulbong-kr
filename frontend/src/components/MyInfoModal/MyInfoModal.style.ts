@@ -7,8 +7,8 @@ export const Container = styled.div`
 
   position: absolute;
 
-  top: 65px;
-  right: 25px;
+  top: 25px;
+  right: 70px;
 
   background-color: #fff;
 
@@ -76,4 +76,8 @@ export const LogoutButtonContainer = styled.div`
 
 export const InfoBottom = styled.div`
   display: flex;
+`;
+
+export const TabContainer = styled.div`
+  border: 1px solid red;
 `;
