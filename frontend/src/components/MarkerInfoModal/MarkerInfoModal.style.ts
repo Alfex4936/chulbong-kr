@@ -57,3 +57,23 @@ export const BottomButtons = styled.div`
   left: 50%;
   transform: translateX(-50%);
 `;
+
+export const DislikeCount = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  position: absolute;
+  top: -5px;
+  right: -7px;
+
+  width: 20px;
+  height: 13px;
+
+  font-size: 0.5rem;
+  color: #fff;
+
+  border-radius: 10px;
+
+  background-color: #ff7e7e;
+`;
