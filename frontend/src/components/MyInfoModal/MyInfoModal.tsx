@@ -1,11 +1,14 @@
-import * as Styled from "./MyInfoModal.style";
-import useUserStore from "../../store/useUserStore";
-import ActionButton from "../ActionButton/ActionButton";
-import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import { useState } from "react";
+import logout from "../../api/auth/logout";
+import useUserStore from "../../store/useUserStore";
+import ActionButton from "../ActionButton/ActionButton";
+import * as Styled from "./MyInfoModal.style";
 
 interface Props {
   setMyInfoModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -14,9 +17,22 @@ interface Props {
 const MyInfoModal = ({ setMyInfoModal }: Props) => {
   const userState = useUserStore();
 
-  const handleLogout = () => {
-    userState.resetUser();
-    setMyInfoModal(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const handleLogout = async () => {
+    setLogoutLoading(true);
+    try {
+      const result = await logout();
+      userState.resetUser();
+      setMyInfoModal(false);
+      console.log(result);
+    } catch (error) {
+      userState.resetUser();
+      setMyInfoModal(false);
+      console.log(error);
+    } finally {
+      setLogoutLoading(false);
+    }
   };
 
   return (
@@ -68,7 +84,11 @@ const MyInfoModal = ({ setMyInfoModal }: Props) => {
         </Styled.NameContainer>
         <Styled.LogoutButtonContainer>
           <ActionButton bg="black" onClick={handleLogout}>
-            로그아웃
+            {logoutLoading ? (
+              <CircularProgress size={19.5} sx={{ color: "#fff" }} />
+            ) : (
+              "로그아웃"
+            )}
           </ActionButton>
         </Styled.LogoutButtonContainer>
       </Styled.InfoTop>
