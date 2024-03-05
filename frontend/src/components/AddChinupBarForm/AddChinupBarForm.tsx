@@ -54,7 +54,7 @@ const AddChinupBarForm = ({
 
     setNewMarker(data)
       .then((res) => {
-        const imageSize = new window.kakao.maps.Size(50, 59);
+        const imageSize = new window.kakao.maps.Size(39, 39);
         const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
         const activeMarkerImg = new window.kakao.maps.MarkerImage(
