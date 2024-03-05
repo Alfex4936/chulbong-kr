@@ -12,16 +12,18 @@ import AroundMarker from "../AroundMarker/AroundMarker";
 import MyMarker from "../MyMarker/MyMarker";
 import PaymentInfo from "../PaymentInfo/PaymentInfo";
 import * as Styled from "./MyInfoModal.style";
+import type { KakaoMap } from "../../types/KakaoMap.types";
 
 interface Props {
+  map: KakaoMap;
   setMyInfoModal: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const MyInfoModal = ({ setMyInfoModal }: Props) => {
+const MyInfoModal = ({ map, setMyInfoModal }: Props) => {
   const userState = useUserStore();
   const tabs = [
     { title: "주변 검색", content: <AroundMarker /> },
-    { title: "내 장소", content: <MyMarker /> },
+    { title: "내 장소", content: <MyMarker map={map} /> },
     { title: "결제 정보", content: <PaymentInfo /> },
   ];
 
@@ -106,7 +108,10 @@ const MyInfoModal = ({ setMyInfoModal }: Props) => {
           return (
             <Button
               key={index}
-              sx={{ width: "33.33%", color: "#333" }}
+              sx={{
+                width: "33.33%",
+                color: index === curTab ? "#6b73db" : "#333",
+              }}
               onClick={() => {
                 setCurTab(index);
               }}

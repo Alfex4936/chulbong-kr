@@ -79,5 +79,5 @@ export const InfoBottom = styled.div`
 `;
 
 export const TabContainer = styled.div`
-  border: 1px solid red;
+  // border: 1px solid red;
 `;

@@ -1,5 +1,9 @@
 import type { MarkerClusterer } from "@/types/Cluster.types";
-import type { KaKaoMapMouseEvent, KakaoMarker } from "@/types/KakaoMap.types";
+import type {
+  KaKaoMapMouseEvent,
+  KakaoMap,
+  KakaoMarker,
+} from "@/types/KakaoMap.types";
 import type { Marker } from "@/types/Marker.types";
 import AddIcon from "@mui/icons-material/Add";
 import GpsOffIcon from "@mui/icons-material/GpsOff";
@@ -64,7 +68,7 @@ const Map = () => {
 
   const [myInfoModal, setMyInfoModal] = useState(false); // 내 정보 모달 여부
 
-  const imageSize = new window.kakao.maps.Size(59, 59);
+  const imageSize = new window.kakao.maps.Size(39, 39);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
   useEffect(() => {
@@ -365,7 +369,9 @@ const Map = () => {
         tooltip="축소"
         onClickFn={zoomOut}
       />
-      {myInfoModal && <MyInfoModal setMyInfoModal={setMyInfoModal} />}
+      {myInfoModal && (
+        <MyInfoModal map={map as KakaoMap} setMyInfoModal={setMyInfoModal} />
+      )}
     </div>
   );
 };
