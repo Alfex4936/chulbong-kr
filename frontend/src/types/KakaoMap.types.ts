@@ -24,3 +24,14 @@ export interface KakaoMarker {
   setPosition: (data: Pos & LatLngFunctions) => void;
   setMap: (data: KakaoMap | null | number) => void;
 }
+
+export interface Qa {
+  La: number;
+  Ma: number;
+}
+
+export interface KakaoLatLng {
+  center: Qa;
+  level: number;
+  maxLevel: number;
+}
