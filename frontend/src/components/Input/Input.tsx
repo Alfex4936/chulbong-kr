@@ -11,8 +11,8 @@ import * as Styled from "./Input.style";
 interface Props extends ComponentProps<"input"> {
   id: string;
   type: "text" | "email" | "password" | "number";
-  placeholder: string;
-  value: string;
+  placeholder?: string;
+  value?: string;
   theme?: "button" | "icon";
   icon?: string | ReactNode;
   buttonText?: string | ReactNode;
@@ -38,16 +38,19 @@ const Input = ({
 
   return (
     <Styled.InputWrap>
-      <Styled.Placeholder
-        action={action}
-        onClick={() => {
-          if (inputRef.current) {
-            inputRef.current.focus();
-          }
-        }}
-      >
-        {placeholder}
-      </Styled.Placeholder>
+      {placeholder && (
+        <Styled.Placeholder
+          action={action}
+          onClick={() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+            }
+          }}
+        >
+          {placeholder}
+        </Styled.Placeholder>
+      )}
+
       <Styled.Input
         action={action}
         type={type}
