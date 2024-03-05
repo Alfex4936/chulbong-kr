@@ -14,7 +14,15 @@ export const Container = styled.div`
   max-height: 200px;
 
   overflow: auto;
+
+  & > div:last-of-type {
+    border-bottom: none;
+
+    margin-bottom: 0.5rem;
+  }
 `;
+
+export const ListContainer = styled.div``;
 
 export const RangeContainer = styled.div`
   display: flex;
@@ -56,8 +64,6 @@ export const ListSkeleton = styled.div`
 
   height: 60px;
   width: 100%;
-
-  border-bottom: 1px solid #ccc;
 
   & > div:first-of-type {
     height: 24px;

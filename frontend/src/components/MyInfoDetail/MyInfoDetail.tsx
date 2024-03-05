@@ -9,7 +9,11 @@ import ActionButton from "../ActionButton/ActionButton";
 import Input from "../Input/Input";
 import * as Styled from "./MyInfoDetail.style";
 
-const MyInfoDetail = () => {
+interface Props {
+  setDeleteUserModal: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const MyInfoDetail = ({ setDeleteUserModal }: Props) => {
   const nameValue = useInput("");
 
   const { data, isLoading } = useGetMyInfo();
@@ -27,6 +31,32 @@ const MyInfoDetail = () => {
     }
   };
 
+  const handleAlert = () => {
+    console.log(2);
+    setDeleteUserModal(true);
+    // Swal.fire({
+    //   title: "정말 삭제하시겠습니까?",
+    //   text: "되돌릴 수 없습니다!",
+    //   icon: "warning",
+    //   showCancelButton: true,
+    //   confirmButtonColor: "#3085d6",
+    //   cancelButtonColor: "#d33",
+    //   confirmButtonText: "삭제",
+    //   cancelButtonText: "취소",
+    // }).then((result) => {
+    //   if (result.isConfirmed) {
+    //     Swal.fire({
+    //       title: "삭제 완료",
+    //       icon: "success",
+    //     });
+    //   }
+    // });
+  };
+
+  const handleUpdatePassword = () => {
+    console.log(1);
+  };
+
   if (isLoading) {
     return (
       <Styled.ListSkeleton>
@@ -36,10 +66,8 @@ const MyInfoDetail = () => {
     );
   }
 
-  console.log(isPending);
-
   return (
-    <div>
+    <Styled.Container>
       <Styled.NameContainer>
         {updateName ? (
           <div style={{ margin: "auto" }}>
@@ -106,17 +134,22 @@ const MyInfoDetail = () => {
         <div>{data?.email}</div>
       </Styled.EmailContainer>
 
-      <Styled.PaymentContainer>
+      {/* <Styled.PaymentContainer>
         <div>결제 정보</div>
         <div>.</div>
         <div>.</div>
         <div>준비중</div>
-      </Styled.PaymentContainer>
+      </Styled.PaymentContainer> */}
 
       <Styled.ButtonContainer>
-        <ActionButton bg="black">비밀번호 변경</ActionButton>
+        <ActionButton bg="black" onClick={handleUpdatePassword}>
+          비밀번호 변경
+        </ActionButton>
+        <ActionButton bg="gray" onClick={handleAlert}>
+          회원 탈퇴
+        </ActionButton>
       </Styled.ButtonContainer>
-    </div>
+    </Styled.Container>
   );
 };
 

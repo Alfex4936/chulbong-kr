@@ -23,6 +23,7 @@
     "react-helmet-async": "^2.0.4",
     "react-hook-form": "^7.50.1",
     "react-toastify": "^10.0.4",
+    "sweetalert2": "^11.10.5",
     "zustand": "^4.5.0"
   },
   "devDependencies": {

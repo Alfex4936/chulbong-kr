@@ -11,15 +11,8 @@ interface Props {
 }
 
 const MyMarker = ({ map }: Props) => {
-  const {
-    data,
-    error,
-    fetchNextPage,
-    hasNextPage,
-    isLoading,
-    isError,
-    isFetching,
-  } = useGetMyMarker();
+  const { data, fetchNextPage, hasNextPage, isLoading, isError, isFetching } =
+    useGetMyMarker();
 
   const boxRef = useRef(null);
 
@@ -62,7 +55,8 @@ const MyMarker = ({ map }: Props) => {
       </Styled.ListSkeleton>
     );
   }
-  if (isError) return <p>Error: {error.message}</p>;
+  if (isError)
+    return <div style={{ padding: "1rem" }}>등록한 위치가 없습니다.</div>;
 
   const handleMove = (lat: number, lon: number) => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lon);
@@ -73,7 +67,7 @@ const MyMarker = ({ map }: Props) => {
   return (
     <Styled.Container>
       {data?.pages.map((page, i) => (
-        <div key={i}>
+        <Styled.ListContainer key={i}>
           {page.markers.map((marker) => (
             <Styled.MarkerList key={marker.markerId}>
               <p style={{ flexGrow: "1", textAlign: "left" }}>
@@ -96,7 +90,7 @@ const MyMarker = ({ map }: Props) => {
               </Tooltip>
             </Styled.MarkerList>
           ))}
-        </div>
+        </Styled.ListContainer>
       ))}
       <Styled.LoadList />
       {hasNextPage && (
