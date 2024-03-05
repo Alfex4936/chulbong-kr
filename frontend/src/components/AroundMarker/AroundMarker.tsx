@@ -4,6 +4,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useEffect, useRef, useState } from "react";
 import useGetCloseMarker from "../../hooks/query/useGetCloseMarker";
+import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap } from "../../types/KakaoMap.types";
 import * as Styled from "./AroundMarker.style";
 
@@ -12,10 +13,7 @@ interface Props {
 }
 
 const AroundMarker = ({ map }: Props) => {
-  const [position, setPosition] = useState({
-    lat: 37.566535,
-    lon: 126.9779692,
-  });
+  const positionState = useMapPositionStore();
   const [distance, setDistance] = useState(100);
 
   const {
@@ -28,8 +26,8 @@ const AroundMarker = ({ map }: Props) => {
     isFetching,
     refetch,
   } = useGetCloseMarker({
-    lat: position.lat,
-    lon: position.lon,
+    lat: positionState.lat,
+    lon: positionState.lng,
     distance: distance,
   });
 
@@ -64,30 +62,7 @@ const AroundMarker = ({ map }: Props) => {
   if (isError) return <p>Error: {error.message}</p>;
 
   const handleSearch = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const moveLatLon = new window.kakao.maps.LatLng(
-            position.coords.latitude,
-            position.coords.longitude
-          );
-          map.setCenter(moveLatLon);
-          map?.setLevel(3);
-          setPosition({
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-          });
-          refetch();
-        },
-        (error) => {
-          console.error(error);
-        }
-      );
-    } else {
-      alert(
-        "Geolocation is not supported by this browser or map is not loaded yet."
-      );
-    }
+    refetch();
   };
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
