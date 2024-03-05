@@ -164,7 +164,16 @@ const MarkerInfoModal = ({
               {dislikeLoading ? (
                 <CircularProgress color="inherit" size={20} />
               ) : (
-                <ThumbDownOffAltIcon />
+                <div
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    position: "relative",
+                  }}
+                >
+                  <Styled.DislikeCount>{dislikeCount}</Styled.DislikeCount>
+                  <ThumbDownOffAltIcon />
+                </div>
               )}
             </IconButton>
           </Tooltip>
