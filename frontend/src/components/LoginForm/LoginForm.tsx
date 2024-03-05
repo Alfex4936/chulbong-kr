@@ -93,17 +93,6 @@ const LoginForm = () => {
         <Styled.ErrorBox>{emailError}</Styled.ErrorBox>
       </Styled.InputWrap>
       <Styled.InputWrap>
-        {/* <Input
-          type="password"
-          id="password"
-          placeholder="비밀번호"
-          value={passwordInput.value}
-          onChange={(e) => {
-            passwordInput.onChange(e);
-            setPasswordError("");
-          }}
-        />
-        <Styled.ErrorBox>{passwordError}</Styled.ErrorBox> */}
         <Input
           theme="icon"
           icon={
@@ -148,12 +137,25 @@ const LoginForm = () => {
           "로그인"
         )}
       </Button>
-      <Styled.SignupButtonWrap>
-        <p>계정이 없으신가요?</p>
-        <Styled.SigninLinkButton onClick={handleClickEmailSignin}>
-          이메일로 회원가입 하기
-        </Styled.SigninLinkButton>
-      </Styled.SignupButtonWrap>
+      <div style={{ marginTop: "1rem" }}>
+        <Styled.SignupButtonWrap>
+          <p>계정이 없으신가요?</p>
+          <Styled.SigninLinkButton onClick={handleClickEmailSignin}>
+            이메일로 회원가입 하기
+          </Styled.SigninLinkButton>
+        </Styled.SignupButtonWrap>
+        <Styled.SignupButtonWrap>
+          <p>비밀번호를 잊어버리셨나요?</p>
+          <Styled.SigninLinkButton
+            onClick={() => {
+              modalState.close();
+              modalState.openPassword();
+            }}
+          >
+            비밀번호 변경하기
+          </Styled.SigninLinkButton>
+        </Styled.SignupButtonWrap>
+      </div>
     </form>
   );
 };

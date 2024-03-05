@@ -24,7 +24,7 @@ export const SignupButtonWrap = styled.div`
   justify-content: center;
   align-items: center;
 
-  margin-top: 1rem;
+  margin-top: .3rem;
 
   font-size: 0.8rem;
 

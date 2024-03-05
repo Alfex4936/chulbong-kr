@@ -17,19 +17,22 @@ import getAllMarker from "../../api/markers/getAllMarker";
 import activeMarkerImage from "../../assets/images/cb1.webp";
 import pendingMarkerImage from "../../assets/images/cb2.webp";
 import useDeleteUser from "../../hooks/mutation/user/useDeleteUser";
+import useInput from "../../hooks/useInput";
 import useMap from "../../hooks/useMap";
 import useModalStore from "../../store/useModalStore";
+import useToastStore from "../../store/useToastStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import useUserStore from "../../store/useUserStore";
 import ActionButton from "../ActionButton/ActionButton";
 import AddChinupSkeleton from "../AddChinupBarForm/AddChinupSkeleton";
 import CenterBox from "../CenterBox/CenterBox";
 import FloatingButton from "../FloatingButton/FloatingButton";
+import Input from "../Input/Input";
 import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
 import MyInfoModal from "../MyInfoModal/MyInfoModal";
 import * as Styled from "./Map.style";
-import useToastStore from "../../store/useToastStore";
+import useRequestPasswordReset from "../../hooks/mutation/auth/useRequestPasswordReset";
 
 const AddChinupBarForm = lazy(
   () => import("../AddChinupBarForm/AddChinupBarForm")
@@ -49,7 +52,12 @@ const Map = () => {
   const formState = useUploadFormDataStore();
   const toastState = useToastStore();
 
-  const { mutateAsync } = useDeleteUser();
+  const emailInput = useInput("");
+
+  const { mutateAsync: deleteUser } = useDeleteUser();
+  const { mutateAsync: sendPasswordReset } = useRequestPasswordReset(
+    emailInput.value
+  );
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
@@ -73,8 +81,14 @@ const Map = () => {
   const [error, setError] = useState(false);
 
   const [myInfoModal, setMyInfoModal] = useState(false); // 내 정보 모달 여부
+
   const [deleteUserModal, setDeleteUserModal] = useState(false); // 회원 탈퇴 모달 여부
-  const [deleteUserLoading, setDeleteUserLoading] = useState(false); // 회원 탈퇴 모달 여부
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false); // 회원 탈퇴 로딩
+
+  // const [changePasswordModal, setChangePasswordModal] = useState(false); // 비밀번호 변경 모달
+  const [sendOk, setSendOk] = useState(false); // 비밀번호 변경 이메일 전송 여부
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false); // 비밀 번호 변경 로딩
+  const [emailError, setEmailError] = useState(""); // 비밀번호 변경 에러
 
   const imageSize = new window.kakao.maps.Size(39, 39);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
@@ -230,7 +244,7 @@ const Map = () => {
   const handleDeleteUser = async () => {
     setDeleteUserLoading(true);
     try {
-      await mutateAsync();
+      await deleteUser();
       userState.resetUser();
 
       setMyInfoModal(false);
@@ -242,6 +256,19 @@ const Map = () => {
       console.log(error);
     } finally {
       setDeleteUserLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setChangePasswordLoading(true);
+    try {
+      await sendPasswordReset();
+      setSendOk(true);
+    } catch (error) {
+      setEmailError("잠시 후 다시 시도해 주세요!");
+      console.log(error);
+    } finally {
+      setChangePasswordLoading(false);
     }
   };
 
@@ -333,6 +360,60 @@ const Map = () => {
               취소
             </ActionButton>
           </Styled.DeleteUserButtonsWrap>
+        </BasicModal>
+      )}
+
+      {modalState.passwordModal && (
+        <BasicModal>
+          {sendOk ? (
+            <p
+              style={{
+                margin: "1rem",
+                fontSize: "1.5rem",
+              }}
+            >
+              이메일을 확인해 주세요!
+            </p>
+          ) : (
+            <>
+              <p
+                style={{
+                  margin: "1rem",
+                  fontSize: "1.5rem",
+                }}
+              >
+                비밀번호 변경
+              </p>
+              <Input
+                type="email"
+                id="email"
+                placeholder="이메일"
+                value={emailInput.value}
+                onChange={(e) => {
+                  emailInput.onChange(e);
+                  setEmailError("");
+                }}
+              />
+              <Styled.ErrorBox>{emailError}</Styled.ErrorBox>
+              <Styled.ChangePasswordButtonsWrap>
+                <ActionButton bg="black" onClick={handleChangePassword}>
+                  {changePasswordLoading ? (
+                    <CircularProgress size={20} sx={{ color: "#fff" }} />
+                  ) : (
+                    "메일 보내기"
+                  )}
+                </ActionButton>
+                <ActionButton
+                  bg="gray"
+                  onClick={() => {
+                    modalState.close();
+                  }}
+                >
+                  취소
+                </ActionButton>
+              </Styled.ChangePasswordButtonsWrap>
+            </>
+          )}
         </BasicModal>
       )}
 
