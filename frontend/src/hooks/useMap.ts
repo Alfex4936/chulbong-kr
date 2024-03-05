@@ -11,7 +11,7 @@ const useMap = (ref: MutableRefObject<HTMLDivElement | null>) => {
     const setNewPosition = (lat: number, lng: number) => {
       const options = {
         center: new window.kakao.maps.LatLng(lat, lng),
-        level: 5,
+        level: positionState.level,
         maxLevel: 12,
       };
 
@@ -21,6 +21,12 @@ const useMap = (ref: MutableRefObject<HTMLDivElement | null>) => {
         const latlng = map.getCenter();
 
         positionState.setPosition(latlng.getLat(), latlng.getLng());
+      });
+
+      window.kakao.maps.event.addListener(map, "zoom_changed", () => {
+        const level = map.getLevel();
+
+        positionState.setLevel(level);
       });
 
       setMap(map);
