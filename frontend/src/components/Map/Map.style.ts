@@ -42,3 +42,19 @@ export const DeleteUserButtonsWrap = styled.div`
     margin: 1rem 1rem 0 1rem;
   }
 `;
+
+export const ChangePasswordButtonsWrap = styled.div`
+  display: flex;
+
+  & button {
+    margin: 1rem 0.5rem 0 0.5rem;
+  }
+`;
+
+export const ErrorBox = styled.div`
+  text-align: left;
+
+  font-size: 0.7rem;
+
+  color: red;
+`;
