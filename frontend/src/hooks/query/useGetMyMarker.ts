@@ -11,7 +11,7 @@ const useGetMyMarker = () => {
         return lastPage.currentPage + 1;
       return undefined;
     },
-    // staleTime: 3000,
+    retry: false,
   });
 };
 

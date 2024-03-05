@@ -42,7 +42,7 @@ export const Modal = styled.div`
 
   padding: 2rem;
 
-  width: 400px;
+  min-width: 300px;
 
   background-color: #fff;
 

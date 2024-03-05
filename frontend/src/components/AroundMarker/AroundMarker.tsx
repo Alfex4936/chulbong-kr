@@ -18,7 +18,6 @@ const AroundMarker = ({ map }: Props) => {
 
   const {
     data,
-    error,
     fetchNextPage,
     hasNextPage,
     isLoading,
@@ -58,8 +57,6 @@ const AroundMarker = ({ map }: Props) => {
       }
     };
   }, [isFetching, hasNextPage, fetchNextPage]);
-
-  if (isError) return <p>Error: {error.message}</p>;
 
   const handleSearch = () => {
     refetch();
@@ -109,7 +106,7 @@ const AroundMarker = ({ map }: Props) => {
         </Styled.ListSkeleton>
       )}
       {data?.pages.map((page, i) => (
-        <div key={i}>
+        <Styled.ListContainer key={i}>
           {page.markers?.map((marker) => (
             <Styled.MarkerList key={marker.markerId}>
               <p style={{ flexGrow: "1", textAlign: "left" }}>
@@ -132,11 +129,14 @@ const AroundMarker = ({ map }: Props) => {
               </Tooltip>
             </Styled.MarkerList>
           ))}
-        </div>
+        </Styled.ListContainer>
       ))}
       <Styled.LoadList />
       {data?.pages[0].markers === null && (
         <div style={{ padding: "1rem" }}>주변에 철봉이 없습니다.</div>
+      )}
+      {isError && (
+        <div style={{ padding: "1rem" }}>잠시 후 다시 시도해 주세요</div>
       )}
       {hasNextPage && (
         <Styled.ListSkeleton ref={boxRef}>

@@ -16,10 +16,12 @@ import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import getAllMarker from "../../api/markers/getAllMarker";
 import activeMarkerImage from "../../assets/images/cb1.webp";
 import pendingMarkerImage from "../../assets/images/cb2.webp";
+import useDeleteUser from "../../hooks/mutation/user/useDeleteUser";
 import useMap from "../../hooks/useMap";
 import useModalStore from "../../store/useModalStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import useUserStore from "../../store/useUserStore";
+import ActionButton from "../ActionButton/ActionButton";
 import AddChinupSkeleton from "../AddChinupBarForm/AddChinupSkeleton";
 import CenterBox from "../CenterBox/CenterBox";
 import FloatingButton from "../FloatingButton/FloatingButton";
@@ -27,6 +29,7 @@ import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
 import MyInfoModal from "../MyInfoModal/MyInfoModal";
 import * as Styled from "./Map.style";
+import useToastStore from "../../store/useToastStore";
 
 const AddChinupBarForm = lazy(
   () => import("../AddChinupBarForm/AddChinupBarForm")
@@ -44,6 +47,9 @@ const Map = () => {
   const modalState = useModalStore();
   const userState = useUserStore();
   const formState = useUploadFormDataStore();
+  const toastState = useToastStore();
+
+  const { mutateAsync } = useDeleteUser();
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
@@ -67,9 +73,16 @@ const Map = () => {
   const [error, setError] = useState(false);
 
   const [myInfoModal, setMyInfoModal] = useState(false); // 내 정보 모달 여부
+  const [deleteUserModal, setDeleteUserModal] = useState(false); // 회원 탈퇴 모달 여부
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false); // 회원 탈퇴 모달 여부
 
   const imageSize = new window.kakao.maps.Size(39, 39);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+  useEffect(() => {
+    toastState.close();
+    toastState.setToastText("");
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -214,6 +227,24 @@ const Map = () => {
     map?.setLevel((level as number) + 1);
   };
 
+  const handleDeleteUser = async () => {
+    setDeleteUserLoading(true);
+    try {
+      await mutateAsync();
+      userState.resetUser();
+
+      setMyInfoModal(false);
+      setDeleteUserModal(false);
+
+      toastState.setToastText("탈퇴 완료");
+      toastState.open();
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setDeleteUserLoading(false);
+    }
+  };
+
   return (
     <div>
       <Styled.MapContainer ref={mapRef} />
@@ -281,6 +312,30 @@ const Map = () => {
           </Suspense>
         </BasicModal>
       )}
+
+      {deleteUserModal && (
+        <BasicModal setState={setDeleteUserModal}>
+          <p>정말 탈퇴하시겠습니까?</p>
+          <Styled.DeleteUserButtonsWrap>
+            <ActionButton bg="black" onClick={handleDeleteUser}>
+              {deleteUserLoading ? (
+                <CircularProgress size={20} sx={{ color: "#fff" }} />
+              ) : (
+                "탈퇴하기"
+              )}
+            </ActionButton>
+            <ActionButton
+              bg="gray"
+              onClick={() => {
+                setDeleteUserModal(false);
+              }}
+            >
+              취소
+            </ActionButton>
+          </Styled.DeleteUserButtonsWrap>
+        </BasicModal>
+      )}
+
       <Button
         onClick={() => {
           if (userState.user.token === "") {
@@ -370,7 +425,11 @@ const Map = () => {
         onClickFn={zoomOut}
       />
       {myInfoModal && (
-        <MyInfoModal map={map as KakaoMap} setMyInfoModal={setMyInfoModal} />
+        <MyInfoModal
+          map={map as KakaoMap}
+          setMyInfoModal={setMyInfoModal}
+          setDeleteUserModal={setDeleteUserModal}
+        />
       )}
     </div>
   );

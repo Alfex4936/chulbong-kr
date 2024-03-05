@@ -17,16 +17,20 @@ import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 interface Props {
   map: KakaoMap;
   setMyInfoModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setDeleteUserModal: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const MyInfoModal = ({ map, setMyInfoModal }: Props) => {
+const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
   const userState = useUserStore();
   const { data, isLoading } = useGetMyInfo();
 
   const tabs = [
     { title: "주변 검색", content: <AroundMarker map={map} /> },
     { title: "내 장소", content: <MyMarker map={map} /> },
-    { title: "내 정보", content: <MyInfoDetail /> },
+    {
+      title: "내 정보",
+      content: <MyInfoDetail setDeleteUserModal={setDeleteUserModal} />,
+    },
   ];
 
   const [logoutLoading, setLogoutLoading] = useState(false);

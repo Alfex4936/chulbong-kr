@@ -34,3 +34,11 @@ export const ExitButton = styled.div`
     color: rgb(230, 103, 103);
   }
 `;
+
+export const DeleteUserButtonsWrap = styled.div`
+  display: flex;
+
+  & button {
+    margin: 1rem 1rem 0 1rem;
+  }
+`;

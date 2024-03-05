@@ -10,6 +10,12 @@ const shimmer = keyframes`
   }
 `;
 
+export const Container = styled.div`
+  & > div:last-of-type {
+    border-bottom: none;
+  }
+`;
+
 export const NameContainer = styled.div`
   display: flex;
   justify-content: center;
@@ -61,9 +67,18 @@ export const PaymentContainer = styled.div`
 `;
 
 export const ButtonContainer = styled.div`
-  width: 50%;
+  display: flex;
+  justify-content: center;
 
-  margin: auto;
+  margin: 0.5rem 0;
+
+  & > button {
+    margin: 0.5rem;
+
+    width: 35%;
+
+    font-size: 0.8rem;
+  }
 `;
 
 export const ErrorBox = styled.div`
