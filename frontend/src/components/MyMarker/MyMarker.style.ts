@@ -11,18 +11,12 @@ const shimmer = keyframes`
 `;
 
 export const Container = styled.div`
-  // border: 1px solid red;
-
-  height: 200px;
+  max-height: 200px;
 
   overflow: auto;
 `;
 
-export const LoadList = styled.div`
-  // border: 1px solid red;
-
-  // height: 30px;
-`;
+export const LoadList = styled.div``;
 
 export const MarkerList = styled.div`
   display: flex;
@@ -43,7 +37,7 @@ export const ListSkeleton = styled.div`
   padding: 1rem;
 
   height: 60px;
-  width: 250px;
+  width: 100%;
 
   border-bottom: 1px solid #ccc;
 

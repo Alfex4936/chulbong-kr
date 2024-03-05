@@ -70,8 +70,6 @@ const MyMarker = ({ map }: Props) => {
     map?.setLevel(1);
   };
 
-  console.log(data?.pages[0].markers);
-
   return (
     <Styled.Container>
       {data?.pages.map((page, i) => (

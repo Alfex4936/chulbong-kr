@@ -1,7 +1,6 @@
 import { Marker } from "@/types/Marker.types";
 import axios from "axios";
 
-// : Promise<Marker[]>
 interface MyMarkerRes {
   currentPage: number;
   markers: Marker[];
