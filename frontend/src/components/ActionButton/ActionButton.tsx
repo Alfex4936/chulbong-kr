@@ -20,6 +20,10 @@ const ActionButton = ({ bg, ...props }: Props) => {
         "&:hover": {
           backgroundColor: bg === "black" ? "#555" : "#eee",
         },
+        "&:disabled": {
+          backgroundColor: "#ccc",
+          color: "#fff",
+        },
       }}
       {...props}
     >
