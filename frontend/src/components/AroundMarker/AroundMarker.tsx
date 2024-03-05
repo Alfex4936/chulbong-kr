@@ -1,33 +1,120 @@
-import { useState } from "react";
-import * as Styled from "./AroundMarker.style";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import SearchIcon from "@mui/icons-material/Search";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import SearchIcon from "@mui/icons-material/Search";
+import { useEffect, useRef, useState } from "react";
+import useGetCloseMarker from "../../hooks/query/useGetCloseMarker";
+import type { KakaoMap } from "../../types/KakaoMap.types";
+import * as Styled from "./AroundMarker.style";
 
-const AroundMarker = () => {
-  const [value, setValue] = useState(100);
+interface Props {
+  map: KakaoMap;
+}
+
+const AroundMarker = ({ map }: Props) => {
+  const [position, setPosition] = useState({
+    lat: 37.566535,
+    lon: 126.9779692,
+  });
+  const [distance, setDistance] = useState(100);
+
+  const {
+    data,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useGetCloseMarker({
+    lat: position.lat,
+    lon: position.lon,
+    distance: distance,
+  });
+
+  const boxRef = useRef(null);
+
+  useEffect(() => {
+    const currentRef = boxRef.current;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting) {
+          if (!isFetching && hasNextPage) {
+            fetchNextPage();
+          }
+        }
+      },
+      { threshold: 0.8 }
+    );
+
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [isFetching, hasNextPage, fetchNextPage]);
+
+  if (isError) return <p>Error: {error.message}</p>;
+
+  const handleSearch = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const moveLatLon = new window.kakao.maps.LatLng(
+            position.coords.latitude,
+            position.coords.longitude
+          );
+          map.setCenter(moveLatLon);
+          map?.setLevel(3);
+          setPosition({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+          });
+          refetch();
+        },
+        (error) => {
+          console.error(error);
+        }
+      );
+    } else {
+      alert(
+        "Geolocation is not supported by this browser or map is not loaded yet."
+      );
+    }
+  };
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setValue(Number(event.target.value));
+    setDistance(Number(event.target.value));
+  };
+
+  const handleMove = (lat: number, lon: number) => {
+    const moveLatLon = new window.kakao.maps.LatLng(lat, lon);
+    map.setCenter(moveLatLon);
+    map?.setLevel(1);
   };
 
   return (
-    <div>
+    <Styled.Container>
       <Styled.RangeContainer>
-        <p style={{ fontSize: ".8rem" }}>주변 {value}m</p>
+        <p style={{ fontSize: ".8rem" }}>주변 {distance}m</p>
         <input
           type="range"
           min="100"
-          max="500"
+          max="1000"
           step="100"
-          value={value}
+          value={distance}
           onChange={handleChange}
         />
         <Tooltip title="검색" arrow disableInteractive>
           <IconButton
-            onClick={() => {
-              console.log(1);
-            }}
+            onClick={handleSearch}
             aria-label="delete"
             sx={{
               color: "#333",
@@ -39,7 +126,51 @@ const AroundMarker = () => {
           </IconButton>
         </Tooltip>
       </Styled.RangeContainer>
-    </div>
+      {isLoading && (
+        <Styled.ListSkeleton>
+          <div />
+          <div style={{ flexGrow: "1" }} />
+          <div />
+        </Styled.ListSkeleton>
+      )}
+      {data?.pages.map((page, i) => (
+        <div key={i}>
+          {page.markers?.map((marker) => (
+            <Styled.MarkerList key={marker.markerId}>
+              <p style={{ flexGrow: "1", textAlign: "left" }}>
+                {marker.description}
+              </p>
+              <Tooltip title="이동" arrow disableInteractive>
+                <IconButton
+                  onClick={() => {
+                    handleMove(marker.latitude, marker.longitude);
+                  }}
+                  aria-label="delete"
+                  sx={{
+                    color: "#333",
+                    width: "25px",
+                    height: "25px",
+                  }}
+                >
+                  <LocationOnIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            </Styled.MarkerList>
+          ))}
+        </div>
+      ))}
+      <Styled.LoadList />
+      {data?.pages[0].markers === null && (
+        <div style={{ padding: "1rem" }}>주변에 철봉이 없습니다.</div>
+      )}
+      {hasNextPage && (
+        <Styled.ListSkeleton ref={boxRef}>
+          <div />
+          <div style={{ flexGrow: "1" }} />
+          <div />
+        </Styled.ListSkeleton>
+      )}
+    </Styled.Container>
   );
 };
 

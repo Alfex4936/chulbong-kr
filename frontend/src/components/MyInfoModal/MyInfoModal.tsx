@@ -22,7 +22,7 @@ interface Props {
 const MyInfoModal = ({ map, setMyInfoModal }: Props) => {
   const userState = useUserStore();
   const tabs = [
-    { title: "주변 검색", content: <AroundMarker /> },
+    { title: "주변 검색", content: <AroundMarker map={map} /> },
     { title: "내 장소", content: <MyMarker map={map} /> },
     { title: "결제 정보", content: <PaymentInfo /> },
   ];
