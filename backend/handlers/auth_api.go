@@ -129,9 +129,9 @@ func LogoutHandler(c *fiber.Ctx) error {
 	logoutCookie := fiber.Cookie{
 		Name:     middlewares.TOKEN_COOKIE,
 		Value:    "",
-		Expires:  time.Now().Add(-time.Hour), // Set expiration to past to remove the cookie
+		Expires:  time.Now().Add(-time.Hour),
 		HTTPOnly: true,
-		Secure:   true, // Set to false if not using HTTPS
+		Secure:   true,
 		SameSite: "Lax",
 		Path:     "/",
 	}
