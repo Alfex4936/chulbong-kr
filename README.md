@@ -29,3 +29,11 @@
 - **백엔드**: Go언어 Fiber v2, AWS RDS MySQL (+ spatial type), AWS S3, AWS EC2 (fly.io)
 - **프론트엔드**: React (TypeScript)
 - **협업**: Slack (+ Slack API)
+
+### 성능 테스트
+
+환경: AWS RDS (Free tier, MySQL (SRID)) + 24GB RAM PC
+
+100,000개 마커 정보 (20MB) 로딩 약 2초.
+
+![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/44956afa-8c6c-414f-a6ff-1f11d348c3f5)
