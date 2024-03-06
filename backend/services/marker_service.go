@@ -20,8 +20,8 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 
 	// Insert the marker into the database
 	res, err := tx.Exec(
-		"INSERT INTO Markers (UserID, Location, Description, CreatedAt, UpdatedAt) VALUES (?, ST_PointFromText(?), ?, NOW(), NOW())",
-		userID, fmt.Sprintf("POINT(%f %f)", markerDto.Longitude, markerDto.Latitude), markerDto.Description,
+		"INSERT INTO Markers (UserID, Location, Description, CreatedAt, UpdatedAt) VALUES (?, ST_PointFromText(?, 4326), ?, NOW(), NOW())",
+		userID, fmt.Sprintf("POINT(%f %f)", markerDto.Latitude, markerDto.Longitude), markerDto.Description,
 	)
 
 	if err != nil {
@@ -75,7 +75,7 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
 	// query to include markers with UserID as null
 	const markerQuery = `
-SELECT Markers.MarkerID, Markers.UserID, ST_Y(Location) AS Latitude, ST_X(Location) AS Longitude, 
+SELECT Markers.MarkerID, Markers.UserID, ST_Y(Location) AS Longitude, ST_X(Location) AS Latitude, 
 Markers.Description, COALESCE(Users.Username, '탈퇴한 사용자') AS Username, Markers.CreatedAt, Markers.UpdatedAt, 
 COUNT(MarkerDislikes.DislikeID) AS DislikeCount
 FROM Markers
@@ -121,12 +121,61 @@ GROUP BY Markers.MarkerID, Users.Username, Markers.CreatedAt, Markers.UpdatedAt`
 	return markersWithPhotos, nil
 }
 
+func GetAllMarkersTest() ([]models.MarkerWithPhotos, error) {
+	// query to include markers with UserID as null
+	const markerQuery = `
+SELECT MarkersTest.MarkerID, MarkersTest.UserID, ST_Y(Location) AS Longitude, ST_X(Location) AS Latitude, 
+MarkersTest.Description, COALESCE(Users.Username, '탈퇴한 사용자') AS Username, MarkersTest.CreatedAt, MarkersTest.UpdatedAt, 
+COUNT(MarkerDislikes.DislikeID) AS DislikeCount
+FROM MarkersTest
+LEFT JOIN Users ON MarkersTest.UserID = Users.UserID
+LEFT JOIN MarkerDislikes ON MarkersTest.MarkerID = MarkerDislikes.MarkerID
+GROUP BY MarkersTest.MarkerID, Users.Username, MarkersTest.CreatedAt, MarkersTest.UpdatedAt`
+
+	var markersWithUsernames []struct {
+		models.Marker
+		Username     string `db:"Username"`
+		DislikeCount int    `db:"DislikeCount"`
+	}
+	err := database.DB.Select(&markersWithUsernames, markerQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch all photos at once
+	const photoQuery = `SELECT * FROM Photos`
+	var allPhotos []models.Photo
+	err = database.DB.Select(&allPhotos, photoQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map photos to their markers
+	photoMap := make(map[int][]models.Photo) // markerID to photos
+	for _, photo := range allPhotos {
+		photoMap[photo.MarkerID] = append(photoMap[photo.MarkerID], photo)
+	}
+
+	// Assemble the final structure
+	markersWithPhotos := make([]models.MarkerWithPhotos, 0)
+	for _, marker := range markersWithUsernames {
+		markersWithPhotos = append(markersWithPhotos, models.MarkerWithPhotos{
+			Marker:       marker.Marker,
+			Photos:       photoMap[marker.MarkerID],
+			Username:     marker.Username,
+			DislikeCount: marker.DislikeCount,
+		})
+	}
+
+	return markersWithPhotos, nil
+}
+
 func GetAllMarkersByUserWithPagination(userID, page, pageSize int) ([]models.MarkerWithPhotos, int, error) {
 	offset := (page - 1) * pageSize
 
 	// Query to select markers created by a specific user with LIMIT and OFFSET for pagination
 	markerQuery := `
-SELECT Markers.MarkerID, Markers.UserID, ST_Y(Location) AS Latitude, ST_X(Location) AS Longitude, 
+SELECT Markers.MarkerID, Markers.UserID, ST_Y(Location) AS Longitude, ST_X(Location) AS Latitude, 
 Markers.Description, Users.Username, Markers.CreatedAt, Markers.UpdatedAt, 
 COUNT(MarkerDislikes.DislikeID) AS DislikeCount
 FROM Markers
@@ -311,12 +360,12 @@ func DeleteMarker(userID, markerID int) error {
 // IsMarkerNearby checks if there's a marker within 7 meters of the given latitude and longitude
 func IsMarkerNearby(lat, long float64) (bool, error) {
 	// Format the point representation of the input coordinates
-	point := fmt.Sprintf("POINT(%f %f)", long, lat) // Note: MySQL expects longitude first
+	point := fmt.Sprintf("POINT(%f %f)", lat, long)
 
 	query := `
 SELECT EXISTS (
     SELECT 1 FROM Markers
-    WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?)) < 7
+    WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) < 7
 ) AS Nearby`
 
 	var nearby bool
@@ -330,13 +379,13 @@ SELECT EXISTS (
 
 // FindClosestNMarkersWithinDistance
 func FindClosestNMarkersWithinDistance(lat, long float64, distance, pageSize, offset int) ([]dto.MarkerWithDistance, int, error) {
-	point := fmt.Sprintf("POINT(%f %f)", long, lat)
+	point := fmt.Sprintf("POINT(%f %f)", lat, long)
 
 	// Query to find markers within N meters and calculate total
 	query := `
-SELECT MarkerID, UserID, ST_Y(Location) AS Latitude, ST_X(Location) AS Longitude, Description, CreatedAt, UpdatedAt, ST_Distance_Sphere(Location, ST_GeomFromText(?)) AS distance
+SELECT MarkerID, UserID, ST_Y(Location) AS Longitude, ST_X(Location) AS Latitude, Description, CreatedAt, UpdatedAt, ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance
 FROM Markers
-WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?)) <= ?
+WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
 ORDER BY distance ASC
 LIMIT ? OFFSET ?`
 
@@ -350,7 +399,7 @@ LIMIT ? OFFSET ?`
 	countQuery := `
 SELECT COUNT(*)
 FROM Markers
-WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?)) <= ?`
+WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?`
 
 	var total int
 	err = database.DB.Get(&total, countQuery, point, distance)

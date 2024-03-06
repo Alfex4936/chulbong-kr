@@ -152,6 +152,7 @@ func main() {
 
 	// Marker routes
 	api.Get("/markers", handlers.GetAllMarkersHandler)
+	api.Get("/markers-test", handlers.GetAllMarkersTestHandler)
 
 	markerGroup := api.Group("/markers")
 	{
