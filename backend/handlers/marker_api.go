@@ -41,7 +41,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Checking if a Marker is Nearby
-	yes, _ = services.IsMarkerNearby(latitude, longitude)
+	yes, _ = services.IsMarkerNearby(latitude, longitude, 7)
 	if yes {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "There is a marker already nearby."})
 	}

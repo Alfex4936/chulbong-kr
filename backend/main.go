@@ -78,6 +78,7 @@ func main() {
 		WriteTimeout:  10 * time.Second,
 		JSONEncoder:   json.Marshal,
 		JSONDecoder:   json.Unmarshal,
+		AppName:       "chulbong-kr",
 		// Views:         engine,
 	})
 	app.Server().MaxConnsPerIP = 100

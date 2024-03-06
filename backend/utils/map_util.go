@@ -48,16 +48,17 @@ const (
 	FukuokaMaxLong = 130.64
 )
 
+const RadiusOfEarthMeters float64 = 6370986
+
 // Haversine formula
 func approximateDistance(lat1, long1, lat2, long2 float64) float64 {
-	const R = 6370986 // Radius of the Earth in meters
 	lat1Rad := lat1 * (math.Pi / 180)
 	lat2Rad := lat2 * (math.Pi / 180)
 	deltaLat := (lat2 - lat1) * (math.Pi / 180)
 	deltaLong := (long2 - long1) * (math.Pi / 180)
 	x := deltaLong * math.Cos((lat1Rad+lat2Rad)/2)
 	y := deltaLat
-	return math.Sqrt(x*x+y*y) * R
+	return math.Sqrt(x*x+y*y) * RadiusOfEarthMeters
 }
 
 // distance calculates the distance between two geographic coordinates in meters
