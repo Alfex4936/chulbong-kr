@@ -73,13 +73,13 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 }
 
 func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
-	// a query that joins Markers with Users to select the username as well
+	// query to include markers with UserID as null
 	const markerQuery = `
 SELECT Markers.MarkerID, Markers.UserID, ST_Y(Location) AS Latitude, ST_X(Location) AS Longitude, 
-Markers.Description, Users.Username, Markers.CreatedAt, Markers.UpdatedAt, 
+Markers.Description, COALESCE(Users.Username, '탈퇴한 사용자') AS Username, Markers.CreatedAt, Markers.UpdatedAt, 
 COUNT(MarkerDislikes.DislikeID) AS DislikeCount
 FROM Markers
-JOIN Users ON Markers.UserID = Users.UserID
+LEFT JOIN Users ON Markers.UserID = Users.UserID
 LEFT JOIN MarkerDislikes ON Markers.MarkerID = MarkerDislikes.MarkerID
 GROUP BY Markers.MarkerID, Users.Username, Markers.CreatedAt, Markers.UpdatedAt`
 
