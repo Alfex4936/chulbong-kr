@@ -3,21 +3,10 @@ package middlewares
 import (
 	"chulbong-kr/database"
 	"database/sql"
-	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
-
-// TODO: Change to cookie authentication
-// c.Cookie(&fiber.Cookie{
-//     Name:     "token",
-//     Value:    "token",
-//     Expires:  time.Now().Add(24 * time.Hour),
-//     HttpOnly: true,
-//     Secure:   true, // if your site uses HTTPS
-//     SameSite: "Lax", // or "Strict" depending on your requirements
-// })
 
 var TOKEN_COOKIE string
 
@@ -81,7 +70,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	c.Locals("username", username)
 	c.Locals("email", email)
 
-	log.Printf("[DEBUG] Authenticated. %s", email)
+	// log.Printf("[DEBUG] Authenticated. %s", email)
 	return c.Next()
 }
 

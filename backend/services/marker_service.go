@@ -357,19 +357,23 @@ func DeleteMarker(userID, markerID int) error {
 }
 
 // meters_per_degree = 40075000 / 360 / 1000
-// IsMarkerNearby checks if there's a marker within 7 meters of the given latitude and longitude
-func IsMarkerNearby(lat, long float64) (bool, error) {
-	// Format the point representation of the input coordinates
+// IsMarkerNearby checks if there's a marker within n meters of the given latitude and longitude
+func IsMarkerNearby(lat, long float64, bufferDistanceMeters int) (bool, error) {
 	point := fmt.Sprintf("POINT(%f %f)", lat, long)
 
 	query := `
+SET @g1 = ST_GeomFromText(?), 4326);
+SET @buffer = ST_Buffer(@g1, ?);
 SELECT EXISTS (
-    SELECT 1 FROM Markers
-    WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) < 7
-) AS Nearby`
+    SELECT 1 
+    FROM Markers
+    WHERE ST_Within(Location, @buffer)
+) AS Nearby;
+`
 
+	// Execute the query
 	var nearby bool
-	err := database.DB.Get(&nearby, query, point)
+	err := database.DB.Get(&nearby, query, point, bufferDistanceMeters)
 	if err != nil {
 		return false, fmt.Errorf("error checking for nearby markers: %w", err)
 	}
