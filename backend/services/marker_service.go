@@ -75,62 +75,30 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
 	// query to include markers with UserID as null
 	const markerQuery = `
-SELECT Markers.MarkerID, Markers.UserID, ST_Y(Location) AS Longitude, ST_X(Location) AS Latitude, 
-Markers.Description, COALESCE(Users.Username, '탈퇴한 사용자') AS Username, Markers.CreatedAt, Markers.UpdatedAt, 
-COUNT(MarkerDislikes.DislikeID) AS DislikeCount
-FROM Markers
-LEFT JOIN Users ON Markers.UserID = Users.UserID
-LEFT JOIN MarkerDislikes ON Markers.MarkerID = MarkerDislikes.MarkerID
-GROUP BY Markers.MarkerID, Users.Username, Markers.CreatedAt, Markers.UpdatedAt`
-
-	var markersWithUsernames []struct {
-		models.Marker
-		Username     string `db:"Username"`
-		DislikeCount int    `db:"DislikeCount"`
-	}
-	err := database.DB.Select(&markersWithUsernames, markerQuery)
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch all photos at once
-	const photoQuery = `SELECT * FROM Photos`
-	var allPhotos []models.Photo
-	err = database.DB.Select(&allPhotos, photoQuery)
-	if err != nil {
-		return nil, err
-	}
-
-	// Map photos to their markers
-	photoMap := make(map[int][]models.Photo) // markerID to photos
-	for _, photo := range allPhotos {
-		photoMap[photo.MarkerID] = append(photoMap[photo.MarkerID], photo)
-	}
-
-	// Assemble the final structure
-	markersWithPhotos := make([]models.MarkerWithPhotos, 0)
-	for _, marker := range markersWithUsernames {
-		markersWithPhotos = append(markersWithPhotos, models.MarkerWithPhotos{
-			Marker:       marker.Marker,
-			Photos:       photoMap[marker.MarkerID],
-			Username:     marker.Username,
-			DislikeCount: marker.DislikeCount,
-		})
-	}
-
-	return markersWithPhotos, nil
-}
-
-func GetAllMarkersTest() ([]models.MarkerWithPhotos, error) {
-	// query to include markers with UserID as null
-	const markerQuery = `
-SELECT MarkersTest.MarkerID, MarkersTest.UserID, ST_Y(Location) AS Longitude, ST_X(Location) AS Latitude, 
-MarkersTest.Description, COALESCE(Users.Username, '탈퇴한 사용자') AS Username, MarkersTest.CreatedAt, MarkersTest.UpdatedAt, 
-COUNT(MarkerDislikes.DislikeID) AS DislikeCount
-FROM MarkersTest
-LEFT JOIN Users ON MarkersTest.UserID = Users.UserID
-LEFT JOIN MarkerDislikes ON MarkersTest.MarkerID = MarkerDislikes.MarkerID
-GROUP BY MarkersTest.MarkerID, Users.Username, MarkersTest.CreatedAt, MarkersTest.UpdatedAt`
+	SELECT 
+    M.MarkerID, 
+    M.UserID, 
+    ST_Y(M.Location) AS Longitude, 
+    ST_X(M.Location) AS Latitude, 
+    M.Description, 
+    COALESCE(U.Username, '탈퇴한 사용자') AS Username, 
+    M.CreatedAt, 
+    M.UpdatedAt, 
+    IFNULL(D.DislikeCount, 0) AS DislikeCount
+FROM 
+    Markers M
+LEFT JOIN 
+    Users U ON M.UserID = U.UserID
+LEFT JOIN 
+    (
+        SELECT 
+            MarkerID, 
+            COUNT(DislikeID) AS DislikeCount
+        FROM 
+            MarkerDislikes
+        GROUP BY 
+            MarkerID
+    ) D ON M.MarkerID = D.MarkerID;`
 
 	var markersWithUsernames []struct {
 		models.Marker
@@ -175,15 +143,36 @@ func GetAllMarkersByUserWithPagination(userID, page, pageSize int) ([]models.Mar
 
 	// Query to select markers created by a specific user with LIMIT and OFFSET for pagination
 	markerQuery := `
-SELECT Markers.MarkerID, Markers.UserID, ST_Y(Location) AS Longitude, ST_X(Location) AS Latitude, 
-Markers.Description, Users.Username, Markers.CreatedAt, Markers.UpdatedAt, 
-COUNT(MarkerDislikes.DislikeID) AS DislikeCount
-FROM Markers
-JOIN Users ON Markers.UserID = Users.UserID
-LEFT JOIN MarkerDislikes ON Markers.MarkerID = MarkerDislikes.MarkerID
-WHERE Markers.UserID = ?
-GROUP BY Markers.MarkerID, Users.Username, Markers.CreatedAt, Markers.UpdatedAt
-LIMIT ? OFFSET ?`
+SELECT 
+    M.MarkerID, 
+    M.UserID, 
+    ST_Y(M.Location) AS Longitude, 
+    ST_X(M.Location) AS Latitude, 
+    M.Description, 
+    U.Username, 
+    M.CreatedAt, 
+    M.UpdatedAt, 
+    IFNULL(D.DislikeCount, 0) AS DislikeCount
+FROM 
+    Markers M
+INNER JOIN 
+    Users U ON M.UserID = U.UserID
+LEFT JOIN 
+    (
+        SELECT 
+            MarkerID, 
+            COUNT(DislikeID) AS DislikeCount
+        FROM 
+            MarkerDislikes
+        GROUP BY 
+            MarkerID
+    ) D ON M.MarkerID = D.MarkerID
+WHERE 
+    M.UserID = ?
+ORDER BY 
+    M.CreatedAt DESC
+LIMIT ? OFFSET ?
+`
 
 	var markersWithUsernames []dto.MarkerWithDislike
 	err := database.DB.Select(&markersWithUsernames, markerQuery, userID, pageSize, offset)

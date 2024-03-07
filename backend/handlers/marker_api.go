@@ -135,15 +135,6 @@ func GetAllMarkersHandler(c *fiber.Ctx) error {
 	return c.JSON(markersWithPhotos)
 }
 
-func GetAllMarkersTestHandler(c *fiber.Ctx) error {
-	markersWithPhotos, err := services.GetAllMarkersTest()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	return c.JSON(markersWithPhotos)
-}
-
 // GetMarker handler
 func GetMarker(c *fiber.Ctx) error {
 	id, err := strconv.Atoi(c.Params("markerID"))

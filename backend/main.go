@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
@@ -38,6 +40,9 @@ import (
 // @host			localhost:9452
 // @BasePath		/api/v1/
 func main() {
+	// Increase GOMAXPROCS
+	runtime.GOMAXPROCS(runtime.NumCPU() * 2) // twice the number of CPUs
+
 	// Load .env file
 	err := godotenv.Load()
 	if err != nil {
@@ -79,11 +84,10 @@ func main() {
 		JSONEncoder:   json.Marshal,
 		JSONDecoder:   json.Unmarshal,
 		AppName:       "chulbong-kr",
+		Concurrency:   512 * 1024,
 		// Views:         engine,
 	})
 	app.Server().MaxConnsPerIP = 100
-
-	app.Static("/toss/", "./public")
 
 	// Middlewares
 	app.Use(healthcheck.New(healthcheck.Config{
@@ -92,9 +96,17 @@ func main() {
 		},
 		LivenessEndpoint: "/",
 	}))
-	logger, _ := zap.NewProduction()
 
+	logger, _ := zap.NewProduction()
 	app.Use(middlewares.ZapLogMiddleware(logger))
+
+	app.Use(compress.New(compress.Config{
+		Next: func(c *fiber.Ctx) bool {
+			// Compress only for /api/v1/markers; return false to apply compression
+			return c.Path() != "/api/v1/markers"
+		},
+		Level: compress.LevelBestSpeed,
+	}))
 
 	app.Use(helmet.New())
 	app.Use(limiter.New(limiter.Config{
@@ -153,7 +165,6 @@ func main() {
 
 	// Marker routes
 	api.Get("/markers", handlers.GetAllMarkersHandler)
-	api.Get("/markers-test", handlers.GetAllMarkersTestHandler)
 
 	markerGroup := api.Group("/markers")
 	{

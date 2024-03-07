@@ -106,7 +106,7 @@ def main():
     delete_all_markers(cursor)
 
     # Insert markers
-    insert_markers(cursor, 1000)
+    insert_markers(cursor, 10000)
 
     # Commit the transactions and close the connection
     cnx.commit()
