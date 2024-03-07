@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const DELAY_THRESHOLD = 0.5
+const DELAY_THRESHOLD = 10.0
 
 var (
 	SLACK_BOT_TOKEN  = os.Getenv("SLACK_BOT_TOKEN")
