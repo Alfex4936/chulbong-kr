@@ -73,7 +73,7 @@ func main() {
 
 	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
-		Prefork:       true, // Enable prefork mode for high-concurrency
+		Prefork:       false, // Enable prefork mode for high-concurrency
 		CaseSensitive: true,
 		StrictRouting: true,
 		ServerHeader:  "",

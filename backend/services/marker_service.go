@@ -351,12 +351,10 @@ func IsMarkerNearby(lat, long float64, bufferDistanceMeters int) (bool, error) {
 	point := fmt.Sprintf("POINT(%f %f)", lat, long)
 
 	query := `
-SET @g1 = ST_GeomFromText(?), 4326);
-SET @buffer = ST_Buffer(@g1, ?);
 SELECT EXISTS (
     SELECT 1 
     FROM Markers
-    WHERE ST_Within(Location, @buffer)
+    WHERE ST_Within(Location, ST_Buffer(ST_GeomFromText(?, 4326), ?))
 ) AS Nearby;
 `
 
