@@ -67,19 +67,25 @@ export const PaymentContainer = styled.div`
 `;
 
 export const ButtonContainer = styled.div`
-  display: flex;
-  justify-content: center;
+  padding: 1rem 2rem;
 
-  margin: 0.5rem 0;
+  border-bottom: 2px solid #eee;
+`;
+
+export const ButtonTop = styled.div`
+  display: flex;
+  justify-content: space-between;
 
   & > button {
-    margin: 0.5rem;
+    margin: 0 0 0.8rem 0;
 
-    width: 35%;
+    width: 47%;
 
     font-size: 0.8rem;
   }
 `;
+
+export const ButtonBottom = styled.div``;
 
 export const ErrorBox = styled.div`
   text-align: left;
@@ -89,6 +95,15 @@ export const ErrorBox = styled.div`
   padding: 0 1rem;
 
   color: red;
+`;
+
+export const InfoContainer = styled.div`
+  padding: 1rem;
+
+  & > p {
+    font-size: 0.8rem;
+    color: #666;
+  }
 `;
 
 export const ListSkeleton = styled.div`

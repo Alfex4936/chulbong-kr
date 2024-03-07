@@ -1,28 +1,52 @@
 import EditIcon from "@mui/icons-material/Edit";
+import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useState } from "react";
+import logout from "../../api/auth/logout";
 import useUpdateName from "../../hooks/mutation/user/useUpdateName";
 import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 import useInput from "../../hooks/useInput";
+import useModalStore from "../../store/useModalStore";
+import useUserStore from "../../store/useUserStore";
 import ActionButton from "../ActionButton/ActionButton";
 import Input from "../Input/Input";
 import * as Styled from "./MyInfoDetail.style";
-import useModalStore from "../../store/useModalStore";
+import Button from "@mui/material/Button";
 
 interface Props {
   setDeleteUserModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setMyInfoModal: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const MyInfoDetail = ({ setDeleteUserModal }: Props) => {
+const MyInfoDetail = ({ setDeleteUserModal, setMyInfoModal }: Props) => {
   const nameValue = useInput("");
   const modalState = useModalStore();
+  const userState = useUserStore();
 
   const { data, isLoading } = useGetMyInfo();
   const { mutate, isPending } = useUpdateName(nameValue.value);
 
   const [updateName, setUpdateName] = useState(false);
   const [updateNameError, setUpdateNameError] = useState("");
+
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const handleLogout = async () => {
+    setLogoutLoading(true);
+    try {
+      const result = await logout();
+      userState.resetUser();
+      setMyInfoModal(false);
+      console.log(result);
+    } catch (error) {
+      userState.resetUser();
+      setMyInfoModal(false);
+      console.log(error);
+    } finally {
+      setLogoutLoading(false);
+    }
+  };
 
   const handleUpdateName = () => {
     if (nameValue.value === data?.username) {
@@ -126,13 +150,37 @@ const MyInfoDetail = ({ setDeleteUserModal }: Props) => {
       </Styled.PaymentContainer> */}
 
       <Styled.ButtonContainer>
-        <ActionButton bg="black" onClick={handleUpdatePassword}>
-          비밀번호 변경
-        </ActionButton>
-        <ActionButton bg="gray" onClick={handleAlert}>
-          회원 탈퇴
-        </ActionButton>
+        <Styled.ButtonTop>
+          <ActionButton bg="black" onClick={handleUpdatePassword}>
+            비밀번호 변경
+          </ActionButton>
+          <ActionButton bg="gray" onClick={handleAlert}>
+            회원 탈퇴
+          </ActionButton>
+        </Styled.ButtonTop>
+        <Styled.ButtonBottom>
+          <Button
+            onClick={handleLogout}
+            sx={{
+              color: "#333",
+              width: "100%",
+              border: "1px solid #ccc",
+              fontSize: ".8rem",
+            }}
+          >
+            {logoutLoading ? (
+              <CircularProgress size={19.5} sx={{ color: "#fff" }} />
+            ) : (
+              "로그아웃"
+            )}
+          </Button>
+        </Styled.ButtonBottom>
       </Styled.ButtonContainer>
+
+      <Styled.InfoContainer>
+        <p>© 2024 chulbong-kr. All rights reserved.</p>
+        <p>문의: chulbong.kr@gmail.com</p>
+      </Styled.InfoContainer>
     </Styled.Container>
   );
 };
