@@ -87,7 +87,7 @@ func main() {
 		Concurrency:   512 * 1024,
 		// Views:         engine,
 	})
-	app.Server().MaxConnsPerIP = 100
+	app.Server().MaxConnsPerIP = 50
 
 	// Middlewares
 	app.Use(healthcheck.New(healthcheck.Config{
@@ -185,9 +185,10 @@ func main() {
 	commentGroup := api.Group("/comments")
 	{
 		commentGroup.Use(middlewares.AuthMiddleware)
-		commentGroup.Post("/", handlers.PostComment)
-		commentGroup.Put("/:commentId", handlers.UpdateComment)
-		commentGroup.Delete("/:commentId", handlers.DeleteComment)
+		commentGroup.Get("/:markerId/comments", handlers.LoadCommentsHandler)
+		commentGroup.Post("", handlers.PostCommentHandler)
+		commentGroup.Patch("/:commentId", handlers.UpdateCommentHandler)
+		commentGroup.Delete("/:commentId", handlers.RemoveCommentHandler)
 	}
 
 	tossGroup := api.Group("/payments/toss")
