@@ -39,7 +39,7 @@ export const InfoTop = styled.div`
 
   border-bottom: 1px solid #eee;
 
-  padding: 0.5rem;
+  padding: 1rem;
 `;
 
 export const ProfileImgBox = styled.div`
@@ -80,7 +80,7 @@ export const NameContainer = styled.div`
   flex-grow: 1;
 `;
 
-export const LogoutButtonContainer = styled.div`
+export const ButtonContainer = styled.div`
   & > button {
     font-size: 0.7rem;
   }
@@ -98,7 +98,7 @@ export const NameSkeleton = styled.div`
     height: 22px;
     width: 90px;
 
-    margin-bottom: .3rem;
+    margin-bottom: 0.3rem;
 
     background: #f6f7f8;
     background-image: linear-gradient(

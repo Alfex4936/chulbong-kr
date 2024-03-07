@@ -1,18 +1,14 @@
 import CloseIcon from "@mui/icons-material/Close";
 import Button from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useState } from "react";
-import logout from "../../api/auth/logout";
-import useUserStore from "../../store/useUserStore";
+import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 import type { KakaoMap } from "../../types/KakaoMap.types";
-import ActionButton from "../ActionButton/ActionButton";
 import AroundMarker from "../AroundMarker/AroundMarker";
 import MyInfoDetail from "../MyInfoDetail/MyInfoDetail";
 import MyMarker from "../MyMarker/MyMarker";
 import * as Styled from "./MyInfoModal.style";
-import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 
 interface Props {
   map: KakaoMap;
@@ -21,7 +17,6 @@ interface Props {
 }
 
 const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
-  const userState = useUserStore();
   const { data, isLoading } = useGetMyInfo();
 
   const tabs = [
@@ -29,49 +24,19 @@ const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
     { title: "내 장소", content: <MyMarker map={map} /> },
     {
       title: "내 정보",
-      content: <MyInfoDetail setDeleteUserModal={setDeleteUserModal} />,
+      content: (
+        <MyInfoDetail
+          setDeleteUserModal={setDeleteUserModal}
+          setMyInfoModal={setMyInfoModal}
+        />
+      ),
     },
   ];
 
-  const [logoutLoading, setLogoutLoading] = useState(false);
   const [curTab, setCurTab] = useState<number | null>(null);
-
-  const handleLogout = async () => {
-    setLogoutLoading(true);
-    try {
-      const result = await logout();
-      userState.resetUser();
-      setMyInfoModal(false);
-      console.log(result);
-    } catch (error) {
-      userState.resetUser();
-      setMyInfoModal(false);
-      console.log(error);
-    } finally {
-      setLogoutLoading(false);
-    }
-  };
 
   return (
     <Styled.Container>
-      <Tooltip title="닫기" arrow disableInteractive>
-        <IconButton
-          onClick={() => {
-            setMyInfoModal(false);
-          }}
-          aria-label="delete"
-          sx={{
-            position: "absolute",
-            top: ".2rem",
-            right: ".4rem",
-
-            width: "12px",
-            height: "12px",
-          }}
-        >
-          <CloseIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Tooltip>
       <Styled.InfoTop>
         <Styled.ProfileImgBox>
           <img src="/images/logo.webp" alt="profile" />
@@ -90,15 +55,18 @@ const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
             <div>{data?.email}</div>
           </Styled.NameContainer>
         )}
-        <Styled.LogoutButtonContainer>
-          <ActionButton bg="black" onClick={handleLogout}>
-            {logoutLoading ? (
-              <CircularProgress size={19.5} sx={{ color: "#fff" }} />
-            ) : (
-              "로그아웃"
-            )}
-          </ActionButton>
-        </Styled.LogoutButtonContainer>
+        <Styled.ButtonContainer>
+          <Tooltip title="닫기" arrow disableInteractive>
+            <IconButton
+              onClick={() => {
+                setMyInfoModal(false);
+              }}
+              aria-label="delete"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Tooltip>
+        </Styled.ButtonContainer>
       </Styled.InfoTop>
       <Styled.InfoBottom>
         {tabs.map((tab, index) => {

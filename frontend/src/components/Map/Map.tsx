@@ -30,9 +30,11 @@ import FloatingButton from "../FloatingButton/FloatingButton";
 import Input from "../Input/Input";
 import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
-import MyInfoModal from "../MyInfoModal/MyInfoModal";
 import * as Styled from "./Map.style";
 import useRequestPasswordReset from "../../hooks/mutation/auth/useRequestPasswordReset";
+import { bouncy } from "ldrs";
+
+import "ldrs/ring";
 
 const AddChinupBarForm = lazy(
   () => import("../AddChinupBarForm/AddChinupBarForm")
@@ -40,6 +42,8 @@ const AddChinupBarForm = lazy(
 const MarkerInfoModal = lazy(
   () => import("../MarkerInfoModal/MarkerInfoModal")
 );
+
+import MyInfoModal from "../MyInfoModal/MyInfoModal";
 
 export interface MarkerInfo extends Omit<Marker, "photos"> {
   index: number;
@@ -272,17 +276,16 @@ const Map = () => {
     }
   };
 
+  bouncy.register();
+
   return (
     <div>
       <Styled.MapContainer ref={mapRef} />
       {loading && (
         <CenterBox bg="black">
-          <CircularProgress
-            size={50}
-            sx={{
-              color: "#fff",
-            }}
-          />
+          <CenterBox bg="black">
+            <l-bouncy size="80" speed="1.75" color="white" />
+          </CenterBox>
         </CenterBox>
       )}
 
