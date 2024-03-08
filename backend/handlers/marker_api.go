@@ -41,7 +41,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Checking if a Marker is Nearby
-	yes, _ = services.IsMarkerNearby(latitude, longitude, 7)
+	yes, _ = services.IsMarkerNearby(latitude, longitude, 10)
 	if yes {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "There is a marker already nearby."})
 	}
@@ -84,14 +84,26 @@ func GetAllMarkersHandler(c *fiber.Ctx) error {
 
 // GetMarker handler
 func GetMarker(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("markerId"))
+	markerID, err := strconv.Atoi(c.Params("markerId"))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Marker ID"})
 	}
-	marker, err := services.GetMarker(id)
+
+	var disliked bool
+	userID, ok := c.Locals("userID").(int)
+	if ok {
+		disliked, err = services.CheckUserDislike(userID, markerID)
+		if err != nil {
+			disliked = false
+		}
+	}
+
+	marker, err := services.GetMarker(markerID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Marker not found: " + err.Error()})
 	}
+	marker.Disliked = disliked
+
 	return c.JSON(marker)
 }
 
