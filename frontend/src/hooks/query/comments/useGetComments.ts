@@ -1,13 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import getCommets from "../../../api/comments/getCommets";
 
 const useGetComments = (id: number) => {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["comments", id],
-    queryFn: () => {
-      return getCommets(id);
+    queryFn: ({ pageParam }) => {
+      return getCommets({ id, pageParam });
     },
-    retry: false,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.currentPage < lastPage.totalPages)
+        return lastPage.currentPage + 1;
+      return undefined;
+    },
   });
 };
 
