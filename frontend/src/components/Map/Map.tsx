@@ -32,6 +32,7 @@ import Input from "../Input/Input";
 import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
+import SearchInput from "./SearchInput";
 
 import "ldrs/ring";
 
@@ -260,6 +261,7 @@ const Map = () => {
 
   return (
     <div>
+      <SearchInput map={map as KakaoMap} />
       <Styled.MapContainer ref={mapRef} />
       {isLoading && (
         <CenterBox bg="black">
@@ -322,7 +324,7 @@ const Map = () => {
           </Suspense>
         </BasicModal>
       )}
-      
+
       {deleteUserModal && (
         <BasicModal setState={setDeleteUserModal}>
           <p>정말 탈퇴하시겠습니까?</p>
