@@ -3,7 +3,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import CircularProgress from "@mui/material/CircularProgress";
 import { AxiosError } from "axios";
 import { Suspense, lazy, useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Flip, ToastContainer, toast } from "react-toastify";
 import * as Styled from "./App.style";
 import logout from "./api/auth/logout";
@@ -19,7 +19,6 @@ import useInput from "./hooks/useInput";
 import useModalStore from "./store/useModalStore";
 import useToastStore from "./store/useToastStore";
 import useUserStore from "./store/useUserStore";
-import { useNavigate } from "react-router-dom";
 
 import "react-toastify/dist/ReactToastify.css";
 
@@ -71,7 +70,6 @@ const App = () => {
     if (isError) {
       if (error instanceof AxiosError) {
         handleLogout();
-        console.log(error.response?.status);
       } else {
         console.error(error);
       }
