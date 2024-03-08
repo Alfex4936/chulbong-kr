@@ -310,7 +310,7 @@ const Map = () => {
         </BasicModal>
       )}
       {markerInfoModal && (
-        <BasicModal setState={setMarkerInfoModal}>
+        <BasicModal setState={setMarkerInfoModal} exit={false}>
           <Suspense fallback={<MarkerInfoSkeleton />}>
             <MarkerInfoModal
               currentMarkerInfo={currentMarkerInfo as MarkerInfo}
