@@ -61,12 +61,10 @@ const App = () => {
   useEffect(() => {
     const handleLogout = async () => {
       try {
-        const result = await logout();
+        await logout();
         userState.resetUser();
-        console.log(result);
       } catch (error) {
         userState.resetUser();
-        console.log(error);
       }
     };
 

@@ -5,18 +5,22 @@ import ThumbDownOffAltIcon from "@mui/icons-material/ThumbDownOffAlt";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import { useEffect, useState } from "react";
-import deleteMarker from "../../api/markers/deleteMarker";
-import getDislikeState from "../../api/markers/getDislikeState";
-import markerDislike from "../../api/markers/markerDislike";
-import markerUnDislike from "../../api/markers/markerUnDislike";
+import { isAxiosError } from "axios";
+import { useEffect } from "react";
 import noimg from "../../assets/images/noimg.webp";
+import useDeleteMarker from "../../hooks/mutation/marker/useDeleteMarker";
+import useMarkerDislike from "../../hooks/mutation/marker/useMarkerDislike";
+import useUndoDislike from "../../hooks/mutation/marker/useUndoDislike";
+import useDislikeState from "../../hooks/query/marker/useDislikeState";
+import useGetMarker from "../../hooks/query/marker/useGetMarker";
+import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
 import useUserStore from "../../store/useUserStore";
 import type { MarkerClusterer } from "../../types/Cluster.types";
 import type { KakaoMarker } from "../../types/KakaoMap.types";
 import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
+import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
@@ -27,74 +31,61 @@ interface Props {
 }
 
 const MarkerInfoModal = ({
-  currentMarkerInfo,
-  setMarkerInfoModal,
   markers,
   setMarkers,
   clusterer,
+  currentMarkerInfo,
+  setMarkerInfoModal,
 }: Props) => {
   const userState = useUserStore();
   const toastState = useToastStore();
+  const modalState = useModalStore();
 
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [dislikeLoading, setDislikeLoading] = useState(true);
+  const {
+    data: marker,
+    isLoading,
+    isError,
+  } = useGetMarker(currentMarkerInfo.markerId);
 
-  const [disLike, setDislike] = useState(false);
-  const [dislikeCount, setDislikeCount] = useState(0);
+  const {
+    data: dislikeState,
+    isError: isDislikeError,
+    isLoading: dislikeLoading,
+  } = useDislikeState(currentMarkerInfo.markerId);
 
-  console.log(currentMarkerInfo);
+  const { mutateAsync: doDislike, isPending: disLikePending } =
+    useMarkerDislike(currentMarkerInfo.markerId);
+
+  const { mutateAsync: undoDislike, isPending: undoDislikePending } =
+    useUndoDislike(currentMarkerInfo.markerId);
+
+  const { mutateAsync: deleteMarker, isPending: deleteLoading } =
+    useDeleteMarker(currentMarkerInfo.markerId);
 
   useEffect(() => {
-    const getDislike = async () => {
-      try {
-        const result = await getDislikeState(currentMarkerInfo.markerId);
-        console.log(result);
-        setDislike(result.disliked);
-      } catch (error) {
-        setDislike(false);
-        console.log(error);
-      } finally {
-        setDislikeLoading(false);
-      }
-    };
-
-    getDislike();
     toastState.close();
     toastState.setToastText("");
   }, []);
 
-  useEffect(() => {
-    if (currentMarkerInfo.dislikeCount) {
-      setDislikeCount(currentMarkerInfo.dislikeCount);
+  const handleDelete = async () => {
+    try {
+      await deleteMarker();
+
+      const newMarkers = markers.filter(
+        (_, index) => index !== currentMarkerInfo.index
+      );
+
+      markers[currentMarkerInfo.index].setMap(null);
+      setMarkers(newMarkers);
+
+      clusterer.removeMarker(markers[currentMarkerInfo.index]);
+      setMarkerInfoModal(false);
+
+      toastState.setToastText("삭제 완료");
+      toastState.open();
+    } catch (error) {
+      alert("삭제 실패 잠시 후 다시 시도해주세요!");
     }
-  }, []);
-
-  const handleDelete = () => {
-    setDeleteLoading(true);
-    deleteMarker(currentMarkerInfo.markerId)
-      .then(() => {
-        toastState.setToastText("삭제 완료");
-        toastState.open();
-
-        const newMarkers = markers.filter(
-          (_, index) => index !== currentMarkerInfo.index
-        );
-
-        markers[currentMarkerInfo.index].setMap(null);
-        setMarkers(newMarkers);
-
-        clusterer.removeMarker(markers[currentMarkerInfo.index]);
-
-        setMarkerInfoModal(false);
-      })
-      .catch((error) => {
-        // 임시(확인용)
-        console.log(error);
-        alert("삭제 실패 잠시 후 다시 시도해주세요!");
-      })
-      .finally(() => {
-        setDeleteLoading(false);
-      });
   };
 
   const handleViewReview = () => {
@@ -102,36 +93,34 @@ const MarkerInfoModal = ({
   };
 
   const handleDislike = async () => {
-    setDislikeLoading(true);
+    if (disLikePending || undoDislikePending) return;
     try {
-      if (disLike) {
-        const result = await markerUnDislike(currentMarkerInfo.markerId);
-        console.log(result);
-        setDislike(false);
-        setDislikeCount((prev) => prev - 1);
+      if (dislikeState?.disliked) {
+        await undoDislike();
       } else {
-        const result = await markerDislike(currentMarkerInfo.markerId);
-        console.log(result);
-        setDislike(true);
-        setDislikeCount((prev) => prev + 1);
+        await doDislike();
       }
     } catch (error) {
-      console.log(error);
-    } finally {
-      setDislikeLoading(false);
+      if (isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          setMarkerInfoModal(false);
+          modalState.openLogin();
+        }
+      }
     }
   };
+
+  if (isLoading) return <MarkerInfoSkeleton />;
+  if (isError) return <div>에러</div>;
 
   return (
     <div>
       <Styled.imageWrap>
         <img
-          src={currentMarkerInfo.photos ? currentMarkerInfo.photos[0] : noimg}
-          alt=""
-          width={"90%"}
-          height={300}
+          src={marker?.photos ? marker.photos[0].photoUrl : noimg}
+          alt="철봉 상세 이미지"
         />
-        <Styled.description>{currentMarkerInfo.description}</Styled.description>
+        <Styled.description>{marker?.description}</Styled.description>
       </Styled.imageWrap>
       <Styled.BottomButtons>
         <Tooltip title="리뷰 보기" arrow disableInteractive>
@@ -139,7 +128,7 @@ const MarkerInfoModal = ({
             <RateReviewIcon />
           </IconButton>
         </Tooltip>
-        {disLike ? (
+        {dislikeState?.disliked && !isDislikeError ? (
           <Tooltip title="싫어요 취소" arrow disableInteractive>
             <IconButton onClick={handleDislike} aria-label="dislike">
               {dislikeLoading ? (
@@ -152,7 +141,9 @@ const MarkerInfoModal = ({
                     position: "relative",
                   }}
                 >
-                  <Styled.DislikeCount>{dislikeCount}</Styled.DislikeCount>
+                  <Styled.DislikeCount>
+                    {marker?.dislikeCount || 0}
+                  </Styled.DislikeCount>
                   <ThumbDownAltIcon />
                 </div>
               )}
@@ -171,7 +162,9 @@ const MarkerInfoModal = ({
                     position: "relative",
                   }}
                 >
-                  <Styled.DislikeCount>{dislikeCount}</Styled.DislikeCount>
+                  <Styled.DislikeCount>
+                    {marker?.dislikeCount || 0}
+                  </Styled.DislikeCount>
                   <ThumbDownOffAltIcon />
                 </div>
               )}
@@ -179,7 +172,7 @@ const MarkerInfoModal = ({
           </Tooltip>
         )}
 
-        {userState.user.user.userId === currentMarkerInfo.userId && (
+        {userState.user.user.userId === marker?.userId && (
           <Tooltip title="삭제 하기" arrow disableInteractive>
             <IconButton onClick={handleDelete} aria-label="delete">
               {deleteLoading ? (

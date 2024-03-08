@@ -7,7 +7,7 @@ export interface Photo {
 
 export interface Marker {
   markerId: number;
-  userId: number;
+  userId: number | null;
   latitude: number;
   longitude: number;
   description: string;

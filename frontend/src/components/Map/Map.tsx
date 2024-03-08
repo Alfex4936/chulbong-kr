@@ -4,7 +4,6 @@ import type {
   KakaoMap,
   KakaoMarker,
 } from "@/types/KakaoMap.types";
-import type { Marker } from "@/types/Marker.types";
 import AddIcon from "@mui/icons-material/Add";
 import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
@@ -12,11 +11,13 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import RemoveIcon from "@mui/icons-material/Remove";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import { bouncy } from "ldrs";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import getAllMarker from "../../api/markers/getAllMarker";
 import activeMarkerImage from "../../assets/images/cb1.webp";
 import pendingMarkerImage from "../../assets/images/cb2.webp";
+import useRequestPasswordReset from "../../hooks/mutation/auth/useRequestPasswordReset";
 import useDeleteUser from "../../hooks/mutation/user/useDeleteUser";
+import useGetAllMarker from "../../hooks/query/marker/useGetAllMarker";
 import useInput from "../../hooks/useInput";
 import useMap from "../../hooks/useMap";
 import useModalStore from "../../store/useModalStore";
@@ -31,8 +32,6 @@ import Input from "../Input/Input";
 import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
-import useRequestPasswordReset from "../../hooks/mutation/auth/useRequestPasswordReset";
-import { bouncy } from "ldrs";
 
 import "ldrs/ring";
 
@@ -45,9 +44,9 @@ const MarkerInfoModal = lazy(
 
 import MyInfoModal from "../MyInfoModal/MyInfoModal";
 
-export interface MarkerInfo extends Omit<Marker, "photos"> {
+export interface MarkerInfo {
+  markerId: number;
   index: number;
-  photos?: string[];
 }
 
 const Map = () => {
@@ -57,6 +56,8 @@ const Map = () => {
   const toastState = useToastStore();
 
   const emailInput = useInput("");
+
+  const { data, isLoading, isError } = useGetAllMarker();
 
   const { mutateAsync: deleteUser } = useDeleteUser();
   const { mutateAsync: sendPasswordReset } = useRequestPasswordReset(
@@ -81,15 +82,11 @@ const Map = () => {
 
   const [clusterer, setClusterer] = useState<MarkerClusterer | null>(null); // 클러스터 인스턴스
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-
   const [myInfoModal, setMyInfoModal] = useState(false); // 내 정보 모달 여부
 
   const [deleteUserModal, setDeleteUserModal] = useState(false); // 회원 탈퇴 모달 여부
   const [deleteUserLoading, setDeleteUserLoading] = useState(false); // 회원 탈퇴 로딩
 
-  // const [changePasswordModal, setChangePasswordModal] = useState(false); // 비밀번호 변경 모달
   const [sendOk, setSendOk] = useState(false); // 비밀번호 변경 이메일 전송 여부
   const [changePasswordLoading, setChangePasswordLoading] = useState(false); // 비밀 번호 변경 로딩
   const [emailError, setEmailError] = useState(""); // 비밀번호 변경 에러
@@ -103,10 +100,7 @@ const Map = () => {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    setError(false);
-
-    if (!map) return;
+    if (!map || !data) return;
 
     // 클러스터 인스턴스 생성 및 저장
     const clusterer = new window.kakao.maps.MarkerClusterer({
@@ -137,50 +131,34 @@ const Map = () => {
     clickMarker.setVisible(false);
     setMarker(clickMarker);
 
-    getAllMarker()
-      .then((res) => {
-        setError(false);
+    data?.forEach((markerData, index) => {
+      const markerPosition = new window.kakao.maps.LatLng(
+        markerData.latitude,
+        markerData.longitude
+      );
 
-        res.forEach((markerData, index) => {
-          const markerPosition = new window.kakao.maps.LatLng(
-            markerData.latitude,
-            markerData.longitude
-          );
-
-          const newMarker = new window.kakao.maps.Marker({
-            map: map,
-            position: markerPosition,
-            title: markerData.description,
-            image: activeMarkerImg,
-          });
-
-          window.kakao.maps.event.addListener(newMarker, "click", () => {
-            const images = markerData.photos?.map((photo) => photo.photoUrl);
-
-            setMarkerInfoModal(true);
-            setCurrentMarkerInfo({
-              ...markerData,
-              photos: images || undefined,
-              index: index,
-            });
-          });
-
-          setMarkers((prev) => {
-            const copy = [...prev];
-            copy.push(newMarker);
-            return copy;
-          });
-
-          clusterer.addMarker(newMarker);
-        });
-      })
-      .catch((error) => {
-        setError(true);
-        console.error(error);
-      })
-      .finally(() => {
-        setLoading(false);
+      const newMarker = new window.kakao.maps.Marker({
+        map: map,
+        position: markerPosition,
+        image: activeMarkerImg,
       });
+
+      window.kakao.maps.event.addListener(newMarker, "click", () => {
+        setMarkerInfoModal(true);
+        setCurrentMarkerInfo({
+          markerId: markerData.markerId,
+          index: index,
+        });
+      });
+
+      setMarkers((prev) => {
+        const copy = [...prev];
+        copy.push(newMarker);
+        return copy;
+      });
+
+      clusterer.addMarker(newMarker);
+    });
 
     window.kakao.maps.event.addListener(
       map,
@@ -198,7 +176,9 @@ const Map = () => {
         formState.setPosition(latlng.getLat(), latlng.getLng());
       }
     );
-  }, [map]);
+  }, [map, data]);
+
+  // console.log(data);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
@@ -281,7 +261,7 @@ const Map = () => {
   return (
     <div>
       <Styled.MapContainer ref={mapRef} />
-      {loading && (
+      {isLoading && (
         <CenterBox bg="black">
           <CenterBox bg="black">
             <l-bouncy size="80" speed="1.75" color="white" />
@@ -289,7 +269,7 @@ const Map = () => {
         </CenterBox>
       )}
 
-      {!loading && error && (
+      {!isLoading && isError && (
         <BasicModal>
           <div>철봉 마커를 가져오는 데 실패하였습니다.</div>
           <Button

@@ -3,7 +3,7 @@ import styled from "@emotion/styled";
 export const imageWrap = styled.div`
   position: relative;
 
-  width: 90%;
+  width: 240px;
 
   & img {
     object-fit: cover;
@@ -16,6 +16,7 @@ export const imageWrap = styled.div`
     box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 
     width: 100%;
+    height: 240px;
   }
 
   margin: auto;

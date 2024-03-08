@@ -47,13 +47,7 @@ const MyMarker = ({ map }: Props) => {
   }
 
   if (isLoading) {
-    return (
-      <Styled.ListSkeleton>
-        <div />
-        <div style={{ flexGrow: "1" }} />
-        <div />
-      </Styled.ListSkeleton>
-    );
+    return <Styled.ListSkeleton />;
   }
   if (isError)
     return <div style={{ padding: "1rem" }}>등록한 위치가 없습니다.</div>;
@@ -93,13 +87,7 @@ const MyMarker = ({ map }: Props) => {
         </Styled.ListContainer>
       ))}
       <Styled.LoadList />
-      {hasNextPage && (
-        <Styled.ListSkeleton ref={boxRef}>
-          <div />
-          <div style={{ flexGrow: "1" }} />
-          <div />
-        </Styled.ListSkeleton>
-      )}
+      {hasNextPage && <Styled.ListSkeleton ref={boxRef} />}
     </Styled.Container>
   );
 };

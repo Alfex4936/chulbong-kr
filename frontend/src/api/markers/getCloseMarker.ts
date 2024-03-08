@@ -1,4 +1,3 @@
-import { Marker } from "@/types/Marker.types";
 import axios from "axios";
 
 interface Props {
@@ -8,9 +7,17 @@ interface Props {
   pageParam: number;
 }
 
+interface CloseMarker {
+  latitude: number;
+  longitude: number;
+  distance: number;
+  markerId: number;
+  description: string;
+}
+
 interface CloseMarkerRes {
   currentPage: number;
-  markers: Marker[];
+  markers: CloseMarker[];
   totalMarkers: number;
   totalPages: number;
 }

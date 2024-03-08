@@ -28,7 +28,7 @@ export const NameContainer = styled.div`
   & > div:first-of-type {
     font-size: 1.2rem;
 
-    margin-right: 1rem;
+    margin-right: 0.3rem;
   }
 `;
 
@@ -39,6 +39,14 @@ export const Name = styled.div`
   max-width: 180px;
 
   text-overflow: ellipsis;
+
+  font-weight: 700;
+
+  & > span {
+    font-size: 1rem;
+
+    font-weight: 400;
+  }
 `;
 
 export const NameButtonContainer = styled.div`
@@ -58,6 +66,10 @@ export const EmailContainer = styled.div`
   padding: 1rem;
 
   border-bottom: 2px solid #eee;
+
+  & > div:last-child {
+    font-weight: 700;
+  }
 `;
 
 export const PaymentContainer = styled.div`

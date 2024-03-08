@@ -26,8 +26,8 @@ export const ImageBox = styled.div`
 
   margin: auto;
 
-  width: 150px;
-  height: 150px;
+  width: 170px;
+  height: 170px;
 
   cursor: pointer;
 `;
