@@ -6,7 +6,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { isAxiosError } from "axios";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import noimg from "../../assets/images/noimg.webp";
 import useDeleteMarker from "../../hooks/mutation/marker/useDeleteMarker";
 import useMarkerDislike from "../../hooks/mutation/marker/useMarkerDislike";
@@ -21,6 +21,7 @@ import type { KakaoMarker } from "../../types/KakaoMap.types";
 import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
 import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
+import MarkerReview from "./MarkerReview";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
@@ -61,6 +62,8 @@ const MarkerInfoModal = ({
 
   const { mutateAsync: deleteMarker, isPending: deleteLoading } =
     useDeleteMarker(currentMarkerInfo.markerId);
+
+  const [isReview] = useState(false);
 
   useEffect(() => {
     toastState.close();
@@ -115,75 +118,81 @@ const MarkerInfoModal = ({
 
   return (
     <div>
-      <Styled.imageWrap>
-        <img
-          src={marker?.photos ? marker.photos[0].photoUrl : noimg}
-          alt="철봉 상세 이미지"
-        />
-        <Styled.description>{marker?.description}</Styled.description>
-      </Styled.imageWrap>
-      <Styled.BottomButtons>
-        <Tooltip title="리뷰 보기" arrow disableInteractive>
-          <IconButton onClick={handleViewReview} aria-label="review">
-            <RateReviewIcon />
-          </IconButton>
-        </Tooltip>
-        {dislikeState?.disliked && !isDislikeError ? (
-          <Tooltip title="싫어요 취소" arrow disableInteractive>
-            <IconButton onClick={handleDislike} aria-label="dislike">
-              {dislikeLoading ? (
-                <CircularProgress color="inherit" size={20} />
-              ) : (
-                <div
-                  style={{
-                    width: "24px",
-                    height: "24px",
-                    position: "relative",
-                  }}
-                >
-                  <Styled.DislikeCount>
-                    {marker?.dislikeCount || 0}
-                  </Styled.DislikeCount>
-                  <ThumbDownAltIcon />
-                </div>
-              )}
-            </IconButton>
-          </Tooltip>
-        ) : (
-          <Tooltip title="싫어요" arrow disableInteractive>
-            <IconButton onClick={handleDislike} aria-label="dislike">
-              {dislikeLoading ? (
-                <CircularProgress color="inherit" size={20} />
-              ) : (
-                <div
-                  style={{
-                    width: "24px",
-                    height: "24px",
-                    position: "relative",
-                  }}
-                >
-                  <Styled.DislikeCount>
-                    {marker?.dislikeCount || 0}
-                  </Styled.DislikeCount>
-                  <ThumbDownOffAltIcon />
-                </div>
-              )}
-            </IconButton>
-          </Tooltip>
-        )}
+      {isReview ? (
+        <MarkerReview />
+      ) : (
+        <>
+          <Styled.imageWrap>
+            <img
+              src={marker?.photos ? marker.photos[0].photoUrl : noimg}
+              alt="철봉 상세 이미지"
+            />
+            <Styled.description>{marker?.description}</Styled.description>
+          </Styled.imageWrap>
+          <Styled.BottomButtons>
+            <Tooltip title="리뷰 보기" arrow disableInteractive>
+              <IconButton onClick={handleViewReview} aria-label="review">
+                <RateReviewIcon />
+              </IconButton>
+            </Tooltip>
+            {dislikeState?.disliked && !isDislikeError ? (
+              <Tooltip title="싫어요 취소" arrow disableInteractive>
+                <IconButton onClick={handleDislike} aria-label="dislike">
+                  {dislikeLoading ? (
+                    <CircularProgress color="inherit" size={20} />
+                  ) : (
+                    <div
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        position: "relative",
+                      }}
+                    >
+                      <Styled.DislikeCount>
+                        {marker?.dislikeCount || 0}
+                      </Styled.DislikeCount>
+                      <ThumbDownAltIcon />
+                    </div>
+                  )}
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Tooltip title="싫어요" arrow disableInteractive>
+                <IconButton onClick={handleDislike} aria-label="dislike">
+                  {dislikeLoading ? (
+                    <CircularProgress color="inherit" size={20} />
+                  ) : (
+                    <div
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        position: "relative",
+                      }}
+                    >
+                      <Styled.DislikeCount>
+                        {marker?.dislikeCount || 0}
+                      </Styled.DislikeCount>
+                      <ThumbDownOffAltIcon />
+                    </div>
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
 
-        {userState.user.user.userId === marker?.userId && (
-          <Tooltip title="삭제 하기" arrow disableInteractive>
-            <IconButton onClick={handleDelete} aria-label="delete">
-              {deleteLoading ? (
-                <CircularProgress color="inherit" size={20} />
-              ) : (
-                <DeleteOutlineIcon />
-              )}
-            </IconButton>
-          </Tooltip>
-        )}
-      </Styled.BottomButtons>
+            {userState.user.user.userId === marker?.userId && (
+              <Tooltip title="삭제 하기" arrow disableInteractive>
+                <IconButton onClick={handleDelete} aria-label="delete">
+                  {deleteLoading ? (
+                    <CircularProgress color="inherit" size={20} />
+                  ) : (
+                    <DeleteOutlineIcon />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
+          </Styled.BottomButtons>
+        </>
+      )}
     </div>
   );
 };
