@@ -68,74 +68,28 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 		Latitude:    markerDto.Latitude,
 		Longitude:   markerDto.Longitude,
 		Description: markerDto.Description,
-		PhotoURLs:   photoURLs,
+		// PhotoURLs:   photoURLs,
 	}, nil
 }
 
-func GetAllMarkers() ([]models.MarkerWithPhotos, error) {
-	// query to include markers with UserID as null
+// GetAllMarkers now returns a simplified list of markers
+func GetAllMarkers() ([]dto.MarkerSimple, error) {
+	// Simplified query to fetch only the marker IDs, latitudes, and longitudes
 	const markerQuery = `
-	SELECT 
-    M.MarkerID, 
-    M.UserID, 
-    ST_Y(M.Location) AS Longitude, 
-    ST_X(M.Location) AS Latitude, 
-    M.Description, 
-    COALESCE(U.Username, '탈퇴한 사용자') AS Username, 
-    M.CreatedAt, 
-    M.UpdatedAt, 
-    IFNULL(D.DislikeCount, 0) AS DislikeCount
-FROM 
-    Markers M
-LEFT JOIN 
-    Users U ON M.UserID = U.UserID
-LEFT JOIN 
-    (
-        SELECT 
-            MarkerID, 
-            COUNT(DislikeID) AS DislikeCount
-        FROM 
-            MarkerDislikes
-        GROUP BY 
-            MarkerID
-    ) D ON M.MarkerID = D.MarkerID;`
+    SELECT 
+        MarkerID, 
+        ST_X(Location) AS Latitude,
+        ST_Y(Location) AS Longitude
+    FROM 
+        Markers;`
 
-	var markersWithUsernames []struct {
-		models.Marker
-		Username     string `db:"Username"`
-		DislikeCount int    `db:"DislikeCount"`
-	}
-	err := database.DB.Select(&markersWithUsernames, markerQuery)
+	var markers []dto.MarkerSimple
+	err := database.DB.Select(&markers, markerQuery)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error fetching markers: %w", err)
 	}
 
-	// Fetch all photos at once
-	const photoQuery = `SELECT * FROM Photos`
-	var allPhotos []models.Photo
-	err = database.DB.Select(&allPhotos, photoQuery)
-	if err != nil {
-		return nil, err
-	}
-
-	// Map photos to their markers
-	photoMap := make(map[int][]models.Photo) // markerID to photos
-	for _, photo := range allPhotos {
-		photoMap[photo.MarkerID] = append(photoMap[photo.MarkerID], photo)
-	}
-
-	// Assemble the final structure
-	markersWithPhotos := make([]models.MarkerWithPhotos, 0)
-	for _, marker := range markersWithUsernames {
-		markersWithPhotos = append(markersWithPhotos, models.MarkerWithPhotos{
-			Marker:       marker.Marker,
-			Photos:       photoMap[marker.MarkerID],
-			Username:     marker.Username,
-			DislikeCount: marker.DislikeCount,
-		})
-	}
-
-	return markersWithPhotos, nil
+	return markers, nil
 }
 
 func GetAllMarkersByUserWithPagination(userID, page, pageSize int) ([]models.MarkerWithPhotos, int, error) {
@@ -221,20 +175,62 @@ LIMIT ? OFFSET ?
 }
 
 // GetMarker retrieves a single marker and its associated photo by the marker's ID
-func GetMarker(markerID int) (*models.MarkerWithPhoto, error) {
+func GetMarker(markerID int) (*models.MarkerWithPhotos, error) {
 	const query = `
-	SELECT m.*, p.PhotoID, p.PhotoURL, p.UploadedAt 
-	FROM Markers m
-	LEFT JOIN Photos p ON m.MarkerID = p.MarkerID
-	WHERE m.MarkerID = ?`
+SELECT
+  M.MarkerID,
+  M.UserID,
+  ST_X(M.Location) AS Latitude,
+  ST_Y(M.Location) AS Longitude,
+  M.Description,
+  COALESCE(U.Username, '탈퇴한 사용자') AS Username,
+  M.CreatedAt,
+  M.UpdatedAt,
+  IFNULL(D.DislikeCount, 0) AS DislikeCount
+FROM Markers M
+LEFT JOIN Users U ON M.UserID = U.UserID
+LEFT JOIN (
+  SELECT
+    MarkerID,
+    COUNT(DislikeID) AS DislikeCount
+  FROM MarkerDislikes
+  GROUP BY MarkerID
+) D ON M.MarkerID = D.MarkerID
+WHERE M.MarkerID = ?`
 
-	var markerWithPhoto models.MarkerWithPhoto
-	err := database.DB.Get(&markerWithPhoto, query, markerID)
+	var markersWithUsernames struct {
+		models.Marker
+		Username     string `db:"Username"`
+		DislikeCount int    `db:"DislikeCount"`
+	}
+	err := database.DB.Get(&markersWithUsernames, query, markerID)
 	if err != nil {
-		return nil, fmt.Errorf("fetching marker with photo: %w", err)
+		return nil, err
 	}
 
-	return &markerWithPhoto, nil
+	// Fetch all photos at once
+	const photoQuery = `SELECT * FROM Photos`
+	var allPhotos []models.Photo
+	err = database.DB.Select(&allPhotos, photoQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map photos to their markers
+	photoMap := make(map[int][]models.Photo) // markerID to photos
+	for _, photo := range allPhotos {
+		photoMap[photo.MarkerID] = append(photoMap[photo.MarkerID], photo)
+	}
+
+	// Assemble the final structure
+	markersWithPhotos := models.MarkerWithPhotos{
+		Marker:       markersWithUsernames.Marker,
+		Photos:       photoMap[markersWithUsernames.MarkerID],
+		Username:     markersWithUsernames.Username,
+		DislikeCount: markersWithUsernames.DislikeCount,
+	}
+
+	return &markersWithPhotos, nil
 }
 
 // UpdateMarker updates an existing marker's latitude, longitude, and description
@@ -374,7 +370,7 @@ func FindClosestNMarkersWithinDistance(lat, long float64, distance, pageSize, of
 
 	// Query to find markers within N meters and calculate total
 	query := `
-SELECT MarkerID, UserID, ST_Y(Location) AS Longitude, ST_X(Location) AS Latitude, Description, CreatedAt, UpdatedAt, ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance
+SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude, Description, ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance
 FROM Markers
 WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
 ORDER BY distance ASC
