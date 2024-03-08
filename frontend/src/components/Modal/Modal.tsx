@@ -30,8 +30,8 @@ const BasicModal = ({ children, setState }: Props) => {
             aria-label="delete"
             sx={{
               position: "absolute",
-              top: ".4rem",
-              right: ".4rem",
+              top: "0",
+              right: "0",
             }}
           >
             <CloseIcon />

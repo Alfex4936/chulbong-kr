@@ -71,7 +71,7 @@ const AroundMarker = ({ map }: Props) => {
     map.setCenter(moveLatLon);
     map?.setLevel(1);
   };
-
+  
   return (
     <Styled.Container>
       <Styled.RangeContainer>
@@ -79,7 +79,7 @@ const AroundMarker = ({ map }: Props) => {
         <input
           type="range"
           min="100"
-          max="1000"
+          max="5000"
           step="100"
           value={distance}
           onChange={handleChange}
@@ -98,18 +98,21 @@ const AroundMarker = ({ map }: Props) => {
           </IconButton>
         </Tooltip>
       </Styled.RangeContainer>
-      {isLoading && (
-        <Styled.ListSkeleton>
-          <div />
-          <div style={{ flexGrow: "1" }} />
-          <div />
-        </Styled.ListSkeleton>
-      )}
+      {(isLoading || isFetching) && <Styled.ListSkeleton />}
       {data?.pages.map((page, i) => (
         <Styled.ListContainer key={i}>
           {page.markers?.map((marker) => (
             <Styled.MarkerList key={marker.markerId}>
               <p style={{ flexGrow: "1", textAlign: "left" }}>
+                <span
+                  style={{
+                    fontSize: ".7rem",
+                    marginRight: ".5rem",
+                    fontWeight: "bold",
+                  }}
+                >
+                  ({~~marker.distance}m)
+                </span>
                 {marker.description}
               </p>
               <Tooltip title="이동" arrow disableInteractive>

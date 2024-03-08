@@ -1,9 +1,10 @@
 import EditIcon from "@mui/icons-material/Edit";
+import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useState } from "react";
-import logout from "../../api/auth/logout";
+import useLogout from "../../hooks/mutation/auth/useLogout";
 import useUpdateName from "../../hooks/mutation/user/useUpdateName";
 import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 import useInput from "../../hooks/useInput";
@@ -12,7 +13,6 @@ import useUserStore from "../../store/useUserStore";
 import ActionButton from "../ActionButton/ActionButton";
 import Input from "../Input/Input";
 import * as Styled from "./MyInfoDetail.style";
-import Button from "@mui/material/Button";
 
 interface Props {
   setDeleteUserModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -26,25 +26,21 @@ const MyInfoDetail = ({ setDeleteUserModal, setMyInfoModal }: Props) => {
 
   const { data, isLoading } = useGetMyInfo();
   const { mutate, isPending } = useUpdateName(nameValue.value);
+  const { mutateAsync: logout, isPending: logoutPending } = useLogout();
 
   const [updateName, setUpdateName] = useState(false);
   const [updateNameError, setUpdateNameError] = useState("");
 
-  const [logoutLoading, setLogoutLoading] = useState(false);
+  // const [logoutLoading, setLogoutLoading] = useState(false);
 
   const handleLogout = async () => {
-    setLogoutLoading(true);
     try {
-      const result = await logout();
+      await logout();
       userState.resetUser();
       setMyInfoModal(false);
-      console.log(result);
     } catch (error) {
       userState.resetUser();
       setMyInfoModal(false);
-      console.log(error);
-    } finally {
-      setLogoutLoading(false);
     }
   };
 
@@ -116,7 +112,9 @@ const MyInfoDetail = ({ setDeleteUserModal, setMyInfoModal }: Props) => {
               </Styled.ListSkeleton>
             ) : (
               <>
-                <Styled.Name>{data?.username}</Styled.Name>
+                <Styled.Name>
+                  <span>닉네임</span> : {data?.username}
+                </Styled.Name>
                 <Tooltip title="수정" arrow disableInteractive>
                   <IconButton
                     onClick={() => {
@@ -168,8 +166,8 @@ const MyInfoDetail = ({ setDeleteUserModal, setMyInfoModal }: Props) => {
               fontSize: ".8rem",
             }}
           >
-            {logoutLoading ? (
-              <CircularProgress size={19.5} sx={{ color: "#fff" }} />
+            {logoutPending ? (
+              <CircularProgress size={19.5} sx={{ color: "#333" }} />
             ) : (
               "로그아웃"
             )}

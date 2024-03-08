@@ -1,9 +1,13 @@
 import { Marker } from "@/types/Marker.types";
 import axios from "axios";
 
-const getAllMarker = async (): Promise<Marker[]> => {
+type MarkerRes = Pick<Marker, "markerId" | "latitude" | "longitude">;
+
+const getAllMarker = async (): Promise<MarkerRes[]> => {
   try {
-    const res = await axios.get(`/api/v1/markers`);
+    const res = await axios.get(`/api/v1/markers`, {
+      headers: { "Accept-Encoding": "gzip, deflate, br" },
+    });
 
     return res.data;
   } catch (error) {

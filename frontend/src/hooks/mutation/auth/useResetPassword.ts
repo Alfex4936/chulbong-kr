@@ -6,12 +6,6 @@ const useResetPassword = (token: string, password: string) => {
     mutationFn: () => {
       return resetPassword(token, password);
     },
-    onSuccess(data) {
-      console.log(data);
-    },
-    onError(err) {
-      console.log(err);
-    },
   });
 };
 

@@ -13,7 +13,7 @@ const shimmer = keyframes`
 export const imageWrap = styled.div`
   position: relative;
 
-  width: 90%;
+  width: 240px;
 
   margin: auto;
   margin-bottom: 2rem;
@@ -22,8 +22,8 @@ export const imageWrap = styled.div`
 export const SkeletonImage = styled.div`
   display: inline-block;
 
-  height: 300px;
-  width: 90%;
+  height: 240px;
+  width: 100%;
 
   background: #f6f7f8;
   background-image: linear-gradient(

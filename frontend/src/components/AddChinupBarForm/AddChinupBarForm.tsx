@@ -78,8 +78,6 @@ const AddChinupBarForm = ({
           setCurrentMarkerInfo({
             ...res,
             index: markers.length,
-            userId: res.userId,
-            photos: res.photoUrls,
           } as MarkerInfo);
         });
 
@@ -98,6 +96,8 @@ const AddChinupBarForm = ({
       .catch((error) => {
         if (error.response.status === 401) {
           setError("인증이 만료 되었습니다. 다시 로그인 해주세요!");
+        } else {
+          setError("잠시 후 다시 시도해 주세요!");
         }
       })
       .finally(() => {

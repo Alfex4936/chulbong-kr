@@ -15,6 +15,8 @@ export const Container = styled.div`
 
   overflow: auto;
 
+  padding: 1rem;
+
   & > div:last-of-type {
     border-bottom: none;
 
@@ -31,55 +33,33 @@ export const MarkerList = styled.div`
   align-items: center;
 
   padding: 1rem;
-  margin: auto;
+  margin: 0 auto 1rem auto;
 
   width: 250px;
 
-  border-bottom: 1px solid #ccc;
+  border-radius: 0.4rem;
+  background-color: #e9efff;
 `;
 
 export const ListSkeleton = styled.div`
   display: flex;
   align-items: center;
 
+  margin: 1rem auto 1rem auto;
+
   padding: 1rem;
 
-  height: 60px;
-  width: 100%;
+  height: 57px;
+  width: 250px;
 
-  border-bottom: 1px solid #ccc;
+  background: #f6f7f8;
+  background-image: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #f7f7f7 50%,
+    #f0f0f0 75%
+  );
 
-  & > div:first-of-type {
-    height: 24px;
-    width: 130px;
-
-    background: #f6f7f8;
-    background-image: linear-gradient(
-      90deg,
-      #f0f0f0 25%,
-      #f7f7f7 50%,
-      #f0f0f0 75%
-    );
-
-    animation: ${shimmer} 1.2s ease-in-out infinite;
-
-    border-radius: 1rem;
-  }
-
-  & > div:last-of-type {
-    height: 22px;
-    width: 22px;
-
-    background: #f6f7f8;
-    background-image: linear-gradient(
-      90deg,
-      #f0f0f0 25%,
-      #f7f7f7 50%,
-      #f0f0f0 75%
-    );
-
-    animation: ${shimmer} 1.2s ease-in-out infinite;
-
-    border-radius: 50%;
-  }
+  animation: ${shimmer} 1.2s ease-in-out infinite;
+  border-radius: 0.4rem;
 `;
