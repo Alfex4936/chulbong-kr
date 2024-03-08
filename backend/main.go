@@ -108,7 +108,7 @@ func main() {
 		Level: compress.LevelBestSpeed,
 	}))
 
-	app.Use(helmet.New())
+	app.Use(helmet.New(helmet.Config{XSSProtection: "1; mode=block"}))
 	app.Use(limiter.New(limiter.Config{
 		Max:               100,
 		Expiration:        30 * time.Second,
@@ -125,7 +125,7 @@ func main() {
 		AllowOrigins:     "http://localhost:5173,https://chulbong-kr.vercel.app,https://developers.tosspayments.com", // List allowed origins
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                                                              // Explicitly list allowed methods
 		AllowHeaders:     "*",                                                                                        // TODO: Allow specific headers
-		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers",
+		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Accept-Encoding",
 		AllowCredentials: true,
 	}))
 
@@ -165,6 +165,7 @@ func main() {
 
 	// Marker routes
 	api.Get("/markers", handlers.GetAllMarkersHandler)
+	api.Get("/markers/:markerId/details", middlewares.AuthSoftMiddleware, handlers.GetMarker)
 
 	markerGroup := api.Group("/markers")
 	{
@@ -173,7 +174,7 @@ func main() {
 		markerGroup.Get("/my", handlers.GetUserMarkersHandler)
 		markerGroup.Get("/close", handlers.FindCloseMarkersHandler)
 		markerGroup.Get("/:markerID/dislike-status", handlers.CheckDislikeStatus)
-		markerGroup.Get("/:markerId", handlers.GetMarker)
+		// markerGroup.Get("/:markerId", handlers.GetMarker)
 
 		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
 		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
