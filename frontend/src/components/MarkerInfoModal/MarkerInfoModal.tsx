@@ -1,3 +1,4 @@
+import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
@@ -63,7 +64,7 @@ const MarkerInfoModal = ({
   const { mutateAsync: deleteMarker, isPending: deleteLoading } =
     useDeleteMarker(currentMarkerInfo.markerId);
 
-  const [isReview] = useState(false);
+  const [isReview, setIsReview] = useState(false);
 
   useEffect(() => {
     toastState.close();
@@ -92,7 +93,7 @@ const MarkerInfoModal = ({
   };
 
   const handleViewReview = () => {
-    console.log("리뷰 보기");
+    setIsReview(true);
   };
 
   const handleDislike = async () => {
@@ -119,9 +120,27 @@ const MarkerInfoModal = ({
   return (
     <div>
       {isReview ? (
-        <MarkerReview />
+        <MarkerReview
+          setIsReview={setIsReview}
+          markerId={marker?.markerId as number}
+        />
       ) : (
         <>
+          <Tooltip title="닫기" arrow disableInteractive>
+            <IconButton
+              onClick={() => {
+                setMarkerInfoModal(false);
+              }}
+              aria-label="delete"
+              sx={{
+                position: "absolute",
+                top: "0",
+                right: "0",
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Tooltip>
           <Styled.imageWrap>
             <img
               src={marker?.photos ? marker.photos[0].photoUrl : noimg}
