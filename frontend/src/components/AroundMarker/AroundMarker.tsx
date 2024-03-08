@@ -71,7 +71,7 @@ const AroundMarker = ({ map }: Props) => {
     map.setCenter(moveLatLon);
     map?.setLevel(1);
   };
-  
+
   return (
     <Styled.Container>
       <Styled.RangeContainer>
@@ -120,7 +120,7 @@ const AroundMarker = ({ map }: Props) => {
                   onClick={() => {
                     handleMove(marker.latitude, marker.longitude);
                   }}
-                  aria-label="delete"
+                  aria-label="move"
                   sx={{
                     color: "#333",
                     width: "25px",
