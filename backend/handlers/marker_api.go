@@ -73,59 +73,6 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(marker)
 }
 
-// // CreateMarker handler
-// func CreateMarkerHandler(c *fiber.Ctx) error {
-// 	// assert the photo has been uploaded first.
-// 	var markerDto dto.MarkerRequest
-// 	userId := c.Locals("userID").(int)
-// 	username := c.Locals("username").(string)
-
-// 	if err := c.BodyParser(&markerDto); err != nil {
-// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-// 	}
-
-// 	marker, err := services.CreateMarker(&markerDto, userId)
-// 	if err != nil {
-// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-// 	}
-
-// 	// Start a transaction
-// 	tx, err := database.DB.Begin()
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	// Insert photo
-// 	photo := &models.Photo{
-// 		MarkerID:   marker.MarkerID,
-// 		PhotoURL:   markerDto.PhotoURL,
-// 		UploadedAt: time.Now(),
-// 	}
-// 	photoQuery := `INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())`
-// 	_, err = tx.Exec(photoQuery, photo.MarkerID, photo.PhotoURL)
-// 	if err != nil {
-// 		tx.Rollback()
-// 		return err
-// 	}
-
-// 	// Commit transaction
-// 	if err := tx.Commit(); err != nil {
-// 		return err
-// 	}
-
-// 	// Map the models.Marker to dto.MarkerResponse
-// 	response := dto.MarkerResponse{
-// 		MarkerID:    marker.MarkerID,
-// 		Latitude:    marker.Latitude,
-// 		Longitude:   marker.Longitude,
-// 		Description: marker.Description,
-// 		Username:    username,
-// 		PhotoURL:    markerDto.PhotoURL,
-// 	}
-
-// 	return c.Status(fiber.StatusCreated).JSON(response)
-// }
-
 func GetAllMarkersHandler(c *fiber.Ctx) error {
 	markersWithPhotos, err := services.GetAllMarkers()
 	if err != nil {
@@ -137,7 +84,7 @@ func GetAllMarkersHandler(c *fiber.Ctx) error {
 
 // GetMarker handler
 func GetMarker(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("markerID"))
+	id, err := strconv.Atoi(c.Params("markerId"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
 	}
@@ -321,7 +268,7 @@ func CheckDislikeStatus(c *fiber.Ctx) error {
 // @Description	This endpoint retrieves markers that are close to a specified location within a given distance.
 // @Description	It requires latitude, longitude, distance, and the number of markers (N) to return.
 // @Description	If no markers are found within the specified distance, it returns a "No markers found" message.
-// @Description	Returns a list of markers that meet the criteria. (maximum 3km distance allowed)
+// @Description	Returns a list of markers that meet the criteria. (maximum 10km distance allowed)
 // @ID			find-close-markers
 // @Tags		markers
 // @Accept		json
@@ -343,8 +290,8 @@ func FindCloseMarkersHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid query parameters"})
 	}
 
-	if params.Distance > 3000 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Distance cannot be greater than 3,000m (3km)"})
+	if params.Distance > 10000 {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Distance cannot be greater than 10,000m (10km)"})
 	}
 
 	// Set default page to 1 if not specified
