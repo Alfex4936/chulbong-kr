@@ -53,7 +53,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	userId := c.Locals("userID").(int)
-	username := c.Locals("username").(string)
+	// username := c.Locals("username").(string)
 
 	// Construct the marker object from form values
 	markerDto := dto.MarkerRequest{
@@ -67,8 +67,8 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	marker.Username = username
-	marker.UserID = userId
+	// marker.Username = username
+	// marker.UserID = userId
 
 	return c.Status(fiber.StatusCreated).JSON(marker)
 }
@@ -90,7 +90,7 @@ func GetMarker(c *fiber.Ctx) error {
 	}
 	marker, err := services.GetMarker(id)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Marker not found"})
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Marker not found: " + err.Error()})
 	}
 	return c.JSON(marker)
 }
