@@ -12,7 +12,6 @@ import noimg from "../../assets/images/noimg.webp";
 import useDeleteMarker from "../../hooks/mutation/marker/useDeleteMarker";
 import useMarkerDislike from "../../hooks/mutation/marker/useMarkerDislike";
 import useUndoDislike from "../../hooks/mutation/marker/useUndoDislike";
-import useDislikeState from "../../hooks/query/marker/useDislikeState";
 import useGetMarker from "../../hooks/query/marker/useGetMarker";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
@@ -48,12 +47,6 @@ const MarkerInfoModal = ({
     isLoading,
     isError,
   } = useGetMarker(currentMarkerInfo.markerId);
-
-  const {
-    data: dislikeState,
-    isError: isDislikeError,
-    isLoading: dislikeLoading,
-  } = useDislikeState(currentMarkerInfo.markerId);
 
   const { mutateAsync: doDislike, isPending: disLikePending } =
     useMarkerDislike(currentMarkerInfo.markerId);
@@ -99,7 +92,7 @@ const MarkerInfoModal = ({
   const handleDislike = async () => {
     if (disLikePending || undoDislikePending) return;
     try {
-      if (dislikeState?.disliked) {
+      if (marker?.disliked) {
         await undoDislike();
       } else {
         await doDislike();
@@ -154,46 +147,38 @@ const MarkerInfoModal = ({
                 <RateReviewIcon />
               </IconButton>
             </Tooltip>
-            {dislikeState?.disliked && !isDislikeError ? (
+            {marker?.disliked ? (
               <Tooltip title="싫어요 취소" arrow disableInteractive>
                 <IconButton onClick={handleDislike} aria-label="dislike">
-                  {dislikeLoading ? (
-                    <CircularProgress color="inherit" size={20} />
-                  ) : (
-                    <div
-                      style={{
-                        width: "24px",
-                        height: "24px",
-                        position: "relative",
-                      }}
-                    >
-                      <Styled.DislikeCount>
-                        {marker?.dislikeCount || 0}
-                      </Styled.DislikeCount>
-                      <ThumbDownAltIcon />
-                    </div>
-                  )}
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      position: "relative",
+                    }}
+                  >
+                    <Styled.DislikeCount>
+                      {marker?.dislikeCount || 0}
+                    </Styled.DislikeCount>
+                    <ThumbDownAltIcon />
+                  </div>
                 </IconButton>
               </Tooltip>
             ) : (
               <Tooltip title="싫어요" arrow disableInteractive>
                 <IconButton onClick={handleDislike} aria-label="dislike">
-                  {dislikeLoading ? (
-                    <CircularProgress color="inherit" size={20} />
-                  ) : (
-                    <div
-                      style={{
-                        width: "24px",
-                        height: "24px",
-                        position: "relative",
-                      }}
-                    >
-                      <Styled.DislikeCount>
-                        {marker?.dislikeCount || 0}
-                      </Styled.DislikeCount>
-                      <ThumbDownOffAltIcon />
-                    </div>
-                  )}
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      position: "relative",
+                    }}
+                  >
+                    <Styled.DislikeCount>
+                      {marker?.dislikeCount || 0}
+                    </Styled.DislikeCount>
+                    <ThumbDownOffAltIcon />
+                  </div>
                 </IconButton>
               </Tooltip>
             )}
