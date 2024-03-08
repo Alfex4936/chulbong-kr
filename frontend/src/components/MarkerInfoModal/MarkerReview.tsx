@@ -3,6 +3,8 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import useGetComments from "../../hooks/query/comments/useGetComments";
 import MarkerReviewSkeleton from "./MarkerReviewSkeleton";
+import * as Styled from "./MarkerReview.style";
+import ReplyIcon from "@mui/icons-material/Reply";
 
 interface Props {
   markerId: number;
@@ -36,6 +38,20 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
       </Tooltip>
       <div>리뷰</div>
       <div>리뷰</div>
+
+      <Styled.InputWrap>
+        <Styled.ReviewInput type="text" name="reveiw-content" />
+        <Tooltip title="등록" arrow disableInteractive>
+          <IconButton
+            onClick={() => {
+              console.log(1);
+            }}
+            aria-label="send"
+          >
+            <ReplyIcon />
+          </IconButton>
+        </Tooltip>
+      </Styled.InputWrap>
     </div>
   );
 };
