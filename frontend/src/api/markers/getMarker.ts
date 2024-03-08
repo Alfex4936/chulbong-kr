@@ -3,7 +3,7 @@ import axios from "axios";
 
 const getMarker = async (id: number): Promise<Marker> => {
   try {
-    const res = await axios.get(`/api/v1/markers/${id}`);
+    const res = await axios.get(`/api/v1/markers/${id}/details`);
 
     return res.data;
   } catch (error) {
