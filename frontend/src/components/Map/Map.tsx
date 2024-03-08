@@ -322,7 +322,7 @@ const Map = () => {
           </Suspense>
         </BasicModal>
       )}
-
+      
       {deleteUserModal && (
         <BasicModal setState={setDeleteUserModal}>
           <p>정말 탈퇴하시겠습니까?</p>

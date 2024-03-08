@@ -1,8 +1,29 @@
+import * as Styled from "./MarkerReviewSkeleton.style";
+
 const MarkerReviewSkeleton = () => {
   return (
-    <div>
-      <div>로딩중</div>
-    </div>
+    <>
+      <Styled.ListSkeleton>
+        <div />
+        <div style={{ flexGrow: "1" }} />
+        <div />
+      </Styled.ListSkeleton>
+      <Styled.ListSkeleton>
+        <div />
+        <div style={{ flexGrow: "1" }} />
+        <div />
+      </Styled.ListSkeleton>
+      <Styled.ListSkeleton>
+        <div />
+        <div style={{ flexGrow: "1" }} />
+        <div />
+      </Styled.ListSkeleton>
+      <Styled.ListSkeleton>
+        <div />
+        <div style={{ flexGrow: "1" }} />
+        <div />
+      </Styled.ListSkeleton>
+    </>
   );
 };
 
