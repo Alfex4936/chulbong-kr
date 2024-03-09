@@ -102,7 +102,7 @@ const Map = () => {
   useEffect(() => {
     if (!map || !data) return;
 
-      // 클러스터 인스턴스 생성 및 저장
+    // 클러스터 인스턴스 생성 및 저장
     const clusterer = new window.kakao.maps.MarkerClusterer({
       map: map,
       averageCenter: true,
@@ -153,7 +153,7 @@ const Map = () => {
     });
 
     clusterer.addMarkers(newMarkers);
-    setMarkers([...newMarkers]);;
+    setMarkers([...newMarkers]);
 
     window.kakao.maps.event.addListener(
       map,

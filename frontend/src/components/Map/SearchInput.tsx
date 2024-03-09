@@ -57,8 +57,8 @@ const SearchInput = ({ map }: Props) => {
       setIsResult(false);
       return;
     }
-
     setIsResult(true);
+
     const fetch = async () => {
       try {
         const result = await getSearchLoation(searchInput.value);
@@ -91,6 +91,7 @@ const SearchInput = ({ map }: Props) => {
         <Styled.SearchInput
           type="text"
           name="search"
+          placeholder="ex) 햄버거 맛집, 수원, 잠실역, 남산 타워"
           value={searchInput.value}
           onChange={searchInput.onChange}
         />
@@ -132,6 +133,7 @@ const SearchInput = ({ map }: Props) => {
             <IconButton
               onClick={() => {
                 setIsResult(false);
+                searchInput.reset();
               }}
               aria-label="move"
               sx={{
