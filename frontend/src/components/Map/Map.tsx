@@ -47,7 +47,6 @@ import MyInfoModal from "../MyInfoModal/MyInfoModal";
 
 export interface MarkerInfo {
   markerId: number;
-  index: number;
 }
 
 const Map = () => {
@@ -103,7 +102,7 @@ const Map = () => {
   useEffect(() => {
     if (!map || !data) return;
 
-    // 클러스터 인스턴스 생성 및 저장
+    //   // 클러스터 인스턴스 생성 및 저장
     const clusterer = new window.kakao.maps.MarkerClusterer({
       map: map,
       averageCenter: true,
@@ -130,36 +129,60 @@ const Map = () => {
     clickMarker.setMap(map);
     // 첫 로딩시 화면에서 숨김
     clickMarker.setVisible(false);
+
     setMarker(clickMarker);
 
-    data?.forEach((markerData, index) => {
-      const markerPosition = new window.kakao.maps.LatLng(
-        markerData.latitude,
-        markerData.longitude
-      );
-
+    const newMarkers = data?.map((marker) => {
       const newMarker = new window.kakao.maps.Marker({
-        map: map,
-        position: markerPosition,
+        position: new window.kakao.maps.LatLng(
+          marker.latitude,
+          marker.longitude
+        ),
         image: activeMarkerImg,
+        title: marker.markerId,
       });
 
       window.kakao.maps.event.addListener(newMarker, "click", () => {
         setMarkerInfoModal(true);
         setCurrentMarkerInfo({
-          markerId: markerData.markerId,
-          index: index,
+          markerId: marker.markerId,
         });
       });
 
-      setMarkers((prev) => {
-        const copy = [...prev];
-        copy.push(newMarker);
-        return copy;
-      });
-
-      clusterer.addMarker(newMarker);
+      return newMarker;
     });
+
+    clusterer.addMarkers(newMarkers);
+    setMarkers([...newMarkers]);
+    // data?.forEach((markerData, index) => {
+    //   const markerPosition = new window.kakao.maps.LatLng(
+    //     markerData.latitude,
+    //     markerData.longitude
+    //   );
+    //   console.log(index);
+
+    //   const newMarker = new window.kakao.maps.Marker({
+    //     map: map,
+    //     position: markerPosition,
+    //     image: activeMarkerImg,
+    //   });
+
+    //   window.kakao.maps.event.addListener(newMarker, "click", () => {
+    //     setMarkerInfoModal(true);
+    //     setCurrentMarkerInfo({
+    //       markerId: markerData.markerId,
+    //       index: index,
+    //     });
+    //   });
+
+    //   setMarkers((prev) => {
+    //     const copy = [...prev];
+    //     copy.push(newMarker);
+    //     return copy;
+    //   });
+
+    //   clusterer.addMarker(newMarker);
+    // });
 
     window.kakao.maps.event.addListener(
       map,
@@ -179,7 +202,7 @@ const Map = () => {
     );
   }, [map, data]);
 
-  // console.log(data);
+  // console.log(markers);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
@@ -303,7 +326,6 @@ const Map = () => {
               setMarkerInfoModal={setMarkerInfoModal}
               setCurrentMarkerInfo={setCurrentMarkerInfo}
               setMarkers={setMarkers}
-              markers={markers}
               map={map}
               marker={marker}
               clusterer={clusterer as MarkerClusterer}

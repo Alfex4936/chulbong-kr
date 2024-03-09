@@ -23,6 +23,7 @@ export interface KakaoMap {
 export interface KakaoMarker {
   setPosition: (data: Pos & LatLngFunctions) => void;
   setMap: (data: KakaoMap | null | number) => void;
+  Gb: string;
 }
 
 export interface Qa {

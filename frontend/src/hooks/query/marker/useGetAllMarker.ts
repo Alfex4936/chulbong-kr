@@ -6,6 +6,8 @@ const useGetAllMarker = () => {
     queryKey: ["marker", "all"],
     queryFn: getAllMarker,
     retry: false,
+
+    staleTime: 0,
   });
 };
 

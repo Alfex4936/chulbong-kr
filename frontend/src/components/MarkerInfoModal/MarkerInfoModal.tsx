@@ -54,34 +54,47 @@ const MarkerInfoModal = ({
   const { mutateAsync: undoDislike, isPending: undoDislikePending } =
     useUndoDislike(currentMarkerInfo.markerId);
 
-  const { mutateAsync: deleteMarker, isPending: deleteLoading } =
-    useDeleteMarker(currentMarkerInfo.markerId);
+  const { mutateAsync: deleteMarker } = useDeleteMarker(
+    currentMarkerInfo.markerId
+  );
 
   const [isReview, setIsReview] = useState(false);
+
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     toastState.close();
     toastState.setToastText("");
   }, []);
 
+  const filtering = async () => {
+    const marker = markers.find(
+      (value) => Number(value.Gb) === currentMarkerInfo.markerId
+    );
+
+    const newMarkers = markers.filter(
+      (value) => Number(value.Gb) !== currentMarkerInfo.markerId
+    );
+
+    if (marker) {
+      marker.setMap(null);
+      clusterer.removeMarker(marker);
+      setMarkers(newMarkers);
+    }
+  };
+
   const handleDelete = async () => {
+    setDeleteLoading(true);
     try {
       await deleteMarker();
-
-      const newMarkers = markers.filter(
-        (_, index) => index !== currentMarkerInfo.index
-      );
-
-      markers[currentMarkerInfo.index].setMap(null);
-      setMarkers(newMarkers);
-
-      clusterer.removeMarker(markers[currentMarkerInfo.index]);
+      await filtering();
       setMarkerInfoModal(false);
-
       toastState.setToastText("삭제 완료");
       toastState.open();
     } catch (error) {
       alert("삭제 실패 잠시 후 다시 시도해주세요!");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
