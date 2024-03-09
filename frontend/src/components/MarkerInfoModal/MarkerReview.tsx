@@ -71,6 +71,12 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
     deleteComment(id);
   };
 
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      handleComment();
+    }
+  };
+
   if (isError) return <div>잠시 후 다시 시도해 주세요!</div>;
 
   return (
@@ -168,6 +174,7 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
           name="reveiw-content"
           value={commentValue.value}
           onChange={commentValue.onChange}
+          onKeyDown={handleKeyPress}
         />
         <Tooltip title="등록" arrow disableInteractive>
           <IconButton onClick={handleComment} aria-label="send">

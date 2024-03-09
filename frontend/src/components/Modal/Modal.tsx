@@ -3,6 +3,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import useModalStore from "../../store/useModalStore";
 import * as Styled from "./Modal.style";
+import { useEffect } from "react";
 
 interface Props {
   exit?: boolean;
@@ -12,6 +13,24 @@ interface Props {
 
 const BasicModal = ({ exit = true, children, setState }: Props) => {
   const modalState = useModalStore();
+
+  useEffect(() => {
+    const handleKeyDownClose = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (setState) {
+          setState(false);
+        } else {
+          modalState.close();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDownClose);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDownClose);
+    };
+  }, []);
 
   return (
     <Styled.ModalWrap>
@@ -24,9 +43,10 @@ const BasicModal = ({ exit = true, children, setState }: Props) => {
           <Tooltip title="닫기" arrow disableInteractive>
             <IconButton
               onClick={() => {
-                modalState.close();
                 if (setState) {
                   setState(false);
+                } else {
+                  modalState.close();
                 }
               }}
               aria-label="delete"

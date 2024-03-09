@@ -95,9 +95,22 @@ const Map = () => {
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
   useEffect(() => {
+    const handleKeyDownClose = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMarked(false);
+        marker?.setMap(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDownClose);
+
     toastState.close();
     toastState.setToastText("");
-  }, []);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDownClose);
+    };
+  }, [marker]);
 
   useEffect(() => {
     if (!map || !data) return;
