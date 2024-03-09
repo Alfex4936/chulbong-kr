@@ -2,7 +2,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import login from "../../api/auth/login";
 import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
@@ -26,6 +26,64 @@ const LoginForm = () => {
   const [viewPassword, setViewPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handleSubmit = () => {
+      let isValid = true;
+
+      if (emailInput.value === "") {
+        setEmailError("이메일을 입력해 주세요");
+        isValid = false;
+      } else if (!emailValidate(emailInput.value)) {
+        setEmailError("이메일 형식이 아닙니다.");
+        isValid = false;
+      } else {
+        setEmailError("");
+      }
+
+      if (passwordInput.value === "") {
+        setPasswordError("비밀번호 입력해 주세요");
+        isValid = false;
+      } else if (!passwordValidate(passwordInput.value)) {
+        setPasswordError("특수문자 포함 8 ~ 20자 사이로 입력해 주세요.");
+        isValid = false;
+      } else {
+        setPasswordError("");
+      }
+
+      if (isValid) {
+        setLoading(true);
+        login({
+          email: emailInput.value,
+          password: passwordInput.value,
+        })
+          .then((res) => {
+            setLoginError("");
+            userState.setUser(res);
+            modalState.close();
+          })
+          .catch((error) => {
+            console.log(error);
+            setLoginError("유요하지 않은 회원 정보입니다.");
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      }
+    };
+
+    const handleKeyDownClose = (event: KeyboardEvent) => {
+      if (event.key === "Enter") {
+        handleSubmit();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDownClose);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDownClose);
+    };
+  }, [emailInput.value, passwordInput.value]);
 
   const handleSubmit = () => {
     let isValid = true;
