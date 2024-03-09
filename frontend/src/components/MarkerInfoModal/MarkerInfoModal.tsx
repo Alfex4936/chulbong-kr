@@ -113,7 +113,6 @@ const MarkerInfoModal = ({
     } catch (error) {
       if (isAxiosError(error)) {
         if (error.response?.status === 401) {
-          setMarkerInfoModal(false);
           modalState.openLogin();
         }
       }
