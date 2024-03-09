@@ -92,19 +92,32 @@ func RemoveComment(commentID, userID int) error {
 }
 
 // LoadCommentsForMarker retrieves all active comments for a specific marker
-func LoadCommentsForMarker(markerID int) ([]Comment, error) {
+func LoadCommentsForMarker(markerID, pageSize, offset int) ([]Comment, int, error) {
 	comments := make([]Comment, 0)
 
 	query := `
         SELECT CommentID, MarkerID, UserID, CommentText, PostedAt, UpdatedAt
         FROM Comments
         WHERE MarkerID = ? AND DeletedAt IS NULL
-        ORDER BY PostedAt DESC`
+        ORDER BY PostedAt DESC
+		LIMIT ? OFFSET ?`
 
-	err := database.DB.Select(&comments, query, markerID)
+	err := database.DB.Select(&comments, query, markerID, pageSize, offset)
 	if err != nil {
-		return nil, fmt.Errorf("error loading comments for marker %d: %w", markerID, err)
+		return nil, 0, fmt.Errorf("error loading comments for marker %d: %w", markerID, err)
 	}
 
-	return comments, nil
+	// Query to get total count of markers within distance
+	countQuery := `
+SELECT COUNT(*)
+FROM Comments C
+WHERE C.MarkerID = ? AND C.DeletedAt IS NULL`
+
+	var total int
+	err = database.DB.Get(&total, countQuery, markerID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("error getting total markers count: %w", err)
+	}
+
+	return comments, total, nil
 }
