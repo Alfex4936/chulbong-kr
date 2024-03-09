@@ -1,5 +1,7 @@
+import json
 import os
 import random
+from datetime import datetime, timedelta
 
 import mysql.connector
 import numpy as np
@@ -95,7 +97,59 @@ def insert_markers(cursor, num_markers):
     print(f"{num_markers} markers inserted successfully.")
 
 
-def main():
+def insert_markers_json(cursor, markers):
+    insert_query = """
+    INSERT INTO Markers (UserID, Location, Description, CreatedAt) 
+    VALUES (1, ST_GeomFromText('POINT(%s %s)', 4326), '', %s);
+    """
+    values = []
+
+    for marker in markers:
+        lat, lon, created_at = marker
+        # Generate a random review text for each marker
+        values.append((lat, lon, created_at))
+
+    # Insert markers in batches
+    batch_size = 1000
+    for i in range(0, len(values), batch_size):
+        batch = values[i : i + batch_size]
+        cursor.executemany(insert_query, batch)
+
+    print(f"{len(markers)} markers inserted successfully.")
+
+
+# Function to process each marker and extract/transform needed data
+def process_markers(json_data):
+    processed_markers = []
+    for marker in json_data:
+        try:
+            latitude = float(marker["latitude"])
+            longitude = float(marker["longitude"])
+        except:
+            continue
+        # Transform the date, set time to 00:00:00 if date is present
+        date = marker["date"]
+        if date:  # Check if date is not empty
+            date_time = datetime.strptime(date, "%Y-%m-%d")
+            # Formatting to include time as 00:00:00
+            date_str = date_time.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            # Set to one year minus from now with time as 00:00:00
+            one_year_ago = datetime.now() - timedelta(days=365)
+            date_str = one_year_ago.strftime("%Y-%m-%d %H:%M:%S")
+
+        processed_markers.append((latitude, longitude, date_str))
+
+    return processed_markers
+
+
+# Function to read JSON data from a file
+def read_json_file(file_path):
+    with open(file_path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def mysql_query():
     # Connect to the database
     cnx = connect_to_database(db_config)
     if cnx is None:
@@ -112,6 +166,39 @@ def main():
     cnx.commit()
     cursor.close()
     cnx.close()
+
+
+def json_insert():
+    # Specify the path to your JSON file
+    file_path = "markers.json"
+
+    # Read the JSON data from the file
+    json_data = read_json_file(file_path)
+
+    # Process the markers
+    processed_markers = process_markers(json_data)
+
+    # Connect to the database
+    cnx = connect_to_database(db_config)
+    if cnx is None:
+        return
+
+    cursor = cnx.cursor()
+
+    delete_all_markers(cursor)
+
+    # Insert markers
+    insert_markers_json(cursor, processed_markers)
+
+    # Commit the transactions and close the connection
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+
+
+def main():
+    # mysql_query()
+    json_insert()
 
 
 if __name__ == "__main__":

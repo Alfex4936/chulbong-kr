@@ -14,6 +14,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
@@ -21,8 +22,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/monitor"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
+	"github.com/gofiber/storage/redis/v3"
 	"github.com/gofiber/swagger"
-	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv/autoload"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -43,11 +45,24 @@ func main() {
 	// Increase GOMAXPROCS
 	runtime.GOMAXPROCS(runtime.NumCPU() * 2) // twice the number of CPUs
 
-	// Load .env file
-	err := godotenv.Load()
+	redisPortStr := os.Getenv("REDIS_PORT")
+	redisPort, err := strconv.Atoi(redisPortStr)
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatalf("Failed to convert REDIS_PORT to integer: %v", err)
 	}
+
+	// Initialize redis
+	store := redis.New(redis.Config{
+		Host:      os.Getenv("REDIS_HOST"),
+		Port:      redisPort,
+		Username:  os.Getenv("REDIS_USERNAME"),
+		Password:  os.Getenv("REDIS_PASSWORD"),
+		Database:  0,
+		Reset:     true,
+		TLSConfig: nil,
+		PoolSize:  10 * runtime.GOMAXPROCS(0),
+	})
+	services.RedisStore = store
 
 	// Initialize global variables
 	setTokenExpirationTime()
@@ -164,7 +179,11 @@ func main() {
 	}
 
 	// Marker routes
-	api.Get("/markers", handlers.GetAllMarkersHandler)
+	api.Get("/markers", cache.New(cache.Config{
+		Storage:      store,            // Use Redis storage
+		Expiration:   60 * time.Second, // Cache expiration
+		CacheControl: true,             // Enable client-side caching
+	}), handlers.GetAllMarkersHandler)
 	api.Get("/markers/:markerId/details", middlewares.AuthSoftMiddleware, handlers.GetMarker)
 
 	markerGroup := api.Group("/markers")

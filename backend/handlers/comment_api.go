@@ -70,6 +70,11 @@ func RemoveCommentHandler(c *fiber.Ctx) error {
 }
 
 func LoadCommentsHandler(c *fiber.Ctx) error {
+	var params dto.CommentLoadParams
+	if err := c.QueryParser(&params); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid query parameters"})
+	}
+
 	markerID, err := c.ParamsInt("markerId")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -77,13 +82,35 @@ func LoadCommentsHandler(c *fiber.Ctx) error {
 		})
 	}
 
+	// default
+	if params.N < 1 {
+		params.N = 4
+	}
+	if params.Page < 1 {
+		params.Page = 1
+	}
+
+	pageSize := 4 // Define page size
+	offset := (params.Page - 1) * pageSize
+
 	// Call service function to load comments for the marker
-	comments, err := services.LoadCommentsForMarker(markerID)
+	comments, total, err := services.LoadCommentsForMarker(markerID, pageSize, offset)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
 
-	return c.JSON(comments)
+	// Calculate total pages
+	totalPages := total / pageSize
+	if total%pageSize != 0 {
+		totalPages++
+	}
+
+	return c.JSON(fiber.Map{
+		"comments":      comments,
+		"currentPage":   params.Page,
+		"totalPages":    totalPages,
+		"totalComments": total,
+	})
 }
