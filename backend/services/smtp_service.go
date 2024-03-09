@@ -115,10 +115,10 @@ func GenerateAndSaveSignUpToken(email string) (string, error) {
 
 	// Attempt to insert or update the token for the user
 	_, err = database.DB.Exec(`
-        INSERT INTO PasswordTokens (Email, Token, ExpiresAt, Verified)
-        VALUES (?, ?, ?, FALSE)
+        INSERT INTO PasswordTokens (Token, Email, Verified, ExpiresAt, CreatedAt)
+        VALUES (?, ?, FALSE, ?, NOW())
         ON DUPLICATE KEY UPDATE Token=VALUES(Token), ExpiresAt=VALUES(ExpiresAt), Verified=FALSE`,
-		email, token, expiresAt)
+		token, email, expiresAt)
 	if err != nil {
 		return "", fmt.Errorf("error saving or updating token: %w", err)
 	}

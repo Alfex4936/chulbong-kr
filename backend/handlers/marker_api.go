@@ -11,6 +11,8 @@ import (
 )
 
 func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
+	services.ResetCache("/api/v1/markers_GET")
+
 	// Parse the multipart form
 	form, err := c.MultipartForm()
 	if err != nil {
