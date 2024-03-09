@@ -62,7 +62,9 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
   }, [isFetching, hasNextPage, fetchNextPage]);
 
   const handleComment = () => {
+    if (commentValue.value === "") return;
     mutate();
+    commentValue.reset();
   };
 
   const handleDelete = (id: number) => {
@@ -90,34 +92,26 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
       </Tooltip>
 
       <Styled.ReviewWrap>
-        {data?.pages[0].comments.length === 0 && (
-          <Styled.Container>
-            <Styled.Wrapper>
-              <Styled.P>텅</Styled.P>
-
-              <Styled.DotWrap>
-                <Styled.Dot1></Styled.Dot1>
-                <Styled.Dot2></Styled.Dot2>
-                <Styled.Dot3></Styled.Dot3>
-              </Styled.DotWrap>
-            </Styled.Wrapper>
-            <Styled.Text>
-              <p>등록된 리뷰가 없습니다.</p>
-            </Styled.Text>
-          </Styled.Container>
-        )}
-        {isLoading || deleteLoading ? (
+        {isLoading || deleteLoading || isPending ? (
           <MarkerReviewSkeleton />
         ) : (
           <>
-            {isPending && (
-              <Styled.ListSkeleton>
-                <div />
-                <div style={{ flexGrow: "1" }} />
-                <div />
-              </Styled.ListSkeleton>
-            )}
+            {data?.pages[0].comments.length === 0 && (
+              <Styled.Container>
+                <Styled.Wrapper>
+                  <Styled.P>텅</Styled.P>
 
+                  <Styled.DotWrap>
+                    <Styled.Dot1></Styled.Dot1>
+                    <Styled.Dot2></Styled.Dot2>
+                    <Styled.Dot3></Styled.Dot3>
+                  </Styled.DotWrap>
+                </Styled.Wrapper>
+                <Styled.Text>
+                  <p>등록된 리뷰가 없습니다.</p>
+                </Styled.Text>
+              </Styled.Container>
+            )}
             {data?.pages.map((page, index) => {
               return (
                 <div key={index}>
