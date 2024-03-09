@@ -5,3 +5,4 @@ Dockerfile
 swagger.json
 swagger.yaml
 swagformat.txt
+markers.json
