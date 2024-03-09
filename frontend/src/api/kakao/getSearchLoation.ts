@@ -6,7 +6,7 @@ const getSearchLoation = async (query: string) => {
       `https://dapi.kakao.com/v2/local/search/keyword.json?query=${query}&page=1&size=5`,
       {
         headers: {
-          Authorization: `KakaoAK ${import.meta.env.VITE_KAKAO_API_KEY}`,
+          Authorization: `KakaoAK ${import.meta.env.VITE_KAK}`,
         },
       }
     );
