@@ -1,5 +1,6 @@
 # chulbong-kr
 
+![map](https://github.com/Alfex4936/chulbong-kr/assets/2356749/d1811e5d-9857-4e9f-b997-78b77df343fb)
 ![add](https://github.com/Alfex4936/chulbong-kr/assets/2356749/26daa718-7d9a-4268-97fb-3f7d16ae183e)
 ![slack](https://github.com/Alfex4936/chulbong-kr/assets/2356749/5ec03f6a-871f-4556-90c3-13bb44769f13)
 
@@ -23,10 +24,9 @@
 - **커뮤니티 포럼**: 사용자들이 운동 팁, 턱걸이 바 추천 등을 공유할 수 있는 커뮤니티 공간.
 - **인기 장소 확인**: 사용자들이 자주 방문하는 인기 턱걸이 바 위치 확인 기능.
 - **이벤트 및 챌린지**: 사용자들이 참여할 수 있는 운동 관련 이벤트 및 챌린지 개최.
-- **관리자 기능**: 관리자 기능.
 
 ### 기술 스택
-- **백엔드**: Go언어 Fiber v2, AWS RDS MySQL (+ spatial type), AWS S3, AWS EC2 (fly.io)
+- **백엔드**: Go언어 Fiber v2, AWS RDS MySQL (+ spatial type), AWS S3, AWS EC2 (fly.io), Redis
 - **프론트엔드**: React (TypeScript)
 - **협업**: Slack (+ Slack API)
 
