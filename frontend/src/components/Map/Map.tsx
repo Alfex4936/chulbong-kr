@@ -102,11 +102,11 @@ const Map = () => {
   useEffect(() => {
     if (!map || !data) return;
 
-    //   // 클러스터 인스턴스 생성 및 저장
+      // 클러스터 인스턴스 생성 및 저장
     const clusterer = new window.kakao.maps.MarkerClusterer({
       map: map,
       averageCenter: true,
-      minLevel: 10,
+      minLevel: 6,
     });
     setClusterer(clusterer);
 
@@ -153,36 +153,7 @@ const Map = () => {
     });
 
     clusterer.addMarkers(newMarkers);
-    setMarkers([...newMarkers]);
-    // data?.forEach((markerData, index) => {
-    //   const markerPosition = new window.kakao.maps.LatLng(
-    //     markerData.latitude,
-    //     markerData.longitude
-    //   );
-    //   console.log(index);
-
-    //   const newMarker = new window.kakao.maps.Marker({
-    //     map: map,
-    //     position: markerPosition,
-    //     image: activeMarkerImg,
-    //   });
-
-    //   window.kakao.maps.event.addListener(newMarker, "click", () => {
-    //     setMarkerInfoModal(true);
-    //     setCurrentMarkerInfo({
-    //       markerId: markerData.markerId,
-    //       index: index,
-    //     });
-    //   });
-
-    //   setMarkers((prev) => {
-    //     const copy = [...prev];
-    //     copy.push(newMarker);
-    //     return copy;
-    //   });
-
-    //   clusterer.addMarker(newMarker);
-    // });
+    setMarkers([...newMarkers]);;
 
     window.kakao.maps.event.addListener(
       map,
@@ -201,8 +172,6 @@ const Map = () => {
       }
     );
   }, [map, data]);
-
-  // console.log(markers);
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {

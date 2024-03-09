@@ -57,6 +57,17 @@ export const MarkerList = styled.div`
   background-color: #e9efff;
 `;
 
+export const MarkerListTop = styled.div`
+  flex-grow: 1;
+`;
+
+export const AddressText = styled.p`
+  font-size: 0.7rem;
+  color: #777;
+
+  text-align: left;
+`;
+
 export const ListSkeleton = styled.div`
   display: flex;
   align-items: center;
