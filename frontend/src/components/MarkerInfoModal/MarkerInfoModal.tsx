@@ -121,7 +121,27 @@ const MarkerInfoModal = ({
   };
 
   if (isLoading) return <MarkerInfoSkeleton />;
-  if (isError) return <div>에러</div>;
+  if (isError)
+    return (
+      <div style={{ fontSize: "1.2rem" }}>
+        <Tooltip title="닫기" arrow disableInteractive>
+          <IconButton
+            onClick={() => {
+              setMarkerInfoModal(false);
+            }}
+            aria-label="delete"
+            sx={{
+              position: "absolute",
+              top: "0",
+              right: "0",
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Tooltip>
+        잠시 후 다시 시도해 주세요.....
+      </div>
+    );
 
   return (
     <div>
@@ -198,7 +218,8 @@ const MarkerInfoModal = ({
               </Tooltip>
             )}
 
-            {userState.user.user.userId === marker?.userId && (
+            {(marker?.isChulbong ||
+              userState.user.user.userId === marker?.userId) && (
               <Tooltip title="삭제 하기" arrow disableInteractive>
                 <IconButton onClick={handleDelete} aria-label="delete">
                   {deleteLoading ? (
