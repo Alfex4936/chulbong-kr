@@ -32,8 +32,6 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 	markerID, _ := res.LastInsertId()
 
 	// After successfully creating the marker, process and upload the files
-	var photoURLs []string
-
 	// Process file uploads from the multipart form
 	files := form.File["photos"]
 	for _, file := range files {
@@ -42,9 +40,6 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 			fmt.Printf("Failed to upload file to S3: %v\n", err)
 			continue // Skip this file and continue with the next
 		}
-
-		photoURLs = append(photoURLs, fileURL)
-
 		// Associate each photo with the marker in the database
 		if _, err := tx.Exec("INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())", markerID, fileURL); err != nil {
 			tx.Rollback()
@@ -100,8 +95,8 @@ func GetAllMarkersByUserWithPagination(userID, page, pageSize int) ([]models.Mar
 SELECT 
     M.MarkerID, 
     M.UserID, 
-    ST_Y(M.Location) AS Longitude, 
     ST_X(M.Location) AS Latitude, 
+    ST_Y(M.Location) AS Longitude, 
     M.Description, 
     U.Username, 
     M.CreatedAt, 
