@@ -18,4 +18,5 @@ export interface Marker {
   dislikeCount?: number;
   disliked: boolean;
   addr?: string;
+  isChulbong?:boolean;
 }
