@@ -1,8 +1,7 @@
 import type { MarkerClusterer } from "@/types/Cluster.types";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useState } from "react";
-import setNewMarker from "../../api/markers/setNewMarker";
+import { useEffect, useState } from "react";
 import activeMarkerImage from "../../assets/images/cb1.webp";
 import useInput from "../../hooks/useInput";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
@@ -11,6 +10,8 @@ import Input from "../Input/Input";
 import type { MarkerInfo } from "../Map/Map";
 import UploadImage from "../UploadImage/UploadImage";
 import * as Styled from "./AddChinupBarForm.style";
+import useUploadMarker from "../../hooks/mutation/marker/useUploadMarker";
+import { isAxiosError } from "axios";
 
 interface Props {
   setState: React.Dispatch<React.SetStateAction<boolean>>;
@@ -19,7 +20,6 @@ interface Props {
   setCurrentMarkerInfo: React.Dispatch<React.SetStateAction<MarkerInfo | null>>;
   setMarkers: React.Dispatch<React.SetStateAction<KakaoMarker[]>>;
   map: KakaoMap | null;
-  markers: KakaoMarker[];
   marker: KakaoMarker | null;
   clusterer: MarkerClusterer;
 }
@@ -31,11 +31,12 @@ const AddChinupBarForm = ({
   setCurrentMarkerInfo,
   setMarkers,
   map,
-  markers,
   marker,
   clusterer,
 }: Props) => {
   const formState = useUploadFormDataStore();
+
+  const { mutateAsync: uploadMarker } = useUploadMarker();
 
   const descriptionValue = useInput("");
 
@@ -43,66 +44,72 @@ const AddChinupBarForm = ({
 
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    formState.resetData();
+  }, []);
+
+  const handleSubmit = async () => {
     const data = {
       description: descriptionValue.value,
       photos: formState.imageForm as File,
       latitude: formState.latitude,
       longitude: formState.longitude,
     };
+
     setLoading(true);
 
-    setNewMarker(data)
-      .then((res) => {
-        const imageSize = new window.kakao.maps.Size(39, 39);
-        const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+    try {
+      const result = await uploadMarker(data);
 
-        const activeMarkerImg = new window.kakao.maps.MarkerImage(
-          activeMarkerImage,
-          imageSize,
-          imageOption
-        );
+      const imageSize = new window.kakao.maps.Size(39, 39);
+      const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
-        const newMarker = new window.kakao.maps.Marker({
-          map: map,
-          position: new window.kakao.maps.LatLng(
-            formState.latitude,
-            formState.longitude
-          ),
-          title: descriptionValue.value,
-          image: activeMarkerImg,
-        });
+      const activeMarkerImg = new window.kakao.maps.MarkerImage(
+        activeMarkerImage,
+        imageSize,
+        imageOption
+      );
 
-        window.kakao.maps.event.addListener(newMarker, "click", () => {
-          setMarkerInfoModal(true);
-          setCurrentMarkerInfo({
-            ...res,
-            index: markers.length,
-          } as MarkerInfo);
-        });
+      const newMarker = new window.kakao.maps.Marker({
+        map: map,
+        position: new window.kakao.maps.LatLng(
+          formState.latitude,
+          formState.longitude
+        ),
+        image: activeMarkerImg,
+        title: result.markerId,
+      });
 
-        setMarkers((prev) => {
-          const copy = [...prev];
-          copy.push(newMarker);
-          return copy;
-        });
+      window.kakao.maps.event.addListener(newMarker, "click", () => {
+        setMarkerInfoModal(true);
+        setCurrentMarkerInfo({
+          markerId: result.markerId,
+        } as MarkerInfo);
+      });
 
-        setState(false);
-        setIsMarked(false);
+      setMarkers((prev) => {
+        const copy = [...prev];
+        copy.push(newMarker);
+        return copy;
+      });
 
-        clusterer.addMarker(newMarker);
-        marker?.setMap(null);
-      })
-      .catch((error) => {
-        if (error.response.status === 401) {
+      setState(false);
+      setIsMarked(false);
+
+      clusterer.addMarker(newMarker);
+      marker?.setMap(null);
+    } catch (error) {
+      if (isAxiosError(error)) {
+        if (error.response?.status === 401) {
           setError("인증이 만료 되었습니다. 다시 로그인 해주세요!");
         } else {
           setError("잠시 후 다시 시도해 주세요!");
         }
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      }
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
