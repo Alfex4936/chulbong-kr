@@ -7,12 +7,15 @@ import useGetCloseMarker from "../../hooks/query/useGetCloseMarker";
 import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap } from "../../types/KakaoMap.types";
 import * as Styled from "./AroundMarker.style";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Props {
   map: KakaoMap;
 }
 
 const AroundMarker = ({ map }: Props) => {
+  const queryClient = useQueryClient();
+
   const positionState = useMapPositionStore();
   const [distance, setDistance] = useState(100);
 
@@ -59,6 +62,7 @@ const AroundMarker = ({ map }: Props) => {
   }, [isFetching, hasNextPage, fetchNextPage]);
 
   const handleSearch = () => {
+    queryClient.resetQueries({ queryKey: ["closeMarker", distance] });
     refetch();
   };
 
@@ -71,6 +75,8 @@ const AroundMarker = ({ map }: Props) => {
     map.setCenter(moveLatLon);
     map?.setLevel(1);
   };
+
+  console.log(data);
 
   return (
     <Styled.Container>
@@ -99,42 +105,55 @@ const AroundMarker = ({ map }: Props) => {
           </IconButton>
         </Tooltip>
       </Styled.RangeContainer>
-      {(isLoading || isFetching) && <Styled.ListSkeleton />}
-      {data?.pages.map((page, i) => (
-        <Styled.ListContainer key={i}>
-          {page.markers?.map((marker) => (
-            <Styled.MarkerList key={marker.markerId}>
-              <p style={{ flexGrow: "1", textAlign: "left" }}>
-                <span
-                  style={{
-                    fontSize: ".7rem",
-                    marginRight: ".5rem",
-                    fontWeight: "bold",
-                  }}
-                >
-                  ({~~marker.distance}m)
-                </span>
-                {marker.description}
-              </p>
-              <Tooltip title="이동" arrow disableInteractive>
-                <IconButton
-                  onClick={() => {
-                    handleMove(marker.latitude, marker.longitude);
-                  }}
-                  aria-label="move"
-                  sx={{
-                    color: "#333",
-                    width: "25px",
-                    height: "25px",
-                  }}
-                >
-                  <LocationOnIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Tooltip>
-            </Styled.MarkerList>
+      {isLoading ? (
+        <Styled.ListSkeleton />
+      ) : (
+        <>
+          {data?.pages.map((page, i) => (
+            <Styled.ListContainer key={i}>
+              {page.markers?.map((marker) => {
+                return (
+                  <Styled.MarkerList key={marker.markerId}>
+                    <Styled.MarkerListTop>
+                      <p style={{ flexGrow: "1", textAlign: "left" }}>
+                        <span
+                          style={{
+                            fontSize: ".7rem",
+                            marginRight: ".5rem",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          ({~~marker.distance}m)
+                        </span>
+                        {marker.description || "설명 없음..."}
+                      </p>
+                      <Styled.AddressText>{marker.addr}</Styled.AddressText>
+                    </Styled.MarkerListTop>
+                    <div>
+                      <Tooltip title="이동" arrow disableInteractive>
+                        <IconButton
+                          onClick={() => {
+                            handleMove(marker.latitude, marker.longitude);
+                          }}
+                          aria-label="move"
+                          sx={{
+                            color: "#333",
+                            width: "25px",
+                            height: "25px",
+                          }}
+                        >
+                          <LocationOnIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </div>
+                  </Styled.MarkerList>
+                );
+              })}
+            </Styled.ListContainer>
           ))}
-        </Styled.ListContainer>
-      ))}
+        </>
+      )}
+
       <Styled.LoadList />
       {data?.pages[0].markers === null && (
         <div style={{ padding: "1rem" }}>주변에 철봉이 없습니다.</div>

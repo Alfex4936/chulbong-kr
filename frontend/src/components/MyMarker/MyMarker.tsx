@@ -64,24 +64,29 @@ const MyMarker = ({ map }: Props) => {
         <Styled.ListContainer key={i}>
           {page.markers.map((marker) => (
             <Styled.MarkerList key={marker.markerId}>
-              <p style={{ flexGrow: "1", textAlign: "left" }}>
-                {marker.description}
-              </p>
-              <Tooltip title="이동" arrow disableInteractive>
-                <IconButton
-                  onClick={() => {
-                    handleMove(marker.latitude, marker.longitude);
-                  }}
-                  aria-label="delete"
-                  sx={{
-                    color: "#333",
-                    width: "25px",
-                    height: "25px",
-                  }}
-                >
-                  <LocationOnIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Tooltip>
+              <Styled.MarkerListTop>
+                <p style={{ flexGrow: "1", textAlign: "left" }}>
+                  {marker.description}
+                </p>
+                <Styled.AddressText>{marker.addr}</Styled.AddressText>
+              </Styled.MarkerListTop>
+              <div>
+                <Tooltip title="이동" arrow disableInteractive>
+                  <IconButton
+                    onClick={() => {
+                      handleMove(marker.latitude, marker.longitude);
+                    }}
+                    aria-label="delete"
+                    sx={{
+                      color: "#333",
+                      width: "25px",
+                      height: "25px",
+                    }}
+                  >
+                    <LocationOnIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              </div>
             </Styled.MarkerList>
           ))}
         </Styled.ListContainer>
