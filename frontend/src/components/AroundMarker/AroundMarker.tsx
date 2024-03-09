@@ -93,6 +93,7 @@ const AroundMarker = ({ map }: Props) => {
               width: "30px",
               height: "30px",
             }}
+            disabled={isFetching}
           >
             <SearchIcon sx={{ fontSize: 22 }} />
           </IconButton>

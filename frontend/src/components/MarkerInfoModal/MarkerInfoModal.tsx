@@ -152,7 +152,9 @@ const MarkerInfoModal = ({
               src={marker?.photos ? marker.photos[0].photoUrl : noimg}
               alt="철봉 상세 이미지"
             />
-            <Styled.description>{marker?.description}</Styled.description>
+            <Styled.description>
+              {marker?.description || "작성된 설명이 없습니다."}
+            </Styled.description>
           </Styled.imageWrap>
           <Styled.BottomButtons>
             <Tooltip title="리뷰 보기" arrow disableInteractive>
