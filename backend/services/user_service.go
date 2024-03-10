@@ -191,30 +191,22 @@ func UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*models.Us
 	return updatedUser, nil
 }
 
-//// UpdateUserProfile updates the user's profile information
-// func UpdateUserProfile(user *models.User, newPassword string) error {
-// 	// Check if a new password is provided and needs hashing
-// 	if newPassword != "" {
-// 		hashedBytes, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		// Update the PasswordHash field to have a valid hashed password string
-// 		user.PasswordHash = sql.NullString{String: string(hashedBytes), Valid: true}
-// 	} else if !user.PasswordHash.Valid {
-// 		// If no new password is provided and the existing password is not valid,
-// 		// ensure PasswordHash is an empty, valid sql.NullString to avoid SQL null constraint issues.
-// 		user.PasswordHash = sql.NullString{String: "", Valid: false}
-// 	}
-// 	// Prepare the SQL query
-// 	query := `UPDATE Users SET Username = ?, PasswordHash = ?, UpdatedAt = NOW() WHERE UserID = ?`
-// 	// Execute the query with the user's information
-// 	_, err := database.DB.Exec(query, user.Username, user.PasswordHash, user.UserID)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func GetAllFavorites(userID int) ([]dto.MarkerSimpleWithDescrption, error) {
+	favorites := make([]dto.MarkerSimpleWithDescrption, 0)
+	const query = `
+    SELECT Markers.MarkerID, ST_X(Markers.Location) AS Latitude, ST_Y(Markers.Location) AS Longitude, Markers.Description
+    FROM Favorites
+    JOIN Markers ON Favorites.MarkerID = Markers.MarkerID
+    WHERE Favorites.UserID = ?
+    ORDER BY Markers.CreatedAt DESC` // Order by CreatedAt in descending order
+
+	err := database.DB.Select(&favorites, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching favorites: %w", err)
+	}
+
+	return favorites, nil
+}
 
 func DeleteUserWithRelatedData(ctx context.Context, userID int) error {
 	// Begin a transaction

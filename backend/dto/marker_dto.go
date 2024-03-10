@@ -45,3 +45,10 @@ type MarkerSimple struct {
 	Latitude  float64 `json:"latitude" db:"Latitude"`
 	Longitude float64 `json:"longitude" db:"Longitude"`
 }
+
+type MarkerSimpleWithDescrption struct {
+	MarkerID    int     `json:"markerId" db:"MarkerID"`
+	Latitude    float64 `json:"latitude" db:"Latitude"`
+	Longitude   float64 `json:"longitude" db:"Longitude"`
+	Description string  `json:"description" db:"Description"`
+}

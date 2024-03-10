@@ -16,6 +16,11 @@ func PostCommentHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
+	containsBadWord, _ := services.CheckForBadWords(req.CommentText)
+	if containsBadWord {
+		return c.Status(fiber.StatusBadRequest).SendString("Comment contains inappropriate content.")
+	}
+
 	comment, err := services.CreateComment(req.MarkerID, userID, req.CommentText)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create comment"})
