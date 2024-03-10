@@ -18,8 +18,6 @@ const useCreateComment = (body: { markerId: number; commentText: string }) => {
       if (isAxiosError(error)) {
         if (error?.response?.status === 401) {
           modalState.openLogin();
-        } else {
-          alert("잠시 후 다시 시도해 주세요!");
         }
       }
     },

@@ -4,7 +4,7 @@ import ReplyIcon from "@mui/icons-material/Reply";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import useCreateComment from "../../hooks/mutation/comments/useCreateComment";
 import useDeleteComment from "../../hooks/mutation/comments/useDeleteComment";
 import useGetComments from "../../hooks/query/comments/useGetComments";
@@ -12,6 +12,7 @@ import useInput from "../../hooks/useInput";
 import useUserStore from "../../store/useUserStore";
 import * as Styled from "./MarkerReview.style";
 import MarkerReviewSkeleton from "./MarkerReviewSkeleton";
+import { isAxiosError } from "axios";
 
 interface Props {
   markerId: number;
@@ -32,6 +33,8 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
 
   const { mutate: deleteComment, isPending: deleteLoading } =
     useDeleteComment(markerId);
+
+  const [errorText, setErrorText] = useState("");
 
   const boxRef = useRef(null);
 
@@ -64,9 +67,18 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
   const handleComment = async () => {
     if (commentValue.value === "") return;
 
-    console.log(commentValue.value);
-    await mutateAsync();
-    commentValue.reset();
+    try {
+      await mutateAsync();
+      commentValue.reset();
+    } catch (error) {
+      if (isAxiosError(error)) {
+        if (error.response?.status === 400) {
+          setErrorText("비속어 사용을 조심해 주세요!!");
+        } else {
+          setErrorText("잠시 후 다시 시도해 주세요.");
+        }
+      }
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -79,7 +91,7 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
     }
   };
 
-  if (isError) return <div>잠시 후 다시 시도해 주세요!</div>;
+  if (isError) <div>잠시 후 다시 시도해 주세요!</div>;
 
   return (
     <div>
@@ -169,13 +181,15 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
           </>
         )}
       </Styled.ReviewWrap>
-
       <Styled.InputWrap>
         <Styled.ReviewInput
           type="text"
           name="reveiw-content"
           value={commentValue.value}
-          onChange={commentValue.onChange}
+          onChange={(e) => {
+            commentValue.onChange(e);
+            setErrorText("");
+          }}
           onKeyDown={handleKeyPress}
         />
         <Tooltip title="등록" arrow disableInteractive>
@@ -184,6 +198,7 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
           </IconButton>
         </Tooltip>
       </Styled.InputWrap>
+      <Styled.ErrorBox>{errorText}</Styled.ErrorBox>
     </div>
   );
 };

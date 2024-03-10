@@ -183,3 +183,11 @@ export const ListSkeleton = styled.div`
   animation: ${shimmer} 1.2s ease-in-out infinite;
   border-radius: 0.4rem;
 `;
+
+export const ErrorBox = styled.div`
+  text-align: left;
+
+  font-size: 0.7rem;
+
+  color: red;
+`;
