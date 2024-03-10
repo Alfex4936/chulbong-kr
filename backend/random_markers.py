@@ -64,10 +64,10 @@ def delete_all_markers(cursor):
 
 def generate_random_lat_lon():
     # South Korea coordinates limits
-    lat_north = 38.00000000
-    lat_south = 35.10000000
-    lon_east = 128.87222222
-    lon_west = 126.06666667
+    lat_north = 38.61500000
+    lat_south = 33.10000000
+    lon_east = 132.00000000
+    lon_west = 124.00000000
 
     lat = np.random.uniform(lat_south, lat_north)
     lon = np.random.uniform(lon_west, lon_east)

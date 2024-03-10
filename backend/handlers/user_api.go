@@ -86,3 +86,13 @@ func ProfileHandler(c *fiber.Ctx) error {
 
 	return c.JSON(user)
 }
+
+func GetFavoritesHandler(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(int)
+	favorites, err := services.GetAllFavorites(userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(favorites)
+}

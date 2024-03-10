@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"mime/multipart"
+	"strings"
 
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
@@ -277,6 +278,13 @@ func CheckUserDislike(userID, markerID int) (bool, error) {
 	return exists, err
 }
 
+func CheckUserFavorite(userID, markerID int) (bool, error) {
+	var exists bool
+	query := "SELECT EXISTS(SELECT 1 FROM Favorites WHERE UserID = ? AND MarkerID = ?)"
+	err := database.DB.Get(&exists, query, userID, markerID)
+	return exists, err
+}
+
 // DeleteMarker deletes a marker and its associated photos from the database and S3.
 func DeleteMarker(userID, markerID int) error {
 	// Start a transaction
@@ -390,6 +398,44 @@ WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?`
 	}
 
 	return markers, total, nil
+}
+
+// ------------ FAVORITES ------------
+
+// AddFavoriteHandler adds a new favorite marker for the user.
+func AddFavorite(userID, markerID int) error {
+	// First, count the existing favorites for the user
+	var count int
+	err := database.DB.QueryRowx("SELECT COUNT(*) FROM Favorites WHERE UserID = ?", userID).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	// Check if the user already has 10 favorites
+	if count >= 10 {
+		return fmt.Errorf("maximum number of favorites reached")
+	}
+
+	// If not, insert the new favorite
+	_, err = database.DB.Exec("INSERT INTO Favorites (UserID, MarkerID) VALUES (?, ?)", userID, markerID)
+	if err != nil {
+		// Convert error to string and check if it contains the MySQL error code for duplicate entry
+		if strings.Contains(err.Error(), "1062") {
+			return fmt.Errorf("you have already favorited this marker")
+		}
+		return fmt.Errorf("failed to add favorite: %w", err)
+	}
+
+	return nil
+}
+
+func RemoveFavorite(userID, markerID int) error {
+	// Delete the specified favorite for the user
+	_, err := database.DB.Exec("DELETE FROM Favorites WHERE UserID = ? AND MarkerID = ?", userID, markerID)
+	if err != nil {
+		return fmt.Errorf("error removing favorite: %w", err)
+	}
+	return nil
 }
 
 // Helper function to extract marker IDs
