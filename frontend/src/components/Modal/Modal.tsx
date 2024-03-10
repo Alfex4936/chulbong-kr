@@ -29,7 +29,6 @@ const BasicModal = ({ exit = true, children, setState }: Props) => {
       if (event.key === "Escape") {
         handleClose();
       }
-      console.log(event.key);
     };
 
     window.addEventListener("keydown", handleKeyDownClose);

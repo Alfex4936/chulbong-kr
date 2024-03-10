@@ -11,7 +11,7 @@ const shimmer = keyframes`
 `;
 
 export const Container = styled.div`
-  max-height: 200px;
+  max-height: 400px;
 
   overflow: auto;
 
@@ -27,11 +27,28 @@ export const Container = styled.div`
 export const ListContainer = styled.div``;
 
 export const RangeContainer = styled.div`
+  position: sticky;
+  top: 0;
+  left: 0;
+
   display: flex;
   justify-content: space-between;
   align-items: center;
 
   padding: 1rem;
+  margin: auto;
+
+  background-color: white;
+
+  width: 90%;
+
+  z-index: 1;
+
+  & div > input {
+    width: 90%;
+
+    border: 1px solid red;
+  }
 `;
 
 export const SearchButtonContainer = styled.div`
@@ -53,7 +70,7 @@ export const MarkerList = styled.div`
   padding: 1rem;
   margin: 0 auto 1rem auto;
 
-  width: 250px;
+  width: 90%;
 
   border-radius: 0.4rem;
   background-color: #e9efff;
@@ -79,7 +96,7 @@ export const ListSkeleton = styled.div`
   padding: 1rem;
 
   height: 57px;
-  width: 250px;
+  width: 90%;
 
   background: #f6f7f8;
   background-image: linear-gradient(
