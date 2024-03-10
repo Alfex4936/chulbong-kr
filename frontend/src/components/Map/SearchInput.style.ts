@@ -5,10 +5,7 @@ export const InputWrap = styled.div`
   align-items: center;
 
   padding: 0 0.5rem;
-
-  width: 100%;
-  min-width: 250px;
-  max-width: 400px;
+  margin-right: 0.5rem;
 
   border-radius: 0.5rem;
 
@@ -34,15 +31,19 @@ export const SearchInput = styled.input`
 `;
 
 export const Result = styled.div`
+  position: absolute;
+
+  top: 45px;
+  left: 0;
+
   border-radius: 0.5rem;
 
   background-color: #fff;
 
-  padding: 1rem 0;
-
   width: 100%;
-  min-width: 250px;
-  max-width: 400px;
+
+  padding: 1rem 0;
+  margin-right: 0.5rem;
 
   box-shadow: rgba(50, 50, 93, 0.25) 0px 2px 5px -1px,
     rgba(0, 0, 0, 0.3) 0px 1px 3px -1px;

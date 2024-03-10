@@ -32,7 +32,6 @@ import Input from "../Input/Input";
 import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
 import * as Styled from "./Map.style";
-import SearchInput from "./SearchInput";
 
 import "ldrs/ring";
 
@@ -44,6 +43,7 @@ const MarkerInfoModal = lazy(
 );
 
 import MyInfoModal from "../MyInfoModal/MyInfoModal";
+import MapHeader from "./MapHeader";
 
 export interface MarkerInfo {
   markerId: number;
@@ -266,7 +266,7 @@ const Map = () => {
 
   return (
     <div>
-      <SearchInput map={map as KakaoMap} />
+      <MapHeader map={map} />
       <Styled.MapContainer ref={mapRef} />
       {isLoading && (
         <CenterBox bg="black">

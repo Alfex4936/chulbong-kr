@@ -79,15 +79,17 @@ const AroundMarker = forwardRef(({ map, ...props }: Props, ref) => {
   return (
     <Styled.Container ref={ref as React.RefObject<HTMLDivElement>} {...props}>
       <Styled.RangeContainer>
-        <p style={{ fontSize: ".8rem" }}>주변 {distance}m</p>
-        <input
-          type="range"
-          min="100"
-          max="5000"
-          step="100"
-          value={distance}
-          onChange={handleChange}
-        />
+        <p>주변 {distance}m</p>
+        <div style={{ flexGrow: "1" }}>
+          <input
+            type="range"
+            min="100"
+            max="5000"
+            step="100"
+            value={distance}
+            onChange={handleChange}
+          />
+        </div>
         <Tooltip title="검색" arrow disableInteractive>
           <IconButton
             onClick={handleSearch}

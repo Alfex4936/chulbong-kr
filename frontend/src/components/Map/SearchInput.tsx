@@ -1,13 +1,14 @@
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SearchIcon from "@mui/icons-material/Search";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import { useEffect, useState } from "react";
+import { RefObject, useEffect, useState } from "react";
 import getSearchLoation from "../../api/kakao/getSearchLoation";
 import useInput from "../../hooks/useInput";
-import * as Styled from "./SearchInput.style";
 import type { KakaoMap } from "../../types/KakaoMap.types";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import AroundMarker from "../AroundMarker/AroundMarker";
+import * as Styled from "./SearchInput.style";
 
 interface KakaoPlace {
   address_name: string;
@@ -26,9 +27,17 @@ interface KakaoPlace {
 
 interface Props {
   map: KakaoMap;
+  aroundMarkerRef: RefObject<HTMLDivElement>;
+  isAround: boolean;
+  setIsAround: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const SearchInput = ({ map }: Props) => {
+const SearchInput = ({
+  map,
+  aroundMarkerRef,
+  isAround,
+  setIsAround,
+}: Props) => {
   const searchInput = useInput("");
   const [places, setPlaces] = useState<KakaoPlace[] | null>(null);
   const [isResult, setIsResult] = useState(false);
@@ -78,22 +87,17 @@ const SearchInput = ({ map }: Props) => {
   };
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: "10px",
-        left: "10px",
-        zIndex: "10",
-        width: "50%",
-      }}
-    >
+    <div style={{ flexGrow: "1" }}>
       <Styled.InputWrap>
         <Styled.SearchInput
           type="text"
           name="search"
           placeholder="ex) 햄버거 맛집, 수원, 잠실역, 남산 타워"
           value={searchInput.value}
-          onChange={searchInput.onChange}
+          onChange={(e) => {
+            searchInput.onChange(e);
+            setIsAround(false);
+          }}
         />
         <Tooltip title="검색" arrow disableInteractive>
           <IconButton aria-label="send" onClick={handleSearch}>
@@ -101,38 +105,45 @@ const SearchInput = ({ map }: Props) => {
           </IconButton>
         </Tooltip>
       </Styled.InputWrap>
-      {isResult && (
+      {(isResult || isAround) && (
         <Styled.Result>
-          {places?.map((place) => {
-            return (
-              <Styled.ResultItem key={place.id}>
-                <div>
-                  <span>{place.place_name}</span>
-                  <span>({place.address_name})</span>
-                </div>
-                <Tooltip title="이동" arrow disableInteractive>
-                  <IconButton
-                    onClick={() => {
-                      // console.log(Number(place.y), Number(place.x));
-                      handleMove(Number(place.y), Number(place.x));
-                    }}
-                    aria-label="move"
-                    sx={{
-                      color: "#444",
-                      width: "25px",
-                      height: "25px",
-                    }}
-                  >
-                    <LocationOnIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
-                </Tooltip>
-              </Styled.ResultItem>
-            );
-          })}
+          {isAround ? (
+            <AroundMarker map={map} ref={aroundMarkerRef} />
+          ) : (
+            <>
+              {places?.map((place) => {
+                return (
+                  <Styled.ResultItem key={place.id}>
+                    <div>
+                      <span>{place.place_name}</span>
+                      <span>({place.address_name})</span>
+                    </div>
+                    <Tooltip title="이동" arrow disableInteractive>
+                      <IconButton
+                        onClick={() => {
+                          // console.log(Number(place.y), Number(place.x));
+                          handleMove(Number(place.y), Number(place.x));
+                        }}
+                        aria-label="move"
+                        sx={{
+                          color: "#444",
+                          width: "25px",
+                          height: "25px",
+                        }}
+                      >
+                        <LocationOnIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Styled.ResultItem>
+                );
+              })}
+            </>
+          )}
           <Tooltip title="닫기" arrow disableInteractive>
             <IconButton
               onClick={() => {
                 setIsResult(false);
+                setIsAround(false);
                 searchInput.reset();
               }}
               aria-label="move"

@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 
 export interface FloatingProps {
   text: string | React.ReactNode;
-  top?: number | "center";
-  right?: number | "center";
-  bottom?: number | "center";
-  left?: number | "center";
-  width?: number;
-  height?: number;
+  top?: number | "center" | string;
+  right?: number | "center" | string;
+  bottom?: number | "center" | string;
+  left?: number | "center" | string;
+  width?: number | string;
+  height?: number | string;
   shape?: "circle" | "square";
   size?: "small" | "large" | "medium";
   tooltip?: string;
@@ -33,7 +33,7 @@ const FloatingButton = ({
   const [boxSize, setBoxSize] = useState("");
 
   useEffect(() => {
-    if (size === "large") {
+    if (size === "small") {
       setTextSize("12px");
       setBoxSize("50px");
     }
@@ -41,7 +41,7 @@ const FloatingButton = ({
       setTextSize("16px");
       setBoxSize("40px");
     }
-    if (size === "small") {
+    if (size === "large") {
       setTextSize("20px");
       setBoxSize("30px");
     }
