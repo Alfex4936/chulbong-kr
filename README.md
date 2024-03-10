@@ -1,10 +1,11 @@
 # chulbong-kr
 
+![chul4](https://github.com/Alfex4936/chulbong-kr/assets/2356749/60aba6ca-6339-47a0-b2f2-a9254d722755)
 ![map](https://github.com/Alfex4936/chulbong-kr/assets/2356749/d1811e5d-9857-4e9f-b997-78b77df343fb)
-![add](https://github.com/Alfex4936/chulbong-kr/assets/2356749/26daa718-7d9a-4268-97fb-3f7d16ae183e)
 ![slack](https://github.com/Alfex4936/chulbong-kr/assets/2356749/5ec03f6a-871f-4556-90c3-13bb44769f13)
 
-### 프로젝트 소개
+### 프로젝트 
+소개
 **chulbong-kr**은 공공장소에 있는 턱걸이 바를 찾고 공유하기 위한 커뮤니티 플랫폼입니다.
 
 카카오맵 API를 활용하여 사용자는 가입 및 로그인 후 턱걸이 바의 위치를 마커로 추가할 수 있으며,
