@@ -5,7 +5,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { useRef, useState } from "react";
 import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 import type { KakaoMap } from "../../types/KakaoMap.types";
-import AroundMarker from "../AroundMarker/AroundMarker";
+import FavoriteMarker from "../FavoriteMarker/FavoriteMarker";
 import MyInfoDetail from "../MyInfoDetail/MyInfoDetail";
 import MyMarker from "../MyMarker/MyMarker";
 import * as Styled from "./MyInfoModal.style";
@@ -19,14 +19,14 @@ interface Props {
 const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
   const { data, isLoading } = useGetMyInfo();
 
-  const aroundMarkerRef = useRef<HTMLDivElement>(null);
+  const favoriteMarkerRef = useRef<HTMLDivElement>(null);
   const myMarkerRef = useRef<HTMLDivElement>(null);
 
   const [curTab, setCurTab] = useState<number | null>(null);
 
   const handleArroundMarkerScroll = () => {
-    if (aroundMarkerRef.current) {
-      aroundMarkerRef.current.scrollTop = 0;
+    if (favoriteMarkerRef.current) {
+      favoriteMarkerRef.current.scrollTop = 0;
     }
   };
 
@@ -38,8 +38,8 @@ const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
 
   const tabs = [
     {
-      title: "주변 검색",
-      content: <AroundMarker ref={aroundMarkerRef} map={map} />,
+      title: "좋아요",
+      content: <FavoriteMarker ref={favoriteMarkerRef} map={map} />,
     },
     {
       title: "내 장소",

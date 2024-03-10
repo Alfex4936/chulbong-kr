@@ -2,12 +2,12 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SearchIcon from "@mui/icons-material/Search";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import { useQueryClient } from "@tanstack/react-query";
 import { ComponentProps, forwardRef, useEffect, useRef, useState } from "react";
 import useGetCloseMarker from "../../hooks/query/useGetCloseMarker";
 import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap } from "../../types/KakaoMap.types";
 import * as Styled from "./AroundMarker.style";
-import { useQueryClient } from "@tanstack/react-query";
 
 interface Props extends ComponentProps<"div"> {
   map: KakaoMap;
@@ -72,6 +72,10 @@ const AroundMarker = forwardRef(({ map, ...props }: Props, ref) => {
 
   const handleMove = (lat: number, lon: number) => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lon);
+
+    positionState.setPosition(lat, lon);
+    positionState.setLevel(1);
+
     map.setCenter(moveLatLon);
     map?.setLevel(1);
   };

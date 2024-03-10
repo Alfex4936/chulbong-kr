@@ -6,6 +6,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { RefObject, useEffect, useState } from "react";
 import getSearchLoation from "../../api/kakao/getSearchLoation";
 import useInput from "../../hooks/useInput";
+import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap } from "../../types/KakaoMap.types";
 import AroundMarker from "../AroundMarker/AroundMarker";
 import * as Styled from "./SearchInput.style";
@@ -38,6 +39,8 @@ const SearchInput = ({
   isAround,
   setIsAround,
 }: Props) => {
+  const mapPosition = useMapPositionStore();
+
   const searchInput = useInput("");
   const [places, setPlaces] = useState<KakaoPlace[] | null>(null);
   const [isResult, setIsResult] = useState(false);
@@ -82,6 +85,10 @@ const SearchInput = ({
 
   const handleMove = (lat: number, lon: number) => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lon);
+
+    mapPosition.setPosition(lat, lon);
+    mapPosition.setLevel(2);
+
     map.setCenter(moveLatLon);
     map?.setLevel(2);
   };

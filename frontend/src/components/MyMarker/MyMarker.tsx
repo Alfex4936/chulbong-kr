@@ -3,6 +3,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { ComponentProps, forwardRef, useEffect, useRef } from "react";
 import useGetMyMarker from "../../hooks/query/useGetMyMarker";
+import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap } from "../../types/KakaoMap.types";
 import * as Styled from "./MyMarker.style";
 
@@ -11,6 +12,8 @@ interface Props extends ComponentProps<"div"> {
 }
 
 const MyMarker = forwardRef(({ map, ...props }: Props, ref) => {
+  const mapPosition = useMapPositionStore();
+
   const { data, fetchNextPage, hasNextPage, isLoading, isError, isFetching } =
     useGetMyMarker();
 
@@ -54,6 +57,10 @@ const MyMarker = forwardRef(({ map, ...props }: Props, ref) => {
 
   const handleMove = (lat: number, lon: number) => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lon);
+
+    mapPosition.setPosition(lat, lon);
+    mapPosition.setLevel(1);
+
     map.setCenter(moveLatLon);
     map?.setLevel(1);
   };

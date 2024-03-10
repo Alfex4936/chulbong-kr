@@ -22,6 +22,10 @@ import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
 import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
 import MarkerReview from "./MarkerReview";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import useSetFavorite from "../../hooks/mutation/favorites/useSetFavorite";
+import useDeleteFavorite from "../../hooks/mutation/favorites/useDeleteFavorite";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
@@ -47,6 +51,14 @@ const MarkerInfoModal = ({
     isLoading,
     isError,
   } = useGetMarker(currentMarkerInfo.markerId);
+
+  const { mutateAsync: like, isPending: likePending } = useSetFavorite(
+    currentMarkerInfo.markerId
+  );
+
+  const { mutateAsync: unLike, isPending: unLikePending } = useDeleteFavorite(
+    currentMarkerInfo.markerId
+  );
 
   const { mutateAsync: doDislike, isPending: disLikePending } =
     useMarkerDislike(currentMarkerInfo.markerId);
@@ -145,6 +157,23 @@ const MarkerInfoModal = ({
     }
   };
 
+  const handleLike = async () => {
+    if (likePending || unLikePending) return;
+    try {
+      if (marker?.favorited) {
+        await unLike();
+      } else {
+        await like();
+      }
+    } catch (error) {
+      if (isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          modalState.openLogin();
+        }
+      }
+    }
+  };
+
   if (isLoading) return <MarkerInfoSkeleton />;
   if (isError)
     return (
@@ -214,6 +243,35 @@ const MarkerInfoModal = ({
                 <RateReviewIcon />
               </IconButton>
             </Tooltip>
+            {marker?.favorited ? (
+              <Tooltip title="좋아요 취소" arrow disableInteractive>
+                <IconButton onClick={handleLike} aria-label="dislike">
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      position: "relative",
+                    }}
+                  >
+                    <FavoriteIcon />
+                  </div>
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Tooltip title="좋아요" arrow disableInteractive>
+                <IconButton onClick={handleLike} aria-label="dislike">
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      position: "relative",
+                    }}
+                  >
+                    <FavoriteBorderIcon />
+                  </div>
+                </IconButton>
+              </Tooltip>
+            )}
             {marker?.disliked ? (
               <Tooltip title="싫어요 취소" arrow disableInteractive>
                 <IconButton onClick={handleDislike} aria-label="dislike">
