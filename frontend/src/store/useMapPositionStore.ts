@@ -12,8 +12,8 @@ interface PsitionState {
 const useMapPositionStore = create<PsitionState>()(
   persist(
     (set) => ({
-      lat: 0,
-      lng: 0,
+      lat: 37.566535,
+      lng: 126.9779692,
       level: 5,
       setPosition: (lat: number, lng: number) => set({ lat, lng }),
       setLevel: (level: number) => set({ level }),
