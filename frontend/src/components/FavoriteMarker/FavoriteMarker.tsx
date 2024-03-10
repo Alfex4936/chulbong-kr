@@ -43,9 +43,9 @@ const FavoriteMarker = forwardRef(({ map, ...props }: Props, ref) => {
         <Styled.ListContainer key={marker.markerId}>
           <Styled.MarkerList>
             <Styled.MarkerListTop>
-              <p style={{ flexGrow: "1", textAlign: "left" }}>
+              <Styled.Description>
                 {marker.description || "설명 없음"}
-              </p>
+              </Styled.Description>
               <Styled.AddressText>{marker.addr}</Styled.AddressText>
             </Styled.MarkerListTop>
             <div>

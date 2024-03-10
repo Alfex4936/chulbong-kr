@@ -1,5 +1,10 @@
 import styled from "@emotion/styled";
 
+export const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
 export const imageWrap = styled.div`
   position: relative;
 
@@ -22,7 +27,7 @@ export const imageWrap = styled.div`
   }
 
   margin: auto;
-  margin-bottom: 6rem;
+  margin-bottom: 1.5rem;
 `;
 
 export const description = styled.div`
@@ -35,11 +40,6 @@ export const description = styled.div`
   margin-top: 1rem;
   color: #fff;
 
-  white-space: nowrap;
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-
   width: 100%;
 
   background-color: rgba(0, 0, 0, 0.5);
@@ -49,29 +49,40 @@ export const description = styled.div`
   border-bottom-left-radius: 1rem;
   border-bottom-right-radius: 1rem;
 
-  &:hover {
-    white-space: normal;
+  & > div {
+    white-space: nowrap;
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+  }
+
+  &:hover > div {
+    max-height: 200px;
+    word-wrap: break-word;
+    white-space: -moz-pre-wrap;
+    white-space: pre-wrap;
+
+    overflow: auto;
+
+    text-overflow: none;
   }
 `;
 
 export const AddressText = styled.div`
-  position: absolute;
-  bottom: 4rem;
-  left: 50%;
-  transform: translateX(-50%);
+  margin-bottom: 0.5rem;
 
   font-weight: bold;
 
   & > div:first-of-type {
     font-size: 0.8rem;
+    font-weight: 400;
+
+    color: #777;
   }
 `;
 
 export const BottomButtons = styled.div`
-  position: absolute;
-  bottom: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
+  margin-bottom: -1rem;
 `;
 
 export const DislikeCount = styled.div`

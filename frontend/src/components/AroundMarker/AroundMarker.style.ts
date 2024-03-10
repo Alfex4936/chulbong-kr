@@ -80,11 +80,33 @@ export const MarkerListTop = styled.div`
   flex-grow: 1;
 `;
 
+export const DescriptionWrap = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
 export const AddressText = styled.p`
   font-size: 0.7rem;
   color: #777;
 
   text-align: left;
+`;
+
+export const Distance = styled.div`
+  font-size: 0.7rem;
+  margin-right: 0.5rem;
+  font-weight: bold;
+`;
+
+export const Description = styled.p`
+  max-width: 150px;
+  text-align: left;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
 `;
 
 export const ListSkeleton = styled.div`

@@ -25,7 +25,7 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
   const { data, fetchNextPage, hasNextPage, isLoading, isError, isFetching } =
     useGetComments(markerId);
 
-  const { mutate, isPending } = useCreateComment({
+  const { mutateAsync, isPending } = useCreateComment({
     markerId,
     commentText: commentValue.value,
   });
@@ -61,9 +61,11 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
     };
   }, [isFetching, hasNextPage, fetchNextPage]);
 
-  const handleComment = () => {
+  const handleComment = async () => {
     if (commentValue.value === "") return;
-    mutate();
+
+    console.log(commentValue.value);
+    await mutateAsync();
     commentValue.reset();
   };
 

@@ -273,7 +273,7 @@ const Map = () => {
   bouncy.register();
 
   return (
-    <div>
+    <Styled.Container>
       <MapHeader map={map} />
       <Styled.MapContainer ref={mapRef} />
       {isLoading && (
@@ -509,7 +509,7 @@ const Map = () => {
           setDeleteUserModal={setDeleteUserModal}
         />
       )}
-    </div>
+    </Styled.Container>
   );
 };
 

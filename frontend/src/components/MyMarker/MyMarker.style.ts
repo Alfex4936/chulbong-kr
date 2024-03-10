@@ -47,6 +47,16 @@ export const MarkerListTop = styled.div`
   flex-grow: 1;
 `;
 
+export const Description = styled.p`
+  max-width: 150px;
+  text-align: left;
+
+  white-space: nowrap;
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+`;
+
 export const AddressText = styled.p`
   font-size: 0.7rem;
   color: #777;
