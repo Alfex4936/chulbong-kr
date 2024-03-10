@@ -1,5 +1,10 @@
 import styled from "@emotion/styled";
 
+export const Container = styled.div`
+  position: relative;
+  min-width: 380px;
+`;
+
 export const MapContainer = styled.div`
   width: 100vw;
   height: 100vh;

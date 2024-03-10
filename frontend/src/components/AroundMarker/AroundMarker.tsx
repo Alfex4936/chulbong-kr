@@ -119,18 +119,14 @@ const AroundMarker = forwardRef(({ map, ...props }: Props, ref) => {
                 return (
                   <Styled.MarkerList key={marker.markerId}>
                     <Styled.MarkerListTop>
-                      <p style={{ flexGrow: "1", textAlign: "left" }}>
-                        <span
-                          style={{
-                            fontSize: ".7rem",
-                            marginRight: ".5rem",
-                            fontWeight: "bold",
-                          }}
-                        >
+                      <Styled.DescriptionWrap>
+                        <Styled.Distance>
                           ({~~marker.distance}m)
-                        </span>
-                        {marker.description || "설명 없음..."}
-                      </p>
+                        </Styled.Distance>
+                        <Styled.Description>
+                          {marker.description || "설명 없음..."}
+                        </Styled.Description>
+                      </Styled.DescriptionWrap>
                       <Styled.AddressText>{marker.addr}</Styled.AddressText>
                     </Styled.MarkerListTop>
                     <div>

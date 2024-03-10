@@ -54,6 +54,16 @@ export const AddressText = styled.p`
   text-align: left;
 `;
 
+export const Description = styled.p`
+  max-width: 150px;
+  text-align: left;
+
+  white-space: nowrap;
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+`;
+
 export const ListSkeleton = styled.div`
   display: flex;
   align-items: center;

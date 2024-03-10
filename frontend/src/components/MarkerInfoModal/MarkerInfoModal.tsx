@@ -205,7 +205,7 @@ const MarkerInfoModal = ({
           markerId={marker?.markerId as number}
         />
       ) : (
-        <>
+        <Styled.Container>
           <Tooltip title="닫기" arrow disableInteractive>
             <IconButton
               onClick={() => {
@@ -227,7 +227,7 @@ const MarkerInfoModal = ({
               alt="철봉 상세 이미지"
             />
             <Styled.description>
-              {marker?.description || "작성된 설명이 없습니다."}
+              <div>{marker?.description || "작성된 설명이 없습니다."}</div>
             </Styled.description>
           </Styled.imageWrap>
           <Styled.AddressText>
@@ -321,7 +321,7 @@ const MarkerInfoModal = ({
               </Tooltip>
             )}
           </Styled.BottomButtons>
-        </>
+        </Styled.Container>
       )}
     </div>
   );

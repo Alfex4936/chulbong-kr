@@ -72,9 +72,7 @@ const MyMarker = forwardRef(({ map, ...props }: Props, ref) => {
           {page.markers.map((marker) => (
             <Styled.MarkerList key={marker.markerId}>
               <Styled.MarkerListTop>
-                <p style={{ flexGrow: "1", textAlign: "left" }}>
-                  {marker.description}
-                </p>
+                <Styled.Description>{marker.description}</Styled.Description>
                 <Styled.AddressText>{marker.addr}</Styled.AddressText>
               </Styled.MarkerListTop>
               <div>
