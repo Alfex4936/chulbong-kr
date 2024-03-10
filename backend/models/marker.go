@@ -23,10 +23,12 @@ type MarkerWithPhoto struct {
 
 type MarkerWithPhotos struct {
 	Marker
+	IsChulbong   bool    `json:"isChulbong,omitempty"`
 	Username     string  `json:"username,omitempty"`
 	Photos       []Photo `json:"photos,omitempty"`
 	DislikeCount int     `json:"dislikeCount,omitempty"`
 	Disliked     bool    `json:"disliked"`
+	Favorited    bool    `json:"favorited,omitempty"`
 }
 
 // // Custom JSON marshaling to handle UserID

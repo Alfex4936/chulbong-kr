@@ -1,13 +1,16 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/gofiber/storage/redis/v3"
 )
 
 var RedisStore *redis.Storage
+var ctx = context.Background()
 
 const (
 	ALL_MARKERS_KEY  string = "all_markers"
@@ -73,4 +76,27 @@ func ResetCache(key string) error {
 	// }
 
 	return nil
+}
+
+func AddBadWords(batch []string) error {
+	// SAdd returns *redis.IntCmd, which has an Err() method to fetch the error if any occurred during the operation
+	err := RedisStore.Conn().SAdd(ctx, "badwords", batch).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CheckForBadWords(input string) (bool, error) {
+	words := strings.Fields(input)
+	for _, word := range words {
+		exists, err := RedisStore.Conn().SIsMember(ctx, "badwords", word).Result()
+		if err != nil {
+			return false, err
+		}
+		if exists {
+			return true, nil
+		}
+	}
+	return false, nil
 }

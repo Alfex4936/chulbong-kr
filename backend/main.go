@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"chulbong-kr/database"
 	"chulbong-kr/handlers"
 	"chulbong-kr/middlewares"
@@ -63,6 +64,9 @@ func main() {
 		PoolSize:  10 * runtime.GOMAXPROCS(0),
 	})
 	services.RedisStore = store
+
+	services.ResetCache("badwords")
+	loadBadWordsIntoRedis("badwords.txt")
 
 	// Initialize global variables
 	setTokenExpirationTime()
@@ -173,6 +177,7 @@ func main() {
 	{
 		userGroup.Use(middlewares.AuthMiddleware)
 		userGroup.Get("/me", handlers.ProfileHandler)
+		userGroup.Get("/favorites", handlers.GetFavoritesHandler)
 		userGroup.Patch("/me", handlers.UpdateUserHandler)
 		userGroup.Delete("/me", handlers.DeleteUserHandler)
 		userGroup.Delete("/s3/objects", handlers.DeleteObjectFromS3Handler)
@@ -198,18 +203,21 @@ func main() {
 		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
 		markerGroup.Post("/upload", handlers.UploadMarkerPhotoToS3Handler)
 		markerGroup.Post("/:markerID/dislike", handlers.LeaveDislikeHandler)
+		markerGroup.Post("/:markerID/favorites", handlers.AddFavoriteHandler)
 
 		markerGroup.Put("/:markerID", handlers.UpdateMarker)
 
 		markerGroup.Delete("/:markerID", handlers.DeleteMarkerHandler)
 		markerGroup.Delete("/:markerID/dislike", handlers.UndoDislikeHandler)
+		markerGroup.Delete("/:markerID/favorites", handlers.RemoveFavoriteHandler)
 	}
 
 	// Comment routes
+	api.Get("/comments/:markerId/comments", handlers.LoadCommentsHandler) // no auth
+
 	commentGroup := api.Group("/comments")
 	{
 		commentGroup.Use(middlewares.AuthMiddleware)
-		commentGroup.Get("/:markerId/comments", handlers.LoadCommentsHandler)
 		commentGroup.Post("", handlers.PostCommentHandler)
 		commentGroup.Patch("/:commentId", handlers.UpdateCommentHandler)
 		commentGroup.Delete("/:commentId", handlers.RemoveCommentHandler)
@@ -248,4 +256,44 @@ func setTokenExpirationTime() {
 
 	// Assign the converted duration to the global variable
 	services.TOKEN_DURATION = time.Duration(durationInt) * time.Hour
+}
+
+func loadBadWordsIntoRedis(filePath string) {
+	const batchSize = 500
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	batch := make([]string, 0, batchSize)
+
+	for scanner.Scan() {
+		word := scanner.Text()
+		batch = append(batch, word)
+
+		// Once we've collected enough words, insert them in a batch.
+		if len(batch) >= batchSize {
+			err := services.AddBadWords(batch)
+			if err != nil {
+				fmt.Printf("Failed to insert batch: %v\n", err)
+			}
+			// Reset the batch slice for the next group of words
+			batch = batch[:0]
+		}
+	}
+
+	// Don't forget to insert any words left in the batch after finishing the loop
+	if len(batch) > 0 {
+		err := services.AddBadWords(batch)
+		if err != nil {
+			fmt.Printf("Failed to insert final batch: %v\n", err)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		panic(err)
+	}
 }
