@@ -140,19 +140,21 @@ func AuthSoftMiddleware(c *fiber.Ctx) error {
 		return c.Next()
 	}
 
-	// Fetch UserID and Username based on Email
-	userQuery := `SELECT Username, Email FROM Users WHERE UserID = ?`
+	// Fetch based on Email
+	userQuery := `SELECT Username, Email, Role FROM Users WHERE UserID = ?`
 	var username string
 	var email string
-	err = database.DB.QueryRow(userQuery, userID).Scan(&username, &email)
+	var chulbong string
+	err = database.DB.QueryRow(userQuery, userID).Scan(&username, &email, &chulbong)
 	if err != nil {
 		return c.Next()
 	}
 
-	// Store UserID, Username and Email in locals for use in subsequent handlers
+	// Store in locals for use in subsequent handlers
 	c.Locals("userID", userID)
 	c.Locals("username", username)
 	c.Locals("email", email)
+	c.Locals("chulbong", chulbong == "admin")
 
 	return c.Next()
 }

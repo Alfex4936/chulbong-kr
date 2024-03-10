@@ -39,7 +39,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	// Location Must Be Inside South Korea
 	yes := utils.IsInSouthKorea(latitude, longitude)
 	if !yes {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operation not allowed within South Korea."})
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations only allowed within South Korea."})
 	}
 
 	// Checking if a Marker is Nearby
@@ -91,6 +91,8 @@ func GetMarker(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Marker ID"})
 	}
 
+	var chulbong bool
+	var favorited bool
 	var disliked bool
 	userID, ok := c.Locals("userID").(int)
 	if ok {
@@ -98,6 +100,13 @@ func GetMarker(c *fiber.Ctx) error {
 		if err != nil {
 			disliked = false
 		}
+
+		favorited, err = services.CheckUserFavorite(userID, markerID)
+		if err != nil {
+			favorited = false
+		}
+
+		chulbong = c.Locals("chulbong").(bool)
 	}
 
 	marker, err := services.GetMarker(markerID)
@@ -105,6 +114,8 @@ func GetMarker(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Marker not found: " + err.Error()})
 	}
 	marker.Disliked = disliked
+	marker.Favorited = favorited
+	marker.IsChulbong = chulbong
 
 	return c.JSON(marker)
 }
@@ -127,6 +138,8 @@ func UpdateMarker(c *fiber.Ctx) error {
 
 // DeleteMarkerHandler handles the HTTP request to delete a marker.
 func DeleteMarkerHandler(c *fiber.Ctx) error {
+	services.ResetCache("/api/v1/markers_GET")
+
 	// Auth
 	userID := c.Locals("userID").(int)
 
@@ -339,4 +352,56 @@ func FindCloseMarkersHandler(c *fiber.Ctx) error {
 		"totalPages":   totalPages,
 		"totalMarkers": total,
 	})
+}
+
+// AddFavoriteHandler adds a new favorite marker for the user.
+func AddFavoriteHandler(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(int)
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "User ID is required",
+		})
+	}
+
+	// Extracting marker ID from request parameters or body
+	markerIDParam := c.Params("markerID")
+	markerID, err := strconv.Atoi(markerIDParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid marker ID",
+		})
+	}
+
+	err = services.AddFavorite(userID, markerID)
+	if err != nil {
+		// Respond differently based on the type of error
+		if err.Error() == "maximum number of favorites reached" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	// Successfully added the favorite
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Favorite added successfully",
+	})
+}
+
+func RemoveFavoriteHandler(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(int)
+	markerID, err := strconv.Atoi(c.Params("markerID"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid marker ID"})
+	}
+
+	err = services.RemoveFavorite(userID, markerID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent) // 204 No Content is appropriate for a DELETE success with no response body
 }
