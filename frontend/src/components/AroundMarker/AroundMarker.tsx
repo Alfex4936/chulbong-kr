@@ -2,18 +2,18 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SearchIcon from "@mui/icons-material/Search";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import { useEffect, useRef, useState } from "react";
+import { ComponentProps, forwardRef, useEffect, useRef, useState } from "react";
 import useGetCloseMarker from "../../hooks/query/useGetCloseMarker";
 import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap } from "../../types/KakaoMap.types";
 import * as Styled from "./AroundMarker.style";
 import { useQueryClient } from "@tanstack/react-query";
 
-interface Props {
+interface Props extends ComponentProps<"div"> {
   map: KakaoMap;
 }
 
-const AroundMarker = ({ map }: Props) => {
+const AroundMarker = forwardRef(({ map, ...props }: Props, ref) => {
   const queryClient = useQueryClient();
 
   const positionState = useMapPositionStore();
@@ -76,10 +76,8 @@ const AroundMarker = ({ map }: Props) => {
     map?.setLevel(1);
   };
 
-  console.log(data);
-
   return (
-    <Styled.Container>
+    <Styled.Container ref={ref as React.RefObject<HTMLDivElement>} {...props}>
       <Styled.RangeContainer>
         <p style={{ fontSize: ".8rem" }}>주변 {distance}m</p>
         <input
@@ -170,6 +168,6 @@ const AroundMarker = ({ map }: Props) => {
       )}
     </Styled.Container>
   );
-};
+});
 
 export default AroundMarker;

@@ -1,16 +1,16 @@
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import { useEffect, useRef } from "react";
+import { ComponentProps, forwardRef, useEffect, useRef } from "react";
 import useGetMyMarker from "../../hooks/query/useGetMyMarker";
 import type { KakaoMap } from "../../types/KakaoMap.types";
 import * as Styled from "./MyMarker.style";
 
-interface Props {
+interface Props extends ComponentProps<"div"> {
   map: KakaoMap;
 }
 
-const MyMarker = ({ map }: Props) => {
+const MyMarker = forwardRef(({ map, ...props }: Props, ref) => {
   const { data, fetchNextPage, hasNextPage, isLoading, isError, isFetching } =
     useGetMyMarker();
 
@@ -59,7 +59,7 @@ const MyMarker = ({ map }: Props) => {
   };
 
   return (
-    <Styled.Container>
+    <Styled.Container ref={ref as React.RefObject<HTMLDivElement>} {...props}>
       {data?.pages.map((page, i) => (
         <Styled.ListContainer key={i}>
           {page.markers.map((marker) => (
@@ -95,6 +95,6 @@ const MyMarker = ({ map }: Props) => {
       {hasNextPage && <Styled.ListSkeleton ref={boxRef} />}
     </Styled.Container>
   );
-};
+});
 
 export default MyMarker;

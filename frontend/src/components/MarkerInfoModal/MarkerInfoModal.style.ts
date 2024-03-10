@@ -17,10 +17,12 @@ export const imageWrap = styled.div`
 
     width: 100%;
     height: 85%;
+
+    user-select: none;
   }
 
   margin: auto;
-  margin-bottom: 2rem;
+  margin-bottom: 6rem;
 `;
 
 export const description = styled.div`
@@ -49,6 +51,19 @@ export const description = styled.div`
 
   &:hover {
     white-space: normal;
+  }
+`;
+
+export const AddressText = styled.div`
+  position: absolute;
+  bottom: 4rem;
+  left: 50%;
+  transform: translateX(-50%);
+
+  font-weight: bold;
+
+  & > div:first-of-type {
+    font-size: 0.8rem;
   }
 `;
 

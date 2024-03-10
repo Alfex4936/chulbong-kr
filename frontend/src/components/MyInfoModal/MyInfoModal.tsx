@@ -2,7 +2,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 import type { KakaoMap } from "../../types/KakaoMap.types";
 import AroundMarker from "../AroundMarker/AroundMarker";
@@ -19,9 +19,32 @@ interface Props {
 const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
   const { data, isLoading } = useGetMyInfo();
 
+  const aroundMarkerRef = useRef<HTMLDivElement>(null);
+  const myMarkerRef = useRef<HTMLDivElement>(null);
+
+  const [curTab, setCurTab] = useState<number | null>(null);
+
+  const handleArroundMarkerScroll = () => {
+    if (aroundMarkerRef.current) {
+      aroundMarkerRef.current.scrollTop = 0;
+    }
+  };
+
+  const handleMyMarkerScroll = () => {
+    if (myMarkerRef.current) {
+      myMarkerRef.current.scrollTop = 0;
+    }
+  };
+
   const tabs = [
-    { title: "주변 검색", content: <AroundMarker map={map} /> },
-    { title: "내 장소", content: <MyMarker map={map} /> },
+    {
+      title: "주변 검색",
+      content: <AroundMarker ref={aroundMarkerRef} map={map} />,
+    },
+    {
+      title: "내 장소",
+      content: <MyMarker ref={myMarkerRef} map={map} />,
+    },
     {
       title: "내 정보",
       content: (
@@ -32,8 +55,6 @@ const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
       ),
     },
   ];
-
-  const [curTab, setCurTab] = useState<number | null>(null);
 
   return (
     <Styled.Container>
@@ -79,6 +100,8 @@ const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
               }}
               onClick={() => {
                 setCurTab(index);
+                if (index === 0) handleArroundMarkerScroll();
+                else if (index === 1) handleMyMarkerScroll();
               }}
             >
               {tab.title}

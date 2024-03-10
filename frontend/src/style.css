@@ -12,6 +12,13 @@ body {
     sans-serif;
 }
 
+input,
+button,
+select,
+textarea {
+  font-size: 16px;
+}
+
 div {
   box-sizing: border-box;
 }
