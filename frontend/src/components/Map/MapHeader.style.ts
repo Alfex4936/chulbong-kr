@@ -10,7 +10,7 @@ export const Container = styled.div`
   max-width: 500px;
 
   position: absolute;
-  top: 10px;
+  top: 20px;
   left: 10px;
 
   z-index: 10;

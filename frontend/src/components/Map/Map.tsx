@@ -20,6 +20,7 @@ import useDeleteUser from "../../hooks/mutation/user/useDeleteUser";
 import useGetAllMarker from "../../hooks/query/marker/useGetAllMarker";
 import useInput from "../../hooks/useInput";
 import useMap from "../../hooks/useMap";
+import useMapPositionStore from "../../store/useMapPositionStore";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
@@ -54,6 +55,7 @@ const Map = () => {
   const userState = useUserStore();
   const formState = useUploadFormDataStore();
   const toastState = useToastStore();
+  const mapPosition = useMapPositionStore();
 
   const emailInput = useInput("");
 
@@ -194,6 +196,11 @@ const Map = () => {
             position.coords.latitude,
             position.coords.longitude
           );
+
+          mapPosition.setPosition(
+            position.coords.latitude,
+            position.coords.longitude
+          );
           map.setCenter(moveLatLon);
         },
         (error) => {
@@ -209,6 +216,7 @@ const Map = () => {
 
   const resetCurrentPosition = () => {
     const moveLatLon = new window.kakao.maps.LatLng(37.566535, 126.9779692);
+    mapPosition.setPosition(37.566535, 126.9779692);
     map?.setCenter(moveLatLon);
   };
 
