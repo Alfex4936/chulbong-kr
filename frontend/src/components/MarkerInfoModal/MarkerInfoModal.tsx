@@ -62,10 +62,36 @@ const MarkerInfoModal = ({
 
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [address, setAddress] = useState("");
+
   useEffect(() => {
     toastState.close();
     toastState.setToastText("");
   }, []);
+
+  useEffect(() => {
+    const getAddr = () => {
+      let geocoder = new window.kakao.maps.services.Geocoder();
+      let coord = new window.kakao.maps.LatLng(
+        marker?.latitude,
+        marker?.longitude
+      );
+
+      geocoder.coord2Address(
+        coord.getLng(),
+        coord.getLat(),
+        (result: { address: { address_name: string } }[], status: string) => {
+          if (status === window.kakao.maps.services.Status.OK) {
+            setAddress(result[0].address.address_name);
+          } else {
+            setAddress("주소 정보 없음");
+          }
+        }
+      );
+    };
+
+    getAddr();
+  }, [marker]);
 
   const filtering = async () => {
     const marker = markers.find(
@@ -175,6 +201,13 @@ const MarkerInfoModal = ({
               {marker?.description || "작성된 설명이 없습니다."}
             </Styled.description>
           </Styled.imageWrap>
+          <Styled.AddressText>
+            <div>
+              {marker?.createdAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
+              등록
+            </div>
+            <div>{address}</div>
+          </Styled.AddressText>
           <Styled.BottomButtons>
             <Tooltip title="리뷰 보기" arrow disableInteractive>
               <IconButton onClick={handleViewReview} aria-label="review">

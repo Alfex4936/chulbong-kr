@@ -3,7 +3,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import useModalStore from "../../store/useModalStore";
 import * as Styled from "./Modal.style";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface Props {
   exit?: boolean;
@@ -14,15 +14,22 @@ interface Props {
 const BasicModal = ({ exit = true, children, setState }: Props) => {
   const modalState = useModalStore();
 
+  const modalRef = useRef(null);
+
   useEffect(() => {
+    const handleClose = () => {
+      if (setState) {
+        setState(false);
+      } else {
+        modalState.close();
+      }
+    };
+
     const handleKeyDownClose = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (setState) {
-          setState(false);
-        } else {
-          modalState.close();
-        }
+        handleClose();
       }
+      console.log(event.key);
     };
 
     window.addEventListener("keydown", handleKeyDownClose);
@@ -33,8 +40,18 @@ const BasicModal = ({ exit = true, children, setState }: Props) => {
   }, []);
 
   return (
-    <Styled.ModalWrap>
+    <Styled.ModalWrap
+      onClick={(e) => {
+        e.stopPropagation();
+        if (setState) {
+          setState(false);
+        } else {
+          modalState.close();
+        }
+      }}
+    >
       <Styled.Modal
+        ref={modalRef}
         onClick={(e) => {
           e.stopPropagation();
         }}
