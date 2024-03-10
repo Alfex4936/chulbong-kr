@@ -37,6 +37,10 @@ const useMap = (ref: MutableRefObject<HTMLDivElement | null>) => {
         (position) => {
           if (positionState.lat === 0 || positionState.lng === 0) {
             setNewPosition(position.coords.latitude, position.coords.longitude);
+            positionState.setPosition(
+              position.coords.latitude,
+              position.coords.longitude
+            );
           } else {
             setNewPosition(positionState.lat, positionState.lng);
           }
@@ -48,8 +52,10 @@ const useMap = (ref: MutableRefObject<HTMLDivElement | null>) => {
     } else {
       if (positionState.lat === 0 || positionState.lng === 0) {
         setNewPosition(37.566535, 126.9779692);
+        positionState.setPosition(37.566535, 126.9779692);
       } else {
         setNewPosition(positionState.lat, positionState.lng);
+        positionState.setPosition(positionState.lat, positionState.lng);
       }
     }
   }, []);
