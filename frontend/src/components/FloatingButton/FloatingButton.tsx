@@ -76,7 +76,7 @@ const FloatingButton = ({
           backgroundColor: "#fff",
           color: "#000",
 
-          zIndex: "90",
+          zIndex: "10",
 
           borderRadius: shape === "square" ? "3px" : "50%",
 

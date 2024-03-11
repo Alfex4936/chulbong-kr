@@ -485,22 +485,24 @@ const Map = () => {
         </Styled.ExitButton>
         위치 등록하기
       </Button>
-      <FloatingButton
-        text={myInfo ? myInfo.email[0].toUpperCase() : <LoginIcon />}
-        top={20}
-        right={20}
-        shape="circle"
-        tooltip={data ? "메뉴" : "로그인"}
-        onClickFn={
-          myInfo
-            ? myInfoModal
-              ? () => {
-                  setMyInfoModal(false);
-                }
-              : handleMyInfo
-            : handleOpen
-        }
-      />
+      <Styled.LoginButtonWrap>
+        <FloatingButton
+          text={myInfo ? myInfo.email[0].toUpperCase() : <LoginIcon />}
+          top={0}
+          left={0}
+          shape="circle"
+          tooltip={myInfo ? "메뉴" : "로그인"}
+          onClickFn={
+            myInfo
+              ? myInfoModal
+                ? () => {
+                    setMyInfoModal(false);
+                  }
+                : handleMyInfo
+              : handleOpen
+          }
+        />
+      </Styled.LoginButtonWrap>
 
       <FloatingButton
         text={<MyLocationIcon />}

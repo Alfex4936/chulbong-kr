@@ -8,7 +8,7 @@ export const BlackContainer = styled.div`
   width: 100%;
   height: 100%;
 
-  z-index: 100;
+  z-index: 1000;
 
   background-color: ${({ bg }: { bg: "transparent" | "black" }) =>
     bg === "transparent" ? "transparent" : "rgba(0, 0, 0, 0.6)"};

@@ -13,5 +13,5 @@ export const Container = styled.div`
   top: 20px;
   left: 10px;
 
-  z-index: 10;
+  z-index: 200;
 `;
