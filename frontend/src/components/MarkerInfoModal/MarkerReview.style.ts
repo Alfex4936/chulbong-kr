@@ -117,7 +117,11 @@ export const ReviewItem = styled.div`
   background-color: #e9efff;
 
   &:hover > div:first-of-type {
-    white-space: normal;
+    word-wrap: break-word;
+    white-space: -moz-pre-wrap;
+    white-space: pre-wrap;
+
+    text-overflow: none;
   }
 
   & > div:first-of-type {
