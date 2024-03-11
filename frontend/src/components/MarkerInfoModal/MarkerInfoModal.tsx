@@ -3,6 +3,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import RateReviewIcon from "@mui/icons-material/RateReview";
+import ShareIcon from "@mui/icons-material/Share";
 import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
 import ThumbDownOffAltIcon from "@mui/icons-material/ThumbDownOffAlt";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -10,6 +11,8 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { isAxiosError } from "axios";
 import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
+import { useNavigate } from "react-router-dom";
 import noimg from "../../assets/images/noimg.webp";
 import useDeleteFavorite from "../../hooks/mutation/favorites/useDeleteFavorite";
 import useSetFavorite from "../../hooks/mutation/favorites/useSetFavorite";
@@ -26,8 +29,6 @@ import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
 import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
 import MarkerReview from "./MarkerReview";
-import ShareIcon from "@mui/icons-material/Share";
-import { useNavigate } from "react-router-dom";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
@@ -246,6 +247,18 @@ const MarkerInfoModal = ({
 
   return (
     <div>
+      <Helmet>
+        <title>대한민국 철봉 지도</title>
+        <meta
+          name="description"
+          content={`${marker?.description} 위치: ${marker?.addr}`}
+        />
+        <meta
+          property="og:image"
+          content={marker?.photos ? marker.photos[0].photoUrl : noimg}
+        />
+      </Helmet>
+
       {isReview ? (
         <MarkerReview
           setIsReview={setIsReview}

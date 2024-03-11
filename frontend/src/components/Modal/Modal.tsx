@@ -1,9 +1,10 @@
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import useModalStore from "../../store/useModalStore";
 import * as Styled from "./Modal.style";
-import { useEffect, useRef } from "react";
 
 interface Props {
   exit?: boolean;
@@ -13,6 +14,12 @@ interface Props {
 
 const BasicModal = ({ exit = true, children, setState }: Props) => {
   const modalState = useModalStore();
+
+  const navigate = useNavigate();
+  const query = new URLSearchParams(location.search);
+  const sharedMarker = query.get("d");
+  const sharedMarkerLat = query.get("la");
+  const sharedMarkerLng = query.get("lo");
 
   const modalRef = useRef(null);
 
@@ -27,6 +34,9 @@ const BasicModal = ({ exit = true, children, setState }: Props) => {
 
     const handleKeyDownClose = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (sharedMarker && sharedMarkerLat && sharedMarkerLng) {
+          navigate("/");
+        }
         handleClose();
       }
     };
