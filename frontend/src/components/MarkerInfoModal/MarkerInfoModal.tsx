@@ -57,6 +57,7 @@ const MarkerInfoModal = ({
     data: marker,
     isLoading,
     isError,
+    error,
   } = useGetMarker(currentMarkerInfo.markerId);
   const { data: myInfo } = useGetMyInfo();
 
@@ -194,27 +195,54 @@ const MarkerInfoModal = ({
   };
 
   if (isLoading) return <MarkerInfoSkeleton />;
-  if (isError)
-    return (
-      <div style={{ fontSize: "1.2rem" }}>
-        <Tooltip title="닫기" arrow disableInteractive>
-          <IconButton
-            onClick={() => {
-              setMarkerInfoModal(false);
-            }}
-            aria-label="delete"
-            sx={{
-              position: "absolute",
-              top: "0",
-              right: "0",
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Tooltip>
-        잠시 후 다시 시도해 주세요.....
-      </div>
-    );
+  if (isError) {
+    if (isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        console.log(error.response?.status);
+        return (
+          <div style={{ fontSize: "1.2rem" }}>
+            <Tooltip title="닫기" arrow disableInteractive>
+              <IconButton
+                onClick={() => {
+                  setMarkerInfoModal(false);
+                }}
+                aria-label="delete"
+                sx={{
+                  position: "absolute",
+                  top: "0",
+                  right: "0",
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Tooltip>
+            존재 하지 않는 장소 입니다...
+          </div>
+        );
+      } else {
+        return (
+          <div style={{ fontSize: "1.2rem" }}>
+            <Tooltip title="닫기" arrow disableInteractive>
+              <IconButton
+                onClick={() => {
+                  setMarkerInfoModal(false);
+                }}
+                aria-label="delete"
+                sx={{
+                  position: "absolute",
+                  top: "0",
+                  right: "0",
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Tooltip>
+            잠시 후 다시 시도해 주세요...
+          </div>
+        );
+      }
+    }
+  }
 
   return (
     <div>
