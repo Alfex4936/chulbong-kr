@@ -26,6 +26,7 @@ import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
 import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
 import MarkerReview from "./MarkerReview";
+import ShareIcon from "@mui/icons-material/Share";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
@@ -174,6 +175,17 @@ const MarkerInfoModal = ({
     }
   };
 
+  const copyTextToClipboard = async () => {
+    const url = `https://k-pullup.com/marker?d=${marker?.markerId}&la=${marker?.latitude}&lo=${marker?.longitude}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toastState.setToastText("복사 완료");
+      toastState.open();
+    } catch (err) {
+      alert("잠시 후 다시 시도해 주세요!");
+    }
+  };
+
   if (isLoading) return <MarkerInfoSkeleton />;
   if (isError)
     return (
@@ -241,6 +253,19 @@ const MarkerInfoModal = ({
             <Tooltip title="리뷰 보기" arrow disableInteractive>
               <IconButton onClick={handleViewReview} aria-label="review">
                 <RateReviewIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="공유 링크 복사" arrow disableInteractive>
+              <IconButton onClick={copyTextToClipboard} aria-label="dislike">
+                <div
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    position: "relative",
+                  }}
+                >
+                  <ShareIcon />
+                </div>
               </IconButton>
             </Tooltip>
             {marker?.favorited ? (

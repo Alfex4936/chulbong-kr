@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import useSignin from "../../hooks/mutation/auth/useSignin";
 import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
+import useUserStore from "../../store/useUserStore";
 import emailValidate from "../../utils/emailValidate";
 import passwordValidate from "../../utils/passwordValidate";
 import Input from "../Input/Input";
@@ -13,6 +14,7 @@ import * as Styled from "./LoginForm.style";
 
 const LoginForm = () => {
   const modalState = useModalStore();
+  const userState = useUserStore();
 
   const emailInput = useInput("");
   const passwordInput = useInput("");
@@ -60,8 +62,10 @@ const LoginForm = () => {
           });
           setLoginError("");
           modalState.close();
+          userState.setLogin();
         } catch (error) {
           setLoginError("유요하지 않은 회원 정보입니다.");
+          userState.resetUser();
         } finally {
           setLoading(false);
         }
@@ -113,9 +117,11 @@ const LoginForm = () => {
         });
         setLoginError("");
         modalState.close();
+        userState.setLogin();
       } catch (error) {
         console.log(error);
         setLoginError("유요하지 않은 회원 정보입니다.");
+        userState.resetUser();
       } finally {
         setLoading(false);
       }
