@@ -4,15 +4,15 @@ import ReplyIcon from "@mui/icons-material/Reply";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import { isAxiosError } from "axios";
 import { useEffect, useRef, useState } from "react";
 import useCreateComment from "../../hooks/mutation/comments/useCreateComment";
 import useDeleteComment from "../../hooks/mutation/comments/useDeleteComment";
 import useGetComments from "../../hooks/query/comments/useGetComments";
+import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 import useInput from "../../hooks/useInput";
-import useUserStore from "../../store/useUserStore";
 import * as Styled from "./MarkerReview.style";
 import MarkerReviewSkeleton from "./MarkerReviewSkeleton";
-import { isAxiosError } from "axios";
 
 interface Props {
   markerId: number;
@@ -21,8 +21,8 @@ interface Props {
 
 const MarkerReview = ({ markerId, setIsReview }: Props) => {
   const commentValue = useInput("");
-  const userState = useUserStore();
 
+  const { data: myInfo } = useGetMyInfo();
   const { data, fetchNextPage, hasNextPage, isLoading, isError, isFetching } =
     useGetComments(markerId);
 
@@ -147,7 +147,7 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
                             .replace(/-/g, ".")}
                         </div>
                         <div>
-                          {userState.user.user.userId === comment.userId && (
+                          {myInfo?.userId === comment.userId && (
                             <Tooltip title="삭제 하기" arrow disableInteractive>
                               <IconButton
                                 onClick={() => {
@@ -185,10 +185,15 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
         <Styled.ReviewInput
           type="text"
           name="reveiw-content"
+          maxLength={40}
           value={commentValue.value}
           onChange={(e) => {
+            if (commentValue.value.length >= 40) {
+              setErrorText("40자 이내로 작성해 주세요!");
+            } else {
+              setErrorText("");
+            }
             commentValue.onChange(e);
-            setErrorText("");
           }}
           onKeyDown={handleKeyPress}
         />

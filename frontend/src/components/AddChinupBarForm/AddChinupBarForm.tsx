@@ -123,8 +123,14 @@ const AddChinupBarForm = ({
           type="text"
           id="description"
           placeholder="설명"
+          maxLength={70}
           value={descriptionValue.value}
           onChange={(e) => {
+            if (descriptionValue.value.length >= 70) {
+              setError("70자 이내로 작성해 주세요!");
+            } else {
+              setError("");
+            }
             descriptionValue.onChange(e);
           }}
         />

@@ -8,6 +8,7 @@ const useLogout = () => {
     mutationFn: logout,
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ["myInfo"] });
+      queryClient.removeQueries({ queryKey: ["favorite"] });
       queryClient.removeQueries({ queryKey: ["dislikeState"] });
     },
   });

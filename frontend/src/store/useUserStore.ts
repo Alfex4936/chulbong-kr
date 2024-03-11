@@ -1,39 +1,43 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { LoginRes } from "@/api/auth/login";
+
+interface P {
+  h: string;
+  kj: { ej: string; jj: number; ol: string };
+}
 
 interface UserState {
-  user: LoginRes;
-  setUser: (user: LoginRes) => void;
+  ka: P;
+  setUser: (user: P) => void;
   resetUser: VoidFunction;
 }
 
 const useUserStore = create<UserState>()(
   persist(
     (set) => ({
-      user: {
-        token: "",
-        user: {
-          email: "",
-          userId: -1,
-          username: "",
+      ka: {
+        h: "",
+        kj: {
+          ej: "",
+          jj: -1,
+          ol: "",
         },
       },
-      setUser: (user: LoginRes) => set({ user }),
+      setUser: (ka: P) => set({ ka }),
       resetUser: () =>
         set({
-          user: {
-            token: "",
-            user: {
-              email: "",
-              userId: -1,
-              username: "",
+          ka: {
+            h: "",
+            kj: {
+              ej: "",
+              jj: -1,
+              ol: "",
             },
           },
         }),
     }),
     {
-      name: "user",
+      name: "uaui",
       storage: createJSONStorage(() => localStorage),
     }
   )

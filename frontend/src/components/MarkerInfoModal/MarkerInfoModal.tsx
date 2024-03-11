@@ -1,5 +1,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
 import ThumbDownOffAltIcon from "@mui/icons-material/ThumbDownOffAlt";
@@ -9,23 +11,21 @@ import Tooltip from "@mui/material/Tooltip";
 import { isAxiosError } from "axios";
 import { useEffect, useState } from "react";
 import noimg from "../../assets/images/noimg.webp";
+import useDeleteFavorite from "../../hooks/mutation/favorites/useDeleteFavorite";
+import useSetFavorite from "../../hooks/mutation/favorites/useSetFavorite";
 import useDeleteMarker from "../../hooks/mutation/marker/useDeleteMarker";
 import useMarkerDislike from "../../hooks/mutation/marker/useMarkerDislike";
 import useUndoDislike from "../../hooks/mutation/marker/useUndoDislike";
 import useGetMarker from "../../hooks/query/marker/useGetMarker";
+import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
-import useUserStore from "../../store/useUserStore";
 import type { MarkerClusterer } from "../../types/Cluster.types";
 import type { KakaoMarker } from "../../types/KakaoMap.types";
 import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
 import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
 import MarkerReview from "./MarkerReview";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import useSetFavorite from "../../hooks/mutation/favorites/useSetFavorite";
-import useDeleteFavorite from "../../hooks/mutation/favorites/useDeleteFavorite";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
@@ -42,7 +42,6 @@ const MarkerInfoModal = ({
   currentMarkerInfo,
   setMarkerInfoModal,
 }: Props) => {
-  const userState = useUserStore();
   const toastState = useToastStore();
   const modalState = useModalStore();
 
@@ -51,6 +50,7 @@ const MarkerInfoModal = ({
     isLoading,
     isError,
   } = useGetMarker(currentMarkerInfo.markerId);
+  const { data: myInfo } = useGetMyInfo();
 
   const { mutateAsync: like, isPending: likePending } = useSetFavorite(
     currentMarkerInfo.markerId
@@ -308,8 +308,7 @@ const MarkerInfoModal = ({
               </Tooltip>
             )}
 
-            {(marker?.isChulbong ||
-              userState.user.user.userId === marker?.userId) && (
+            {(marker?.isChulbong || myInfo?.userId === marker?.userId) && (
               <Tooltip title="삭제 하기" arrow disableInteractive>
                 <IconButton onClick={handleDelete} aria-label="delete">
                   {deleteLoading ? (

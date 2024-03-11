@@ -18,6 +18,7 @@ import pendingMarkerImage from "../../assets/images/cb2.webp";
 import useRequestPasswordReset from "../../hooks/mutation/auth/useRequestPasswordReset";
 import useDeleteUser from "../../hooks/mutation/user/useDeleteUser";
 import useGetAllMarker from "../../hooks/query/marker/useGetAllMarker";
+import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 import useInput from "../../hooks/useInput";
 import useMap from "../../hooks/useMap";
 import useMapPositionStore from "../../store/useMapPositionStore";
@@ -65,6 +66,7 @@ const Map = () => {
   const { mutateAsync: sendPasswordReset } = useRequestPasswordReset(
     emailInput.value
   );
+  const { data: myInfo, isLoading: myInfoLoading } = useGetMyInfo();
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
@@ -270,19 +272,28 @@ const Map = () => {
     }
   };
 
+  const handleOpenAddMarkerToast = () => {
+    if (!myInfo) {
+      modalState.openLogin();
+    } else {
+      setOpenForm(true);
+    }
+  };
+
   bouncy.register();
 
   return (
     <Styled.Container>
       <MapHeader map={map} />
       <Styled.MapContainer ref={mapRef} />
-      {isLoading && (
-        <CenterBox bg="black">
+      {isLoading ||
+        (myInfoLoading && (
           <CenterBox bg="black">
-            <l-bouncy size="80" speed="1.75" color="white" />
+            <CenterBox bg="black">
+              <l-bouncy size="80" speed="1.75" color="white" />
+            </CenterBox>
           </CenterBox>
-        </CenterBox>
-      )}
+        ))}
 
       {!isLoading && isError && (
         <BasicModal>
@@ -339,7 +350,12 @@ const Map = () => {
 
       {deleteUserModal && (
         <BasicModal setState={setDeleteUserModal}>
-          <p>정말 탈퇴하시겠습니까?</p>
+          <Styled.AlertText>
+            <p>정말 탈퇴하시겠습니까?</p>
+            <p>
+              추가하신 마커는 유지되고, 작성한 댓글 밑 사진은 모두 삭제됩니다!
+            </p>
+          </Styled.AlertText>
           <Styled.DeleteUserButtonsWrap>
             <ActionButton bg="black" onClick={handleDeleteUser}>
               {deleteUserLoading ? (
@@ -415,13 +431,7 @@ const Map = () => {
       )}
 
       <Button
-        onClick={() => {
-          if (userState.user.token === "") {
-            modalState.openLogin();
-          } else {
-            setOpenForm(true);
-          }
-        }}
+        onClick={handleOpenAddMarkerToast}
         sx={{
           position: "absolute",
           opacity: map && isMarked ? "100" : "0",
@@ -451,19 +461,13 @@ const Map = () => {
         위치 등록하기
       </Button>
       <FloatingButton
-        text={
-          userState.user.token ? (
-            userState.user.user.email[0].toUpperCase()
-          ) : (
-            <LoginIcon />
-          )
-        }
+        text={myInfo ? myInfo.email[0].toUpperCase() : <LoginIcon />}
         top={20}
         right={20}
         shape="circle"
-        tooltip={userState.user.token ? "메뉴" : "로그인"}
+        tooltip={data ? "메뉴" : "로그인"}
         onClickFn={
-          userState.user.token
+          myInfo
             ? myInfoModal
               ? () => {
                   setMyInfoModal(false);
