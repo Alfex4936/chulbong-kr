@@ -81,6 +81,7 @@ const AddChinupBarForm = ({
         ),
         image: activeMarkerImg,
         title: result.markerId,
+        zIndex: 4,
       });
 
       window.kakao.maps.event.addListener(newMarker, "click", () => {
