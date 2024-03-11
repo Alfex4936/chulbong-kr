@@ -1,12 +1,10 @@
-import ReactDOM from 'react-dom';
-
 import type { MarkerClusterer } from "@/types/Cluster.types";
+import { CustomOverlay } from "@/types/CustomOverlay.types";
 import type {
   KaKaoMapMouseEvent,
   KakaoMap,
   KakaoMarker,
 } from "@/types/KakaoMap.types";
-import { CustomOverlay } from '@/types/CustomOverlay.types';
 import AddIcon from "@mui/icons-material/Add";
 import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
@@ -16,6 +14,7 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import { bouncy } from "ldrs";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 import activeMarkerImage from "../../assets/images/cb1.webp";
 import pendingMarkerImage from "../../assets/images/cb2.webp";
 import useRequestPasswordReset from "../../hooks/mutation/auth/useRequestPasswordReset";
@@ -102,7 +101,9 @@ const Map = () => {
   const [changePasswordLoading, setChangePasswordLoading] = useState(false); // 비밀 번호 변경 로딩
   const [emailError, setEmailError] = useState(""); // 비밀번호 변경 에러
 
-  const [currentOverlay, setCurrentOverlay] = useState<CustomOverlay | null>(null); // GPS 현재 위치
+  const [currentOverlay, setCurrentOverlay] = useState<CustomOverlay | null>(
+    null
+  ); // GPS 현재 위치
 
   const imageSize = new window.kakao.maps.Size(39, 39);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
@@ -121,7 +122,7 @@ const Map = () => {
     }
   }, [map, sharedMarker, sharedMarkerLat, sharedMarkerLng]);
 
-  useEffect(() => { }, [marker]);
+  useEffect(() => {}, [marker]);
 
   useEffect(() => {
     const handleKeyDownClose = (event: KeyboardEvent) => {
@@ -167,6 +168,7 @@ const Map = () => {
     // 클릭 위치 마커 생성 및 표시
     const clickMarker = new window.kakao.maps.Marker({
       image: pendingMarkerImg,
+      zIndex: 4,
     });
     clickMarker.setMap(map);
     // 첫 로딩시 화면에서 숨김
@@ -182,6 +184,7 @@ const Map = () => {
         ),
         image: activeMarkerImg,
         title: marker.markerId,
+        zIndex: 4,
       });
 
       window.kakao.maps.event.addListener(newMarker, "click", () => {
@@ -230,8 +233,9 @@ const Map = () => {
           }
 
           // Create a div for the marker React component
-          const overlayDiv = document.createElement('div');
-          ReactDOM.render(<Styled.UserLocationMarker />, overlayDiv);
+          const overlayDiv = document.createElement("div");
+          const root = createRoot(overlayDiv);
+          root.render(<Styled.UserLocationMarker />);
 
           // Create a custom overlay
           const customOverlay = new window.kakao.maps.CustomOverlay({
@@ -520,8 +524,8 @@ const Map = () => {
             myInfo
               ? myInfoModal
                 ? () => {
-                  setMyInfoModal(false);
-                }
+                    setMyInfoModal(false);
+                  }
                 : handleMyInfo
               : handleOpen
           }
