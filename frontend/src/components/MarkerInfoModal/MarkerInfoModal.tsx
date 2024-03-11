@@ -27,6 +27,7 @@ import * as Styled from "./MarkerInfoModal.style";
 import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
 import MarkerReview from "./MarkerReview";
 import ShareIcon from "@mui/icons-material/Share";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
@@ -45,6 +46,12 @@ const MarkerInfoModal = ({
 }: Props) => {
   const toastState = useToastStore();
   const modalState = useModalStore();
+
+  const navigate = useNavigate();
+  const query = new URLSearchParams(location.search);
+  const sharedMarker = query.get("d");
+  const sharedMarkerLat = query.get("la");
+  const sharedMarkerLng = query.get("lo");
 
   const {
     data: marker,
@@ -222,6 +229,9 @@ const MarkerInfoModal = ({
             <IconButton
               onClick={() => {
                 setMarkerInfoModal(false);
+                if (sharedMarker && sharedMarkerLat && sharedMarkerLng) {
+                  navigate("/");
+                }
               }}
               aria-label="delete"
               sx={{

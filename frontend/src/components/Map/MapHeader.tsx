@@ -1,15 +1,16 @@
 import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
 import { useRef, useState } from "react";
-import type { KakaoMap } from "../../types/KakaoMap.types";
+import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./MapHeader.style";
 import SearchInput from "./SearchInput";
 
 interface Props {
+  markers: KakaoMarker[];
   map: KakaoMap | null;
 }
 
-const MapHeader = ({ map }: Props) => {
+const MapHeader = ({ markers, map }: Props) => {
   const [isAround, setIsAround] = useState(false);
   const aroundMarkerRef = useRef<HTMLDivElement>(null);
 
@@ -23,6 +24,7 @@ const MapHeader = ({ map }: Props) => {
     <Styled.Container>
       <SearchInput
         map={map as KakaoMap}
+        markers={markers}
         aroundMarkerRef={aroundMarkerRef}
         isAround={isAround}
         setIsAround={setIsAround}
