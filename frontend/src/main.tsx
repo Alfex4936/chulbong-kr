@@ -5,6 +5,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import CheckoutPage from "./components/CheckoutPage/CheckoutPage";
 import FailPaymentPage from "./components/FailPaymentPage/FailPaymentPage";
 import SuccessPaymentPage from "./components/SuccessPaymentPage/SuccessPaymentPage";
+import { HelmetProvider } from "react-helmet-async";
 
 import "./style.css";
 
@@ -50,7 +51,9 @@ const queryClient = new QueryClient();
 root.render(
   // <React.StrictMode>
   <QueryClientProvider client={queryClient}>
-    <RouterProvider router={router} />
+    <HelmetProvider>
+      <RouterProvider router={router} />
+    </HelmetProvider>
   </QueryClientProvider>
   // </React.StrictMode>
 );

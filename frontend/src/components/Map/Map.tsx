@@ -17,6 +17,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import activeMarkerImage from "../../assets/images/cb1.webp";
 import pendingMarkerImage from "../../assets/images/cb2.webp";
+import selectedMarkerImage from "../../assets/images/cb3.webp";
 import useRequestPasswordReset from "../../hooks/mutation/auth/useRequestPasswordReset";
 import useDeleteUser from "../../hooks/mutation/user/useDeleteUser";
 import useGetAllMarker from "../../hooks/query/marker/useGetAllMarker";
@@ -109,7 +110,32 @@ const Map = () => {
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
   useEffect(() => {
+    const filtering = (markerId: number) => {
+      const imageSize = new window.kakao.maps.Size(39, 39);
+      const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+      const selectedMarkerImg = new window.kakao.maps.MarkerImage(
+        selectedMarkerImage,
+        imageSize,
+        imageOption
+      );
+      const activeMarkerImg = new window.kakao.maps.MarkerImage(
+        activeMarkerImage,
+        imageSize,
+        imageOption
+      );
+
+      const marker = markers.find((value) => Number(value.Gb) === markerId);
+
+      markers.forEach((marker) => {
+        marker?.setImage(activeMarkerImg);
+      });
+
+      marker?.setImage(selectedMarkerImg);
+    };
+
     if (sharedMarker && sharedMarkerLat && sharedMarkerLng) {
+      if (sharedMarker) filtering(Number(sharedMarker));
       setMarkerInfoModal(true);
       setCurrentMarkerInfo({ markerId: Number(sharedMarker) });
 
@@ -120,7 +146,7 @@ const Map = () => {
       mapPosition.setPosition(Number(sharedMarkerLat), Number(sharedMarkerLng));
       map?.setCenter(moveLatLon);
     }
-  }, [map, sharedMarker, sharedMarkerLat, sharedMarkerLng]);
+  }, [map, sharedMarker, sharedMarkerLat, sharedMarkerLng, markers]);
 
   useEffect(() => {}, [marker]);
 
