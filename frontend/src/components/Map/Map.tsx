@@ -1,9 +1,12 @@
+import ReactDOM from 'react-dom';
+
 import type { MarkerClusterer } from "@/types/Cluster.types";
 import type {
   KaKaoMapMouseEvent,
   KakaoMap,
   KakaoMarker,
 } from "@/types/KakaoMap.types";
+import { CustomOverlay } from '@/types/CustomOverlay.types';
 import AddIcon from "@mui/icons-material/Add";
 import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
@@ -99,6 +102,8 @@ const Map = () => {
   const [changePasswordLoading, setChangePasswordLoading] = useState(false); // 비밀 번호 변경 로딩
   const [emailError, setEmailError] = useState(""); // 비밀번호 변경 에러
 
+  const [currentOverlay, setCurrentOverlay] = useState<CustomOverlay | null>(null); // GPS 현재 위치
+
   const imageSize = new window.kakao.maps.Size(39, 39);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
@@ -116,7 +121,7 @@ const Map = () => {
     }
   }, [map, sharedMarker, sharedMarkerLat, sharedMarkerLng]);
 
-  useEffect(() => {}, [marker]);
+  useEffect(() => { }, [marker]);
 
   useEffect(() => {
     const handleKeyDownClose = (event: KeyboardEvent) => {
@@ -218,6 +223,25 @@ const Map = () => {
             position.coords.latitude,
             position.coords.longitude
           );
+
+          // Remove the last overlay if it exists
+          if (currentOverlay) {
+            currentOverlay.setMap(null);
+          }
+
+          // Create a div for the marker React component
+          const overlayDiv = document.createElement('div');
+          ReactDOM.render(<Styled.UserLocationMarker />, overlayDiv);
+
+          // Create a custom overlay
+          const customOverlay = new window.kakao.maps.CustomOverlay({
+            position: moveLatLon,
+            content: overlayDiv,
+            zIndex: 3,
+          });
+
+          customOverlay.setMap(map);
+          setCurrentOverlay(customOverlay);
 
           mapPosition.setPosition(
             position.coords.latitude,
@@ -496,8 +520,8 @@ const Map = () => {
             myInfo
               ? myInfoModal
                 ? () => {
-                    setMyInfoModal(false);
-                  }
+                  setMyInfoModal(false);
+                }
                 : handleMyInfo
               : handleOpen
           }

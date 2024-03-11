@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import { keyframes } from '@emotion/react'
 
 export const Container = styled.div`
   position: relative;
@@ -91,5 +92,43 @@ export const LoginButtonWrap = styled.div`
 
   @media (max-width: 380px) {
     top: 80px;
+  }
+`;
+
+const rippleEffect = keyframes`
+  from {
+    width: 0;
+    height: 0;
+    opacity: 0.8;
+  }
+  to {
+    width: 100px;
+    height: 100px;
+    opacity: 0;
+  }
+`;
+
+export const UserLocationMarker = styled.div`
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid red; /* Reduced border width */
+  border-radius: 50%;
+  background-color: red;
+  position: absolute;
+  transform: translate(-50%, -50%);
+
+  &:before {
+    content: '';
+    display: block;
+    width: 0;
+    height: 0;
+    position: absolute;
+    top: 50%; /* Center the ripple effect */
+    left: 50%;
+    transform: translate(-50%, -50%); /* Ensure the center of the ripple is in the center of the circle */
+    border: 1px solid red;
+    border-radius: 50%;
+    animation: ${rippleEffect} 2s infinite;
+    opacity: 0;
   }
 `;
