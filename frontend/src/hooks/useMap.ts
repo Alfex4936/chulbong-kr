@@ -45,8 +45,9 @@ const useMap = (ref: MutableRefObject<HTMLDivElement | null>) => {
             setNewPosition(positionState.lat, positionState.lng);
           }
         },
-        (error) => {
-          console.error(error);
+        () => {
+          setNewPosition(37.566535, 126.9779692);
+          positionState.setPosition(37.566535, 126.9779692);
         }
       );
     } else {
