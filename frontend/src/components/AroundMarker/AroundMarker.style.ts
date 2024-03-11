@@ -17,6 +17,8 @@ export const Container = styled.div`
 
   scroll-behavior: smooth;
 
+  z-index: 100;
+
   & > div:last-of-type {
     border-bottom: none;
 

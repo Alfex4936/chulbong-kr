@@ -2,7 +2,7 @@ import styled from "@emotion/styled";
 
 export const Container = styled.div`
   position: relative;
-  min-width: 380px;
+  min-width: 320px;
 `;
 
 export const MapContainer = styled.div`
@@ -75,5 +75,21 @@ export const AlertText = styled.div`
     color: red;
 
     margin: 1rem 0;
+  }
+`;
+
+export const LoginButtonWrap = styled.div`
+  position: absolute;
+
+  width: 40px;
+  height: 20px;
+
+  top: 20px;
+  right: 20px;
+
+  z-index: 10;
+
+  @media (max-width: 380px) {
+    top: 80px;
   }
 `;

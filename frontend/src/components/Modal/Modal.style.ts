@@ -29,7 +29,7 @@ export const ModalWrap = styled.div`
 
   background-color: rgba(0, 0, 0, 0.6);
 
-  z-index: 100;
+  z-index: 1000;
 
   animation: ${fadeIn} 0.3s ease-out;
 `;

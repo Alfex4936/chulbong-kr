@@ -96,7 +96,7 @@ const SearchInput = ({
   };
 
   return (
-    <div style={{ flexGrow: "1" }}>
+    <div style={{ flexGrow: "1", zIndex: 200 }}>
       <Styled.InputWrap>
         <Styled.SearchInput
           type="text"
@@ -117,11 +117,7 @@ const SearchInput = ({
       {(isResult || isAround) && (
         <Styled.Result>
           {isAround ? (
-            <AroundMarker
-              map={map}
-              ref={aroundMarkerRef}
-              markers={markers}
-            />
+            <AroundMarker map={map} ref={aroundMarkerRef} markers={markers} />
           ) : (
             <>
               {places?.map((place) => {
