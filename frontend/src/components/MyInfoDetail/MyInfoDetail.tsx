@@ -37,7 +37,6 @@ const MyInfoDetail = ({ setDeleteUserModal, setMyInfoModal }: Props) => {
       userState.resetUser();
       setMyInfoModal(false);
     } catch (error) {
-      userState.resetUser();
       setMyInfoModal(false);
     }
   };

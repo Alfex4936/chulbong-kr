@@ -33,7 +33,9 @@ import FloatingButton from "../FloatingButton/FloatingButton";
 import Input from "../Input/Input";
 import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
+import MyInfoModal from "../MyInfoModal/MyInfoModal";
 import * as Styled from "./Map.style";
+import MapHeader from "./MapHeader";
 
 import "ldrs/ring";
 
@@ -43,9 +45,6 @@ const AddChinupBarForm = lazy(
 const MarkerInfoModal = lazy(
   () => import("../MarkerInfoModal/MarkerInfoModal")
 );
-
-import MyInfoModal from "../MyInfoModal/MyInfoModal";
-import MapHeader from "./MapHeader";
 
 export interface MarkerInfo {
   markerId: number;
@@ -66,7 +65,7 @@ const Map = () => {
   const { mutateAsync: sendPasswordReset } = useRequestPasswordReset(
     emailInput.value
   );
-  const { data: myInfo, isLoading: myInfoLoading } = useGetMyInfo();
+  const { data: myInfo } = useGetMyInfo();
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
@@ -286,14 +285,13 @@ const Map = () => {
     <Styled.Container>
       <MapHeader map={map} />
       <Styled.MapContainer ref={mapRef} />
-      {isLoading ||
-        (myInfoLoading && (
+      {isLoading && (
+        <CenterBox bg="black">
           <CenterBox bg="black">
-            <CenterBox bg="black">
-              <l-bouncy size="80" speed="1.75" color="white" />
-            </CenterBox>
+            <l-bouncy size="80" speed="1.75" color="white" />
           </CenterBox>
-        ))}
+        </CenterBox>
+      )}
 
       {!isLoading && isError && (
         <BasicModal>

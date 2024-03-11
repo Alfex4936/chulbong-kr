@@ -12,6 +12,8 @@ import UploadImage from "../UploadImage/UploadImage";
 import * as Styled from "./AddChinupBarForm.style";
 import useUploadMarker from "../../hooks/mutation/marker/useUploadMarker";
 import { isAxiosError } from "axios";
+import logout from "../../api/auth/logout";
+import useUserStore from "../../store/useUserStore";
 
 interface Props {
   setState: React.Dispatch<React.SetStateAction<boolean>>;
@@ -35,6 +37,7 @@ const AddChinupBarForm = ({
   clusterer,
 }: Props) => {
   const formState = useUploadFormDataStore();
+  const userState = useUserStore();
 
   const { mutateAsync: uploadMarker } = useUploadMarker();
 
@@ -101,6 +104,8 @@ const AddChinupBarForm = ({
     } catch (error) {
       if (isAxiosError(error)) {
         if (error.response?.status === 401) {
+          await logout();
+          userState.resetUser();
           setError("인증이 만료 되었습니다. 다시 로그인 해주세요!");
         } else {
           setError("잠시 후 다시 시도해 주세요!");

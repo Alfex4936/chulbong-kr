@@ -46,18 +46,13 @@ const useMap = (ref: MutableRefObject<HTMLDivElement | null>) => {
           }
         },
         () => {
-          setNewPosition(37.566535, 126.9779692);
-          positionState.setPosition(37.566535, 126.9779692);
+          setNewPosition(positionState.lat, positionState.lng);
+          positionState.setPosition(positionState.lat, positionState.lng);
         }
       );
     } else {
-      if (positionState.lat === 0 || positionState.lng === 0) {
-        setNewPosition(37.566535, 126.9779692);
-        positionState.setPosition(37.566535, 126.9779692);
-      } else {
-        setNewPosition(positionState.lat, positionState.lng);
-        positionState.setPosition(positionState.lat, positionState.lng);
-      }
+      setNewPosition(positionState.lat, positionState.lng);
+      positionState.setPosition(positionState.lat, positionState.lng);
     }
   }, []);
 
