@@ -7,7 +7,7 @@ import { RefObject, useEffect, useState } from "react";
 import getSearchLoation from "../../api/kakao/getSearchLoation";
 import useInput from "../../hooks/useInput";
 import useMapPositionStore from "../../store/useMapPositionStore";
-import type { KakaoMap } from "../../types/KakaoMap.types";
+import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import AroundMarker from "../AroundMarker/AroundMarker";
 import * as Styled from "./SearchInput.style";
 
@@ -28,6 +28,7 @@ interface KakaoPlace {
 
 interface Props {
   map: KakaoMap;
+  markers: KakaoMarker[];
   aroundMarkerRef: RefObject<HTMLDivElement>;
   isAround: boolean;
   setIsAround: React.Dispatch<React.SetStateAction<boolean>>;
@@ -35,6 +36,7 @@ interface Props {
 
 const SearchInput = ({
   map,
+  markers,
   aroundMarkerRef,
   isAround,
   setIsAround,
@@ -115,7 +117,11 @@ const SearchInput = ({
       {(isResult || isAround) && (
         <Styled.Result>
           {isAround ? (
-            <AroundMarker map={map} ref={aroundMarkerRef} />
+            <AroundMarker
+              map={map}
+              ref={aroundMarkerRef}
+              markers={markers}
+            />
           ) : (
             <>
               {places?.map((place) => {

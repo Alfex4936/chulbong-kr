@@ -57,6 +57,11 @@ const Map = () => {
   const toastState = useToastStore();
   const mapPosition = useMapPositionStore();
 
+  const query = new URLSearchParams(location.search);
+  const sharedMarker = query.get("d");
+  const sharedMarkerLat = query.get("la");
+  const sharedMarkerLng = query.get("lo");
+
   const emailInput = useInput("");
 
   const { data, isLoading, isError } = useGetAllMarker();
@@ -96,6 +101,22 @@ const Map = () => {
 
   const imageSize = new window.kakao.maps.Size(39, 39);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+  useEffect(() => {
+    if (sharedMarker && sharedMarkerLat && sharedMarkerLng) {
+      setMarkerInfoModal(true);
+      setCurrentMarkerInfo({ markerId: Number(sharedMarker) });
+
+      const moveLatLon = new window.kakao.maps.LatLng(
+        Number(sharedMarkerLat),
+        Number(sharedMarkerLng)
+      );
+      mapPosition.setPosition(Number(sharedMarkerLat), Number(sharedMarkerLng));
+      map?.setCenter(moveLatLon);
+    }
+  }, [map, sharedMarker, sharedMarkerLat, sharedMarkerLng]);
+
+  useEffect(() => {}, [marker]);
 
   useEffect(() => {
     const handleKeyDownClose = (event: KeyboardEvent) => {
@@ -275,6 +296,12 @@ const Map = () => {
     if (!myInfo) {
       modalState.openLogin();
     } else {
+      const moveLatLon = new window.kakao.maps.LatLng(
+        formState.latitude,
+        formState.longitude
+      );
+      mapPosition.setPosition(formState.latitude, formState.longitude);
+      map?.setCenter(moveLatLon);
       setOpenForm(true);
     }
   };
@@ -283,7 +310,7 @@ const Map = () => {
 
   return (
     <Styled.Container>
-      <MapHeader map={map} />
+      <MapHeader map={map} markers={markers} />
       <Styled.MapContainer ref={mapRef} />
       {isLoading && (
         <CenterBox bg="black">
@@ -507,6 +534,7 @@ const Map = () => {
       {myInfoModal && (
         <MyInfoModal
           map={map as KakaoMap}
+          markers={markers}
           setMyInfoModal={setMyInfoModal}
           setDeleteUserModal={setDeleteUserModal}
         />

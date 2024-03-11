@@ -6,14 +6,17 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ComponentProps, forwardRef, useEffect, useRef, useState } from "react";
 import useGetCloseMarker from "../../hooks/query/useGetCloseMarker";
 import useMapPositionStore from "../../store/useMapPositionStore";
-import type { KakaoMap } from "../../types/KakaoMap.types";
+import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./AroundMarker.style";
+import selectedMarkerImage from "../../assets/images/cb3.webp";
+import activeMarkerImage from "../../assets/images/cb1.webp";
 
 interface Props extends ComponentProps<"div"> {
+  markers: KakaoMarker[];
   map: KakaoMap;
 }
 
-const AroundMarker = forwardRef(({ map, ...props }: Props, ref) => {
+const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
   const queryClient = useQueryClient();
 
   const positionState = useMapPositionStore();
@@ -80,6 +83,30 @@ const AroundMarker = forwardRef(({ map, ...props }: Props, ref) => {
     map?.setLevel(1);
   };
 
+  const filtering = async (markerId: number) => {
+    const imageSize = new window.kakao.maps.Size(39, 39);
+    const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+    const selectedMarkerImg = new window.kakao.maps.MarkerImage(
+      selectedMarkerImage,
+      imageSize,
+      imageOption
+    );
+    const activeMarkerImg = new window.kakao.maps.MarkerImage(
+      activeMarkerImage,
+      imageSize,
+      imageOption
+    );
+
+    const marker = markers.find((value) => Number(value.Gb) === markerId);
+
+    markers.forEach((marker) => {
+      marker?.setImage(activeMarkerImg);
+    });
+
+    marker?.setImage(selectedMarkerImg);
+  };
+
   return (
     <Styled.Container ref={ref as React.RefObject<HTMLDivElement>} {...props}>
       <Styled.RangeContainer>
@@ -134,6 +161,8 @@ const AroundMarker = forwardRef(({ map, ...props }: Props, ref) => {
                         <IconButton
                           onClick={() => {
                             handleMove(marker.latitude, marker.longitude);
+                            filtering(marker.markerId);
+                            // console.log(marker.markerId);
                           }}
                           aria-label="move"
                           sx={{

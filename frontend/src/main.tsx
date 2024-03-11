@@ -28,6 +28,10 @@ const router = createBrowserRouter([
     element: <App />,
   },
   {
+    path: "/marker",
+    element: <App />,
+  },
+  {
     path: "/payment",
     element: <CheckoutPage />,
   },

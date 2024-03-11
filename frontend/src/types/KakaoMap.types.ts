@@ -22,6 +22,8 @@ export interface KakaoMap {
 
 export interface KakaoMarker {
   setPosition: (data: Pos & LatLngFunctions) => void;
+  getPosition: () => Pos;
+  setImage: (img: any) => void;
   setMap: (data: KakaoMap | null | number) => void;
   Gb: string;
 }

@@ -4,14 +4,17 @@ import Tooltip from "@mui/material/Tooltip";
 import { ComponentProps, forwardRef, useEffect, useRef } from "react";
 import useGetMyMarker from "../../hooks/query/useGetMyMarker";
 import useMapPositionStore from "../../store/useMapPositionStore";
-import type { KakaoMap } from "../../types/KakaoMap.types";
+import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./MyMarker.style";
+import selectedMarkerImage from "../../assets/images/cb3.webp";
+import activeMarkerImage from "../../assets/images/cb1.webp";
 
 interface Props extends ComponentProps<"div"> {
+  markers: KakaoMarker[];
   map: KakaoMap;
 }
 
-const MyMarker = forwardRef(({ map, ...props }: Props, ref) => {
+const MyMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
   const mapPosition = useMapPositionStore();
 
   const { data, fetchNextPage, hasNextPage, isLoading, isError, isFetching } =
@@ -45,16 +48,6 @@ const MyMarker = forwardRef(({ map, ...props }: Props, ref) => {
     };
   }, [isFetching, hasNextPage, fetchNextPage]);
 
-  if (data?.pages.length === 0) {
-    return <div>등록한 위치가 없습니다.</div>;
-  }
-
-  if (isLoading) {
-    return <Styled.ListSkeleton />;
-  }
-  if (isError)
-    return <div style={{ padding: "1rem" }}>등록한 위치가 없습니다.</div>;
-
   const handleMove = (lat: number, lon: number) => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lon);
 
@@ -64,6 +57,40 @@ const MyMarker = forwardRef(({ map, ...props }: Props, ref) => {
     map.setCenter(moveLatLon);
     map?.setLevel(1);
   };
+
+  const filtering = async (markerId: number) => {
+    const imageSize = new window.kakao.maps.Size(39, 39);
+    const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+    const selectedMarkerImg = new window.kakao.maps.MarkerImage(
+      selectedMarkerImage,
+      imageSize,
+      imageOption
+    );
+    const activeMarkerImg = new window.kakao.maps.MarkerImage(
+      activeMarkerImage,
+      imageSize,
+      imageOption
+    );
+
+    const marker = markers.find((value) => Number(value.Gb) === markerId);
+
+    markers.forEach((marker) => {
+      marker?.setImage(activeMarkerImg);
+    });
+
+    marker?.setImage(selectedMarkerImg);
+  };
+
+  if (data?.pages.length === 0) {
+    return <div>등록한 위치가 없습니다.</div>;
+  }
+
+  if (isLoading) {
+    return <Styled.ListSkeleton />;
+  }
+  if (isError)
+    return <div style={{ padding: "1rem" }}>등록한 위치가 없습니다.</div>;
 
   return (
     <Styled.Container ref={ref as React.RefObject<HTMLDivElement>} {...props}>
@@ -80,6 +107,7 @@ const MyMarker = forwardRef(({ map, ...props }: Props, ref) => {
                   <IconButton
                     onClick={() => {
                       handleMove(marker.latitude, marker.longitude);
+                      filtering(marker.markerId);
                     }}
                     aria-label="delete"
                     sx={{

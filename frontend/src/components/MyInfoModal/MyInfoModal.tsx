@@ -4,7 +4,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useRef, useState } from "react";
 import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
-import type { KakaoMap } from "../../types/KakaoMap.types";
+import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import FavoriteMarker from "../FavoriteMarker/FavoriteMarker";
 import MyInfoDetail from "../MyInfoDetail/MyInfoDetail";
 import MyMarker from "../MyMarker/MyMarker";
@@ -12,11 +12,17 @@ import * as Styled from "./MyInfoModal.style";
 
 interface Props {
   map: KakaoMap;
+  markers: KakaoMarker[];
   setMyInfoModal: React.Dispatch<React.SetStateAction<boolean>>;
   setDeleteUserModal: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
+const MyInfoModal = ({
+  map,
+  markers,
+  setMyInfoModal,
+  setDeleteUserModal,
+}: Props) => {
   const { data, isLoading } = useGetMyInfo();
 
   const favoriteMarkerRef = useRef<HTMLDivElement>(null);
@@ -39,11 +45,13 @@ const MyInfoModal = ({ map, setMyInfoModal, setDeleteUserModal }: Props) => {
   const tabs = [
     {
       title: "좋아요",
-      content: <FavoriteMarker ref={favoriteMarkerRef} map={map} />,
+      content: (
+        <FavoriteMarker ref={favoriteMarkerRef} map={map} markers={markers} />
+      ),
     },
     {
       title: "내 장소",
-      content: <MyMarker ref={myMarkerRef} map={map} />,
+      content: <MyMarker ref={myMarkerRef} map={map} markers={markers} />,
     },
     {
       title: "내 정보",
