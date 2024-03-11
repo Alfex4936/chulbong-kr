@@ -63,3 +63,17 @@ export const ErrorBox = styled.div`
 
   color: red;
 `;
+
+export const AlertText = styled.div`
+  & > p:first-of-type {
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+
+  & > p:last-of-type {
+    font-size: 0.8rem;
+    color: red;
+
+    margin: 1rem 0;
+  }
+`;

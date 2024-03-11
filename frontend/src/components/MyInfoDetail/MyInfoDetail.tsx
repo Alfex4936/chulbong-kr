@@ -31,8 +31,6 @@ const MyInfoDetail = ({ setDeleteUserModal, setMyInfoModal }: Props) => {
   const [updateName, setUpdateName] = useState(false);
   const [updateNameError, setUpdateNameError] = useState("");
 
-  // const [logoutLoading, setLogoutLoading] = useState(false);
-
   const handleLogout = async () => {
     try {
       await logout();

@@ -3,10 +3,9 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useEffect, useState } from "react";
-import login from "../../api/auth/login";
+import useSignin from "../../hooks/mutation/auth/useSignin";
 import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
-import useUserStore from "../../store/useUserStore";
 import emailValidate from "../../utils/emailValidate";
 import passwordValidate from "../../utils/passwordValidate";
 import Input from "../Input/Input";
@@ -14,10 +13,11 @@ import * as Styled from "./LoginForm.style";
 
 const LoginForm = () => {
   const modalState = useModalStore();
-  const userState = useUserStore();
 
   const emailInput = useInput("");
   const passwordInput = useInput("");
+
+  const { mutateAsync: login } = useSignin();
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -28,7 +28,7 @@ const LoginForm = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
       let isValid = true;
 
       if (emailInput.value === "") {
@@ -53,22 +53,18 @@ const LoginForm = () => {
 
       if (isValid) {
         setLoading(true);
-        login({
-          email: emailInput.value,
-          password: passwordInput.value,
-        })
-          .then((res) => {
-            setLoginError("");
-            userState.setUser(res);
-            modalState.close();
-          })
-          .catch((error) => {
-            console.log(error);
-            setLoginError("유요하지 않은 회원 정보입니다.");
-          })
-          .finally(() => {
-            setLoading(false);
+        try {
+          await login({
+            email: emailInput.value,
+            password: passwordInput.value,
           });
+          setLoginError("");
+          modalState.close();
+        } catch (error) {
+          setLoginError("유요하지 않은 회원 정보입니다.");
+        } finally {
+          setLoading(false);
+        }
       }
     };
 
@@ -85,7 +81,7 @@ const LoginForm = () => {
     };
   }, [emailInput.value, passwordInput.value]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     let isValid = true;
 
     if (emailInput.value === "") {
@@ -110,22 +106,19 @@ const LoginForm = () => {
 
     if (isValid) {
       setLoading(true);
-      login({
-        email: emailInput.value,
-        password: passwordInput.value,
-      })
-        .then((res) => {
-          setLoginError("");
-          userState.setUser(res);
-          modalState.close();
-        })
-        .catch((error) => {
-          console.log(error);
-          setLoginError("유요하지 않은 회원 정보입니다.");
-        })
-        .finally(() => {
-          setLoading(false);
+      try {
+        await login({
+          email: emailInput.value,
+          password: passwordInput.value,
         });
+        setLoginError("");
+        modalState.close();
+      } catch (error) {
+        console.log(error);
+        setLoginError("유요하지 않은 회원 정보입니다.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
