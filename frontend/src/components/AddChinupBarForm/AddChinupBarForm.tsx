@@ -1,19 +1,20 @@
 import type { MarkerClusterer } from "@/types/Cluster.types";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import { isAxiosError } from "axios";
 import { useEffect, useState } from "react";
+import logout from "../../api/auth/logout";
 import activeMarkerImage from "../../assets/images/cb1.webp";
+import selectedMarkerImage from "../../assets/images/cb3.webp";
+import useUploadMarker from "../../hooks/mutation/marker/useUploadMarker";
 import useInput from "../../hooks/useInput";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
+import useUserStore from "../../store/useUserStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import Input from "../Input/Input";
 import type { MarkerInfo } from "../Map/Map";
 import UploadImage from "../UploadImage/UploadImage";
 import * as Styled from "./AddChinupBarForm.style";
-import useUploadMarker from "../../hooks/mutation/marker/useUploadMarker";
-import { isAxiosError } from "axios";
-import logout from "../../api/auth/logout";
-import useUserStore from "../../store/useUserStore";
 
 interface Props {
   setState: React.Dispatch<React.SetStateAction<boolean>>;
@@ -23,6 +24,7 @@ interface Props {
   setMarkers: React.Dispatch<React.SetStateAction<KakaoMarker[]>>;
   map: KakaoMap | null;
   marker: KakaoMarker | null;
+  markers: KakaoMarker[];
   clusterer: MarkerClusterer;
 }
 
@@ -34,6 +36,7 @@ const AddChinupBarForm = ({
   setMarkers,
   map,
   marker,
+  markers,
   clusterer,
 }: Props) => {
   const formState = useUploadFormDataStore();
@@ -51,6 +54,21 @@ const AddChinupBarForm = ({
     formState.resetData();
   }, []);
 
+  const filtering = async () => {
+    const imageSize = new window.kakao.maps.Size(39, 39);
+    const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+    const activeMarkerImg = new window.kakao.maps.MarkerImage(
+      activeMarkerImage,
+      imageSize,
+      imageOption
+    );
+
+    markers.forEach((marker) => {
+      marker?.setImage(activeMarkerImg);
+    });
+  };
+
   const handleSubmit = async () => {
     const data = {
       description: descriptionValue.value,
@@ -63,12 +81,13 @@ const AddChinupBarForm = ({
 
     try {
       const result = await uploadMarker(data);
+      await filtering();
 
       const imageSize = new window.kakao.maps.Size(39, 39);
       const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
-      const activeMarkerImg = new window.kakao.maps.MarkerImage(
-        activeMarkerImage,
+      const selectedMarkerImg = new window.kakao.maps.MarkerImage(
+        selectedMarkerImage,
         imageSize,
         imageOption
       );
@@ -79,7 +98,7 @@ const AddChinupBarForm = ({
           formState.latitude,
           formState.longitude
         ),
-        image: activeMarkerImg,
+        image: selectedMarkerImg,
         title: result.markerId,
         zIndex: 4,
       });
