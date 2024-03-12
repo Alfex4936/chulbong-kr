@@ -13,14 +13,9 @@ import (
 
 // UpdateUserHandler
 func UpdateUserHandler(c *fiber.Ctx) error {
-	userID, ok := c.Locals("userID").(int)
-	if !ok {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
-	}
-
-	username, ok := c.Locals("username").(string)
-	if !ok {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username not found"})
+	userData, err := services.GetUserFromContext(c)
+	if err != nil {
+		return err // fiber err
 	}
 
 	var updateReq dto.UpdateUserRequest
@@ -28,12 +23,12 @@ func UpdateUserHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	user, err := services.UpdateUserProfile(userID, &updateReq)
+	user, err := services.UpdateUserProfile(userData.UserID, &updateReq)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userProfileKey := fmt.Sprintf("%s:%d:%s", services.USER_PROFILE_KEY, userID, username)
+	userProfileKey := fmt.Sprintf("%s:%d:%s", services.USER_PROFILE_KEY, userData.UserID, userData.Username)
 	services.ResetCache(userProfileKey)
 
 	return c.JSON(user)
@@ -56,17 +51,12 @@ func DeleteUserHandler(c *fiber.Ctx) error {
 }
 
 func ProfileHandler(c *fiber.Ctx) error {
-	userID, ok := c.Locals("userID").(int)
-	if !ok {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
+	userData, err := services.GetUserFromContext(c)
+	if err != nil {
+		return err // fiber err
 	}
 
-	username, ok := c.Locals("username").(string)
-	if !ok {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username not found"})
-	}
-
-	userProfileKey := fmt.Sprintf("%s:%d:%s", services.USER_PROFILE_KEY, userID, username)
+	userProfileKey := fmt.Sprintf("%s:%d:%s", services.USER_PROFILE_KEY, userData.UserID, userData.Username)
 
 	// Try to get the user profile from the cache first
 	cachedUser, cacheErr := services.GetCacheEntry[*models.User](userProfileKey)
@@ -76,7 +66,7 @@ func ProfileHandler(c *fiber.Ctx) error {
 	}
 
 	// If the cache doesn't have the user profile, fetch it from the database
-	user, err := services.GetUserById(userID)
+	user, err := services.GetUserById(userData.UserID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -88,11 +78,27 @@ func ProfileHandler(c *fiber.Ctx) error {
 }
 
 func GetFavoritesHandler(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(int)
-	favorites, err := services.GetAllFavorites(userID)
+	userData, err := services.GetUserFromContext(c)
+	if err != nil {
+		return err // fiber err
+	}
+
+	userFavKey := fmt.Sprintf("%s:%d:%s", services.USER_FAV_KEY, userData.UserID, userData.Username)
+
+	// Try to get the user fav from the cache first
+	cachedFav, cacheErr := services.GetCacheEntry[[]dto.MarkerSimpleWithDescrption](userFavKey)
+	if cacheErr == nil && cachedFav != nil {
+		// Cache hit, return the cached fav
+		return c.JSON(cachedFav)
+	}
+
+	favorites, err := services.GetAllFavorites(userData.UserID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
+
+	// After fetching from the database
+	services.SetCacheEntry(userFavKey, favorites, 10*time.Minute)
 
 	return c.JSON(favorites)
 }

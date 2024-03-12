@@ -25,3 +25,9 @@ type UpdateUserRequest struct {
 	Email    *string `json:"email,omitempty"`
 	Password *string `json:"password,omitempty"`
 }
+
+// UserData holds the information extracted from the context.
+type UserData struct {
+	UserID   int
+	Username string
+}

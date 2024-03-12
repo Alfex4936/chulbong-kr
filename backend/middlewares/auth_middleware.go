@@ -2,55 +2,37 @@ package middlewares
 
 import (
 	"chulbong-kr/database"
+	"chulbong-kr/utils"
 	"database/sql"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-var TOKEN_COOKIE string
-
 // AuthMiddleware checks for a valid opaque token in the Authorization header
 func AuthMiddleware(c *fiber.Ctx) error {
 	// check for the cookie
-	jwtCookie := c.Cookies(TOKEN_COOKIE)
+	jwtCookie := c.Cookies(utils.LOGIN_TOKEN_COOKIE)
 	if jwtCookie == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
 	}
 	token := jwtCookie
-
-	// // Check if the Authorization header is provided
-	// if authHeader != "" {
-	// 	// Split the Authorization header to extract the token
-	// 	parts := strings.SplitN(authHeader, " ", 2)
-	// 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-	// 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Authorization header format must be Bearer {token}"})
-	// 	}
-	// 	token = parts[1] // The actual token part
-	// } else {
-
-	// }
 
 	query := `SELECT UserID, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?`
 	var userID int
 	var expiresAt time.Time
 	err := database.DB.QueryRow(query, token).Scan(&userID, &expiresAt)
 
-	// Adjust the error check to specifically look for no rows found, indicating an invalid or expired token.
-	if err == sql.ErrNoRows {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
+	// Token is invalid or expired, delete the cookie
+	if err == sql.ErrNoRows || time.Now().After(expiresAt) {
+		cookie := utils.ClearLoginCookie()
+		c.Cookie(&cookie)
+		if err == sql.ErrNoRows {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
+		}
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token expired"})
 	} else if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
-	}
-
-	if time.Now().After(expiresAt) {
-		// // Token has expired, delete it
-		// delQuery := `DELETE FROM OpaqueTokens WHERE OpaqueToken = ?`
-		// if _, delErr := database.DB.Exec(delQuery, token); delErr != nil {
-		// 	// Log the error; decide how you want to handle the failure of deleting an expired token
-		// 	fmt.Println("Failed to delete expired token:", delErr)
-		// }
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token expired"})
 	}
 
 	// Fetch UserID and Username based on Email
@@ -59,6 +41,8 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	var email string
 	err = database.DB.QueryRow(userQuery, userID).Scan(&username, &email)
 	if err != nil {
+		cookie := utils.ClearLoginCookie()
+		c.Cookie(&cookie)
 		if err == sql.ErrNoRows {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "User not found"})
 		}
@@ -77,7 +61,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 // AdminOnly checks admin permission
 func AdminOnly(c *fiber.Ctx) error {
 	// Check for the cookie
-	jwtCookie := c.Cookies(TOKEN_COOKIE)
+	jwtCookie := c.Cookies(utils.LOGIN_TOKEN_COOKIE)
 	if jwtCookie == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
 	}
@@ -118,7 +102,7 @@ func AdminOnly(c *fiber.Ctx) error {
 // AuthSoftMiddleware checks for a valid opaque token in the Authorization header (no error returns)
 func AuthSoftMiddleware(c *fiber.Ctx) error {
 	// check for the cookie
-	jwtCookie := c.Cookies(TOKEN_COOKIE)
+	jwtCookie := c.Cookies(utils.LOGIN_TOKEN_COOKIE)
 	if jwtCookie == "" {
 		return c.Next()
 	}
