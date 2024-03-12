@@ -176,6 +176,7 @@ const App = () => {
         pauseOnHover
         theme="dark"
         transition={Flip}
+        style={{ width: "96%", maxWidth: "300px" }}
       />
     </div>
   );
