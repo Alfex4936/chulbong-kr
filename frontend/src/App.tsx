@@ -6,13 +6,13 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Flip, ToastContainer, toast } from "react-toastify";
 import * as Styled from "./App.style";
-import logout from "./api/auth/logout";
 import ActionButton from "./components/ActionButton/ActionButton";
 import Input from "./components/Input/Input";
 import LoginFormSkeleton from "./components/LoginForm/LoginFormSkeleton";
 import Map from "./components/Map/Map";
 import BasicModal from "./components/Modal/Modal";
 import SignupFormSkeleton from "./components/SignupForm/SignupFormSkeleton";
+import useLogout from "./hooks/mutation/auth/useLogout";
 import useResetPassword from "./hooks/mutation/auth/useResetPassword";
 import useGetMyInfo from "./hooks/query/user/useGetMyInfo";
 import useInput from "./hooks/useInput";
@@ -44,6 +44,7 @@ const App = () => {
     isPending,
     isSuccess,
   } = useResetPassword(token as string, passwordInput.value);
+  const { mutate: logout } = useLogout();
 
   const { isError, error } = useGetMyInfo();
 
@@ -58,23 +59,17 @@ const App = () => {
   }, [token, email]);
 
   useEffect(() => {
-    const handleLogout = async () => {
-      try {
-        await logout();
-        userState.resetUser();
-      } catch (error) {
-        userState.resetUser();
-      }
+    const handleLogout = () => {
+      logout();
+      userState.resetUser();
     };
 
     if (isError) {
       if (error instanceof AxiosError) {
         handleLogout();
-      } else {
-        console.error(error);
       }
     }
-  }, [isError]);
+  }, [isError, error]);
 
   const notify = () => toast(toastState.toastText);
 

@@ -31,3 +31,11 @@ export const ImageBox = styled.div`
 
   cursor: pointer;
 `;
+
+export const ErrorBox = styled.div`
+  text-align: center;
+
+  font-size: 0.7rem;
+
+  color: red;
+`;
