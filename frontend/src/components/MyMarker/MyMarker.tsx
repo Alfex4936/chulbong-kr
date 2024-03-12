@@ -82,13 +82,14 @@ const MyMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
     marker?.setImage(selectedMarkerImg);
   };
 
-  if (data?.pages.length === 0) {
-    return <div>등록한 위치가 없습니다.</div>;
+  if (data?.pages[0].markers.length === 0) {
+    return <div style={{ padding: "1rem" }}>등록한 위치가 없습니다.</div>;
   }
 
   if (isLoading) {
     return <Styled.ListSkeleton />;
   }
+  
   if (isError)
     return <div style={{ padding: "1rem" }}>등록한 위치가 없습니다.</div>;
 

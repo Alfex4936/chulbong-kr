@@ -32,28 +32,8 @@ const useMap = (ref: MutableRefObject<HTMLDivElement | null>) => {
       setMap(map);
     };
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          if (positionState.lat === 0 || positionState.lng === 0) {
-            setNewPosition(position.coords.latitude, position.coords.longitude);
-            positionState.setPosition(
-              position.coords.latitude,
-              position.coords.longitude
-            );
-          } else {
-            setNewPosition(positionState.lat, positionState.lng);
-          }
-        },
-        () => {
-          setNewPosition(positionState.lat, positionState.lng);
-          positionState.setPosition(positionState.lat, positionState.lng);
-        }
-      );
-    } else {
-      setNewPosition(positionState.lat, positionState.lng);
-      positionState.setPosition(positionState.lat, positionState.lng);
-    }
+    setNewPosition(positionState.lat, positionState.lng);
+    positionState.setPosition(positionState.lat, positionState.lng);
   }, []);
 
   return map;

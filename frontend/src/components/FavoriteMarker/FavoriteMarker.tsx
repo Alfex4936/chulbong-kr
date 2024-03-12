@@ -71,7 +71,7 @@ const FavoriteMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
           <Styled.MarkerList>
             <Styled.MarkerListTop>
               <Styled.Description>
-                {marker.description || "설명 없음"}
+                {marker.description}
               </Styled.Description>
               <Styled.AddressText>{marker.addr}</Styled.AddressText>
             </Styled.MarkerListTop>
