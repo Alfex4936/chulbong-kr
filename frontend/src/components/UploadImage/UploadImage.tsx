@@ -2,6 +2,7 @@ import CameraEnhanceIcon from "@mui/icons-material/CameraEnhance";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import Tooltip from "@mui/material/Tooltip";
 import { ChangeEvent, useRef, useState } from "react";
+import Resizer from "react-image-file-resizer";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import * as Styled from "./UploadImage.tyle";
 
@@ -23,7 +24,23 @@ const UploadImage = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const resizeFile = (file: File): Promise<File> =>
+    new Promise((resolve) => {
+      Resizer.imageFileResizer(
+        file,
+        330,
+        330,
+        "WEBP",
+        100,
+        0,
+        (uri) => {
+          resolve(uri as File | PromiseLike<File>);
+        },
+        "file"
+      );
+    });
+
+  const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const suppertedFormats = [
       "image/jpeg",
       "image/png",
@@ -32,7 +49,7 @@ const UploadImage = () => {
       "image/gif",
     ];
     if (e.target.files) {
-      let file = e.target.files[0];
+      let file: File = await resizeFile(e.target.files[0]);
       let reader = new FileReader();
 
       reader.onloadend = () => {
