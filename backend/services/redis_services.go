@@ -15,6 +15,7 @@ var ctx = context.Background()
 const (
 	ALL_MARKERS_KEY  string = "all_markers"
 	USER_PROFILE_KEY string = "user_profile"
+	USER_FAV_KEY     string = "user_fav"
 )
 
 // SetCacheEntry sets a cache entry with the given key and value, with an expiration time.

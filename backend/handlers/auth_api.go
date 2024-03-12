@@ -2,13 +2,12 @@ package handlers
 
 import (
 	"chulbong-kr/dto"
-	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
+	"chulbong-kr/utils"
 	"database/sql"
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -104,7 +103,7 @@ func LoginHandler(c *fiber.Ctx) error {
 	response.Token = token
 
 	// Setting the token in a secure cookie
-	cookie := services.GenerateLoginCookie(token)
+	cookie := utils.GenerateLoginCookie(token)
 	c.Cookie(&cookie)
 
 	return c.JSON(response)
@@ -126,16 +125,8 @@ func LogoutHandler(c *fiber.Ctx) error {
 	}
 
 	// Clear the authentication cookie
-	logoutCookie := fiber.Cookie{
-		Name:     middlewares.TOKEN_COOKIE,
-		Value:    "",
-		Expires:  time.Now().Add(-time.Hour),
-		HTTPOnly: true,
-		Secure:   true,
-		SameSite: "Lax",
-		Path:     "/",
-	}
-	c.Cookie(&logoutCookie)
+	cookie := utils.ClearLoginCookie()
+	c.Cookie(&cookie)
 
 	// Return a logout success response regardless of server-side token deletion status
 	return c.JSON(fiber.Map{"message": "Logged out successfully"})

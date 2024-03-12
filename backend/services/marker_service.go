@@ -1,6 +1,7 @@
 package services
 
 import (
+	"database/sql"
 	"fmt"
 	"mime/multipart"
 	"strings"
@@ -226,6 +227,8 @@ WHERE M.MarkerID = ?`
 		DislikeCount: markersWithUsernames.DislikeCount,
 	}
 
+	PublishMarkerUpdate(fmt.Sprintf("user: %s", markersWithPhotos.Username))
+
 	return &markersWithPhotos, nil
 }
 
@@ -235,6 +238,20 @@ func UpdateMarker(marker *models.Marker) error {
                    WHERE MarkerID = ?`
 	_, err := database.DB.Exec(query, marker.Latitude, marker.Longitude, marker.Description, marker.MarkerID)
 	return err
+}
+
+func UpdateMarkerDescriptionOnly(markerID int, description string) error {
+	const query = `UPDATE Markers SET Description = ?, UpdatedAt = NOW() 
+                   WHERE MarkerID = ?`
+	_, err := database.DB.Exec(query, description, markerID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("no marker found with markerID %d", markerID)
+		}
+		return fmt.Errorf("error updating a marker: %w", err)
+	}
+
+	return nil
 }
 
 // LeaveDislike user's dislike for a marker

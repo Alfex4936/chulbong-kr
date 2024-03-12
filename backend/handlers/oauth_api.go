@@ -70,7 +70,7 @@ func GetGoogleCallbackHandler(conf *oauth2.Config) fiber.Handler {
 		clientAddr := fmt.Sprintf("%s/%s=%s", os.Getenv("CLIENT_ADRR"), os.Getenv("CLIENT_REDIRECT_ENDPOINT"), loginToken)
 
 		// Setting the token in a secure cookie
-		cookie := services.GenerateLoginCookie(loginToken)
+		cookie := utils.GenerateLoginCookie(loginToken)
 		c.Cookie(&cookie)
 		return c.Redirect(clientAddr)
 	}

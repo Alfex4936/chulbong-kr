@@ -4,6 +4,7 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
+	"fmt"
 	"math"
 	"strconv"
 
@@ -52,6 +53,11 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	description := "설명 없음" // Default description
 	if descValues, exists := form.Value["description"]; exists && len(descValues[0]) > 0 {
 		description = descValues[0]
+	}
+
+	containsBadWord, _ := services.CheckForBadWords(description)
+	if containsBadWord {
+		return c.Status(fiber.StatusBadRequest).SendString("Comment contains inappropriate content.")
 	}
 
 	userId := c.Locals("userID").(int)
@@ -122,18 +128,14 @@ func GetMarker(c *fiber.Ctx) error {
 
 // UpdateMarker updates an existing marker
 func UpdateMarker(c *fiber.Ctx) error {
-	id, _ := strconv.Atoi(c.Params("markerID"))
-	markerWithPhoto, _ := services.GetMarker(id)
+	markerID, _ := strconv.Atoi(c.Params("markerID"))
+	description := c.FormValue("description")
 
-	if err := c.BodyParser(markerWithPhoto); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	if err := services.UpdateMarker(&markerWithPhoto.Marker); err != nil {
+	if err := services.UpdateMarkerDescriptionOnly(markerID, description); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(markerWithPhoto)
+	return c.JSON(fiber.Map{"description": description})
 }
 
 // DeleteMarkerHandler handles the HTTP request to delete a marker.
@@ -356,11 +358,9 @@ func FindCloseMarkersHandler(c *fiber.Ctx) error {
 
 // AddFavoriteHandler adds a new favorite marker for the user.
 func AddFavoriteHandler(c *fiber.Ctx) error {
-	userID, ok := c.Locals("userID").(int)
-	if !ok {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "User ID is required",
-		})
+	userData, err := services.GetUserFromContext(c)
+	if err != nil {
+		return err // fiber err
 	}
 
 	// Extracting marker ID from request parameters or body
@@ -372,7 +372,7 @@ func AddFavoriteHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	err = services.AddFavorite(userID, markerID)
+	err = services.AddFavorite(userData.UserID, markerID)
 	if err != nil {
 		// Respond differently based on the type of error
 		if err.Error() == "maximum number of favorites reached" {
@@ -385,6 +385,9 @@ func AddFavoriteHandler(c *fiber.Ctx) error {
 		})
 	}
 
+	userFavKey := fmt.Sprintf("%s:%d:%s", services.USER_FAV_KEY, userData.UserID, userData.Username)
+	services.ResetCache(userFavKey)
+
 	// Successfully added the favorite
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Favorite added successfully",
@@ -392,7 +395,15 @@ func AddFavoriteHandler(c *fiber.Ctx) error {
 }
 
 func RemoveFavoriteHandler(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(int)
+	userID, ok := c.Locals("userID").(int)
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
+	}
+	username, ok := c.Locals("username").(string)
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username not found"})
+	}
+
 	markerID, err := strconv.Atoi(c.Params("markerID"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid marker ID"})
@@ -402,6 +413,9 @@ func RemoveFavoriteHandler(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
+
+	userFavKey := fmt.Sprintf("%s:%d:%s", services.USER_FAV_KEY, userID, username)
+	services.ResetCache(userFavKey)
 
 	return c.SendStatus(fiber.StatusNoContent) // 204 No Content is appropriate for a DELETE success with no response body
 }
