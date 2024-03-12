@@ -4,12 +4,12 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { ComponentProps, forwardRef, useEffect, useRef, useState } from "react";
+import activeMarkerImage from "../../assets/images/cb1.webp";
+import selectedMarkerImage from "../../assets/images/cb3.webp";
 import useGetCloseMarker from "../../hooks/query/useGetCloseMarker";
 import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./AroundMarker.style";
-import selectedMarkerImage from "../../assets/images/cb3.webp";
-import activeMarkerImage from "../../assets/images/cb1.webp";
 
 interface Props extends ComponentProps<"div"> {
   markers: KakaoMarker[];

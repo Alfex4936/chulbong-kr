@@ -73,7 +73,7 @@ export const ListSkeleton = styled.div`
   padding: 1rem;
 
   height: 57px;
-  width: 250px;
+  width: 245px;
 
   background: #f6f7f8;
   background-image: linear-gradient(

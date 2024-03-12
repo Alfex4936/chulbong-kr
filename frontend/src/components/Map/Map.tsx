@@ -408,6 +408,7 @@ const Map = () => {
               setMarkers={setMarkers}
               map={map}
               marker={marker}
+              markers={markers}
               clusterer={clusterer as MarkerClusterer}
             />
           </Suspense>
