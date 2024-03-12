@@ -19,9 +19,18 @@ const UploadImage = () => {
   });
   const [hover, setHover] = useState(false);
 
+  const [errorMessage, setErrorMessage] = useState("");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const suppertedFormats = [
+      "image/jpeg",
+      "image/png",
+      "image/svg+xml",
+      "image/webp",
+      "image/gif",
+    ];
     if (e.target.files) {
       let file = e.target.files[0];
       let reader = new FileReader();
@@ -32,6 +41,20 @@ const UploadImage = () => {
           previewURL: reader.result as string,
         });
       };
+
+      if (!suppertedFormats.includes(file.type)) {
+        setErrorMessage(
+          "지원되지 않은 이미지 형식입니다. JPEG, PNG형식의 이미지를 업로드해주세요."
+        );
+        return;
+      }
+
+      if (file.size / (1024 * 1024) > 10) {
+        setErrorMessage("이미지는 최대 10MB까지 가능합니다.");
+        return;
+      }
+
+      setErrorMessage("");
 
       reader.readAsDataURL(file);
 
@@ -82,6 +105,7 @@ const UploadImage = () => {
         </Styled.ImageBox>
       </Tooltip>
       <input type="file" onChange={handleImageChange} ref={fileInputRef} />
+      <Styled.ErrorBox>{errorMessage}</Styled.ErrorBox>
     </Styled.ImageUploadContainer>
   );
 };
