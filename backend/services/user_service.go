@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -208,6 +209,7 @@ func GetAllFavorites(userID int) ([]dto.MarkerSimpleWithDescrption, error) {
 	return favorites, nil
 }
 
+// DeleteUserWithRelatedData
 func DeleteUserWithRelatedData(ctx context.Context, userID int) error {
 	// Begin a transaction
 	tx, err := database.DB.BeginTxx(ctx, nil)
@@ -215,12 +217,26 @@ func DeleteUserWithRelatedData(ctx context.Context, userID int) error {
 		return fmt.Errorf("beginning transaction: %w", err)
 	}
 
-	// Define deletion queries for related tables
+	// Fetch Photo URLs associated with the user
+	var photoURLs []string
+	fetchPhotosQuery := `SELECT PhotoURL FROM Photos WHERE MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)`
+	if err := tx.SelectContext(ctx, &photoURLs, fetchPhotosQuery, userID); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("fetching photo URLs: %w", err)
+	}
+
+	// Delete each photo from S3
+	for _, url := range photoURLs {
+		if err := DeleteDataFromS3(url); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("deleting photo from S3: %w", err)
+		}
+	}
+
 	// Note: Order matters due to foreign key constraints
 	deletionQueries := []string{
 		"DELETE FROM OpaqueTokens WHERE UserID = ?",
 		"DELETE FROM Comments WHERE UserID = ?",
-		"DELETE FROM MarkerLikes WHERE UserID = ?",
 		"DELETE FROM MarkerDislikes WHERE UserID = ?",
 		"DELETE FROM Photos WHERE MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)",
 		"UPDATE Markers SET UserID = NULL WHERE UserID = ?", // Set UserID to NULL for Markers instead of deleting
@@ -307,6 +323,26 @@ func GeneratePasswordResetToken(email string) (string, error) {
 	}
 
 	return token, nil
+}
+
+// GetUserFromContext extracts and validates the user information from the Fiber context.
+func GetUserFromContext(c *fiber.Ctx) (*dto.UserData, error) {
+	userID, ok := c.Locals("userID").(int)
+	if !ok {
+		return nil, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "User ID is required",
+		})
+	}
+
+	username, ok := c.Locals("username").(string)
+	if !ok {
+		return nil, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username not found"})
+	}
+
+	return &dto.UserData{
+		UserID:   userID,
+		Username: username,
+	}, nil
 }
 
 // private
