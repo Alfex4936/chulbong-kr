@@ -26,6 +26,13 @@ export const Container = styled.div`
   }
 `;
 
+export const MessageRed = styled.p`
+  font-size: 0.8rem;
+  color: #ff6060;
+
+  padding: 0 1rem;
+`;
+
 export const ListContainer = styled.div``;
 
 export const RangeContainer = styled.div`
@@ -45,6 +52,11 @@ export const RangeContainer = styled.div`
   width: 90%;
 
   z-index: 1;
+
+  & > p:first-of-type {
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
 
   & div > input {
     width: 90%;

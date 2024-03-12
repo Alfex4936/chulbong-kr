@@ -105,6 +105,7 @@ const Map = () => {
   const [currentOverlay, setCurrentOverlay] = useState<CustomOverlay | null>(
     null
   ); // GPS 현재 위치
+  const [gpsLoading, setGpsLoading] = useState(false); // GPS 현재 위치
 
   const imageSize = new window.kakao.maps.Size(39, 39);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
@@ -246,6 +247,7 @@ const Map = () => {
 
   const centerMapOnCurrentPosition = () => {
     if (map && navigator.geolocation) {
+      setGpsLoading(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const moveLatLon = new window.kakao.maps.LatLng(
@@ -278,9 +280,11 @@ const Map = () => {
             position.coords.longitude
           );
           map.setCenter(moveLatLon);
+          setGpsLoading(false);
         },
         (error) => {
           console.error(error);
+          setGpsLoading(false);
         }
       );
     } else {
@@ -366,7 +370,7 @@ const Map = () => {
     <Styled.Container>
       <MapHeader map={map} markers={markers} />
       <Styled.MapContainer ref={mapRef} />
-      {isLoading && (
+      {(isLoading || gpsLoading) && (
         <CenterBox bg="black">
           <CenterBox bg="black">
             <l-bouncy size="80" speed="1.75" color="white" />

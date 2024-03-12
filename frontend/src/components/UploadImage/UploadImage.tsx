@@ -2,7 +2,6 @@ import CameraEnhanceIcon from "@mui/icons-material/CameraEnhance";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import Tooltip from "@mui/material/Tooltip";
 import { ChangeEvent, useRef, useState } from "react";
-import Resizer from "react-image-file-resizer";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import * as Styled from "./UploadImage.tyle";
 
@@ -24,21 +23,38 @@ const UploadImage = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const resizeFile = (file: File): Promise<File> =>
-    new Promise((resolve) => {
-      Resizer.imageFileResizer(
-        file,
-        330,
-        330,
-        "WEBP",
-        100,
-        0,
-        (uri) => {
-          resolve(uri as File | PromiseLike<File>);
-        },
-        "file"
-      );
+  const resizeFile = async (file: File, scale: number): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const width = img.width * scale;
+          const height = img.height * scale;
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const resizedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now(),
+              });
+              resolve(resizedFile);
+            } else {
+              reject(new Error("Canvas toBlob failed"));
+            }
+          }, file.type);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
     });
+  };
 
   const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const suppertedFormats = [
@@ -49,7 +65,7 @@ const UploadImage = () => {
       "image/gif",
     ];
     if (e.target.files) {
-      let file: File = await resizeFile(e.target.files[0]);
+      let file: File = await resizeFile(e.target.files[0], 0.8);
       let reader = new FileReader();
 
       reader.onloadend = () => {

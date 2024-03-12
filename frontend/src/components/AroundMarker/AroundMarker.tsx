@@ -109,33 +109,38 @@ const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
 
   return (
     <Styled.Container ref={ref as React.RefObject<HTMLDivElement>} {...props}>
-      <Styled.RangeContainer>
-        <p>주변 {distance}m</p>
-        <div style={{ flexGrow: "1" }}>
-          <input
-            type="range"
-            min="100"
-            max="5000"
-            step="100"
-            value={distance}
-            onChange={handleChange}
-          />
-        </div>
-        <Tooltip title="검색" arrow disableInteractive>
-          <IconButton
-            onClick={handleSearch}
-            aria-label="delete"
-            sx={{
-              color: "#333",
-              width: "30px",
-              height: "30px",
-            }}
-            disabled={isFetching}
-          >
-            <SearchIcon sx={{ fontSize: 22 }} />
-          </IconButton>
-        </Tooltip>
-      </Styled.RangeContainer>
+      <div>
+        <Styled.MessageRed>
+          거리는 부정확할 수 있고, 현재 보이는 화면 중앙에서부터 찾습니다
+        </Styled.MessageRed>
+        <Styled.RangeContainer>
+          <p>주변 {distance}m</p>
+          <div style={{ flexGrow: "1" }}>
+            <input
+              type="range"
+              min="100"
+              max="5000"
+              step="100"
+              value={distance}
+              onChange={handleChange}
+            />
+          </div>
+          <Tooltip title="검색" arrow disableInteractive>
+            <IconButton
+              onClick={handleSearch}
+              aria-label="delete"
+              sx={{
+                color: "#333",
+                width: "30px",
+                height: "30px",
+              }}
+              disabled={isFetching}
+            >
+              <SearchIcon sx={{ fontSize: 22 }} />
+            </IconButton>
+          </Tooltip>
+        </Styled.RangeContainer>
+      </div>
       {isLoading ? (
         <Styled.ListSkeleton />
       ) : (
