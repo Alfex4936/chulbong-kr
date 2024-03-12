@@ -2,12 +2,9 @@ package services
 
 import (
 	"chulbong-kr/database"
-	"chulbong-kr/middlewares"
 	"chulbong-kr/utils"
 
 	"time"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 // GenerateAndSaveToken generates a new token for a user and saves it in the database.
@@ -54,16 +51,4 @@ func DeleteExpiredPasswordTokens() error {
 	query := `DELETE FROM PasswordTokens WHERE ExpiresAt < NOW()`
 	_, err := database.DB.Exec(query)
 	return err
-}
-
-func GenerateLoginCookie(value string) fiber.Cookie {
-	return fiber.Cookie{
-		Name:     middlewares.TOKEN_COOKIE,
-		Value:    value,                          // The token generated for the user
-		Expires:  time.Now().Add(24 * time.Hour), // Set the cookie to expire in 24 hours
-		HTTPOnly: true,                           // Ensure the cookie is not accessible through client-side scripts
-		Secure:   true,                           // Ensure the cookie is sent over HTTPS
-		SameSite: "Lax",                          // Lax, None, or Strict. Lax is a reasonable default
-		Path:     "/",                            // Scope of the cookie
-	}
 }

@@ -6,6 +6,7 @@ import (
 	"chulbong-kr/handlers"
 	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
+	"chulbong-kr/utils"
 	"fmt"
 	"log"
 	"os"
@@ -72,7 +73,7 @@ func main() {
 	setTokenExpirationTime()
 	services.AWS_REGION = os.Getenv("AWS_REGION")
 	services.S3_BUCKET_NAME = os.Getenv("AWS_BUCKET_NAME")
-	middlewares.TOKEN_COOKIE = os.Getenv("TOKEN_COOKIE")
+	utils.LOGIN_TOKEN_COOKIE = os.Getenv("TOKEN_COOKIE")
 
 	// Initialize database connection
 	if err := database.Connect(); err != nil {
@@ -141,10 +142,10 @@ func main() {
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:5173,https://chulbong-kr.vercel.app,https://developers.tosspayments.com", // List allowed origins
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                                                              // Explicitly list allowed methods
-		AllowHeaders:     "*",                                                                                        // TODO: Allow specific headers
-		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Accept-Encoding",
+		AllowOrigins:     "http://localhost:5173,https://chulbong-kr.vercel.app", // List allowed origins
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",                          // Explicitly list allowed methods
+		AllowHeaders:     "*",                                                    // TODO: Allow specific headers
+		ExposeHeaders:    "Accept, Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Accept-Encoding",
 		AllowCredentials: true,
 	}))
 
@@ -154,6 +155,7 @@ func main() {
 	// Setup routes
 	api := app.Group("/api/v1")
 
+	api.Get("/notifications", handlers.MarkerUpdatesHandler)
 	api.Get("/google", handlers.GetGoogleAuthHandler(conf))
 	api.Get("/admin", middlewares.AdminOnly, func(c *fiber.Ctx) error { return c.JSON("good") })
 
@@ -190,13 +192,13 @@ func main() {
 		CacheControl: true,             // Enable client-side caching
 	}), handlers.GetAllMarkersHandler)
 	api.Get("/markers/:markerId/details", middlewares.AuthSoftMiddleware, handlers.GetMarker)
+	api.Get("/markers/close", handlers.FindCloseMarkersHandler)
 
 	markerGroup := api.Group("/markers")
 	{
 		markerGroup.Use(middlewares.AuthMiddleware)
 
 		markerGroup.Get("/my", handlers.GetUserMarkersHandler)
-		markerGroup.Get("/close", handlers.FindCloseMarkersHandler)
 		markerGroup.Get("/:markerID/dislike-status", handlers.CheckDislikeStatus)
 		// markerGroup.Get("/:markerId", handlers.GetMarker)
 
