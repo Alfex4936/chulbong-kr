@@ -47,6 +47,7 @@ const SignupForm = () => {
 
   const [startTimer, setStartTimer] = useState(false);
   const [viewTimer, setViewTimer] = useState(true);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     toastState.close();
@@ -110,6 +111,7 @@ const SignupForm = () => {
       })
         .then(() => {
           toastState.setToastText("회원 가입 완료");
+          setSuccessMessage("회원 가입 완료!");
           toastState.open();
           modalState.close();
           modalState.openLogin();
@@ -189,6 +191,7 @@ const SignupForm = () => {
         <Input
           type="text"
           id="name"
+          data-testid="name"
           placeholder="닉네임"
           value={nameInput.value}
           onChange={(e) => {
@@ -203,6 +206,7 @@ const SignupForm = () => {
           theme="button"
           type="email"
           id="email"
+          data-testid="email"
           placeholder="이메일"
           buttonText={
             getCodeLoading ? (
@@ -220,7 +224,9 @@ const SignupForm = () => {
           }}
           onClickFn={handleGetCode}
         />
-        <Styled.ErrorBox>{emailError}</Styled.ErrorBox>
+        <Styled.ErrorBox data-testid="email-error">
+          {emailError}
+        </Styled.ErrorBox>
       </Styled.InputWrap>
       {getCodeComplete && (
         <Styled.InputWrap>
@@ -229,6 +235,7 @@ const SignupForm = () => {
             theme="button"
             type="number"
             id="code"
+            data-testid="code"
             placeholder="인증번호"
             buttonText={
               validateCodeLoading ? (
@@ -277,6 +284,7 @@ const SignupForm = () => {
           }}
           type={viewPassword ? "text" : "password"}
           id="password"
+          data-testid="password"
           placeholder="비밀번호"
           value={passwordInput.value}
           onChange={(e) => {
@@ -284,7 +292,9 @@ const SignupForm = () => {
             setPasswordError("");
           }}
         />
-        <Styled.ErrorBox>{passwordError}</Styled.ErrorBox>
+        <Styled.ErrorBox data-testid="password-error">
+          {passwordError}
+        </Styled.ErrorBox>
       </Styled.InputWrap>
       <Styled.InputWrap>
         <Input
@@ -301,6 +311,7 @@ const SignupForm = () => {
           }}
           type={viewVerifyPassword ? "text" : "password"}
           id="verify-password"
+          data-testid="verify-password"
           placeholder="비밀번호 확인"
           value={verifyPasswordInput.value}
           onChange={(e) => {
@@ -308,7 +319,9 @@ const SignupForm = () => {
             setVerifyPasswordError("");
           }}
         />
-        <Styled.ErrorBox>{verifyPasswordError}</Styled.ErrorBox>
+        <Styled.ErrorBox data-testid="verify-password-error">
+          {verifyPasswordError}
+        </Styled.ErrorBox>
       </Styled.InputWrap>
       <Styled.ErrorBox>{signinError}</Styled.ErrorBox>
       <Button
@@ -323,6 +336,7 @@ const SignupForm = () => {
             backgroundColor: "#555",
           },
         }}
+        data-testid="signup-button"
         disabled={loading}
       >
         {loading ? (
@@ -331,6 +345,7 @@ const SignupForm = () => {
           "회원가입"
         )}
       </Button>
+      <div data-testid="signup-success">{successMessage}</div>
     </form>
   );
 };
