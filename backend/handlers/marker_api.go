@@ -55,7 +55,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 		description = descValues[0]
 	}
 
-	containsBadWord, _ := services.CheckForBadWords(description)
+	containsBadWord, _ := utils.CheckForBadWords(description)
 	if containsBadWord {
 		return c.Status(fiber.StatusBadRequest).SendString("Comment contains inappropriate content.")
 	}
@@ -163,18 +163,30 @@ func DeleteMarkerHandler(c *fiber.Ctx) error {
 
 // UploadMarkerPhotoToS3Handler to upload a file to S3
 func UploadMarkerPhotoToS3Handler(c *fiber.Ctx) error {
-	file, err := c.FormFile("file")
+	// Parse the multipart form
+	form, err := c.MultipartForm()
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Could not get uploaded file"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to parse form"})
 	}
 
-	fileURL, err := services.UploadFileToS3(file)
-	if err != nil {
-		// Interpret the error message to set the appropriate HTTP status code
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	markerIDstr, markerIDExists := form.Value["markerId"]
+	if !markerIDExists {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to parse form"})
 	}
 
-	return c.JSON(fiber.Map{"url": fileURL})
+	markerID, err := strconv.Atoi(markerIDstr[0])
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to parse form"})
+	}
+
+	files := form.File["photos"]
+
+	urls, err := services.UploadMarkerPhotoToS3(markerID, files)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to upload photos"})
+	}
+
+	return c.JSON(fiber.Map{"urls": urls})
 }
 
 // DeleteObjectFromS3Handler handles requests to delete objects from S3.
@@ -261,7 +273,7 @@ func GetUserMarkersHandler(c *fiber.Ctx) error {
 
 	markersWithPhotos, total, err := services.GetAllMarkersByUserWithPagination(userID, page, pageSize)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "check if you have added markers"})
 	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
