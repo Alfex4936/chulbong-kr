@@ -104,3 +104,37 @@ export const DislikeCount = styled.div`
 
   background-color: #ff7e7e;
 `;
+
+export const InputWrap = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+`;
+
+export const ButtonWrap = styled.div`
+  width: 100%;
+  & button {
+    margin: 0;
+
+    width: 30px;
+
+    margin: 0.5rem 0.5rem 0 0.5rem;
+  }
+`;
+
+export const DescInput = styled.input`
+  background-color: rgba(0, 0, 0, 0.3);
+  color: #fff;
+
+  outline: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+
+  width: 70%;
+  height: 25px;
+
+  font: inherit;
+
+  font-size: 0.8rem;
+`;
