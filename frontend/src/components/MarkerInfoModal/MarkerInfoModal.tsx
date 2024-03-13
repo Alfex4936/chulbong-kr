@@ -1,5 +1,6 @@
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditIcon from "@mui/icons-material/Edit";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import RateReviewIcon from "@mui/icons-material/RateReview";
@@ -19,12 +20,15 @@ import useSetFavorite from "../../hooks/mutation/favorites/useSetFavorite";
 import useDeleteMarker from "../../hooks/mutation/marker/useDeleteMarker";
 import useMarkerDislike from "../../hooks/mutation/marker/useMarkerDislike";
 import useUndoDislike from "../../hooks/mutation/marker/useUndoDislike";
+import useUpdateDesc from "../../hooks/mutation/marker/useUpdateDesc";
 import useGetMarker from "../../hooks/query/marker/useGetMarker";
 import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
+import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
 import type { MarkerClusterer } from "../../types/Cluster.types";
 import type { KakaoMarker } from "../../types/KakaoMap.types";
+import ActionButton from "../ActionButton/ActionButton";
 import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
 import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
@@ -54,6 +58,8 @@ const MarkerInfoModal = ({
   const sharedMarkerLat = query.get("la");
   const sharedMarkerLng = query.get("lo");
 
+  const descInput = useInput("");
+
   const {
     data: marker,
     isLoading,
@@ -63,6 +69,10 @@ const MarkerInfoModal = ({
   const { data: myInfo } = useGetMyInfo();
 
   const { mutateAsync: like, isPending: likePending } = useSetFavorite(
+    currentMarkerInfo.markerId
+  );
+  const { mutateAsync: updateDesc } = useUpdateDesc(
+    descInput.value,
     currentMarkerInfo.markerId
   );
 
@@ -85,6 +95,8 @@ const MarkerInfoModal = ({
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [address, setAddress] = useState("");
+
+  const [viewInput, setViewInput] = useState(false);
 
   useEffect(() => {
     toastState.close();
@@ -290,7 +302,62 @@ const MarkerInfoModal = ({
               alt="철봉 상세 이미지"
             />
             <Styled.description>
-              <div>{marker?.description || "작성된 설명이 없습니다."}</div>
+              {(marker?.isChulbong || myInfo?.userId === marker?.userId) && (
+                <>
+                  <Tooltip title="수정" arrow disableInteractive>
+                    <IconButton
+                      onClick={() => {
+                        setViewInput(true);
+                      }}
+                      aria-label="edit"
+                      sx={{
+                        position: "absolute",
+                        top: "0",
+                        left: "0",
+                        color: "#fff",
+                      }}
+                    >
+                      <EditIcon
+                        sx={{
+                          width: "20px",
+                          height: "20px",
+                        }}
+                      />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
+
+              {viewInput ? (
+                <Styled.InputWrap>
+                  <Styled.DescInput
+                    id="edit"
+                    type="text"
+                    onChange={descInput.onChange}
+                  />
+                  <Styled.ButtonWrap>
+                    <ActionButton
+                      bg="black"
+                      onClick={() => {
+                        updateDesc();
+                        setViewInput(false);
+                      }}
+                    >
+                      수정
+                    </ActionButton>
+                    <ActionButton
+                      bg="gray"
+                      onClick={() => {
+                        setViewInput(false);
+                      }}
+                    >
+                      취소
+                    </ActionButton>
+                  </Styled.ButtonWrap>
+                </Styled.InputWrap>
+              ) : (
+                <div>{marker?.description || "작성된 설명이 없습니다."}</div>
+              )}
             </Styled.description>
           </Styled.imageWrap>
           <Styled.AddressText>
