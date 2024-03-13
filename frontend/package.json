@@ -17,6 +17,7 @@
     "@fortawesome/react-fontawesome": "^0.2.0",
     "@mui/icons-material": "^5.15.9",
     "@mui/material": "^5.15.9",
+    "@sentry/react": "^7.106.1",
     "@tanstack/react-query": "^5.24.8",
     "@tosspayments/payment-sdk": "^1.7.0",
     "@tosspayments/payment-widget-sdk": "^0.10.2",
