@@ -16,7 +16,7 @@ export interface KaKaoMapMouseEvent {
 export interface KakaoMap {
   getCenter: VoidFunction;
   setLevel: (level: number) => void;
-  setCenter: (pos: Pos) => void;
+  setCenter: (pos: Pos) => LatLngFunctions;
   getLevel: () => number;
 }
 

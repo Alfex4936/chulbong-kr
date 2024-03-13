@@ -1,5 +1,5 @@
 import { KakaoMap } from "./KakaoMap.types";
-import { Roadview } from "./RoadView.types";
+import { Roadview } from "./Roadview.types";
 
 export interface CustomOverlay {
   /**
@@ -32,10 +32,10 @@ export interface CustomOverlay {
   getZIndex(): number;
 
   /**
-     * 지도 또는 로드뷰에 커스텀 오버레이를 올린다.
-     * null 을 지정하면 오버레이를 제거한다.
-     *
-     * @param map
-     */
+   * 지도 또는 로드뷰에 커스텀 오버레이를 올린다.
+   * null 을 지정하면 오버레이를 제거한다.
+   *
+   * @param map
+   */
   setMap(map: KakaoMap | Roadview | null): void;
 }

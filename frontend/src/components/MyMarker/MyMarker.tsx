@@ -2,12 +2,13 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { ComponentProps, forwardRef, useEffect, useRef } from "react";
+import activeMarkerImage from "../../assets/images/cb1.webp";
+import selectedMarkerImage from "../../assets/images/cb3.webp";
 import useGetMyMarker from "../../hooks/query/useGetMyMarker";
+import useCurrentMarkerStore from "../../store/useCurrentMarkerStore";
 import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./MyMarker.style";
-import selectedMarkerImage from "../../assets/images/cb3.webp";
-import activeMarkerImage from "../../assets/images/cb1.webp";
 
 interface Props extends ComponentProps<"div"> {
   markers: KakaoMarker[];
@@ -16,6 +17,7 @@ interface Props extends ComponentProps<"div"> {
 
 const MyMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
   const mapPosition = useMapPositionStore();
+  const currentMarkerState = useCurrentMarkerStore();
 
   const { data, fetchNextPage, hasNextPage, isLoading, isError, isFetching } =
     useGetMyMarker();
@@ -89,7 +91,7 @@ const MyMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
   if (isLoading) {
     return <Styled.ListSkeleton />;
   }
-  
+
   if (isError)
     return <div style={{ padding: "1rem" }}>등록한 위치가 없습니다.</div>;
 
@@ -109,6 +111,7 @@ const MyMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
                     onClick={() => {
                       handleMove(marker.latitude, marker.longitude);
                       filtering(marker.markerId);
+                      currentMarkerState.setMarker(marker.markerId);
                     }}
                     aria-label="delete"
                     sx={{

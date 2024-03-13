@@ -1,7 +1,7 @@
 import { Marker } from "@/types/Marker.types";
 import axios from "axios";
 
-type MarkerRes = Pick<Marker, "markerId" | "latitude" | "longitude">;
+export type MarkerRes = Pick<Marker, "markerId" | "latitude" | "longitude">;
 
 const getAllMarker = async (): Promise<MarkerRes[]> => {
   try {

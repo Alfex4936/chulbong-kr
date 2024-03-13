@@ -5,9 +5,8 @@ const useGetAllMarker = () => {
   return useQuery({
     queryKey: ["marker", "all"],
     queryFn: getAllMarker,
-    retry: false,
-
-    staleTime: 0,
+    
+    refetchOnWindowFocus: false,
   });
 };
 
