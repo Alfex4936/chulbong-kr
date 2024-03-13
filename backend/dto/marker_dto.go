@@ -1,6 +1,9 @@
 package dto
 
-import "chulbong-kr/models"
+import (
+	"chulbong-kr/models"
+	"time"
+)
 
 type MarkerRequest struct {
 	MarkerID    int     `json:"markerId,omitempty"`
@@ -47,8 +50,9 @@ type MarkerSimple struct {
 }
 
 type MarkerSimpleWithDescrption struct {
-	MarkerID    int     `json:"markerId" db:"MarkerID"`
-	Latitude    float64 `json:"latitude" db:"Latitude"`
-	Longitude   float64 `json:"longitude" db:"Longitude"`
-	Description string  `json:"description" db:"Description"`
+	MarkerID    int       `json:"markerId" db:"MarkerID"`
+	Latitude    float64   `json:"latitude" db:"Latitude"`
+	Longitude   float64   `json:"longitude" db:"Longitude"`
+	Description string    `json:"description" db:"Description"`
+	CreatedAt   time.Time `json:"-" db:"CreatedAt"`
 }
