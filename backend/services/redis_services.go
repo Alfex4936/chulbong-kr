@@ -1,16 +1,15 @@
 package services
 
 import (
-	"context"
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/gofiber/storage/redis/v3"
 )
 
-var RedisStore *redis.Storage
-var ctx = context.Background()
+var (
+	RedisStore *redis.Storage
+)
 
 const (
 	ALL_MARKERS_KEY  string = "all_markers"
@@ -79,25 +78,65 @@ func ResetCache(key string) error {
 	return nil
 }
 
-func AddBadWords(batch []string) error {
-	// SAdd returns *redis.IntCmd, which has an Err() method to fetch the error if any occurred during the operation
-	err := RedisStore.Conn().SAdd(ctx, "badwords", batch).Err()
-	if err != nil {
-		return err
-	}
-	return nil
-}
+// func CompileBadWordsPattern(badWords []string) error {
+// 	var pattern strings.Builder
+// 	// Start of the group
+// 	pattern.WriteString("(")
+// 	for i, word := range badWords {
+// 		// QuoteMeta escapes all regex meta characters in the bad word
+// 		pattern.WriteString(regexp.QuoteMeta(word))
+// 		// Separate words with a pipe, except the last word
+// 		if i < len(badWords)-1 {
+// 			pattern.WriteString("|")
+// 		}
+// 	}
+// 	// End of the group
+// 	pattern.WriteString(")")
 
-func CheckForBadWords(input string) (bool, error) {
-	words := strings.Fields(input)
-	for _, word := range words {
-		exists, err := RedisStore.Conn().SIsMember(ctx, "badwords", word).Result()
-		if err != nil {
-			return false, err
-		}
-		if exists {
-			return true, nil
-		}
-	}
-	return false, nil
-}
+// 	var err error
+// 	badWordRegex, err = regexp.Compile(pattern.String())
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+
+// func LoadBadWordsIntoRedis(filePath string) {
+// 	const batchSize = 500
+
+// 	file, err := os.Open(filePath)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	defer file.Close()
+
+// 	scanner := bufio.NewScanner(file)
+// 	batch := make([]string, 0, batchSize)
+
+// 	for scanner.Scan() {
+// 		word := scanner.Text()
+// 		batch = append(batch, word)
+
+// 		// Once we've collected enough words, insert them in a batch.
+// 		if len(batch) >= batchSize {
+// 			err := AddBadWords(batch)
+// 			if err != nil {
+// 				fmt.Printf("Failed to insert batch: %v\n", err)
+// 			}
+// 			// Reset the batch slice for the next group of words
+// 			batch = batch[:0]
+// 		}
+// 	}
+
+// 	// Don't forget to insert any words left in the batch after finishing the loop
+// 	if len(batch) > 0 {
+// 		err := AddBadWords(batch)
+// 		if err != nil {
+// 			fmt.Printf("Failed to insert final batch: %v\n", err)
+// 		}
+// 	}
+
+// 	if err := scanner.Err(); err != nil {
+// 		panic(err)
+// 	}
+// }

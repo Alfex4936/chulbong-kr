@@ -9,8 +9,6 @@ import (
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
-
-	"github.com/jmoiron/sqlx"
 )
 
 func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
@@ -89,35 +87,19 @@ func GetAllMarkers() ([]dto.MarkerSimple, error) {
 	return markers, nil
 }
 
-func GetAllMarkersByUserWithPagination(userID, page, pageSize int) ([]models.MarkerWithPhotos, int, error) {
+func GetAllMarkersByUserWithPagination(userID, page, pageSize int) ([]dto.MarkerSimpleWithDescrption, int, error) {
 	offset := (page - 1) * pageSize
 
 	// Query to select markers created by a specific user with LIMIT and OFFSET for pagination
 	markerQuery := `
 SELECT 
-    M.MarkerID, 
-    M.UserID, 
+    M.MarkerID,
     ST_X(M.Location) AS Latitude, 
     ST_Y(M.Location) AS Longitude, 
-    M.Description, 
-    U.Username, 
-    M.CreatedAt, 
-    M.UpdatedAt, 
-    IFNULL(D.DislikeCount, 0) AS DislikeCount
+    M.Description,
+    M.CreatedAt
 FROM 
     Markers M
-INNER JOIN 
-    Users U ON M.UserID = U.UserID
-LEFT JOIN 
-    (
-        SELECT 
-            MarkerID, 
-            COUNT(DislikeID) AS DislikeCount
-        FROM 
-            MarkerDislikes
-        GROUP BY 
-            MarkerID
-    ) D ON M.MarkerID = D.MarkerID
 WHERE 
     M.UserID = ?
 ORDER BY 
@@ -125,39 +107,10 @@ ORDER BY
 LIMIT ? OFFSET ?
 `
 
-	var markersWithUsernames []dto.MarkerWithDislike
-	err := database.DB.Select(&markersWithUsernames, markerQuery, userID, pageSize, offset)
+	markersWithDescription := make([]dto.MarkerSimpleWithDescrption, 0)
+	err := database.DB.Select(&markersWithDescription, markerQuery, userID, pageSize, offset)
 	if err != nil {
 		return nil, 0, err
-	}
-
-	// Fetch all photos at once
-	photoQuery := `SELECT * FROM Photos WHERE MarkerID IN (?)`
-	query, args, err := sqlx.In(photoQuery, getMarkerIDs(markersWithUsernames))
-	if err != nil {
-		return nil, 0, err
-	}
-	var allPhotos []models.Photo
-	err = database.DB.Select(&allPhotos, database.DB.Rebind(query), args...)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// Map photos to their markers
-	photoMap := make(map[int][]models.Photo) // markerID to photos
-	for _, photo := range allPhotos {
-		photoMap[photo.MarkerID] = append(photoMap[photo.MarkerID], photo)
-	}
-
-	// Assemble the final structure
-	markersWithPhotos := make([]models.MarkerWithPhotos, 0)
-	for _, marker := range markersWithUsernames {
-		markersWithPhotos = append(markersWithPhotos, models.MarkerWithPhotos{
-			Marker:       marker.Marker,
-			Photos:       photoMap[marker.MarkerID],
-			Username:     marker.Username,
-			DislikeCount: marker.DislikeCount,
-		})
 	}
 
 	// Query to get the total count of markers for the user
@@ -168,7 +121,7 @@ LIMIT ? OFFSET ?
 		return nil, 0, err
 	}
 
-	return markersWithPhotos, total, nil
+	return markersWithDescription, total, nil
 }
 
 // GetMarker retrieves a single marker and its associated photo by the marker's ID
@@ -227,7 +180,7 @@ WHERE M.MarkerID = ?`
 		DislikeCount: markersWithUsernames.DislikeCount,
 	}
 
-	PublishMarkerUpdate(fmt.Sprintf("user: %s", markersWithPhotos.Username))
+	// PublishMarkerUpdate(fmt.Sprintf("user: %s", markersWithPhotos.Username))
 
 	return &markersWithPhotos, nil
 }
@@ -453,6 +406,42 @@ func RemoveFavorite(userID, markerID int) error {
 		return fmt.Errorf("error removing favorite: %w", err)
 	}
 	return nil
+}
+
+func UploadMarkerPhotoToS3(markerID int, files []*multipart.FileHeader) ([]string, error) {
+	// Begin a transaction for database operations
+	tx, err := database.DB.Beginx()
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Rollback()
+
+	picUrls := make([]string, 0)
+	// Process file uploads from the multipart form
+	for _, file := range files {
+		fileURL, err := UploadFileToS3(file)
+		if err != nil {
+			fmt.Printf("Failed to upload file to S3: %v\n", err)
+			continue // Skip this file and continue with the next
+		}
+		picUrls = append(picUrls, fileURL)
+		// Associate each photo with the marker in the database
+		if _, err := tx.Exec("INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())", markerID, fileURL); err != nil {
+			// Attempt to delete the uploaded file from S3
+			if delErr := DeleteDataFromS3(fileURL); delErr != nil {
+				fmt.Printf("Also failed to delete the file from S3: %v\n", delErr)
+			}
+			return nil, err
+		}
+	}
+
+	// If no errors, commit the transaction
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return picUrls, nil
 }
 
 // Helper function to extract marker IDs
