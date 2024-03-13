@@ -6,8 +6,23 @@ import CheckoutPage from "./components/CheckoutPage/CheckoutPage";
 import FailPaymentPage from "./components/FailPaymentPage/FailPaymentPage";
 import SuccessPaymentPage from "./components/SuccessPaymentPage/SuccessPaymentPage";
 import { HelmetProvider } from "react-helmet-async";
-
+import * as Sentry from "@sentry/react";
 import "./style.css";
+
+Sentry.init({
+  dsn:
+    window.location.hostname === "localhost"
+      ? undefined
+      : import.meta.env.VITE_DSN,
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration({
+      maskAllText: false,
+      blockAllMedia: false,
+    }),
+  ],
+});
+
 
 declare global {
   interface Window {
