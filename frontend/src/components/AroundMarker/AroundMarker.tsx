@@ -7,6 +7,7 @@ import { ComponentProps, forwardRef, useEffect, useRef, useState } from "react";
 import activeMarkerImage from "../../assets/images/cb1.webp";
 import selectedMarkerImage from "../../assets/images/cb3.webp";
 import useGetCloseMarker from "../../hooks/query/useGetCloseMarker";
+import useCurrentMarkerStore from "../../store/useCurrentMarkerStore";
 import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./AroundMarker.style";
@@ -17,6 +18,8 @@ interface Props extends ComponentProps<"div"> {
 }
 
 const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
+  const currentMarkerState = useCurrentMarkerStore();
+
   const queryClient = useQueryClient();
 
   const positionState = useMapPositionStore();
@@ -167,7 +170,7 @@ const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
                           onClick={() => {
                             handleMove(marker.latitude, marker.longitude);
                             filtering(marker.markerId);
-                            // console.log(marker.markerId);
+                            currentMarkerState.setMarker(marker.markerId);
                           }}
                           aria-label="move"
                           sx={{

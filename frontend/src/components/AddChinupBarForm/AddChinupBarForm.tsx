@@ -8,6 +8,7 @@ import activeMarkerImage from "../../assets/images/cb1.webp";
 import selectedMarkerImage from "../../assets/images/cb3.webp";
 import useUploadMarker from "../../hooks/mutation/marker/useUploadMarker";
 import useInput from "../../hooks/useInput";
+import useCurrentMarkerStore from "../../store/useCurrentMarkerStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import useUserStore from "../../store/useUserStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
@@ -39,6 +40,7 @@ const AddChinupBarForm = ({
   markers,
   clusterer,
 }: Props) => {
+  const currentMarkerState = useCurrentMarkerStore();
   const formState = useUploadFormDataStore();
   const userState = useUserStore();
 
@@ -121,12 +123,20 @@ const AddChinupBarForm = ({
 
       clusterer.addMarker(newMarker);
       marker?.setMap(null);
+
+      currentMarkerState.setMarker(result.markerId);
     } catch (error) {
       if (isAxiosError(error)) {
         if (error.response?.status === 401) {
           await logout();
           userState.resetUser();
           setError("인증이 만료 되었습니다. 다시 로그인 해주세요!");
+        } else if (error.response?.status === 409) {
+          setError("주변에 이미 철봉이 있습니다!");
+        } else if (error.response?.status === 403) {
+          setError("대한민국에서만 등록 가능합니다!");
+        } else if (error.response?.status === 400) {
+          setError("입력을 확인해 주세요!");
         } else {
           setError("잠시 후 다시 시도해 주세요!");
         }

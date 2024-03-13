@@ -5,6 +5,7 @@ import { ComponentProps, forwardRef } from "react";
 import activeMarkerImage from "../../assets/images/cb1.webp";
 import selectedMarkerImage from "../../assets/images/cb3.webp";
 import useGetFavorites from "../../hooks/query/favorites/useGetFavorites";
+import useCurrentMarkerStore from "../../store/useCurrentMarkerStore";
 import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./FavoriteMarker.style";
@@ -16,6 +17,7 @@ interface Props extends ComponentProps<"div"> {
 
 const FavoriteMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
   const mapPosition = useMapPositionStore();
+  const currentMarkerState = useCurrentMarkerStore();
 
   const { data, isLoading, isError } = useGetFavorites();
 
@@ -70,9 +72,7 @@ const FavoriteMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
         <Styled.ListContainer key={marker.markerId}>
           <Styled.MarkerList>
             <Styled.MarkerListTop>
-              <Styled.Description>
-                {marker.description}
-              </Styled.Description>
+              <Styled.Description>{marker.description}</Styled.Description>
               <Styled.AddressText>{marker.addr}</Styled.AddressText>
             </Styled.MarkerListTop>
             <div>
@@ -81,6 +81,7 @@ const FavoriteMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
                   onClick={() => {
                     handleMove(marker.latitude, marker.longitude);
                     filtering(marker.markerId);
+                    currentMarkerState.setMarker(marker.markerId);
                   }}
                   aria-label="delete"
                   sx={{
