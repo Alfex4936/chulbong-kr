@@ -229,7 +229,7 @@ const Map = () => {
 
     window.kakao.maps.event.addListener(
       map,
-      "click",
+      "rightclick",
       (mouseEvent: KaKaoMapMouseEvent) => {
         setIsMarked(true);
 
