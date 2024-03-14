@@ -7,6 +7,7 @@ import { RefObject, useEffect, useState } from "react";
 import getSearchLoation from "../../api/kakao/getSearchLoation";
 import useInput from "../../hooks/useInput";
 import useMapPositionStore from "../../store/useMapPositionStore";
+import useOnBoardingStore from "../../store/useOnBoardingStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import AroundMarker from "../AroundMarker/AroundMarker";
 import * as Styled from "./SearchInput.style";
@@ -42,10 +43,31 @@ const SearchInput = ({
   setIsAround,
 }: Props) => {
   const mapPosition = useMapPositionStore();
+  const onBoardingState = useOnBoardingStore();
 
   const searchInput = useInput("");
   const [places, setPlaces] = useState<KakaoPlace[] | null>(null);
   const [isResult, setIsResult] = useState(false);
+
+  useEffect(() => {
+    if (!onBoardingState.isOnBoarding) return;
+
+    const fetch = async () => {
+      try {
+        const result = await getSearchLoation("남산 타워");
+        setPlaces(result.documents);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    if (onBoardingState.step === 9) {
+      setIsResult(true);
+      fetch();
+    } else {
+      setIsResult(false);
+    }
+  }, [onBoardingState.step]);
 
   useEffect(() => {
     if (searchInput.value === "") {
@@ -96,13 +118,18 @@ const SearchInput = ({
   };
 
   return (
-    <div style={{ flexGrow: "1", zIndex: 200 }}>
+    <div
+      style={{
+        flexGrow: "1",
+        zIndex: onBoardingState.step === 8 ? 1005 : 200,
+      }}
+    >
       <Styled.InputWrap>
         <Styled.SearchInput
           type="text"
           name="search"
           placeholder="ex) 햄버거 맛집, 수원, 잠실역, 남산 타워"
-          value={searchInput.value}
+          value={onBoardingState.step === 9 ? "남산 타워" : searchInput.value}
           onChange={(e) => {
             searchInput.onChange(e);
             setIsAround(false);

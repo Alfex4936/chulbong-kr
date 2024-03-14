@@ -19,6 +19,26 @@ const transparent = keyframes`
   }
 `;
 
+export const Title = styled.div`
+  user-select: none;
+  color: #fff;
+
+  font-size: 2rem;
+  font-weight: bold;
+
+  margin-top: 12rem;
+
+  transition: all 1s;
+
+  & > p:first-of-type {
+  }
+  & > p:last-of-type {
+    font-size: 1.2rem;
+
+    margin: 2rem;
+  }
+`;
+
 export const Container = styled.div`
   position: absolute;
   top: 0;
@@ -30,6 +50,10 @@ export const Container = styled.div`
   background-color: rgba(0, 0, 0, 0.5);
 
   z-index: 1000;
+
+  & img {
+    user-select: none;
+  }
 `;
 
 export const Step1 = styled.div`
@@ -53,9 +77,9 @@ export const R1 = styled.div`
   top: 0;
   left: 110%;
 
-  width: 200px;
+  width: 210px;
 
-  background-color: #eee;
+  background-color: #fff;
   padding: 1rem;
 
   border-radius: 10px;
@@ -87,10 +111,14 @@ export const MarkerImageWrap = styled.div`
 
 export const Step2 = styled.div`
   position: absolute;
-  top: 70%;
+  bottom: 90px;
   left: 43%;
 
   animation: ${transparent} 0.5s ease-in-out 1 forwards;
+
+  @media (max-width: 420px) {
+    left: 23%;
+  }
 `;
 
 export const ArrowCd = styled.img`
@@ -104,7 +132,7 @@ export const R2 = styled.div`
 
   width: 160px;
 
-  background-color: #eee;
+  background-color: #fff;
   padding: 1rem;
 
   border-radius: 10px;
@@ -140,7 +168,7 @@ export const R3 = styled.div`
   top: 100%;
   left: -100%;
 
-  background-color: #eee;
+  background-color: #fff;
   padding: 1rem;
 
   border-radius: 10px;
@@ -174,7 +202,7 @@ export const R4 = styled.div`
   top: 100%;
   left: -100%;
 
-  background-color: #eee;
+  background-color: #fff;
   padding: 1rem;
 
   width: 200px;
@@ -193,7 +221,7 @@ export const R4 = styled.div`
 
 export const Step5 = styled.div`
   position: absolute;
-  top: 235px;
+  top: 248px;
   right: 65px;
 
   animation: ${transparent} 0.5s ease-in-out 1 forwards;
@@ -208,7 +236,7 @@ export const R5 = styled.div`
   top: 100%;
   left: -100%;
 
-  background-color: #eee;
+  background-color: #fff;
   padding: 1rem;
 
   border-radius: 10px;
@@ -242,7 +270,7 @@ export const R6 = styled.div`
   top: 100%;
   left: -100%;
 
-  background-color: #eee;
+  background-color: #fff;
   padding: 1rem;
 
   border-radius: 10px;
@@ -276,12 +304,194 @@ export const R7 = styled.div`
   top: 100%;
   left: -100%;
 
-  background-color: #eee;
+  background-color: #fff;
   padding: 1rem;
 
   border-radius: 10px;
 
   width: 200px;
+
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+
+  & > p:first-of-type {
+    font-size: 1.2rem;
+  }
+  & > p:last-of-type {
+    font-size: 0.8rem;
+  }
+`;
+
+export const Step8 = styled.div`
+  position: absolute;
+  top: 70px;
+  left: 65px;
+
+  animation: ${transparent} 0.5s ease-in-out 1 forwards;
+
+  & img {
+    height: 60px;
+  }
+`;
+
+export const R8 = styled.div`
+  position: absolute;
+  top: 100%;
+  left: -100%;
+
+  background-color: #fff;
+  padding: 1rem;
+
+  border-radius: 10px;
+
+  width: 200px;
+
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+
+  & > p:first-of-type {
+    font-size: 1.2rem;
+  }
+  & > p:last-of-type {
+    font-size: 0.8rem;
+  }
+`;
+
+export const Step9 = styled.div`
+  position: absolute;
+  top: 150px;
+  left: 65px;
+
+  animation: ${transparent} 0.5s ease-in-out 1 forwards;
+
+  & img {
+    height: 60px;
+  }
+`;
+
+export const R9 = styled.div`
+  position: absolute;
+  top: 100%;
+  left: -100%;
+
+  background-color: #fff;
+  padding: 1rem;
+
+  border-radius: 10px;
+
+  width: 200px;
+
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+
+  & > p:first-of-type {
+    font-size: 1.2rem;
+  }
+  & > p:last-of-type {
+    font-size: 0.8rem;
+  }
+`;
+
+export const Step10 = styled.div`
+  position: absolute;
+  top: 70px;
+  left: 53%;
+
+  animation: ${transparent} 0.5s ease-in-out 1 forwards;
+
+  & img {
+    height: 60px;
+  }
+
+  @media (min-width: 880px) {
+    left: 460px;
+  }
+
+  @media (max-width: 490px) {
+    left: 260px;
+  }
+`;
+
+export const R10 = styled.div`
+  position: absolute;
+  top: 100%;
+  left: -400%;
+
+  background-color: #fff;
+  padding: 1rem;
+
+  border-radius: 10px;
+
+  width: 200px;
+
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+
+  & > p:first-of-type {
+    font-size: 1.2rem;
+  }
+  & > p:last-of-type {
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 490px) {
+    left: -530%;
+  }
+`;
+
+export const Step11 = styled.div`
+  position: absolute;
+  top: 165px;
+  left: 65px;
+
+  animation: ${transparent} 0.5s ease-in-out 1 forwards;
+
+  & img {
+    height: 60px;
+  }
+`;
+
+export const R11 = styled.div`
+  position: absolute;
+  top: 100%;
+  left: -100%;
+
+  background-color: #fff;
+  padding: 1rem;
+
+  border-radius: 10px;
+
+  width: 200px;
+
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+
+  & > p:first-of-type {
+    font-size: 1.2rem;
+  }
+  & > p:last-of-type {
+    font-size: 0.8rem;
+  }
+`;
+
+export const Step12 = styled.div`
+  position: absolute;
+  top: 415px;
+  right: 65px;
+
+  animation: ${transparent} 0.5s ease-in-out 1 forwards;
+
+  & img {
+    width: 100px;
+  }
+`;
+
+export const R12 = styled.div`
+  position: absolute;
+  top: 100%;
+  left: -100%;
+
+  background-color: #fff;
+  padding: 1rem;
+
+  width: 200px;
+
+  border-radius: 10px;
 
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 

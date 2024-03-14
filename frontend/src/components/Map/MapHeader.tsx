@@ -1,6 +1,7 @@
 import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import useOnBoardingStore from "../../store/useOnBoardingStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./MapHeader.style";
 import SearchInput from "./SearchInput";
@@ -11,8 +12,23 @@ interface Props {
 }
 
 const MapHeader = ({ markers, map }: Props) => {
+  const onBoardingState = useOnBoardingStore();
+
   const [isAround, setIsAround] = useState(false);
   const aroundMarkerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!onBoardingState.isOnBoarding) {
+      setIsAround(false);
+      return;
+    }
+
+    if (onBoardingState.step === 11) {
+      setIsAround(true);
+    } else {
+      setIsAround(false);
+    }
+  }, [onBoardingState.step]);
 
   const handleArroundMarkerScroll = () => {
     if (aroundMarkerRef.current) {
@@ -43,7 +59,7 @@ const MapHeader = ({ markers, map }: Props) => {
             backgroundColor: "#fff",
             color: "#000",
 
-            zIndex: "90",
+            zIndex: onBoardingState.step === 10 ? "10000" : "90",
 
             borderRadius: ".5rem",
 
@@ -53,6 +69,7 @@ const MapHeader = ({ markers, map }: Props) => {
             },
           }}
           onClick={() => {
+            if (onBoardingState.step === 10) return;
             setIsAround(true);
             handleArroundMarkerScroll();
           }}
