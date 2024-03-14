@@ -64,11 +64,11 @@ const App = () => {
         (now.getTime() - lastVisitDate.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      if (daysDifference >= 3) {
-        onBoardingState.open();
+      if (daysDifference >= 4) {
+        if (!userState.ka.h) onBoardingState.open();
       }
     } else {
-      onBoardingState.open();
+      if (!userState.ka.h) onBoardingState.open();
     }
 
     localStorage.setItem("lastVisit", now.toISOString());

@@ -128,8 +128,13 @@ const SearchInput = ({
         <Styled.SearchInput
           type="text"
           name="search"
+          disabled={onBoardingState.step === 8}
           placeholder="ex) 햄버거 맛집, 수원, 잠실역, 남산 타워"
-          value={onBoardingState.step === 9 ? "남산 타워" : searchInput.value}
+          value={
+            onBoardingState.step === 8 || onBoardingState.step === 9
+              ? "남산 타워"
+              : searchInput.value
+          }
           onChange={(e) => {
             searchInput.onChange(e);
             setIsAround(false);

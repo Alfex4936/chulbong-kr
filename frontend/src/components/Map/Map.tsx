@@ -631,6 +631,7 @@ const Map = () => {
         zIndex={onBoardingState.step === 12 ? 10000 : 10}
         tooltip="도움말"
         onClickFn={() => {
+          if (onBoardingState.step === 12) return;
           onBoardingState.open();
         }}
       />
