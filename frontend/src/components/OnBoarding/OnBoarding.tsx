@@ -1,8 +1,24 @@
-import * as Styled from "./OnBoarding.style";
+import Button from "@mui/material/Button";
+import { useEffect } from "react";
 import useOnBoardingStore from "../../store/useOnBoardingStore";
+import * as Styled from "./OnBoarding.style";
 
 const OnBoarding = () => {
   const onBoardingState = useOnBoardingStore();
+
+  useEffect(() => {
+    const handleKeyDownClose = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onBoardingState.close();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDownClose);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDownClose);
+    };
+  }, []);
 
   const handleNextStep = () => {
     onBoardingState.nextStep();
@@ -178,6 +194,24 @@ const OnBoarding = () => {
           </Styled.R12>
         </Styled.Step12>
       )}
+
+      <Button
+        sx={{
+          position: "absolute",
+          left: "20px",
+          bottom: "40px",
+          color: "#fff",
+          fontWeight: "bold",
+          "&:hover": {
+            backgroundColor: "rgba(0,0,0,0.5)",
+          },
+        }}
+        onClick={() => {
+          onBoardingState.close();
+        }}
+      >
+        설명 닫기
+      </Button>
     </Styled.Container>
   );
 };
