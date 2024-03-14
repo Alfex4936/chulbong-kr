@@ -150,18 +150,6 @@ const Map = () => {
   }, [map, sharedMarker, sharedMarkerLat, sharedMarkerLng, markers]);
 
   useEffect(() => {
-    const preventEvent = (event: MouseEvent) => {
-      event.preventDefault();
-    };
-
-    document.addEventListener("contextmenu", preventEvent);
-
-    return () => {
-      document.removeEventListener("contextmenu", preventEvent);
-    };
-  }, []);
-
-  useEffect(() => {
     const handleKeyDownClose = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsMarked(false);
@@ -239,7 +227,7 @@ const Map = () => {
 
     window.kakao.maps.event.addListener(
       map,
-      "rightclick",
+      "click",
       (mouseEvent: KaKaoMapMouseEvent) => {
         setIsMarked(true);
 
