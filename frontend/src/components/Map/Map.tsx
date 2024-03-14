@@ -9,6 +9,7 @@ import AddIcon from "@mui/icons-material/Add";
 import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
+import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import RemoveIcon from "@mui/icons-material/Remove";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -257,6 +258,7 @@ const Map = () => {
   }, [map, data]);
 
   const centerMapOnCurrentPosition = () => {
+    if (onBoardingState.step === 4) return;
     if (map && navigator.geolocation) {
       setGpsLoading(true);
       navigator.geolocation.getCurrentPosition(
@@ -306,25 +308,30 @@ const Map = () => {
   };
 
   const resetCurrentPosition = () => {
+    if (onBoardingState.step === 5) return;
     const moveLatLon = new window.kakao.maps.LatLng(37.566535, 126.9779692);
     mapPosition.setPosition(37.566535, 126.9779692);
     map?.setCenter(moveLatLon);
   };
 
   const handleOpen = () => {
+    if (onBoardingState.step === 3) return;
     modalState.openLogin();
   };
   const handleMyInfo = () => {
+    if (onBoardingState.step === 3) return;
     setMyInfoModal(true);
   };
 
   const zoomIn = () => {
+    if (onBoardingState.step === 6) return;
     const level = map?.getLevel();
 
     map?.setLevel((level as number) - 1);
   };
 
   const zoomOut = () => {
+    if (onBoardingState.step === 7) return;
     const level = map?.getLevel();
 
     map?.setLevel((level as number) + 1);
@@ -391,7 +398,7 @@ const Map = () => {
         </CenterBox>
       )}
 
-      {!isLoading && <OnBoarding />}
+      {!isLoading && onBoardingState.isOnBoarding && <OnBoarding />}
 
       {!isLoading && isError && (
         <BasicModal>
@@ -559,7 +566,11 @@ const Map = () => {
         </Styled.ExitButton>
         위치 등록하기
       </Button>
-      <Styled.LoginButtonWrap>
+      <Styled.LoginButtonWrap
+        style={{
+          zIndex: onBoardingState.step === 3 ? "10000" : "10",
+        }}
+      >
         <FloatingButton
           text={myInfo ? myInfo.email[0].toUpperCase() : <LoginIcon />}
           top={0}
@@ -570,6 +581,7 @@ const Map = () => {
             myInfo
               ? myInfoModal
                 ? () => {
+                    if (onBoardingState.step === 3) return;
                     setMyInfoModal(false);
                   }
                 : handleMyInfo
@@ -582,6 +594,7 @@ const Map = () => {
         text={<MyLocationIcon />}
         top={200}
         right={20}
+        zIndex={onBoardingState.step === 4 ? 10000 : 10}
         tooltip="내 위치"
         onClickFn={centerMapOnCurrentPosition}
       />
@@ -589,6 +602,7 @@ const Map = () => {
         text={<GpsOffIcon />}
         top={240}
         right={20}
+        zIndex={onBoardingState.step === 5 ? 10000 : 10}
         tooltip="위치 초기화"
         onClickFn={resetCurrentPosition}
       />
@@ -597,6 +611,7 @@ const Map = () => {
         text={<AddIcon />}
         top={300}
         right={20}
+        zIndex={onBoardingState.step === 6 ? 10000 : 10}
         tooltip="확대"
         onClickFn={zoomIn}
       />
@@ -604,8 +619,20 @@ const Map = () => {
         text={<RemoveIcon />}
         top={340}
         right={20}
+        zIndex={onBoardingState.step === 7 ? 10000 : 10}
         tooltip="축소"
         onClickFn={zoomOut}
+      />
+      <FloatingButton
+        text={<QuestionMarkIcon />}
+        shape="circle"
+        bottom={250}
+        right={20}
+        zIndex={onBoardingState.step === 12 ? 10000 : 10}
+        tooltip="도움말"
+        onClickFn={() => {
+          onBoardingState.open();
+        }}
       />
       {myInfoModal && (
         <MyInfoModal

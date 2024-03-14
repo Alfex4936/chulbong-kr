@@ -11,13 +11,13 @@ import Input from "./components/Input/Input";
 import LoginFormSkeleton from "./components/LoginForm/LoginFormSkeleton";
 import Map from "./components/Map/Map";
 import BasicModal from "./components/Modal/Modal";
-// import OnBoarding from "./components/OnBoarding/OnBoarding";
 import SignupFormSkeleton from "./components/SignupForm/SignupFormSkeleton";
 import useLogout from "./hooks/mutation/auth/useLogout";
 import useResetPassword from "./hooks/mutation/auth/useResetPassword";
 import useGetMyInfo from "./hooks/query/user/useGetMyInfo";
 import useInput from "./hooks/useInput";
 import useModalStore from "./store/useModalStore";
+import useOnBoardingStore from "./store/useOnBoardingStore";
 import useToastStore from "./store/useToastStore";
 import useUserStore from "./store/useUserStore";
 
@@ -30,6 +30,7 @@ const App = () => {
   const modalState = useModalStore();
   const toastState = useToastStore();
   const userState = useUserStore();
+  const onBoardingState = useOnBoardingStore();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -52,6 +53,26 @@ const App = () => {
   const [viewPassword, setViewPassword] = useState(false);
 
   const [changePasswordModal, setChangePasswordModal] = useState(false);
+
+  useEffect(() => {
+    const lastVisit = localStorage.getItem("lastVisit");
+    const now = new Date();
+
+    if (lastVisit) {
+      const lastVisitDate = new Date(lastVisit);
+      const daysDifference = Math.floor(
+        (now.getTime() - lastVisitDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysDifference >= 3) {
+        onBoardingState.open();
+      }
+    } else {
+      onBoardingState.open();
+    }
+
+    localStorage.setItem("lastVisit", now.toISOString());
+  }, []);
 
   useEffect(() => {
     if (token && email) {
@@ -95,7 +116,6 @@ const App = () => {
 
   return (
     <div>
-      {/* <OnBoarding /> */}
       <Map />
       {modalState.loginModal && (
         <BasicModal>

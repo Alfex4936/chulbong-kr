@@ -10,6 +10,7 @@ export interface FloatingProps {
   left?: number | "center" | string;
   width?: number | string;
   height?: number | string;
+  zIndex?: number;
   shape?: "circle" | "square";
   size?: "small" | "large" | "medium";
   tooltip?: string;
@@ -24,6 +25,7 @@ const FloatingButton = ({
   left,
   width,
   height,
+  zIndex = 10,
   shape = "square",
   size = "medium",
   tooltip,
@@ -76,7 +78,7 @@ const FloatingButton = ({
           backgroundColor: "#fff",
           color: "#000",
 
-          zIndex: "10",
+          zIndex: zIndex,
 
           borderRadius: shape === "square" ? "3px" : "50%",
 
