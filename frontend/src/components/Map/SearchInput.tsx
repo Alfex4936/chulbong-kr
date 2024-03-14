@@ -50,7 +50,10 @@ const SearchInput = ({
   const [isResult, setIsResult] = useState(false);
 
   useEffect(() => {
-    if (!onBoardingState.isOnBoarding) return;
+    if (!onBoardingState.isOnBoarding) {
+      setIsResult(false);
+      return;
+    }
 
     const fetch = async () => {
       try {

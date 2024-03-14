@@ -115,7 +115,10 @@ const Map = () => {
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
   useEffect(() => {
-    if (!onBoardingState.isOnBoarding) return;
+    if (!onBoardingState.isOnBoarding) {
+      setIsMarked(false);
+      return;
+    }
 
     if (onBoardingState.step === 2) {
       setIsMarked(true);
@@ -626,7 +629,7 @@ const Map = () => {
       <FloatingButton
         text={<QuestionMarkIcon />}
         shape="circle"
-        bottom={250}
+        top={400}
         right={20}
         zIndex={onBoardingState.step === 12 ? 10000 : 10}
         tooltip="도움말"

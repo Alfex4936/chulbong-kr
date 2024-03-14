@@ -44,8 +44,8 @@ export const Container = styled.div`
   top: 0;
   left: 0;
 
-  width: 100vw;
-  height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
 
   background-color: rgba(0, 0, 0, 0.5);
 
@@ -471,7 +471,7 @@ export const R11 = styled.div`
 
 export const Step12 = styled.div`
   position: absolute;
-  top: 415px;
+  top: 410px;
   right: 65px;
 
   animation: ${transparent} 0.5s ease-in-out 1 forwards;
