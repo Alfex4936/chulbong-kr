@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { keyframes } from '@emotion/react'
+import { keyframes } from "@emotion/react";
 
 export const Container = styled.div`
   position: relative;
@@ -7,8 +7,8 @@ export const Container = styled.div`
 `;
 
 export const MapContainer = styled.div`
-  width: 100vw;
-  height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
 `;
 
 export const AlertContainer = styled.div`
@@ -118,14 +118,17 @@ export const UserLocationMarker = styled.div`
   transform: translate(-50%, -50%);
 
   &:before {
-    content: '';
+    content: "";
     display: block;
     width: 0;
     height: 0;
     position: absolute;
     top: 50%; /* Center the ripple effect */
     left: 50%;
-    transform: translate(-50%, -50%); /* Ensure the center of the ripple is in the center of the circle */
+    transform: translate(
+      -50%,
+      -50%
+    ); /* Ensure the center of the ripple is in the center of the circle */
     border: 1px solid red;
     border-radius: 50%;
     animation: ${rippleEffect} 2s infinite;
