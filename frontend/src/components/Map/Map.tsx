@@ -149,7 +149,17 @@ const Map = () => {
     }
   }, [map, sharedMarker, sharedMarkerLat, sharedMarkerLng, markers]);
 
-  useEffect(() => {}, [marker]);
+  useEffect(() => {
+    const preventEvent = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+
+    document.addEventListener("contextmenu", preventEvent);
+
+    return () => {
+      document.removeEventListener("contextmenu", preventEvent);
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDownClose = (event: KeyboardEvent) => {
