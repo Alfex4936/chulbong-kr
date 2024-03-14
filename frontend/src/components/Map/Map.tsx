@@ -26,6 +26,7 @@ import useInput from "../../hooks/useInput";
 import useMap from "../../hooks/useMap";
 import useMapPositionStore from "../../store/useMapPositionStore";
 import useModalStore from "../../store/useModalStore";
+import useOnBoardingStore from "../../store/useOnBoardingStore";
 import useToastStore from "../../store/useToastStore";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import useUserStore from "../../store/useUserStore";
@@ -41,6 +42,7 @@ import * as Styled from "./Map.style";
 import MapHeader from "./MapHeader";
 
 import "ldrs/ring";
+import OnBoarding from "../OnBoarding/OnBoarding";
 
 const AddChinupBarForm = lazy(
   () => import("../AddChinupBarForm/AddChinupBarForm")
@@ -59,6 +61,7 @@ const Map = () => {
   const formState = useUploadFormDataStore();
   const toastState = useToastStore();
   const mapPosition = useMapPositionStore();
+  const onBoardingState = useOnBoardingStore();
 
   const query = new URLSearchParams(location.search);
   const sharedMarker = query.get("d");
@@ -111,6 +114,16 @@ const Map = () => {
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
   useEffect(() => {
+    if (!onBoardingState.isOnBoarding) return;
+
+    if (onBoardingState.step === 2) {
+      setIsMarked(true);
+    } else {
+      setIsMarked(false);
+    }
+  }, [onBoardingState.step]);
+
+  useEffect(() => {
     const filtering = (markerId: number) => {
       const imageSize = new window.kakao.maps.Size(39, 39);
       const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
@@ -148,8 +161,6 @@ const Map = () => {
       map?.setCenter(moveLatLon);
     }
   }, [map, sharedMarker, sharedMarkerLat, sharedMarkerLng, markers]);
-
-  useEffect(() => {}, [marker]);
 
   useEffect(() => {
     const handleKeyDownClose = (event: KeyboardEvent) => {
@@ -351,6 +362,8 @@ const Map = () => {
   };
 
   const handleOpenAddMarkerToast = () => {
+    if (onBoardingState.isOnBoarding) return;
+
     if (!myInfo) {
       modalState.openLogin();
     } else {
@@ -377,6 +390,8 @@ const Map = () => {
           </CenterBox>
         </CenterBox>
       )}
+
+      {!isLoading && <OnBoarding />}
 
       {!isLoading && isError && (
         <BasicModal>
@@ -525,7 +540,7 @@ const Map = () => {
           transition: "all .3s",
           color: "#fff",
           backgroundColor: "#333",
-          zIndex: "1",
+          zIndex: onBoardingState.step === 2 ? "2000" : "1",
           width: "300px",
           height: "60px",
           "&:hover": {

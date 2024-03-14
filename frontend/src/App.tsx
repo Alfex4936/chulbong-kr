@@ -11,6 +11,7 @@ import Input from "./components/Input/Input";
 import LoginFormSkeleton from "./components/LoginForm/LoginFormSkeleton";
 import Map from "./components/Map/Map";
 import BasicModal from "./components/Modal/Modal";
+// import OnBoarding from "./components/OnBoarding/OnBoarding";
 import SignupFormSkeleton from "./components/SignupForm/SignupFormSkeleton";
 import useLogout from "./hooks/mutation/auth/useLogout";
 import useResetPassword from "./hooks/mutation/auth/useResetPassword";
@@ -94,6 +95,7 @@ const App = () => {
 
   return (
     <div>
+      {/* <OnBoarding /> */}
       <Map />
       {modalState.loginModal && (
         <BasicModal>
