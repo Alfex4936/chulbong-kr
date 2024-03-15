@@ -141,7 +141,6 @@ const AddChinupBarForm = ({
           setError("잠시 후 다시 시도해 주세요!");
         }
       }
-      console.log(error);
     } finally {
       setLoading(false);
     }

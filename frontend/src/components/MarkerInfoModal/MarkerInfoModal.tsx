@@ -3,6 +3,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import PlaceIcon from "@mui/icons-material/Place";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import ShareIcon from "@mui/icons-material/Share";
 import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
@@ -33,6 +34,7 @@ import type { MarkerInfo } from "../Map/Map";
 import * as Styled from "./MarkerInfoModal.style";
 import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
 import MarkerReview from "./MarkerReview";
+import MarkerRoadView from "./MarkerRoadView";
 
 interface Props {
   currentMarkerInfo: MarkerInfo;
@@ -92,6 +94,11 @@ const MarkerInfoModal = ({
 
   const [isReview, setIsReview] = useState(false);
 
+  const [isRoadView, setIsRoadView] = useState(false);
+
+  const [isRoadViewError, setIsRoadViewError] = useState(false);
+  const [roadViewErrorText, setRoadViewErrorText] = useState("");
+
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [address, setAddress] = useState("");
@@ -102,6 +109,21 @@ const MarkerInfoModal = ({
     toastState.close();
     toastState.setToastText("");
   }, []);
+
+  useEffect(() => {
+    if (!isRoadViewError) return;
+
+    setRoadViewErrorText("거리뷰가 지원되지 않는 주소입니다");
+
+    const errorTime = setTimeout(() => {
+      setRoadViewErrorText("");
+      setIsRoadViewError(false);
+    }, 2000);
+
+    return () => {
+      clearTimeout(errorTime);
+    };
+  }, [isRoadViewError]);
 
   useEffect(() => {
     const getAddr = () => {
@@ -297,68 +319,82 @@ const MarkerInfoModal = ({
             </IconButton>
           </Tooltip>
           <Styled.imageWrap>
-            <img
-              src={marker?.photos ? marker.photos[0].photoUrl : noimg}
-              alt="철봉 상세 이미지"
-            />
-            <Styled.description>
-              {(marker?.isChulbong || myInfo?.userId === marker?.userId) && (
-                <>
-                  <Tooltip title="수정" arrow disableInteractive>
-                    <IconButton
-                      onClick={() => {
-                        setViewInput(true);
-                      }}
-                      aria-label="edit"
-                      sx={{
-                        position: "absolute",
-                        top: "0",
-                        left: "0",
-                        color: "#fff",
-                      }}
-                    >
-                      <EditIcon
-                        sx={{
-                          width: "20px",
-                          height: "20px",
-                        }}
-                      />
-                    </IconButton>
-                  </Tooltip>
-                </>
-              )}
+            {isRoadView ? (
+              <MarkerRoadView
+                lat={marker?.latitude as number}
+                lng={marker?.longitude as number}
+                setIsRoadView={setIsRoadView}
+                setIsRoadViewError={setIsRoadViewError}
+              />
+            ) : (
+              <>
+                <img
+                  src={marker?.photos ? marker.photos[0].photoUrl : noimg}
+                  alt="철봉 상세 이미지"
+                />
+                <Styled.description>
+                  {(marker?.isChulbong ||
+                    myInfo?.userId === marker?.userId) && (
+                    <>
+                      <Tooltip title="수정" arrow disableInteractive>
+                        <IconButton
+                          onClick={() => {
+                            setViewInput(true);
+                          }}
+                          aria-label="edit"
+                          sx={{
+                            position: "absolute",
+                            top: "0",
+                            left: "0",
+                            color: "#fff",
+                          }}
+                        >
+                          <EditIcon
+                            sx={{
+                              width: "20px",
+                              height: "20px",
+                            }}
+                          />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  )}
 
-              {viewInput ? (
-                <Styled.InputWrap>
-                  <Styled.DescInput
-                    id="edit"
-                    type="text"
-                    onChange={descInput.onChange}
-                  />
-                  <Styled.ButtonWrap>
-                    <ActionButton
-                      bg="black"
-                      onClick={() => {
-                        updateDesc();
-                        setViewInput(false);
-                      }}
-                    >
-                      수정
-                    </ActionButton>
-                    <ActionButton
-                      bg="gray"
-                      onClick={() => {
-                        setViewInput(false);
-                      }}
-                    >
-                      취소
-                    </ActionButton>
-                  </Styled.ButtonWrap>
-                </Styled.InputWrap>
-              ) : (
-                <div>{marker?.description || "작성된 설명이 없습니다."}</div>
-              )}
-            </Styled.description>
+                  {viewInput ? (
+                    <Styled.InputWrap>
+                      <Styled.DescInput
+                        id="edit"
+                        type="text"
+                        onChange={descInput.onChange}
+                      />
+                      <Styled.ButtonWrap>
+                        <ActionButton
+                          bg="black"
+                          onClick={() => {
+                            updateDesc();
+                            setViewInput(false);
+                          }}
+                        >
+                          수정
+                        </ActionButton>
+                        <ActionButton
+                          bg="gray"
+                          onClick={() => {
+                            setViewInput(false);
+                          }}
+                        >
+                          취소
+                        </ActionButton>
+                      </Styled.ButtonWrap>
+                    </Styled.InputWrap>
+                  ) : (
+                    <div>
+                      {marker?.description || "작성된 설명이 없습니다."}
+                    </div>
+                  )}
+                </Styled.description>
+              </>
+            )}
           </Styled.imageWrap>
           <Styled.AddressText>
             <div>
@@ -367,10 +403,22 @@ const MarkerInfoModal = ({
             </div>
             <div>{address}</div>
           </Styled.AddressText>
+
+          <Styled.ErrorBox>{roadViewErrorText}</Styled.ErrorBox>
           <Styled.BottomButtons>
             <Tooltip title="리뷰 보기" arrow disableInteractive>
               <IconButton onClick={handleViewReview} aria-label="review">
                 <RateReviewIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="거리뷰" arrow disableInteractive>
+              <IconButton
+                onClick={() => {
+                  setIsRoadView(true);
+                }}
+                aria-label="review"
+              >
+                <PlaceIcon />
               </IconButton>
             </Tooltip>
             <Tooltip title="공유 링크 복사" arrow disableInteractive>

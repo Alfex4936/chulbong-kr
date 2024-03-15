@@ -545,6 +545,7 @@ const Map = () => {
           position: "absolute",
           opacity: map && isMarked ? "100" : "0",
           bottom: "30px",
+          display: map && isMarked ? "block" : "none",
           left: map && isMarked ? "50%" : "10%",
           transform: "translateX(-50%)",
           transition: "all .3s",

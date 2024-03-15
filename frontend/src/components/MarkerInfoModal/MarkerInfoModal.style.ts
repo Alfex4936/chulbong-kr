@@ -138,3 +138,11 @@ export const DescInput = styled.input`
 
   font-size: 0.8rem;
 `;
+
+export const ErrorBox = styled.div`
+  text-align: center;
+
+  font-size: 0.7rem;
+
+  color: red;
+`;
