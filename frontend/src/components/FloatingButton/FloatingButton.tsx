@@ -1,6 +1,5 @@
-import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
-import { useEffect, useState } from "react";
+import Tooltip from "@mui/material/Tooltip";
 
 export interface FloatingProps {
   text: string | React.ReactNode;
@@ -31,24 +30,6 @@ const FloatingButton = ({
   tooltip,
   onClickFn,
 }: FloatingProps) => {
-  const [textSize, setTextSize] = useState("");
-  const [boxSize, setBoxSize] = useState("");
-
-  useEffect(() => {
-    if (size === "small") {
-      setTextSize("12px");
-      setBoxSize("50px");
-    }
-    if (size === "medium") {
-      setTextSize("16px");
-      setBoxSize("40px");
-    }
-    if (size === "large") {
-      setTextSize("20px");
-      setBoxSize("30px");
-    }
-  }, [size]);
-
   return (
     <Tooltip title={tooltip} arrow disableInteractive>
       <IconButton
@@ -67,10 +48,22 @@ const FloatingButton = ({
               ? "translateX(-50%)"
               : 0,
 
-          width: width ? `${width}px` : boxSize,
-          height: height ? `${height}px` : boxSize,
-
-          fontSize: textSize,
+          fontSize:
+            size === "small" ? "12px" : size === "medium" ? "16px" : "20px",
+          width: width
+            ? width
+            : size === "small"
+            ? "50px"
+            : size === "medium"
+            ? "40px"
+            : "30px",
+          height: height
+            ? height
+            : size === "small"
+            ? "50px"
+            : size === "medium"
+            ? "40px"
+            : "30px",
 
           boxShadow:
             "rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px",
