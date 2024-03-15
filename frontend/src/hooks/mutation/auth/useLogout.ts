@@ -10,6 +10,7 @@ const useLogout = () => {
       queryClient.removeQueries({ queryKey: ["myInfo"] });
       queryClient.removeQueries({ queryKey: ["favorite"] });
       queryClient.removeQueries({ queryKey: ["dislikeState"] });
+      queryClient.removeQueries({ queryKey: ["myMarker"] });
     },
   });
 };
