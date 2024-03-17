@@ -33,7 +33,17 @@ func ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 		statusCode := c.Response().StatusCode()
 		method := c.Method()
 		path := c.OriginalURL()
-		clientIP := c.IP()
+
+		clientIP := c.Get("Fly-Client-IP")
+		// If Fly-Client-IP is not found, fall back to X-Forwarded-For
+		if clientIP == "" {
+			clientIP = c.Get("X-Forwarded-For")
+		}
+		// If X-Forwarded-For is also empty, use c.IP() as the last resort
+		if clientIP == "" {
+			clientIP = c.IP()
+		}
+
 		userAgent := c.Get(fiber.HeaderUserAgent)
 		referer := c.Get(fiber.HeaderReferer)
 		queryParams := c.OriginalURL()[len(c.Path()):]
@@ -73,7 +83,7 @@ func sendSlackNotification(duration time.Duration, statusCode int, clientIP, met
 	currentTime := time.Now().Format("2006-01-02 (Mon) 15:04:05")
 
 	// Header section with bold text and warning emoji
-	headerText := slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Performance Alert* (threshold: %.2f ms) :warning:", DELAY_THRESHOLD), false, false)
+	headerText := slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Performance Alert* (threshold: %.2f s) :warning:", DELAY_THRESHOLD), false, false)
 	headerSection := slack.NewSectionBlock(headerText, nil, nil)
 
 	// Divider to separate header from body

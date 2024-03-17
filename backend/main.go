@@ -15,13 +15,13 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/monitor"
+	"github.com/gofiber/fiber/v2/middleware/pprof"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/storage/redis/v3"
 	"github.com/gofiber/swagger"
@@ -119,6 +119,7 @@ func main() {
 
 	logger, _ := zap.NewProduction()
 	app.Use(middlewares.ZapLogMiddleware(logger))
+	app.Use(pprof.New())
 
 	app.Use(compress.New(compress.Config{
 		Next: func(c *fiber.Ctx) bool {
@@ -142,9 +143,9 @@ func main() {
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "http://localhost:5173,https://chulbong-kr.vercel.app", // List allowed origins
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",                          // Explicitly list allowed methods
-		AllowHeaders: "*",                                                    // TODO: Allow specific headers
+		AllowOrigins: "http://localhost:5173,https://chulbong-kr.vercel.app,https://www.k-pullup.com", // List allowed origins
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",                                                   // Explicitly list allowed methods
+		AllowHeaders: "*",                                                                             // TODO: Allow specific headers
 		// ExposeHeaders:    "Accept",
 		AllowCredentials: true,
 	}))
@@ -186,11 +187,9 @@ func main() {
 	}
 
 	// Marker routes
-	api.Get("/markers", cache.New(cache.Config{
-		Storage:      store,            // Use Redis storage
-		Expiration:   60 * time.Second, // Cache expiration
-		CacheControl: true,             // Enable client-side caching
-	}), handlers.GetAllMarkersHandler)
+	api.Get("/markers", handlers.GetAllMarkersHandler)
+	api.Get("/markers-addr", middlewares.AdminOnly, handlers.GetAllMarkersWithAddrHandler)
+	api.Post("/markers-addr", middlewares.AdminOnly, handlers.UpdateMarkersAddressesHandler)
 	api.Get("/markers/:markerId/details", middlewares.AuthSoftMiddleware, handlers.GetMarker)
 	api.Get("/markers/close", handlers.FindCloseMarkersHandler)
 	api.Post("/markers/upload", middlewares.AdminOnly, handlers.UploadMarkerPhotoToS3Handler)
@@ -201,9 +200,11 @@ func main() {
 
 		markerGroup.Get("/my", handlers.GetUserMarkersHandler)
 		markerGroup.Get("/:markerID/dislike-status", handlers.CheckDislikeStatus)
+		markerGroup.Get("/:markerID/facilities", handlers.GetFacilitiesHandler)
 		// markerGroup.Get("/:markerId", handlers.GetMarker)
 
 		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)
+		markerGroup.Post("/facilities", handlers.SetMarkerFacilitiesHandler)
 		markerGroup.Post("/:markerID/dislike", handlers.LeaveDislikeHandler)
 		markerGroup.Post("/:markerID/favorites", handlers.AddFavoriteHandler)
 
