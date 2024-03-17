@@ -103,7 +103,10 @@ const MyMarker = forwardRef(({ map, markers, ...props }: Props, ref) => {
             <Styled.MarkerList key={marker.markerId}>
               <Styled.MarkerListTop>
                 <Styled.Description>{marker.description}</Styled.Description>
-                <Styled.AddressText>{marker.addr}</Styled.AddressText>
+                <Styled.AddressText>
+                  {marker.address ||
+                    "주소를 불러오는 중입니다. 잠시 후 다시 확인해 주세요!"}
+                </Styled.AddressText>
               </Styled.MarkerListTop>
               <div>
                 <Tooltip title="이동" arrow disableInteractive>

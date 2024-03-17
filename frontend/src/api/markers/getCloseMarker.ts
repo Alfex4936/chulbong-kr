@@ -13,7 +13,7 @@ interface CloseMarker {
   distance: number;
   markerId: number;
   description: string;
-  addr?: string;
+  address?: string;
 }
 
 interface CloseMarkerRes {

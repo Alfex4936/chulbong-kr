@@ -162,7 +162,10 @@ const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
                           {marker.description || "설명 없음..."}
                         </Styled.Description>
                       </Styled.DescriptionWrap>
-                      <Styled.AddressText>{marker.addr}</Styled.AddressText>
+                      <Styled.AddressText>
+                        {marker.address ||
+                          "주소를 불러오는 중입니다. 잠시 후 다시 확인해 주세요!"}
+                      </Styled.AddressText>
                     </Styled.MarkerListTop>
                     <div>
                       <Tooltip title="이동" arrow disableInteractive>

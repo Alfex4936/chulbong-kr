@@ -23,7 +23,6 @@ import useMarkerDislike from "../../hooks/mutation/marker/useMarkerDislike";
 import useUndoDislike from "../../hooks/mutation/marker/useUndoDislike";
 import useUpdateDesc from "../../hooks/mutation/marker/useUpdateDesc";
 import useGetMarker from "../../hooks/query/marker/useGetMarker";
-import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
 import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
@@ -68,7 +67,6 @@ const MarkerInfoModal = ({
     isError,
     error,
   } = useGetMarker(currentMarkerInfo.markerId);
-  const { data: myInfo } = useGetMyInfo();
 
   const { mutateAsync: like, isPending: likePending } = useSetFavorite(
     currentMarkerInfo.markerId
@@ -101,8 +99,6 @@ const MarkerInfoModal = ({
 
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const [address, setAddress] = useState("");
-
   const [viewInput, setViewInput] = useState(false);
 
   useEffect(() => {
@@ -124,30 +120,6 @@ const MarkerInfoModal = ({
       clearTimeout(errorTime);
     };
   }, [isRoadViewError]);
-
-  useEffect(() => {
-    const getAddr = () => {
-      let geocoder = new window.kakao.maps.services.Geocoder();
-      let coord = new window.kakao.maps.LatLng(
-        marker?.latitude,
-        marker?.longitude
-      );
-
-      geocoder.coord2Address(
-        coord.getLng(),
-        coord.getLat(),
-        (result: { address: { address_name: string } }[], status: string) => {
-          if (status === window.kakao.maps.services.Status.OK) {
-            setAddress(result[0].address.address_name);
-          } else {
-            setAddress("주소 정보 없음");
-          }
-        }
-      );
-    };
-
-    getAddr();
-  }, [marker]);
 
   const filtering = async () => {
     const marker = markers.find(
@@ -333,8 +305,7 @@ const MarkerInfoModal = ({
                   alt="철봉 상세 이미지"
                 />
                 <Styled.description>
-                  {(marker?.isChulbong ||
-                    myInfo?.userId === marker?.userId) && (
+                  {marker?.isChulbong && (
                     <>
                       <Tooltip title="수정" arrow disableInteractive>
                         <IconButton
@@ -401,7 +372,10 @@ const MarkerInfoModal = ({
               {marker?.createdAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
               등록
             </div>
-            <div>{address}</div>
+            <div>
+              {marker?.address ||
+                "주소를 불러오는 중입니다. 잠시 후 다시 확인해 주세요!"}
+            </div>
           </Styled.AddressText>
 
           <Styled.ErrorBox>{roadViewErrorText}</Styled.ErrorBox>
@@ -499,7 +473,7 @@ const MarkerInfoModal = ({
               </Tooltip>
             )}
 
-            {(marker?.isChulbong || myInfo?.userId === marker?.userId) && (
+            {marker?.isChulbong && (
               <Tooltip title="삭제 하기" arrow disableInteractive>
                 <IconButton onClick={handleDelete} aria-label="delete">
                   {deleteLoading ? (
