@@ -3,7 +3,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SearchIcon from "@mui/icons-material/Search";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import { RefObject, useEffect, useState } from "react";
+import { RefObject, useEffect, useRef, useState } from "react";
 import getSearchLoation from "../../api/kakao/getSearchLoation";
 import useInput from "../../hooks/useInput";
 import useMapPositionStore from "../../store/useMapPositionStore";
@@ -46,8 +46,28 @@ const SearchInput = ({
   const onBoardingState = useOnBoardingStore();
 
   const searchInput = useInput("");
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const [places, setPlaces] = useState<KakaoPlace[] | null>(null);
   const [isResult, setIsResult] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDownClose = (event: KeyboardEvent) => {
+      if (event.key === "/") {
+        searchInputRef.current?.focus();
+      } else if (event.key === "Escape") {
+        searchInput.reset();
+        searchInputRef.current?.blur();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDownClose);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDownClose);
+    };
+  }, []);
 
   useEffect(() => {
     if (!onBoardingState.isOnBoarding) {
@@ -129,6 +149,7 @@ const SearchInput = ({
     >
       <Styled.InputWrap>
         <Styled.SearchInput
+          ref={searchInputRef}
           type="text"
           name="search"
           disabled={onBoardingState.step === 8}
