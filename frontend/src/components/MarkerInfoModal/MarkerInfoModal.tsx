@@ -204,8 +204,10 @@ const MarkerInfoModal = ({
   if (isLoading) return <MarkerInfoSkeleton />;
   if (isError) {
     if (isAxiosError(error)) {
+      if (sharedMarker && sharedMarkerLat && sharedMarkerLng) {
+        navigate("/");
+      }
       if (error.response?.status === 404) {
-        console.log(error.response?.status);
         return (
           <div style={{ fontSize: "1.2rem" }}>
             <Tooltip title="닫기" arrow disableInteractive>
