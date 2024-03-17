@@ -1,11 +1,16 @@
 import type { MarkerClusterer } from "@/types/Cluster.types";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import { isAxiosError } from "axios";
 import { useEffect, useState } from "react";
 import logout from "../../api/auth/logout";
 import activeMarkerImage from "../../assets/images/cb1.webp";
 import selectedMarkerImage from "../../assets/images/cb3.webp";
+import useSetFacilities from "../../hooks/mutation/marker/useSetFacilities";
 import useUploadMarker from "../../hooks/mutation/marker/useUploadMarker";
 import useInput from "../../hooks/useInput";
 import useCurrentMarkerStore from "../../store/useCurrentMarkerStore";
@@ -16,11 +21,6 @@ import Input from "../Input/Input";
 import type { MarkerInfo } from "../Map/Map";
 import UploadImage from "../UploadImage/UploadImage";
 import * as Styled from "./AddChinupBarForm.style";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import useSetFacilities from "../../hooks/mutation/marker/useSetFacilities";
 
 interface Props {
   setState: React.Dispatch<React.SetStateAction<boolean>>;
@@ -84,7 +84,7 @@ const AddChinupBarForm = ({
   const handleSubmit = async () => {
     const data = {
       description: descriptionValue.value,
-      photos: formState.imageForm as File[],
+      photos: formState.imageForm.map((image) => image.file) as File[],
       latitude: formState.latitude,
       longitude: formState.longitude,
     };

@@ -69,8 +69,6 @@ const MarkerInfoModal = ({
     error,
   } = useGetMarker(currentMarkerInfo.markerId);
 
-  console.log(marker?.photos);
-
   const { data: facilities } = useGetFacilities(currentMarkerInfo.markerId);
 
   const { mutateAsync: updateDesc } = useUpdateDesc(
@@ -384,7 +382,7 @@ const MarkerInfoModal = ({
                 </>
               )}
             </Styled.imageWrap>
-            {marker?.photos && marker?.photos?.length > 0 && (
+            {marker?.photos && marker?.photos?.length > 1 && (
               <Styled.ImagePreviewWrap>
                 {marker?.photos?.map((photo) => {
                   return (
