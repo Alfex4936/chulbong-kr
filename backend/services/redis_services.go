@@ -1,8 +1,9 @@
 package services
 
 import (
-	"encoding/json"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	"github.com/gofiber/storage/redis/v3"
 )
@@ -57,24 +58,13 @@ func GetCacheEntry[T any](key string) (T, error) {
 	return result, nil
 }
 
-// ResetCache invalidates cache entries for both the metadata and body of a specific endpoint.
+// ResetCache invalidates cache entries
 func ResetCache(key string) error {
-	// Construct the keys for the metadata and body
-	metadataKey := key
-	bodyKey := key + "_body"
-
 	// Delete the metadata key
-	err := RedisStore.Delete(metadataKey)
+	err := RedisStore.Delete(key)
 	if err != nil {
 		return err
 	}
-
-	// Delete the body key
-	RedisStore.Delete(bodyKey)
-	// if err != nil {
-	//     return err
-	// }
-
 	return nil
 }
 

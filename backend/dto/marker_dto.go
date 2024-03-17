@@ -35,6 +35,7 @@ type MarkerWithDistance struct {
 	MarkerSimple
 	Description string  `json:"description" db:"Description"`
 	Distance    float64 `json:"distance" db:"distance"` // Distance in meters
+	Address     string  `json:"address" db:"Address"`
 }
 
 type MarkerWithDislike struct {
@@ -55,4 +56,22 @@ type MarkerSimpleWithDescrption struct {
 	Longitude   float64   `json:"longitude" db:"Longitude"`
 	Description string    `json:"description" db:"Description"`
 	CreatedAt   time.Time `json:"-" db:"CreatedAt"`
+	Address     string    `json:"address,omitempty" db:"Address"`
+}
+
+type MarkerSimpleWithAddr struct {
+	MarkerID  int     `json:"markerId" db:"MarkerID"`
+	Latitude  float64 `json:"latitude" db:"Latitude"`
+	Longitude float64 `json:"longitude" db:"Longitude"`
+	Address   string  `json:"address,omitempty"`
+}
+
+type FacilityQuantity struct {
+	FacilityID int `json:"facilityId"`
+	Quantity   int `json:"quantity"`
+}
+
+type FacilityRequest struct {
+	MarkerID   int                `json:"markerId"`
+	Facilities []FacilityQuantity `json:"facilities"`
 }

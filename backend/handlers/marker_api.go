@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
-	services.ResetCache("/api/v1/markers_GET")
+	services.ResetCache(services.ALL_MARKERS_KEY)
 
 	// Parse the multipart form
 	form, err := c.MultipartForm()
@@ -50,7 +51,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Set default description if it's empty or not provided
-	description := "설명 없음" // Default description
+	description := "" // Default description
 	if descValues, exists := form.Value["description"]; exists && len(descValues[0]) > 0 {
 		description = descValues[0]
 	}
@@ -82,7 +83,26 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 }
 
 func GetAllMarkersHandler(c *fiber.Ctx) error {
+	cachedMarkers, cacheErr := services.GetCacheEntry[[]dto.MarkerSimple](services.ALL_MARKERS_KEY)
+	if cacheErr == nil && cachedMarkers != nil {
+		// Cache hit
+		c.Append("X-Cache", "hit")
+		return c.JSON(cachedMarkers)
+	}
+
 	markersWithPhotos, err := services.GetAllMarkers()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	services.SetCacheEntry(services.ALL_MARKERS_KEY, markersWithPhotos, 10*time.Minute)
+
+	return c.JSON(markersWithPhotos)
+}
+
+// ADMIN
+func GetAllMarkersWithAddrHandler(c *fiber.Ctx) error {
+	markersWithPhotos, err := services.GetAllMarkersWithAddr()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -97,31 +117,26 @@ func GetMarker(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Marker ID"})
 	}
 
-	var chulbong bool
-	var favorited bool
-	var disliked bool
-	userID, ok := c.Locals("userID").(int)
-	if ok {
-		disliked, err = services.CheckUserDislike(userID, markerID)
-		if err != nil {
-			disliked = false
-		}
-
-		favorited, err = services.CheckUserFavorite(userID, markerID)
-		if err != nil {
-			favorited = false
-		}
-
-		chulbong = c.Locals("chulbong").(bool)
-	}
+	userID, userOK := c.Locals("userID").(int)
+	chulbong, _ := c.Locals("chulbong").(bool)
 
 	marker, err := services.GetMarker(markerID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Marker not found: " + err.Error()})
 	}
-	marker.Disliked = disliked
-	marker.Favorited = favorited
-	marker.IsChulbong = chulbong
+
+	if userOK {
+		// Checking dislikes and favorites only if user is authenticated
+		marker.Disliked, _ = services.CheckUserDislike(userID, markerID)
+		marker.Favorited, _ = services.CheckUserFavorite(userID, markerID)
+
+		// Check ownership. If marker.UserID is nil, chulbong remains as set earlier.
+		if !chulbong && marker.UserID != nil {
+			marker.IsChulbong = *marker.UserID == userID
+		} else {
+			marker.IsChulbong = chulbong
+		}
+	}
 
 	return c.JSON(marker)
 }
@@ -430,4 +445,49 @@ func RemoveFavoriteHandler(c *fiber.Ctx) error {
 	services.ResetCache(userFavKey)
 
 	return c.SendStatus(fiber.StatusNoContent) // 204 No Content is appropriate for a DELETE success with no response body
+}
+
+// GetFacilitiesHandler handles requests to get facilities by marker ID.
+func GetFacilitiesHandler(c *fiber.Ctx) error {
+	markerID, err := strconv.Atoi(c.Params("markerID"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Marker ID"})
+	}
+
+	facilities, err := services.GetFacilitiesByMarkerID(markerID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve facilities"})
+	}
+
+	return c.JSON(facilities)
+}
+
+func SetMarkerFacilitiesHandler(c *fiber.Ctx) error {
+	var req dto.FacilityRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse request"})
+	}
+
+	if err := services.SetMarkerFacilities(req.MarkerID, req.Facilities); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to set facilities for marker: " + err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+// UpdateMarkersAddressesHandler handles the request to update all markers' addresses.
+func UpdateMarkersAddressesHandler(c *fiber.Ctx) error {
+	updatedMarkers, err := services.UpdateMarkersAddresses()
+	if err != nil {
+		// Log the error and return a generic error message to the client
+		fmt.Printf("Error updating marker addresses: %v\n", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update marker addresses",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":        "Successfully updated marker addresses",
+		"updatedMarkers": updatedMarkers,
+	})
 }
