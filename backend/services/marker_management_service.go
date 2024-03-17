@@ -3,13 +3,17 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"mime/multipart"
-	"strings"
+	"os"
+	"time"
 
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
 )
+
+var CLIENT_ADDR = os.Getenv("CLIENT_ADDR")
 
 func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
 	// Begin a transaction for database operations
@@ -57,6 +61,51 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 		return nil, fmt.Errorf("could not commit transaction: %w", err)
 	}
 
+	go func(markerID int64, latitude, longitude float64) {
+		maxRetries := 3
+		retryDelay := 5 * time.Second // Delay between retries
+
+		var address string
+		var err error
+
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			if attempt > 0 {
+				log.Printf("Retrying to fetch address for marker %d, attempt %d", markerID, attempt)
+				time.Sleep(retryDelay) // Wait before retrying
+			}
+
+			address, err = FetchAddressFromAPI(latitude, longitude)
+			if err == nil && address != "-1" {
+				break // Success, exit the retry loop
+			}
+
+			log.Printf("Attempt %d failed to fetch address for marker %d: %v", attempt, markerID, err)
+		}
+
+		if err != nil || address == "" {
+			var errMsg string
+			if err != nil {
+				errMsg = fmt.Sprintf("Final attempt failed to fetch address for marker %d: %v", markerID, err)
+			} else {
+				errMsg = fmt.Sprintf("No address found for marker %d after %d attempts", markerID, maxRetries)
+			}
+
+			url := fmt.Sprintf("%sd=%d&la=%f&lo=%f", CLIENT_ADDR, markerID, markerDto.Latitude, markerDto.Longitude)
+
+			logFailureStmt := "INSERT INTO MarkerAddressFailures (MarkerID, ErrorMessage, URL) VALUES (?, ?, ?)"
+			if _, logErr := database.DB.Exec(logFailureStmt, markerID, errMsg, url); logErr != nil {
+				log.Printf("Failed to log address fetch failure for marker %d: %v", markerID, logErr)
+			}
+			return
+		}
+
+		// Update the marker's address in the database after successful fetch
+		_, err = database.DB.Exec("UPDATE Markers SET Address = ? WHERE MarkerID = ?", address, markerID)
+		if err != nil {
+			log.Printf("Failed to update address for marker %d: %v", markerID, err)
+		}
+	}(markerID, markerDto.Latitude, markerDto.Longitude)
+
 	// Construct and return the response
 	return &dto.MarkerResponse{
 		MarkerID:    int(markerID),
@@ -87,6 +136,34 @@ func GetAllMarkers() ([]dto.MarkerSimple, error) {
 	return markers, nil
 }
 
+// GetAllMarkersWithAddr fetches all markers and returns only those with an address not found or empty.
+func GetAllMarkersWithAddr() ([]dto.MarkerSimpleWithAddr, error) {
+	const markerQuery = `SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude FROM Markers;`
+
+	var markers []dto.MarkerSimpleWithAddr
+	err := database.DB.Select(&markers, markerQuery)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching markers: %w", err)
+	}
+
+	var filteredMarkers []dto.MarkerSimpleWithAddr
+	for i := range markers {
+		// func FetchAddressFromAPI(latitude float64, longitude float64) (string, error)
+		address, err := FetchAddressFromAPI(markers[i].Latitude, markers[i].Longitude)
+		if err != nil {
+			continue
+		}
+
+		// Update the address and include only if "Address not found" or empty
+		if address == "Address not found" || address == "" {
+			markers[i].Address = address
+			filteredMarkers = append(filteredMarkers, markers[i])
+		}
+	}
+
+	return filteredMarkers, nil
+}
+
 func GetAllMarkersByUserWithPagination(userID, page, pageSize int) ([]dto.MarkerSimpleWithDescrption, int, error) {
 	offset := (page - 1) * pageSize
 
@@ -97,7 +174,8 @@ SELECT
     ST_X(M.Location) AS Latitude, 
     ST_Y(M.Location) AS Longitude, 
     M.Description,
-    M.CreatedAt
+    M.CreatedAt,
+	M.Address
 FROM 
     Markers M
 WHERE 
@@ -127,33 +205,45 @@ LIMIT ? OFFSET ?
 // GetMarker retrieves a single marker and its associated photo by the marker's ID
 func GetMarker(markerID int) (*models.MarkerWithPhotos, error) {
 	const query = `
-SELECT
-  M.MarkerID,
-  M.UserID,
-  ST_X(M.Location) AS Latitude,
-  ST_Y(M.Location) AS Longitude,
-  M.Description,
-  COALESCE(U.Username, '탈퇴한 사용자') AS Username,
-  M.CreatedAt,
-  M.UpdatedAt,
-  IFNULL(D.DislikeCount, 0) AS DislikeCount
-FROM Markers M
-LEFT JOIN Users U ON M.UserID = U.UserID
-LEFT JOIN (
-  SELECT
-    MarkerID,
-    COUNT(DislikeID) AS DislikeCount
-  FROM MarkerDislikes
-  GROUP BY MarkerID
-) D ON M.MarkerID = D.MarkerID
-WHERE M.MarkerID = ?`
+	SELECT
+	M.MarkerID,
+	M.UserID,
+	ST_X(M.Location) AS Latitude,
+	ST_Y(M.Location) AS Longitude,
+	M.Description,
+	COALESCE(U.Username, '탈퇴한 사용자') AS Username,
+	M.CreatedAt,
+	M.UpdatedAt,
+	M.Address,
+	COALESCE(D.DislikeCount, 0) AS DislikeCount,
+	COALESCE(F.FavoriteCount, 0) AS FavoriteCount
+  FROM Markers M
+  LEFT JOIN Users U ON M.UserID = U.UserID
+  LEFT JOIN (
+	SELECT
+	  MarkerID,
+	  COUNT(*) AS DislikeCount
+	FROM MarkerDislikes
+	WHERE MarkerID = ?
+	GROUP BY MarkerID
+  ) D ON M.MarkerID = D.MarkerID
+  LEFT JOIN (
+	SELECT
+	  MarkerID,
+	  COUNT(*) AS FavoriteCount
+	FROM Favorites
+	WHERE MarkerID = ?
+	GROUP BY MarkerID
+  ) F ON M.MarkerID = F.MarkerID
+  WHERE M.MarkerID = ?`
 
 	var markersWithUsernames struct {
 		models.Marker
-		Username     string `db:"Username"`
-		DislikeCount int    `db:"DislikeCount"`
+		Username      string `db:"Username"`
+		DislikeCount  int    `db:"DislikeCount"`
+		FavoriteCount int    `db:"FavoriteCount"`
 	}
-	err := database.DB.Get(&markersWithUsernames, query, markerID)
+	err := database.DB.Get(&markersWithUsernames, query, markerID, markerID, markerID)
 	if err != nil {
 		return nil, err
 	}
@@ -174,10 +264,11 @@ WHERE M.MarkerID = ?`
 
 	// Assemble the final structure
 	markersWithPhotos := models.MarkerWithPhotos{
-		Marker:       markersWithUsernames.Marker,
-		Photos:       photoMap[markersWithUsernames.MarkerID],
-		Username:     markersWithUsernames.Username,
-		DislikeCount: markersWithUsernames.DislikeCount,
+		Marker:        markersWithUsernames.Marker,
+		Photos:        photoMap[markersWithUsernames.MarkerID],
+		Username:      markersWithUsernames.Username,
+		DislikeCount:  markersWithUsernames.DislikeCount,
+		FavoriteCount: markersWithUsernames.FavoriteCount,
 	}
 
 	// PublishMarkerUpdate(fmt.Sprintf("user: %s", markersWithPhotos.Username))
@@ -205,54 +296,6 @@ func UpdateMarkerDescriptionOnly(markerID int, description string) error {
 	}
 
 	return nil
-}
-
-// LeaveDislike user's dislike for a marker
-func LeaveDislike(userID int, markerID int) error {
-	_, err := database.DB.Exec(
-		"INSERT INTO MarkerDislikes (MarkerID, UserID) VALUES (?, ?) ON DUPLICATE KEY UPDATE DislikedAt=VALUES(DislikedAt)",
-		markerID, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("inserting dislike: %w", err)
-	}
-	return nil
-}
-
-// UndoDislike nudo user's dislike for a marker
-func UndoDislike(userID int, markerID int) error {
-	result, err := database.DB.Exec(
-		"DELETE FROM MarkerDislikes WHERE UserID = ? AND MarkerID = ?",
-		userID, markerID,
-	)
-	if err != nil {
-		return fmt.Errorf("deleting dislike: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("checking affected rows: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("no dislike found to undo")
-	}
-
-	return nil
-}
-
-// This service function checks if the given user has disliked the specified marker.
-func CheckUserDislike(userID, markerID int) (bool, error) {
-	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM MarkerDislikes WHERE UserID = ? AND MarkerID = ?)"
-	err := database.DB.Get(&exists, query, userID, markerID)
-	return exists, err
-}
-
-func CheckUserFavorite(userID, markerID int) (bool, error) {
-	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM Favorites WHERE UserID = ? AND MarkerID = ?)"
-	err := database.DB.Get(&exists, query, userID, markerID)
-	return exists, err
 }
 
 // DeleteMarker deletes a marker and its associated photos from the database and S3.
@@ -314,100 +357,6 @@ func DeleteMarker(userID, markerID int) error {
 	return nil
 }
 
-// meters_per_degree = 40075000 / 360 / 1000
-// IsMarkerNearby checks if there's a marker within n meters of the given latitude and longitude
-func IsMarkerNearby(lat, long float64, bufferDistanceMeters int) (bool, error) {
-	point := fmt.Sprintf("POINT(%f %f)", lat, long)
-
-	query := `
-SELECT EXISTS (
-    SELECT 1 
-    FROM Markers
-    WHERE ST_Within(Location, ST_Buffer(ST_GeomFromText(?, 4326), ?))
-) AS Nearby;
-`
-
-	// Execute the query
-	var nearby bool
-	err := database.DB.Get(&nearby, query, point, bufferDistanceMeters)
-	if err != nil {
-		return false, fmt.Errorf("error checking for nearby markers: %w", err)
-	}
-
-	return nearby, nil
-}
-
-// FindClosestNMarkersWithinDistance
-func FindClosestNMarkersWithinDistance(lat, long float64, distance, pageSize, offset int) ([]dto.MarkerWithDistance, int, error) {
-	point := fmt.Sprintf("POINT(%f %f)", lat, long)
-
-	// Query to find markers within N meters and calculate total
-	query := `
-SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude, Description, ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance
-FROM Markers
-WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
-ORDER BY distance ASC
-LIMIT ? OFFSET ?`
-
-	var markers []dto.MarkerWithDistance
-	err := database.DB.Select(&markers, query, point, point, distance, pageSize, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error checking for nearby markers: %w", err)
-	}
-
-	// Query to get total count of markers within distance
-	countQuery := `
-SELECT COUNT(*)
-FROM Markers
-WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?`
-
-	var total int
-	err = database.DB.Get(&total, countQuery, point, distance)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error getting total markers count: %w", err)
-	}
-
-	return markers, total, nil
-}
-
-// ------------ FAVORITES ------------
-
-// AddFavoriteHandler adds a new favorite marker for the user.
-func AddFavorite(userID, markerID int) error {
-	// First, count the existing favorites for the user
-	var count int
-	err := database.DB.QueryRowx("SELECT COUNT(*) FROM Favorites WHERE UserID = ?", userID).Scan(&count)
-	if err != nil {
-		return err
-	}
-
-	// Check if the user already has 10 favorites
-	if count >= 10 {
-		return fmt.Errorf("maximum number of favorites reached")
-	}
-
-	// If not, insert the new favorite
-	_, err = database.DB.Exec("INSERT INTO Favorites (UserID, MarkerID) VALUES (?, ?)", userID, markerID)
-	if err != nil {
-		// Convert error to string and check if it contains the MySQL error code for duplicate entry
-		if strings.Contains(err.Error(), "1062") {
-			return fmt.Errorf("you have already favorited this marker")
-		}
-		return fmt.Errorf("failed to add favorite: %w", err)
-	}
-
-	return nil
-}
-
-func RemoveFavorite(userID, markerID int) error {
-	// Delete the specified favorite for the user
-	_, err := database.DB.Exec("DELETE FROM Favorites WHERE UserID = ? AND MarkerID = ?", userID, markerID)
-	if err != nil {
-		return fmt.Errorf("error removing favorite: %w", err)
-	}
-	return nil
-}
-
 func UploadMarkerPhotoToS3(markerID int, files []*multipart.FileHeader) ([]string, error) {
 	// Begin a transaction for database operations
 	tx, err := database.DB.Beginx()
@@ -436,19 +385,15 @@ func UploadMarkerPhotoToS3(markerID int, files []*multipart.FileHeader) ([]strin
 		}
 	}
 
+	// Update Marker's UpdatedAt field
+	if _, err := tx.Exec("UPDATE Markers SET UpdatedAt = NOW() WHERE MarkerID = ?", markerID); err != nil {
+		return nil, err
+	}
+
 	// If no errors, commit the transaction
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
 	return picUrls, nil
-}
-
-// Helper function to extract marker IDs
-func getMarkerIDs(markers []dto.MarkerWithDislike) []interface{} {
-	ids := make([]interface{}, len(markers))
-	for i, marker := range markers {
-		ids[i] = marker.MarkerID
-	}
-	return ids
 }
