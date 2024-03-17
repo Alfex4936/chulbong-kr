@@ -16,6 +16,11 @@ import Input from "../Input/Input";
 import type { MarkerInfo } from "../Map/Map";
 import UploadImage from "../UploadImage/UploadImage";
 import * as Styled from "./AddChinupBarForm.style";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import useSetFacilities from "../../hooks/mutation/marker/useSetFacilities";
 
 interface Props {
   setState: React.Dispatch<React.SetStateAction<boolean>>;
@@ -45,6 +50,11 @@ const AddChinupBarForm = ({
   const userState = useUserStore();
 
   const { mutateAsync: uploadMarker } = useUploadMarker();
+
+  const [chulbong, setChulbong] = useState(0);
+  const [penghang, setPenghang] = useState(0);
+
+  const { mutateAsync: setFacilities } = useSetFacilities();
 
   const descriptionValue = useInput("");
 
@@ -83,6 +93,20 @@ const AddChinupBarForm = ({
 
     try {
       const result = await uploadMarker(data);
+      await setFacilities({
+        markerId: result.markerId,
+        facilities: [
+          {
+            facilityId: 1,
+            quantity: chulbong,
+          },
+          {
+            facilityId: 2,
+            quantity: penghang,
+          },
+        ],
+      });
+
       await filtering();
 
       const imageSize = new window.kakao.maps.Size(39, 39);
@@ -151,6 +175,83 @@ const AddChinupBarForm = ({
       <Styled.FormTitle>위치 등록</Styled.FormTitle>
 
       <UploadImage />
+
+      <Styled.NumberInputWrap>
+        <div>
+          <Styled.FlexCenter>철봉</Styled.FlexCenter>
+          <Styled.Empty />
+          <Styled.FlexCenter>
+            <Tooltip title="감소" arrow disableInteractive>
+              <IconButton
+                aria-label="minus"
+                sx={{
+                  width: "30px",
+                  height: "30px",
+                }}
+                onClick={() => {
+                  if (chulbong === 0) return;
+                  setChulbong((prev) => prev - 1);
+                }}
+              >
+                <RemoveIcon />
+              </IconButton>
+            </Tooltip>
+            <Styled.Count>{chulbong}</Styled.Count>
+            <Tooltip title="증가" arrow disableInteractive>
+              <IconButton
+                aria-label="plus"
+                sx={{
+                  width: "30px",
+                  height: "30px",
+                }}
+                onClick={() => {
+                  if (chulbong === 99) return;
+                  setChulbong((prev) => prev + 1);
+                }}
+              >
+                <AddIcon />
+              </IconButton>
+            </Tooltip>
+          </Styled.FlexCenter>
+        </div>
+        <div>
+          <Styled.FlexCenter>평행봉</Styled.FlexCenter>
+          <Styled.Empty />
+          <Styled.FlexCenter>
+            <Tooltip title="감소" arrow disableInteractive>
+              <IconButton
+                aria-label="minus"
+                sx={{
+                  width: "30px",
+                  height: "30px",
+                }}
+                onClick={() => {
+                  if (penghang === 0) return;
+                  setPenghang((prev) => prev - 1);
+                }}
+              >
+                <RemoveIcon />
+              </IconButton>
+            </Tooltip>
+            <Styled.Count>{penghang}</Styled.Count>
+            <Tooltip title="증가" arrow disableInteractive>
+              <IconButton
+                aria-label="plus"
+                sx={{
+                  width: "30px",
+                  height: "30px",
+                }}
+                onClick={() => {
+                  if (penghang === 99) return;
+                  setPenghang((prev) => prev + 1);
+                }}
+              >
+                <AddIcon />
+              </IconButton>
+            </Tooltip>
+          </Styled.FlexCenter>
+        </div>
+      </Styled.NumberInputWrap>
 
       <Styled.InputWrap>
         <Input

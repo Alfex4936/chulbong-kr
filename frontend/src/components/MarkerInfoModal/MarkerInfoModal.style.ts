@@ -146,3 +146,24 @@ export const ErrorBox = styled.div`
 
   color: red;
 `;
+
+export const Facilities = styled.div`
+  display: flex;
+  justify-content: center;
+
+  margin-bottom: .5rem;
+
+  & > div {
+    margin: 0 0.5rem;
+    display: flex;
+    align-items: center;
+
+    & > span:first-of-type {
+      font-size: 1.2rem;
+      margin-right: .3rem;
+    }
+    & > span:last-of-type {
+      font-size: 0.9rem;
+    }
+  }
+`;
