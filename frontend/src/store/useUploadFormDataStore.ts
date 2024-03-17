@@ -5,7 +5,7 @@ interface FormDataState {
   photoUrl: string;
   latitude: number;
   longitude: number;
-  imageForm: File | null;
+  imageForm: File[];
   resetData: VoidFunction;
   resetPosition: VoidFunction;
   setPosition: (lat: number, lon: number) => void;
@@ -18,14 +18,14 @@ const useUploadFormDataStore = create<FormDataState>()((set) => ({
   photoUrl: "",
   latitude: 0,
   longitude: 0,
-  imageForm: null,
+  imageForm: [],
 
   resetData: () =>
     set((state) => ({
       ...state,
       description: "",
       photoUrl: "",
-      imageForm: null,
+      imageForm: [],
     })),
   resetPosition: () =>
     set((state) => ({
@@ -39,7 +39,8 @@ const useUploadFormDataStore = create<FormDataState>()((set) => ({
 
   setPhoto: (url: string) => set({ photoUrl: url }),
 
-  setImageForm: (file: File) => set({ imageForm: file }),
+  setImageForm: (file: File) =>
+    set((state) => ({ imageForm: [...state.imageForm, file] })),
 }));
 
 export default useUploadFormDataStore;

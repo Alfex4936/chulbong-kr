@@ -69,6 +69,8 @@ const MarkerInfoModal = ({
     error,
   } = useGetMarker(currentMarkerInfo.markerId);
 
+  console.log(marker?.photos);
+
   const { data: facilities } = useGetFacilities(currentMarkerInfo.markerId);
 
   const { mutateAsync: updateDesc } = useUpdateDesc(
@@ -105,10 +107,18 @@ const MarkerInfoModal = ({
 
   const [viewInput, setViewInput] = useState(false);
 
+  const [curImage, setCurImage] = useState("");
+
   useEffect(() => {
     toastState.close();
     toastState.setToastText("");
   }, []);
+
+  useEffect(() => {
+    if (!marker?.photos) return;
+
+    setCurImage(marker.photos[0].photoUrl);
+  }, [marker]);
 
   useEffect(() => {
     if (!isRoadViewError) return;
@@ -296,89 +306,120 @@ const MarkerInfoModal = ({
               <CloseIcon />
             </IconButton>
           </Tooltip>
-          <Styled.imageWrap>
-            {isRoadView ? (
-              <MarkerRoadView
-                lat={marker?.latitude as number}
-                lng={marker?.longitude as number}
-                setIsRoadView={setIsRoadView}
-                setIsRoadViewError={setIsRoadViewError}
-              />
-            ) : (
-              <>
-                <img
-                  src={marker?.photos ? marker.photos[0].photoUrl : noimg}
-                  alt="철봉 상세 이미지"
+          <Styled.ImagesContainer>
+            <Styled.imageWrap>
+              {isRoadView ? (
+                <MarkerRoadView
+                  lat={marker?.latitude as number}
+                  lng={marker?.longitude as number}
+                  setIsRoadView={setIsRoadView}
+                  setIsRoadViewError={setIsRoadViewError}
                 />
-                <Styled.description>
-                  {marker?.isChulbong && (
-                    <>
-                      <Tooltip title="수정" arrow disableInteractive>
-                        <IconButton
-                          onClick={() => {
-                            setViewInput(true);
-                          }}
-                          aria-label="edit"
-                          sx={{
-                            position: "absolute",
-                            top: "0",
-                            left: "0",
-                            color: "#fff",
-                          }}
-                        >
-                          <EditIcon
-                            sx={{
-                              width: "20px",
-                              height: "20px",
+              ) : (
+                <>
+                  <img
+                    src={marker?.photos ? curImage : noimg}
+                    alt="철봉 상세 이미지"
+                  />
+                  <Styled.description>
+                    {marker?.isChulbong && (
+                      <>
+                        <Tooltip title="수정" arrow disableInteractive>
+                          <IconButton
+                            onClick={() => {
+                              setViewInput(true);
                             }}
-                          />
-                        </IconButton>
-                      </Tooltip>
-                    </>
-                  )}
+                            aria-label="edit"
+                            sx={{
+                              position: "absolute",
+                              top: "0",
+                              left: "0",
+                              color: "#fff",
+                            }}
+                          >
+                            <EditIcon
+                              sx={{
+                                width: "20px",
+                                height: "20px",
+                              }}
+                            />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
 
-                  {viewInput ? (
-                    <Styled.InputWrap>
-                      <Styled.DescInput
-                        id="edit"
-                        type="text"
-                        onChange={descInput.onChange}
-                      />
-                      <Styled.ButtonWrap>
-                        <ActionButton
-                          bg="black"
-                          onClick={() => {
-                            updateDesc();
-                            setViewInput(false);
-                          }}
-                        >
-                          수정
-                        </ActionButton>
-                        <ActionButton
-                          bg="gray"
-                          onClick={() => {
-                            setViewInput(false);
-                          }}
-                        >
-                          취소
-                        </ActionButton>
-                      </Styled.ButtonWrap>
-                    </Styled.InputWrap>
-                  ) : (
-                    <div>
-                      {marker?.description || "작성된 설명이 없습니다."}
-                    </div>
-                  )}
-                </Styled.description>
-              </>
+                    {viewInput ? (
+                      <Styled.InputWrap>
+                        <Styled.DescInput
+                          id="edit"
+                          type="text"
+                          onChange={descInput.onChange}
+                        />
+                        <Styled.ButtonWrap>
+                          <ActionButton
+                            bg="black"
+                            onClick={() => {
+                              updateDesc();
+                              setViewInput(false);
+                            }}
+                          >
+                            수정
+                          </ActionButton>
+                          <ActionButton
+                            bg="gray"
+                            onClick={() => {
+                              setViewInput(false);
+                            }}
+                          >
+                            취소
+                          </ActionButton>
+                        </Styled.ButtonWrap>
+                      </Styled.InputWrap>
+                    ) : (
+                      <div>
+                        {marker?.description || "작성된 설명이 없습니다."}
+                      </div>
+                    )}
+                  </Styled.description>
+                </>
+              )}
+            </Styled.imageWrap>
+            {marker?.photos && marker?.photos?.length > 0 && (
+              <Styled.ImagePreviewWrap>
+                {marker?.photos?.map((photo) => {
+                  return (
+                    <Tooltip
+                      title="이미지 보기"
+                      arrow
+                      disableInteractive
+                      key={photo.photoId}
+                    >
+                      <button
+                        style={{
+                          border:
+                            photo.photoUrl === curImage
+                              ? "1.5px solid"
+                              : "none",
+                        }}
+                        onClick={() => {
+                          setCurImage(photo.photoUrl);
+                        }}
+                      >
+                        <img src={photo.photoUrl} />
+                      </button>
+                    </Tooltip>
+                  );
+                })}
+              </Styled.ImagePreviewWrap>
             )}
-          </Styled.imageWrap>
+          </Styled.ImagesContainer>
           <Styled.Facilities>
             {facilities &&
               (facilities[0]?.quantity ? (
                 <div>
                   <span>철봉</span>
                   <span>{facilities[0]?.quantity}</span>
+                  <span>개</span>
                 </div>
               ) : null)}
             {facilities &&
@@ -386,6 +427,7 @@ const MarkerInfoModal = ({
                 <div>
                   <span>평행봉</span>
                   <span>{facilities[1]?.quantity}</span>
+                  <span>개</span>
                 </div>
               ) : null)}
           </Styled.Facilities>

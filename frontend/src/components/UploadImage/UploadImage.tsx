@@ -4,19 +4,18 @@ import Tooltip from "@mui/material/Tooltip";
 import { ChangeEvent, useRef, useState } from "react";
 import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import * as Styled from "./UploadImage.tyle";
+import { nanoid } from "nanoid";
 
 interface ImageUploadState {
   file: File | null;
   previewURL: string | null;
+  id: string | null;
 }
 
 const UploadImage = () => {
   const formState = useUploadFormDataStore();
 
-  const [image, setImage] = useState<ImageUploadState>({
-    file: null,
-    previewURL: null,
-  });
+  const [images, setImages] = useState<ImageUploadState[]>([]);
   const [hover, setHover] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
@@ -57,22 +56,29 @@ const UploadImage = () => {
   };
 
   const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (images.length > 4) {
+      setErrorMessage("최대 5개 까지 등록 가능합니다!");
+      return;
+    }
     const suppertedFormats = [
       "image/jpeg",
       "image/png",
       "image/svg+xml",
       "image/webp",
-      "image/gif",
     ];
     if (e.target.files) {
       let file: File = await resizeFile(e.target.files[0], 0.8);
       let reader = new FileReader();
 
       reader.onloadend = () => {
-        setImage({
-          file: file,
-          previewURL: reader.result as string,
-        });
+        setImages((prev) => [
+          ...prev,
+          {
+            file: file,
+            previewURL: reader.result as string,
+            id: nanoid(),
+          },
+        ]);
       };
 
       if (!suppertedFormats.includes(file.type)) {
@@ -99,46 +105,109 @@ const UploadImage = () => {
     fileInputRef.current?.click();
   };
 
+  const deleteImage = (id: string) => {
+    const filtered = images.filter((image) => image.id !== id);
+    setImages(filtered);
+  };
+
   return (
     <Styled.ImageUploadContainer>
-      <Tooltip
-        title={!image.previewURL ? "사진 등록하기" : "사진 바꾸기"}
-        followCursor
-      >
-        <Styled.ImageBox
-          img={image.previewURL}
-          onClick={handleBoxClick}
-          onMouseEnter={() => {
-            setHover(true);
-          }}
-          onMouseLeave={() => {
-            setHover(false);
-          }}
-          style={{
-            border: hover ? "2px dashed #444" : "1px dashed #444",
-          }}
-        >
-          {!image.previewURL ? (
-            hover ? (
+      <div>
+        <Tooltip title={"이미지 추가하기"} followCursor>
+          <Styled.ImageBox
+            img={null}
+            onClick={handleBoxClick}
+            onMouseEnter={() => {
+              setHover(true);
+            }}
+            onMouseLeave={() => {
+              setHover(false);
+            }}
+            style={{
+              border: hover ? "2px dashed #444" : "1px dashed #444",
+            }}
+          >
+            {hover ? (
               <CameraEnhanceIcon
                 style={{
-                  fontSize: "2rem",
                   color: "#444",
                 }}
               />
             ) : (
               <PhotoCameraIcon
                 style={{
-                  fontSize: "2rem",
                   color: "#444",
                 }}
               />
-            )
-          ) : null}
-        </Styled.ImageBox>
-      </Tooltip>
-      <input type="file" onChange={handleImageChange} ref={fileInputRef} />
-      <Styled.ErrorBox>{errorMessage}</Styled.ErrorBox>
+            )}
+          </Styled.ImageBox>
+        </Tooltip>
+        <input type="file" onChange={handleImageChange} ref={fileInputRef} />
+        <Styled.ErrorBox>{errorMessage}</Styled.ErrorBox>
+      </div>
+
+      <Styled.ImageViewContainer>
+        {images.map((image, index) => {
+          return (
+            <Tooltip title="삭제" arrow disableInteractive key={index}>
+              <Styled.ImageView
+                img={image.previewURL}
+                onClick={() => {
+                  deleteImage(image.id as string);
+                }}
+              />
+            </Tooltip>
+          );
+        })}
+      </Styled.ImageViewContainer>
+      {/* {images.map((image, index) => {
+        return (
+          <Fragment key={index}>
+            <Tooltip
+              title={!image.previewURL ? "사진 등록하기" : "사진 바꾸기"}
+              followCursor
+            >
+              <Styled.ImageBox
+                img={image.previewURL}
+                onClick={handleBoxClick}
+                onMouseEnter={() => {
+                  setHover(true);
+                }}
+                onMouseLeave={() => {
+                  setHover(false);
+                }}
+                style={{
+                  border: hover ? "2px dashed #444" : "1px dashed #444",
+                }}
+              >
+                {!image.previewURL ? (
+                  hover ? (
+                    <CameraEnhanceIcon
+                      style={{
+                        fontSize: "2rem",
+                        color: "#444",
+                      }}
+                    />
+                  ) : (
+                    <PhotoCameraIcon
+                      style={{
+                        fontSize: "2rem",
+                        color: "#444",
+                      }}
+                    />
+                  )
+                ) : null}
+              </Styled.ImageBox>
+            </Tooltip>
+            <input
+              type="file"
+              onChange={handleImageChange}
+              ref={fileInputRef}
+            />
+            <Styled.ErrorBox>{errorMessage}</Styled.ErrorBox>
+          </Fragment>
+        );
+      })} */}
     </Styled.ImageUploadContainer>
   );
 };
