@@ -1,3 +1,4 @@
+import type { ImageUploadState } from "../components/UploadImage/UploadImage";
 import { create } from "zustand";
 
 interface FormDataState {
@@ -5,12 +6,13 @@ interface FormDataState {
   photoUrl: string;
   latitude: number;
   longitude: number;
-  imageForm: File[];
+  imageForm: ImageUploadState[];
   resetData: VoidFunction;
   resetPosition: VoidFunction;
   setPosition: (lat: number, lon: number) => void;
   setPhoto: (url: string) => void;
-  setImageForm: (file: File) => void;
+  setImageForm: (file: ImageUploadState) => void;
+  replaceImages: (files: ImageUploadState[]) => void;
 }
 
 const useUploadFormDataStore = create<FormDataState>()((set) => ({
@@ -39,8 +41,9 @@ const useUploadFormDataStore = create<FormDataState>()((set) => ({
 
   setPhoto: (url: string) => set({ photoUrl: url }),
 
-  setImageForm: (file: File) =>
+  setImageForm: (file: ImageUploadState) =>
     set((state) => ({ imageForm: [...state.imageForm, file] })),
+  replaceImages: (files: ImageUploadState[]) => set({ imageForm: [...files] }),
 }));
 
 export default useUploadFormDataStore;

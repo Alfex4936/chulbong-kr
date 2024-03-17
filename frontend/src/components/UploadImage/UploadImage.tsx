@@ -6,7 +6,7 @@ import useUploadFormDataStore from "../../store/useUploadFormDataStore";
 import * as Styled from "./UploadImage.tyle";
 import { nanoid } from "nanoid";
 
-interface ImageUploadState {
+export interface ImageUploadState {
   file: File | null;
   previewURL: string | null;
   id: string | null;
@@ -71,14 +71,13 @@ const UploadImage = () => {
       let reader = new FileReader();
 
       reader.onloadend = () => {
-        setImages((prev) => [
-          ...prev,
-          {
-            file: file,
-            previewURL: reader.result as string,
-            id: nanoid(),
-          },
-        ]);
+        const imageData = {
+          file: file,
+          previewURL: reader.result as string,
+          id: nanoid(),
+        };
+        setImages((prev) => [...prev, imageData]);
+        formState.setImageForm(imageData);
       };
 
       if (!suppertedFormats.includes(file.type)) {
@@ -96,8 +95,6 @@ const UploadImage = () => {
       setErrorMessage("");
 
       reader.readAsDataURL(file);
-
-      formState.setImageForm(file);
     }
   };
 
@@ -108,6 +105,7 @@ const UploadImage = () => {
   const deleteImage = (id: string) => {
     const filtered = images.filter((image) => image.id !== id);
     setImages(filtered);
+    formState.replaceImages(filtered);
   };
 
   return (
