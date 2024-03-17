@@ -52,6 +52,10 @@ const BasicModal = ({ exit = true, children, setState }: Props) => {
     <Styled.ModalWrap
       onClick={(e) => {
         e.stopPropagation();
+        if (sharedMarker && sharedMarkerLat && sharedMarkerLng) {
+          navigate("/");
+        }
+
         if (setState) {
           setState(false);
         } else {
