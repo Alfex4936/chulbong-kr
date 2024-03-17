@@ -114,7 +114,7 @@ func Login(email, password string) (*models.User, error) {
 		return nil, fmt.Errorf("external provider login not supported here")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(password)) // heavy
 	if err != nil {
 		// Password does not match
 		return nil, fmt.Errorf("invalid credentials")
@@ -195,7 +195,7 @@ func UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*models.Us
 func GetAllFavorites(userID int) ([]dto.MarkerSimpleWithDescrption, error) {
 	favorites := make([]dto.MarkerSimpleWithDescrption, 0)
 	const query = `
-    SELECT Markers.MarkerID, ST_X(Markers.Location) AS Latitude, ST_Y(Markers.Location) AS Longitude, Markers.Description
+    SELECT Markers.MarkerID, ST_X(Markers.Location) AS Latitude, ST_Y(Markers.Location) AS Longitude, Markers.Description, Markers.Address
     FROM Favorites
     JOIN Markers ON Favorites.MarkerID = Markers.MarkerID
     WHERE Favorites.UserID = ?

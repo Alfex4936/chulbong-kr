@@ -8,3 +8,4 @@ swagformat.txt
 markers.json
 badwords.txt
 *.csv
+*.py
