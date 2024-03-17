@@ -17,10 +17,18 @@ const useDeleteFavorite = (id: number) => {
         id,
       ]) as Marker;
 
-      queryClient.setQueryData(["marker", id], {
-        ...previousMarkerData,
-        favorited: false,
-      });
+      if (previousMarkerData.favCount) {
+        queryClient.setQueryData(["marker", id], {
+          ...previousMarkerData,
+          favorited: false,
+          favCount: previousMarkerData.favCount - 1,
+        });
+      } else {
+        queryClient.setQueryData(["marker", id], {
+          ...previousMarkerData,
+          favorited: false,
+        });
+      }
 
       return { previousMarkerData };
     },

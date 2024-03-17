@@ -21,4 +21,5 @@ export interface Marker {
   isChulbong?: boolean;
   favorited?: boolean;
   address?: string;
+  favCount?:number;
 }

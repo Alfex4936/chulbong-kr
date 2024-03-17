@@ -17,10 +17,19 @@ const useSetFavorite = (id: number) => {
         id,
       ]) as Marker;
 
-      queryClient.setQueryData(["marker", id], {
-        ...previousMarkerData,
-        favorited: true,
-      });
+      if (previousMarkerData.favCount) {
+        queryClient.setQueryData(["marker", id], {
+          ...previousMarkerData,
+          favorited: true,
+          favCount: previousMarkerData.favCount + 1,
+        });
+      } else {
+        queryClient.setQueryData(["marker", id], {
+          ...previousMarkerData,
+          favorited: true,
+          favCount: 1,
+        });
+      }
 
       return { previousMarkerData };
     },
