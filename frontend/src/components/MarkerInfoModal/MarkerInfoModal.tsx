@@ -1,13 +1,13 @@
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import PlaceIcon from "@mui/icons-material/Place";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import ShareIcon from "@mui/icons-material/Share";
 import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
 import ThumbDownOffAltIcon from "@mui/icons-material/ThumbDownOffAlt";
+import ThumbUpAltIcon from "@mui/icons-material/ThumbUpAlt";
+import ThumbUpOffAltIcon from "@mui/icons-material/ThumbUpOffAlt";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -68,11 +68,14 @@ const MarkerInfoModal = ({
     error,
   } = useGetMarker(currentMarkerInfo.markerId);
 
-  const { mutateAsync: like, isPending: likePending } = useSetFavorite(
-    currentMarkerInfo.markerId
-  );
+  console.log(marker);
+
   const { mutateAsync: updateDesc } = useUpdateDesc(
     descInput.value,
+    currentMarkerInfo.markerId
+  );
+
+  const { mutateAsync: like, isPending: likePending } = useSetFavorite(
     currentMarkerInfo.markerId
   );
 
@@ -420,7 +423,10 @@ const MarkerInfoModal = ({
                       position: "relative",
                     }}
                   >
-                    <FavoriteIcon />
+                    <Styled.DislikeCount>
+                      {marker?.favCount || 0}
+                    </Styled.DislikeCount>
+                    <ThumbUpAltIcon />
                   </div>
                 </IconButton>
               </Tooltip>
@@ -434,7 +440,10 @@ const MarkerInfoModal = ({
                       position: "relative",
                     }}
                   >
-                    <FavoriteBorderIcon />
+                    <Styled.DislikeCount>
+                      {marker?.favCount || 0}
+                    </Styled.DislikeCount>
+                    <ThumbUpOffAltIcon />
                   </div>
                 </IconButton>
               </Tooltip>

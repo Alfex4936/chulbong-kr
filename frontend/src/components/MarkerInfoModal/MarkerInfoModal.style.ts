@@ -91,8 +91,8 @@ export const DislikeCount = styled.div`
   justify-content: center;
 
   position: absolute;
-  top: -5px;
-  right: -7px;
+  top: -7px;
+  right: -10px;
 
   width: 20px;
   height: 13px;
