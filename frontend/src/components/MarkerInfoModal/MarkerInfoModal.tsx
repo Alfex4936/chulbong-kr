@@ -22,6 +22,7 @@ import useDeleteMarker from "../../hooks/mutation/marker/useDeleteMarker";
 import useMarkerDislike from "../../hooks/mutation/marker/useMarkerDislike";
 import useUndoDislike from "../../hooks/mutation/marker/useUndoDislike";
 import useUpdateDesc from "../../hooks/mutation/marker/useUpdateDesc";
+import useGetFacilities from "../../hooks/query/marker/useGetFacilities";
 import useGetMarker from "../../hooks/query/marker/useGetMarker";
 import useInput from "../../hooks/useInput";
 import useModalStore from "../../store/useModalStore";
@@ -68,7 +69,7 @@ const MarkerInfoModal = ({
     error,
   } = useGetMarker(currentMarkerInfo.markerId);
 
-  console.log(marker);
+  const { data: facilities } = useGetFacilities(currentMarkerInfo.markerId);
 
   const { mutateAsync: updateDesc } = useUpdateDesc(
     descInput.value,
@@ -372,10 +373,28 @@ const MarkerInfoModal = ({
               </>
             )}
           </Styled.imageWrap>
+          <Styled.Facilities>
+            {facilities &&
+              (facilities[0]?.quantity ? (
+                <div>
+                  <span>철봉</span>
+                  <span>{facilities[0]?.quantity}</span>
+                </div>
+              ) : null)}
+            {facilities &&
+              (facilities[1]?.quantity ? (
+                <div>
+                  <span>평행봉</span>
+                  <span>{facilities[1]?.quantity}</span>
+                </div>
+              ) : null)}
+          </Styled.Facilities>
           <Styled.AddressText>
             <div>
               {marker?.createdAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
-              등록
+              등록 (
+              {marker?.updatedAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
+              업데이트)
             </div>
             <div>
               {marker?.address ||
