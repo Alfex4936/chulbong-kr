@@ -5,7 +5,7 @@ interface Favorite {
   longitude: number;
   markerId: number;
   description: string;
-  addr?: string;
+  address?: string;
 }
 
 const getFavorites = async (): Promise<Favorite[]> => {
