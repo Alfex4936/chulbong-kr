@@ -2,7 +2,7 @@ import { Marker } from "@/types/Marker.types";
 import axios from "axios";
 
 export interface SetMarkerReq {
-  photos: File;
+  photos: File[];
   latitude: number;
   longitude: number;
   description: string;
@@ -16,7 +16,10 @@ export interface SetMarkerRes
 const setNewMarker = async (multipart: SetMarkerReq): Promise<SetMarkerRes> => {
   const formData = new FormData();
 
-  formData.append("photos", multipart.photos);
+  for (let i = 0; i < multipart.photos.length; i++) {
+    formData.append("photos", multipart.photos[i]);
+  }
+
   formData.append("latitude", multipart.latitude.toString());
   formData.append("longitude", multipart.longitude.toString());
   formData.append("description", multipart.description);

@@ -5,6 +5,12 @@ export const Container = styled.div`
   flex-direction: column;
 `;
 
+export const ImagesContainer = styled.div`
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 1.5rem;
+`;
+
 export const imageWrap = styled.div`
   position: relative;
 
@@ -27,7 +33,35 @@ export const imageWrap = styled.div`
   }
 
   margin: auto;
-  margin-bottom: 1.5rem;
+`;
+
+export const ImagePreviewWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+
+  width: 15%;
+
+  & > button {
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+
+    border: none;
+    border-radius: 0.4rem;
+    margin: 0.3rem;
+    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+
+    width: 80%;
+
+    overflow: hidden;
+
+    & > img {
+      width: 100%;
+      display: block;
+    }
+  }
 `;
 
 export const description = styled.div`
@@ -151,7 +185,7 @@ export const Facilities = styled.div`
   display: flex;
   justify-content: center;
 
-  margin-bottom: .5rem;
+  margin-bottom: 0.5rem;
 
   & > div {
     margin: 0 0.5rem;
@@ -160,7 +194,7 @@ export const Facilities = styled.div`
 
     & > span:first-of-type {
       font-size: 1.2rem;
-      margin-right: .3rem;
+      margin-right: 0.3rem;
     }
     & > span:last-of-type {
       font-size: 0.9rem;

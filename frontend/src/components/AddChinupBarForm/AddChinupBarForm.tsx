@@ -84,7 +84,7 @@ const AddChinupBarForm = ({
   const handleSubmit = async () => {
     const data = {
       description: descriptionValue.value,
-      photos: formState.imageForm as File,
+      photos: formState.imageForm as File[],
       latitude: formState.latitude,
       longitude: formState.longitude,
     };
