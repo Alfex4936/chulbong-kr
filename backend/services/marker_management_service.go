@@ -34,12 +34,13 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 	}
 
 	markerID, _ := res.LastInsertId()
+	folder := fmt.Sprintf("markers/%d", markerID)
 
 	// After successfully creating the marker, process and upload the files
 	// Process file uploads from the multipart form
 	files := form.File["photos"]
 	for _, file := range files {
-		fileURL, err := UploadFileToS3(file)
+		fileURL, err := UploadFileToS3(folder, file)
 		if err != nil {
 			fmt.Printf("Failed to upload file to S3: %v\n", err)
 			continue // Skip this file and continue with the next
@@ -104,6 +105,11 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 		if err != nil {
 			log.Printf("Failed to update address for marker %d: %v", markerID, err)
 		}
+		if address != "" {
+			updateMsg := fmt.Sprintf("새로운 철봉이 등록되었습니다! %s", address)
+			PublishMarkerUpdate(updateMsg)
+		}
+
 	}(markerID, markerDto.Latitude, markerDto.Longitude)
 
 	// Construct and return the response
@@ -347,12 +353,16 @@ func DeleteMarker(userID, markerID int) error {
 		return fmt.Errorf("committing transaction: %w", err)
 	}
 
-	// After successfully deleting from the database, delete photos from S3
-	for _, photoURL := range photoURLs {
-		if err := DeleteDataFromS3(photoURL); err != nil {
-			return fmt.Errorf("deleting photo from S3: %w", err)
+	// After successfully deleting from the database, delete photos from S3 in a goroutine
+	go func(photoURLs []string) {
+		for _, photoURL := range photoURLs {
+			// Attempt to delete the photo from S3
+			if err := DeleteDataFromS3(photoURL); err != nil {
+				// Log the error or handle it according to your application's requirements
+				log.Printf("Failed to delete photo from S3: %s, error: %v", photoURL, err)
+			}
 		}
-	}
+	}(photoURLs)
 
 	return nil
 }
@@ -366,10 +376,12 @@ func UploadMarkerPhotoToS3(markerID int, files []*multipart.FileHeader) ([]strin
 
 	defer tx.Rollback()
 
+	folder := fmt.Sprintf("markers/%d", markerID)
+
 	picUrls := make([]string, 0)
 	// Process file uploads from the multipart form
 	for _, file := range files {
-		fileURL, err := UploadFileToS3(file)
+		fileURL, err := UploadFileToS3(folder, file)
 		if err != nil {
 			fmt.Printf("Failed to upload file to S3: %v\n", err)
 			continue // Skip this file and continue with the next
