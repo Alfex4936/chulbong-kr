@@ -38,6 +38,7 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 
 	// After successfully creating the marker, process and upload the files
 	// Process file uploads from the multipart form
+	// TODO: upload asynchronously
 	files := form.File["photos"]
 	for _, file := range files {
 		fileURL, err := UploadFileToS3(folder, file)
@@ -105,10 +106,11 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 		if err != nil {
 			log.Printf("Failed to update address for marker %d: %v", markerID, err)
 		}
-		if address != "" {
-			updateMsg := fmt.Sprintf("새로운 철봉이 등록되었습니다! %s", address)
-			PublishMarkerUpdate(updateMsg)
-		}
+		// TODO: update when frontend updates
+		// if address != "" {
+		// 	updateMsg := fmt.Sprintf("새로운 철봉이 등록되었습니다! %s", address)
+		// 	PublishMarkerUpdate(updateMsg)
+		// }
 
 	}(markerID, markerDto.Latitude, markerDto.Longitude)
 
