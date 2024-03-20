@@ -6,6 +6,7 @@ import (
 	"chulbong-kr/utils"
 	"fmt"
 	"math"
+	"mime/multipart"
 	"strconv"
 	"time"
 
@@ -22,62 +23,37 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Check if latitude and longitude are provided
-	latValues, latExists := form.Value["latitude"]
-	longValues, longExists := form.Value["longitude"]
-	if !latExists || !longExists || len(latValues[0]) == 0 || len(longValues[0]) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Latitude and longitude are required"})
-	}
-
-	// Convert latitude and longitude to float64
-	latitude, err := strconv.ParseFloat(latValues[0], 64)
+	latitude, longitude, err := getLatLong(form)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
-	}
-	longitude, err := strconv.ParseFloat(longValues[0], 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	// Location Must Be Inside South Korea
-	yes := utils.IsInSouthKorea(latitude, longitude)
-	if !yes {
+	if !utils.IsInSouthKorea(latitude, longitude) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations only allowed within South Korea."})
 	}
 
-	// Checking if a Marker is Nearby
-	yes, _ = services.IsMarkerNearby(latitude, longitude, 10)
-	if yes {
+	// Checking if there's a marker close to the latitude and longitude
+	if nearby, _ := services.IsMarkerNearby(latitude, longitude, 10); nearby {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "There is a marker already nearby."})
 	}
 
 	// Set default description if it's empty or not provided
-	description := "" // Default description
-	if descValues, exists := form.Value["description"]; exists && len(descValues[0]) > 0 {
-		description = descValues[0]
-	}
-
-	containsBadWord, _ := utils.CheckForBadWords(description)
-	if containsBadWord {
+	description := getDescription(form)
+	if containsBadWord, _ := utils.CheckForBadWords(description); containsBadWord {
 		return c.Status(fiber.StatusBadRequest).SendString("Comment contains inappropriate content.")
 	}
 
 	userId := c.Locals("userID").(int)
-	// username := c.Locals("username").(string)
 
-	// Construct the marker object from form values
-	markerDto := dto.MarkerRequest{
+	marker, err := services.CreateMarkerWithPhotos(&dto.MarkerRequest{
 		Latitude:    latitude,
 		Longitude:   longitude,
 		Description: description,
-	}
-
-	marker, err := services.CreateMarkerWithPhotos(&markerDto, userId, form)
+	}, userId, form)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-
-	// marker.Username = username
-	// marker.UserID = userId
 
 	return c.Status(fiber.StatusCreated).JSON(marker)
 }
@@ -138,6 +114,7 @@ func GetMarker(c *fiber.Ctx) error {
 		}
 	}
 
+	services.AddMarkerVisitor(markerID, c.IP())
 	return c.JSON(marker)
 }
 
@@ -490,4 +467,33 @@ func UpdateMarkersAddressesHandler(c *fiber.Ctx) error {
 		"message":        "Successfully updated marker addresses",
 		"updatedMarkers": updatedMarkers,
 	})
+}
+
+// helpers
+
+func getLatLong(form *multipart.Form) (float64, float64, error) {
+	latStr, latOk := form.Value["latitude"]
+	longStr, longOk := form.Value["longitude"]
+	if !latOk || !longOk || len(latStr[0]) == 0 || len(longStr[0]) == 0 {
+		return 0, 0, fmt.Errorf("latitude and longitude are required")
+	}
+
+	latitude, err := strconv.ParseFloat(latStr[0], 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid latitude")
+	}
+
+	longitude, err := strconv.ParseFloat(longStr[0], 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid longitude")
+	}
+
+	return latitude, longitude, nil
+}
+
+func getDescription(form *multipart.Form) string {
+	if descValues, exists := form.Value["description"]; exists && len(descValues[0]) > 0 {
+		return descValues[0]
+	}
+	return ""
 }

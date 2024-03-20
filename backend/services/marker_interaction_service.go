@@ -79,6 +79,16 @@ func AddFavorite(userID, markerID int) error {
 		return fmt.Errorf("failed to add favorite: %w", err)
 	}
 
+	// Retrieve the UserID (owner) of the marker
+	var ownerUserID int
+	err = database.DB.QueryRowx("SELECT UserID FROM Markers WHERE MarkerID = ?", markerID).Scan(&ownerUserID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve marker owner: %w", err)
+	}
+
+	// TODO: update when frontend updates
+	// key := fmt.Sprintf("%d-%d", ownerUserID, markerID)
+	// PublishLikeEvent(key)
 	return nil
 }
 

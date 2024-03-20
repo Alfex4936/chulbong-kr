@@ -6,6 +6,7 @@ import (
 	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,9 +15,13 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/csrf"
+	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
+	"github.com/gofiber/fiber/v2/middleware/etag"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
@@ -25,6 +30,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/storage/redis/v3"
 	"github.com/gofiber/swagger"
+	"github.com/gofiber/template/django/v3"
 	_ "github.com/joho/godotenv/autoload"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -90,6 +96,7 @@ func main() {
 	}
 
 	// engine := html.New("./views", ".html")
+	engine := django.New("./views", ".django")
 
 	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
@@ -97,7 +104,7 @@ func main() {
 		CaseSensitive: true,
 		StrictRouting: true,
 		ServerHeader:  "",
-		BodyLimit:     10 * 1024 * 1024, // limit to 10 MB
+		BodyLimit:     30 * 1024 * 1024, // limit to 30 MB
 		IdleTimeout:   120 * time.Second,
 		ReadTimeout:   10 * time.Second,
 		WriteTimeout:  10 * time.Second,
@@ -105,9 +112,40 @@ func main() {
 		JSONDecoder:   json.Unmarshal,
 		AppName:       "chulbong-kr",
 		Concurrency:   512 * 1024,
-		// Views:         engine,
+		Views:         engine,
+		ErrorHandler: func(ctx *fiber.Ctx, err error) error {
+			// Initial status code defaults to 500
+			code := fiber.StatusInternalServerError
+
+			// Retrieve the custom status code if it's a *fiber.Error
+			var e *fiber.Error
+			if errors.As(err, &e) {
+				code = e.Code
+			}
+
+			// Define a user-friendly error response
+			errorResponse := fiber.Map{
+				"success": false,
+				"message": "Something went wrong on our end. Please try again later.",
+			}
+
+			// Customize the message for known error codes
+			switch code {
+			case fiber.StatusNotFound: // 404
+				errorResponse["message"] = "The requested resource could not be found."
+			case fiber.StatusInternalServerError: // 500
+				errorResponse["message"] = "An unexpected error occurred. We're working to fix the problem. Please try again later."
+				// TODO: Optionally add a reference code
+				// errorResponse["reference_code"] = "REF123456"
+			}
+
+			// Send a JSON response with the error message and status code
+			return ctx.Status(code).JSON(errorResponse)
+		},
 	})
-	app.Server().MaxConnsPerIP = 50
+	app.Server().MaxConnsPerIP = 10
+	logger, _ := zap.NewProduction()
+	app.Use(middlewares.ZapLogMiddleware(logger))
 
 	// Middlewares
 	app.Use(healthcheck.New(healthcheck.Config{
@@ -117,8 +155,15 @@ func main() {
 		LivenessEndpoint: "/",
 	}))
 
-	logger, _ := zap.NewProduction()
-	app.Use(middlewares.ZapLogMiddleware(logger))
+	app.Use(encryptcookie.New(encryptcookie.Config{
+		Key:    os.Getenv("ENCRYPTION_KEY"),
+		Except: []string{csrf.ConfigDefault.CookieName, "Etag"}, // exclude CSRF cookie
+	}))
+
+	app.Use(etag.New(etag.Config{
+		Weak: true,
+	}))
+
 	app.Use(pprof.New())
 
 	app.Use(compress.New(compress.Config{
@@ -131,13 +176,13 @@ func main() {
 
 	app.Use(helmet.New(helmet.Config{XSSProtection: "1; mode=block"}))
 	app.Use(limiter.New(limiter.Config{
-		Max:               100,
-		Expiration:        30 * time.Second,
+		Max:               50,
+		Expiration:        45 * time.Second,
 		LimiterMiddleware: limiter.SlidingWindow{},
 	}))
 	app.Get("/metrics", middlewares.AdminOnly, monitor.New(monitor.Config{
 		Title:   "chulbong-kr System Metrics",
-		Refresh: time.Second * 60,
+		Refresh: time.Second * 30,
 	}))
 	app.Use(requestid.New())
 
@@ -153,10 +198,28 @@ func main() {
 	// app.Use(logger.New())
 	app.Get("/swagger/*", middlewares.AdminOnly, swagger.HandlerDefault)
 
+	app.Use("/cs-ws", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			middlewares.AuthSoftMiddleware(c)
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+
+	// app.Get("/cs-ws/markerUpdates", websocket.New(handlers.MarkerUpdateEventHandler, websocket.Config{
+	// 	HandshakeTimeout: 15 * time.Second,
+	// }))
+	app.Get("/cs-ws/markerLikeUpdates", websocket.New(handlers.MarkerLikeEventHandler, websocket.Config{
+		HandshakeTimeout: 15 * time.Second,
+	}))
+
+	app.Get("/main", func(c *fiber.Ctx) error {
+		return c.Render("login", fiber.Map{})
+	})
+
 	// Setup routes
 	api := app.Group("/api/v1")
 
-	api.Get("/notifications", handlers.MarkerUpdatesHandler)
 	api.Get("/google", handlers.GetGoogleAuthHandler(conf))
 	api.Get("/admin", middlewares.AdminOnly, func(c *fiber.Ctx) error { return c.JSON("good") })
 
@@ -192,6 +255,7 @@ func main() {
 	api.Post("/markers-addr", middlewares.AdminOnly, handlers.UpdateMarkersAddressesHandler)
 	api.Get("/markers/:markerId/details", middlewares.AuthSoftMiddleware, handlers.GetMarker)
 	api.Get("/markers/close", handlers.FindCloseMarkersHandler)
+	api.Get("/markers/ranking", handlers.GetMarkerRanking)
 	api.Post("/markers/upload", middlewares.AdminOnly, handlers.UploadMarkerPhotoToS3Handler)
 
 	markerGroup := api.Group("/markers")
@@ -237,6 +301,7 @@ func main() {
 
 	// Cron jobs
 	services.CronCleanUpToken()
+	services.CronCleanUpPasswordTokens()
 	services.StartOrphanedPhotosCleanupCron()
 
 	serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))

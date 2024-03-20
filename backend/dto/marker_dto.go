@@ -75,3 +75,8 @@ type FacilityRequest struct {
 	MarkerID   int                `json:"markerId"`
 	Facilities []FacilityQuantity `json:"facilities"`
 }
+
+type MarkerPopularity struct {
+	MarkerID string
+	Count    int64 // Redis의 PFCount 함수는 int64 타입을 반환할 수 있으므로, Count도 int64 타입으로 정의
+}
