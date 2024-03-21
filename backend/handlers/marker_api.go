@@ -114,7 +114,7 @@ func GetMarker(c *fiber.Ctx) error {
 		}
 	}
 
-	services.AddMarkerVisitor(markerID, c.IP())
+	services.BufferClickEvent(markerID)
 	return c.JSON(marker)
 }
 

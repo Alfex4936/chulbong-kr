@@ -144,6 +144,9 @@ func main() {
 		},
 	})
 	app.Server().MaxConnsPerIP = 10
+
+	go services.ProcessClickEventsBatch()
+
 	logger, _ := zap.NewProduction()
 	app.Use(middlewares.ZapLogMiddleware(logger))
 
@@ -255,7 +258,7 @@ func main() {
 	api.Post("/markers-addr", middlewares.AdminOnly, handlers.UpdateMarkersAddressesHandler)
 	api.Get("/markers/:markerId/details", middlewares.AuthSoftMiddleware, handlers.GetMarker)
 	api.Get("/markers/close", handlers.FindCloseMarkersHandler)
-	api.Get("/markers/ranking", handlers.GetMarkerRanking)
+	api.Get("/markers/ranking", handlers.GetMarkerRankingHandler)
 	api.Post("/markers/upload", middlewares.AdminOnly, handlers.UploadMarkerPhotoToS3Handler)
 
 	markerGroup := api.Group("/markers")

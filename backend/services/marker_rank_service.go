@@ -1,91 +1,115 @@
 package services
 
 import (
-	"chulbong-kr/dto"
 	"context"
 	"fmt"
 	"log"
-	"sort"
-	"strings"
+	"strconv"
 	"time"
+
+	"github.com/alphadose/haxmap"
+
+	"chulbong-kr/database"
+	"chulbong-kr/dto"
 )
 
-// AddMarkerVistior
-func AddMarkerVisitor(markerID int, user string) {
-	// 마커 방문의 고유성을 검증하기 위해 세션 ID를 사용
-	key := fmt.Sprintf("visit:marker:%d:ip:%s", markerID, user)
+// 클릭 이벤트를 저장할 임시 저장소
+var clickEventBuffer = haxmap.New[int, int]()
 
-	// 이전에 같은 세션에서 이미 방문 기록이 있는지 확인
-	exists, err := RedisStore.Conn().Exists(context.Background(), key).Result()
-	if err != nil || exists > 0 {
-		// 이미 방문 기록이 있거나 오류 발생 시, 추가 작업을 수행하지 않음
-		return
-	}
-
-	// 마커 방문 기록
-	hllKey := fmt.Sprintf("hll:marker:%s:%d", time.Now().Format("20060102"), markerID)
-	_, err = RedisStore.Conn().PFAdd(context.Background(), hllKey, user).Result()
-	if err != nil {
-		log.Printf("Error adding visitor to HyperLogLog: %v", err)
-		return
-	}
-
-	// 방문 기록의 고유성을 위한 키 설정, 짧은 만료 시간 설정
-	RedisStore.Conn().Set(context.Background(), key, 1, time.Minute*10).Result()
-
-	// 해당 키에 대해 3일(259200초) 후 만료되도록 설정
-	_, err = RedisStore.Conn().Expire(context.Background(), hllKey, 259200*time.Second).Result()
-	if err != nil {
-		log.Printf("Error setting expiration for key %s: %v", hllKey, err)
+// 클릭 이벤트를 버퍼에 추가하는 함수
+func BufferClickEvent(markerID int) {
+	// 현재 클릭 수 조회
+	val, ok := clickEventBuffer.Get(markerID)
+	if !ok {
+		// 마커 ID가 존재하지 않으면 클릭 수를 1로 설정
+		clickEventBuffer.Set(markerID, 1)
+	} else {
+		// 마커 ID가 존재하면 클릭 수를 1 증가
+		newClicks := val + 1
+		clickEventBuffer.Set(markerID, newClicks)
 	}
 }
 
-// 마커 인기도 예측 서비스
-// 특정 시간 동안의 마커 ID 기반으로 키를 생성하여 PFCount 수행
-// 결과 정렬 후 반환
-// 예시: 현재 시간 2023-10-05 일 때, 마커 인기도 예측 서비스 실행 시 실행 결과
-//
-//	[{MarkerID: 1, Count: 5}
-func EstimateMarkerPopularity(date string) []dto.MarkerPopularity {
-	markerPopularityList := make([]dto.MarkerPopularity, 0)
-	var cursor uint64
+// 정해진 시간 간격마다 클릭 이벤트 배치 처리를 실행하는 함수
+func ProcessClickEventsBatch() {
+	// 일정 시간 간격으로 배치 처리 실행
+	// 이 타이머 설정은 애플리케이션의 요구 사항에 따라 조정
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop() // 함수가 반환될 때 ticker를 정지
 
-	// 특정 시간 동안의 마커 ID 기반으로 키를 생성하여 PFCount 수행
-	matchPattern := fmt.Sprintf("hll:marker:%s:*", date)
+	for range ticker.C {
+		IncrementMarkerClicks(clickEventBuffer)
+		// 처리 후 버퍼 초기화
+		clickEventBuffer = haxmap.New[int, int]()
+	}
+}
 
-	for {
-		var keys []string
-		var err error
-		// NOTICE: KEYS 에서 SCAN 으로 변경
-		// 성능과 확장성 향상: 큰 데이터 세트를 처리할 때 SCAN을 사용하면 Redis의 성능 저하를 방지하고, 응답성을 유지
-		// 서버 부하 감소: SCAN은 서버에 부담을 주지 않으면서 데이터를 점진적으로 처리
-		keys, cursor, err = RedisStore.Conn().Scan(context.Background(), cursor, matchPattern, 10).Result()
-		if err != nil {
-			log.Printf("Error scanning keys: %v", err)
-			break
-		}
+// 마커 방문 시 클릭 수를 파이프라인을 사용하여 증가
+func IncrementMarkerClicks(markerClicks *haxmap.Map[int, int]) {
+	pipe := RedisStore.Conn().Pipeline()
 
-		for _, key := range keys {
-			// 키에서 마커 ID 추출 (파싱)
-			splitKey := strings.Split(key, ":")
-			markerID := splitKey[len(splitKey)-1]
-			count, err := RedisStore.Conn().PFCount(context.Background(), key).Result()
-			if err != nil {
-				log.Printf("Error counting HyperLogLog: %v", err)
-				continue
-			}
-			markerPopularityList = append(markerPopularityList, dto.MarkerPopularity{MarkerID: markerID, Count: count})
-		}
+	clickEventBuffer.ForEach(func(markerID int, clicks int) bool {
+		// map에서 가져온 클릭 수만큼 점수 증가
+		scoreIncrement := float64(clicks)
+		pipe.ZIncrBy(context.Background(), "marker_clicks", scoreIncrement, fmt.Sprintf("%d", markerID))
+		return true // return `true` to continue iteration and `false` to break iteration
+	})
 
-		// 모든 키를 스캔했으면 종료
-		if cursor == 0 {
-			break
-		}
+	// Execute all commands in the pipeline
+	_, err := pipe.Exec(context.Background())
+	if err != nil {
+		log.Printf("Error incrementing marker clicks: %v", err)
+	}
+}
+
+// TODO: 내 주변 상위 마커 N 개 랭킹 조회도 만들기
+// 상위 N개 마커 랭킹 조회
+func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
+	if limit < 3 {
+		limit = 5
+	}
+	// Sorted Set에서 점수(클릭 수)가 높은 순으로 마커 ID 조회
+	markerScores, err := RedisStore.Conn().ZRevRangeWithScores(context.Background(), "marker_clicks", 0, int64(limit-1)).Result()
+	if err != nil {
+		log.Printf("Error retrieving top markers: %v", err)
+		return nil
 	}
 
-	// 결과 정렬
-	sort.Slice(markerPopularityList, func(i, j int) bool {
-		return markerPopularityList[i].Count > markerPopularityList[j].Count
-	})
-	return markerPopularityList
+	var markerIDs []int // 조회한 마커 ID를 저장할 슬라이스
+	for _, markerScore := range markerScores {
+		// Redis에서 조회한 마커 ID를 정수로 변환
+		markerIDStr, _ := markerScore.Member.(string)
+		markerID, err := strconv.Atoi(markerIDStr)
+		if err != nil {
+			log.Printf("Error converting marker ID: %v", err)
+			continue
+		}
+
+		markerIDs = append(markerIDs, markerID)
+	}
+
+	// 데이터베이스에서 마커의 상세 정보 조회
+	markerRanks := make([]dto.MarkerSimpleWithAddr, 0)
+	const markerQuery = `
+    SELECT 
+        MarkerID, 
+        ST_X(Location) AS Latitude,
+        ST_Y(Location) AS Longitude,
+        Address
+    FROM 
+        Markers
+	WHERE MarkerID = ?`
+
+	for _, markerID := range markerIDs {
+		var marker dto.MarkerSimpleWithAddr
+		err := database.DB.Get(&marker, markerQuery, markerID)
+		if err != nil {
+			log.Printf("Error retrieving marker: %v", err)
+			continue
+		}
+
+		markerRanks = append(markerRanks, marker)
+	}
+
+	return markerRanks
 }
