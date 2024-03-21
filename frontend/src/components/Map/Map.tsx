@@ -176,6 +176,10 @@ const Map = () => {
       );
       mapPosition.setPosition(Number(sharedMarkerLat), Number(sharedMarkerLng));
       map?.setCenter(moveLatLon);
+    } else if (sharedMarker && !sharedMarkerLat && !sharedMarkerLng) {
+      if (sharedMarker) filtering(Number(sharedMarker));
+      setMarkerInfoModal(true);
+      setCurrentMarkerInfo({ markerId: Number(sharedMarker) });
     }
   }, [map, sharedMarker, sharedMarkerLat, sharedMarkerLng, markers]);
 
