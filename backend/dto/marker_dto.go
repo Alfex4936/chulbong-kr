@@ -63,7 +63,7 @@ type MarkerSimpleWithAddr struct {
 	MarkerID  int     `json:"markerId" db:"MarkerID"`
 	Latitude  float64 `json:"latitude" db:"Latitude"`
 	Longitude float64 `json:"longitude" db:"Longitude"`
-	Address   string  `json:"address,omitempty"`
+	Address   string  `json:"address,omitempty" db:"Address"`
 }
 
 type FacilityQuantity struct {
@@ -74,4 +74,9 @@ type FacilityQuantity struct {
 type FacilityRequest struct {
 	MarkerID   int                `json:"markerId"`
 	Facilities []FacilityQuantity `json:"facilities"`
+}
+
+type MarkerRank struct {
+	MarkerID string
+	Clicks   int
 }

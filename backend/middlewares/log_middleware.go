@@ -73,7 +73,7 @@ func ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 				zap.Error(err), // Include the error if present
 			)
 
-		return nil
+		return err
 	}
 }
 
