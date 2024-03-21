@@ -2,15 +2,12 @@ package handlers
 
 import (
 	"chulbong-kr/services"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func GetMarkerRanking(c *fiber.Ctx) error {
-	currentTime := time.Now().Format("20060102")
-
-	ranking := services.EstimateMarkerPopularity(currentTime)
+func GetMarkerRankingHandler(c *fiber.Ctx) error {
+	ranking := services.GetTopMarkers(10) // []dto.MarkerRank { MarkerID (string), Clicks (int) }
 
 	return c.JSON(ranking)
 }

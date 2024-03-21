@@ -63,7 +63,7 @@ type MarkerSimpleWithAddr struct {
 	MarkerID  int     `json:"markerId" db:"MarkerID"`
 	Latitude  float64 `json:"latitude" db:"Latitude"`
 	Longitude float64 `json:"longitude" db:"Longitude"`
-	Address   string  `json:"address,omitempty"`
+	Address   string  `json:"address,omitempty" db:"Address"`
 }
 
 type FacilityQuantity struct {
@@ -76,7 +76,7 @@ type FacilityRequest struct {
 	Facilities []FacilityQuantity `json:"facilities"`
 }
 
-type MarkerPopularity struct {
+type MarkerRank struct {
 	MarkerID string
-	Count    int64 // Redis의 PFCount 함수는 int64 타입을 반환할 수 있으므로, Count도 int64 타입으로 정의
+	Clicks   int
 }
