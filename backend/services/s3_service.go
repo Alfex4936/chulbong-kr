@@ -16,7 +16,7 @@ import (
 var AWS_REGION string
 var S3_BUCKET_NAME string
 
-func UploadFileToS3(file *multipart.FileHeader) (string, error) {
+func UploadFileToS3(folder string, file *multipart.FileHeader) (string, error) {
 	// Open the uploaded file
 	fileData, err := file.Open()
 	if err != nil {
@@ -43,7 +43,7 @@ func UploadFileToS3(file *multipart.FileHeader) (string, error) {
 
 	// Use the original file's extension but with a new UUID as the filename
 	fileExtension := filepath.Ext(file.Filename)
-	key := fmt.Sprintf("%s%s", uuid.String(), fileExtension)
+	key := fmt.Sprintf("%s/%s%s", folder, uuid.String(), fileExtension)
 
 	// Upload the file to S3
 	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
@@ -68,8 +68,12 @@ func DeleteDataFromS3(dataURL string) error {
 		return err
 	}
 
-	// Extract bucket name and key from the URL
-	bucketName := strings.Split(parsedURL.Host, ".")[0]
+	// Split the hostname to handle various S3 URL formats
+	parts := strings.SplitN(parsedURL.Host, ".", 2)
+	if len(parts) < 2 {
+		return fmt.Errorf("invalid S3 URL format")
+	}
+	bucketName := parts[0]
 	key := strings.TrimPrefix(parsedURL.Path, "/")
 
 	// Load the AWS credentials

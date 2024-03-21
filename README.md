@@ -1,14 +1,18 @@
-# chulbong-kr
+# chulbong- :kr:
 
-![chul4](https://github.com/Alfex4936/chulbong-kr/assets/2356749/60aba6ca-6339-47a0-b2f2-a9254d722755)
-![map](https://github.com/Alfex4936/chulbong-kr/assets/2356749/d1811e5d-9857-4e9f-b997-78b77df343fb)
+![0](https://github.com/Alfex4936/chulbong-kr/assets/2356749/c0f58f73-d568-4ef7-8fa1-1f20820b8fff)
+
+| | |
+|:-------------------------:|:-------------------------:|
+| <img width="1604" alt="1" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/6e45dac1-6c4a-4b84-bf47-10e8c09f4f2b"> 메인 화면 | <img width="1604" alt="2" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/2bcfe0f8-eb55-46d8-ba17-0274f25bfa38"> 마커 정보 (댓글, 공유, 거리뷰)|
+| <img width="1604" alt="3" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/d56a0e34-22fa-4124-bafc-f3b1c0a3f90c"> 거리뷰 (가장 가까운 위치)| <img width="1604" alt="4" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/7c2f5a39-a82f-47b0-8cfa-14bfff0551bd"> 댓글|
+
 ![slack](https://github.com/Alfex4936/chulbong-kr/assets/2356749/5ec03f6a-871f-4556-90c3-13bb44769f13)
 
-### 프로젝트 
-소개
+### 프로젝트 소개 :world_map:
 **chulbong-kr**은 공공장소에 있는 턱걸이 바를 찾고 공유하기 위한 커뮤니티 플랫폼입니다.
 
-카카오맵 API를 활용하여 사용자는 가입 및 로그인 후 턱걸이 바의 위치를 마커로 추가할 수 있으며,
+지도 API를 활용하여 사용자는 가입 및 로그인 후 턱걸이 바의 위치를 마커로 추가할 수 있으며,
 
 사진 한 장과 간단한 설명을 함께 업로드할 수 있습니다.
 
@@ -16,10 +20,12 @@
 
 ### 기능
 - **회원가입 및 로그인**: 사용자 인증을 위한 기본적인 회원가입 및 로그인 기능. (이메일 인증 필요)
-- **마커 추가**: 턱걸이 바의 위치를 지도에 마커로 표시. 사진과 간단한 설명을 포함할 수 있음. (Spatial 타입 이용으로 주변 마커 확인)
+- **마커 추가**: 턱걸이 바의 위치를 지도에 마커로 표시. 사진과 간단한 설명을 포함할 수 있음.
 - **댓글 기능**: 로그인한 사용자는 각 마커에 댓글을 남길 수 있어 정보 공유가 가능.
-- **근처 턱걸이 바 검색**: 사용자의 현재 위치에서 가까운 턱걸이 바를 찾을 수 있는 기능.
-- **사용자 평가/신고 시스템**: 턱걸이 바 이용 싫어요 기능을 통한 리포트 기능.
+- **마커 공유**: 특정 마커 공유 버튼을 눌러서 링크를 공유가 가능.
+- **근처 턱걸이 바 검색**: 현재 화면 중앙 위치에서 가까운 턱걸이 바를 찾을 수 있는 기능. (MySQL Spatial)
+- **관리자**: 자동 1차 필터링 (주소가 없는 경우 db에 기록) + 싫어요 n개 이상 마커들 확인
+- **SSE**: 실시간 내 마커 좋아요 받은 알림 기능
 
 ### TODO 아이디어
 - **커뮤니티 포럼**: 사용자들이 운동 팁, 턱걸이 바 추천 등을 공유할 수 있는 커뮤니티 공간.
@@ -29,12 +35,5 @@
 ### 기술 스택
 - **백엔드**: Go언어 Fiber v2, AWS RDS MySQL (+ spatial type), AWS S3, AWS EC2 (fly.io), Redis
 - **프론트엔드**: React (TypeScript)
+- **개발 & 운영 효율성**: pprof, flamegraph, Uber's zap logger, Swagger OpenAPI
 - **협업**: Slack (+ Slack API)
-
-### 성능 테스트
-
-환경: AWS RDS (Free tier, MySQL (SRID)) + 24GB RAM PC
-
-100,000개 마커 정보 (20MB) 로딩 약 2초.
-
-![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/44956afa-8c6c-414f-a6ff-1f11d348c3f5)
