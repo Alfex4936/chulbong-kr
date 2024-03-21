@@ -128,6 +128,19 @@ const Map = () => {
   }, [onBoardingState.step]);
 
   useEffect(() => {
+    if (!isMarked) return;
+
+    const modalTime = setTimeout(() => {
+      setIsMarked(false);
+      marker?.setMap(null);
+    }, 10000);
+
+    return () => {
+      clearTimeout(modalTime);
+    };
+  }, [isMarked]);
+
+  useEffect(() => {
     const filtering = (markerId: number) => {
       const imageSize = new window.kakao.maps.Size(39, 39);
       const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
