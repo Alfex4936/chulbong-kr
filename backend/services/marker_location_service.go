@@ -1,7 +1,10 @@
 package services
 
 import (
+	"context"
 	"fmt"
+	"sort"
+	"strconv"
 
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
@@ -61,4 +64,43 @@ WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?`
 	}
 
 	return markers, total, nil
+}
+
+func FindRankedMarkersInCurrentArea(lat, long float64, distance, limit int) ([]dto.MarkerWithDistance, error) {
+	// First, find nearby markers within a specified distance
+	nearbyMarkers, total, err := FindClosestNMarkersWithinDistance(lat, long, distance, limit, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	if total == 0 {
+		return []dto.MarkerWithDistance{}, nil // No markers nearby
+	}
+
+	// Fetch the click count for these markers from Redis
+	rankedMarkers := make([]dto.MarkerWithDistance, 0) // Use a new slice for markers with clicks
+	for _, marker := range nearbyMarkers {
+		score, err := RedisStore.Conn().ZScore(context.Background(), "marker_clicks", strconv.Itoa(marker.MarkerID)).Result()
+		if err == nil { // Only include markers found in the "marker_clicks" sorted set
+			marker.Distance = score // Distance field is used to store score for ranking
+			rankedMarkers = append(rankedMarkers, marker)
+		}
+	}
+
+	// Check if there are ranked markers to sort
+	if len(rankedMarkers) == 0 {
+		return rankedMarkers, nil // No ranked markers found
+	}
+
+	// Sort rankedMarkers by click count in descending order
+	sort.SliceStable(rankedMarkers, func(i, j int) bool {
+		return rankedMarkers[i].Distance > rankedMarkers[j].Distance
+	})
+
+	// Apply the limit after sorting, in case it's smaller than the number of rankedMarkers
+	if limit > len(rankedMarkers) {
+		limit = len(rankedMarkers)
+	}
+
+	return rankedMarkers[:limit], nil
 }

@@ -8,13 +8,14 @@ import (
 	"math"
 	"mime/multipart"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
-	services.ResetCache(services.ALL_MARKERS_KEY)
+	go services.ResetCache(services.ALL_MARKERS_KEY)
 
 	// Parse the multipart form
 	form, err := c.MultipartForm()
@@ -52,6 +53,9 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 		Description: description,
 	}, userId, form)
 	if err != nil {
+		if strings.Contains(err.Error(), "an error during file") {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
@@ -71,7 +75,7 @@ func GetAllMarkersHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	services.SetCacheEntry(services.ALL_MARKERS_KEY, markersWithPhotos, 10*time.Minute)
+	go services.SetCacheEntry(services.ALL_MARKERS_KEY, markersWithPhotos, 30*time.Minute)
 
 	return c.JSON(markersWithPhotos)
 }
@@ -114,7 +118,7 @@ func GetMarker(c *fiber.Ctx) error {
 		}
 	}
 
-	services.BufferClickEvent(markerID)
+	go services.BufferClickEvent(markerID)
 	return c.JSON(marker)
 }
 
@@ -132,8 +136,6 @@ func UpdateMarker(c *fiber.Ctx) error {
 
 // DeleteMarkerHandler handles the HTTP request to delete a marker.
 func DeleteMarkerHandler(c *fiber.Ctx) error {
-	services.ResetCache("/api/v1/markers_GET")
-
 	// Auth
 	userID := c.Locals("userID").(int)
 
@@ -149,6 +151,9 @@ func DeleteMarkerHandler(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete marker: " + err.Error()})
 	}
+
+	go services.RemoveMarkerClick(markerID)
+	go services.ResetCache(services.ALL_MARKERS_KEY)
 
 	return c.SendStatus(fiber.StatusOK)
 }
@@ -295,71 +300,6 @@ func CheckDislikeStatus(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"disliked": disliked})
 }
 
-// Find Close Markers godoc
-//
-// @Summary		Find close markers
-// @Description	This endpoint retrieves markers that are close to a specified location within a given distance.
-// @Description	It requires latitude, longitude, distance, and the number of markers (N) to return.
-// @Description	If no markers are found within the specified distance, it returns a "No markers found" message.
-// @Description	Returns a list of markers that meet the criteria. (maximum 10km distance allowed)
-// @ID			find-close-markers
-// @Tags		markers
-// @Accept		json
-// @Produce	json
-// @Param		latitude	query	number	true	"Latitude of the location (float)"
-// @Param		longitude	query	number	true	"Longitude of the location (float)"
-// @Param		distance	query	int		true	"Search radius distance (meters)"
-// @Param		N			query	int		true	"Number of markers to return"
-// @Param		page			query	int		true	"Page Index number"
-// @Security	ApiKeyAuth
-// @Success	200	{object}	map[string]interface{}	"Markers found successfully (with distance) in pages"
-// @Failure	400	{object}	map[string]interface{}	"Invalid query parameters"
-// @Failure	404	{object}	map[string]interface{}	"No markers found within the specified distance"
-// @Failure	500	{object}	map[string]interface{}	"Internal server error"
-// @Router		/markers/close [get]
-func FindCloseMarkersHandler(c *fiber.Ctx) error {
-	var params dto.QueryParams
-	if err := c.QueryParser(&params); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid query parameters"})
-	}
-
-	if params.Distance > 10000 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Distance cannot be greater than 10,000m (10km)"})
-	}
-
-	// Set default page to 1 if not specified
-	if params.Page < 1 {
-		params.Page = 1
-	}
-
-	pageSize := 4 // Define page size
-	offset := (params.Page - 1) * pageSize
-
-	// Find nearby markers within the specified distance and page
-	markers, total, err := services.FindClosestNMarkersWithinDistance(params.Latitude, params.Longitude, params.Distance, pageSize, offset)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	// if len(markers) == 0 {
-	// 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "No markers found within the specified distance"})
-	// }
-
-	// Calculate total pages
-	totalPages := total / pageSize
-	if total%pageSize != 0 {
-		totalPages++
-	}
-
-	// Return the found markers along with pagination info
-	return c.JSON(fiber.Map{
-		"markers":      markers,
-		"currentPage":  params.Page,
-		"totalPages":   totalPages,
-		"totalMarkers": total,
-	})
-}
-
 // AddFavoriteHandler adds a new favorite marker for the user.
 func AddFavoriteHandler(c *fiber.Ctx) error {
 	userData, err := services.GetUserFromContext(c)
@@ -419,7 +359,7 @@ func RemoveFavoriteHandler(c *fiber.Ctx) error {
 	}
 
 	userFavKey := fmt.Sprintf("%s:%d:%s", services.USER_FAV_KEY, userID, username)
-	services.ResetCache(userFavKey)
+	go services.ResetCache(userFavKey)
 
 	return c.SendStatus(fiber.StatusNoContent) // 204 No Content is appropriate for a DELETE success with no response body
 }
