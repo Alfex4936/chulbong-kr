@@ -163,6 +163,8 @@ const Map = () => {
       });
 
       marker?.setImage(selectedMarkerImg);
+
+      return marker;
     };
 
     if (sharedMarker && sharedMarkerLat && sharedMarkerLng) {
@@ -177,7 +179,18 @@ const Map = () => {
       mapPosition.setPosition(Number(sharedMarkerLat), Number(sharedMarkerLng));
       map?.setCenter(moveLatLon);
     } else if (sharedMarker && !sharedMarkerLat && !sharedMarkerLng) {
-      if (sharedMarker) filtering(Number(sharedMarker));
+      if (sharedMarker) {
+        const result = filtering(Number(sharedMarker));
+        const moveLatLon = new window.kakao.maps.LatLng(
+          result?.getPosition().Ma,
+          result?.getPosition().La
+        );
+        mapPosition.setPosition(
+          result?.getPosition().Ma as number,
+          result?.getPosition().La as number
+        );
+        map?.setCenter(moveLatLon);
+      }
       setMarkerInfoModal(true);
       setCurrentMarkerInfo({ markerId: Number(sharedMarker) });
     }
@@ -621,7 +634,7 @@ const Map = () => {
       />
       <FloatingButton
         text={<GpsOffIcon />}
-        top={240}
+        top={241}
         right={20}
         zIndex={onBoardingState.step === 5 ? 10000 : 10}
         tooltip="위치 초기화"
@@ -638,7 +651,7 @@ const Map = () => {
       />
       <FloatingButton
         text={<RemoveIcon />}
-        top={340}
+        top={341}
         right={20}
         zIndex={onBoardingState.step === 7 ? 10000 : 10}
         tooltip="축소"
