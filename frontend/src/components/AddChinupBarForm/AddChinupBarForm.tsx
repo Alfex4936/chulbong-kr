@@ -292,6 +292,11 @@ const AddChinupBarForm = ({
           "등록하기"
         )}
       </Button>
+      {loading && formState.imageForm.length > 0 ? (
+        <Styled.ErrorBox>
+          이미지를 등록하는 중입니다. 잠시만 기다려 주세요!
+        </Styled.ErrorBox>
+      ) : null}
     </form>
   );
 };
