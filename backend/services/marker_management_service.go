@@ -6,6 +6,7 @@ import (
 	"log"
 	"mime/multipart"
 	"os"
+	"sync"
 	"time"
 
 	"chulbong-kr/database"
@@ -37,25 +38,35 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 	folder := fmt.Sprintf("markers/%d", markerID)
 
 	// After successfully creating the marker, process and upload the files
+	var wg sync.WaitGroup
+	errorChan := make(chan error, len(form.File["photos"]))
+
 	// Process file uploads from the multipart form
-	// TODO: upload asynchronously
 	files := form.File["photos"]
 	for _, file := range files {
-		fileURL, err := UploadFileToS3(folder, file)
-		if err != nil {
-			fmt.Printf("Failed to upload file to S3: %v\n", err)
-			continue // Skip this file and continue with the next
-		}
-		// Associate each photo with the marker in the database
-		if _, err := tx.Exec("INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())", markerID, fileURL); err != nil {
-			tx.Rollback()
-
-			// Attempt to delete the uploaded file from S3
-			if delErr := DeleteDataFromS3(fileURL); delErr != nil {
-				fmt.Printf("Also failed to delete the file from S3: %v\n", delErr)
+		wg.Add(1)
+		go func(file *multipart.FileHeader) {
+			defer wg.Done()
+			fileURL, err := UploadFileToS3(folder, file)
+			if err != nil {
+				errorChan <- err
+				return
 			}
-			return nil, err
-		}
+			if _, err := tx.Exec("INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())", markerID, fileURL); err != nil {
+				errorChan <- err
+				return
+			}
+		}(file)
+	}
+
+	// Wait for all uploads to complete
+	wg.Wait()
+	close(errorChan)
+
+	// Check for errors
+	for _ = range errorChan {
+		tx.Rollback()
+		return nil, fmt.Errorf("encountered an error during file upload or DB operation.")
 	}
 
 	// Commit the transaction after all operations succeed
@@ -410,4 +421,47 @@ func UploadMarkerPhotoToS3(markerID int, files []*multipart.FileHeader) ([]strin
 	}
 
 	return picUrls, nil
+}
+
+func CheckNearbyMarkersInDB() ([]dto.MarkerGroup, error) {
+	markers, err := GetAllMarkers()
+	if err != nil {
+		return nil, fmt.Errorf("error fetching markers: %w", err)
+	}
+
+	var markerGroups []dto.MarkerGroup
+
+	for _, marker := range markers {
+		point := fmt.Sprintf("POINT(%f %f)", marker.Latitude, marker.Longitude)
+
+		var nearbyMarkers []dto.MarkerWithDistance
+		err := database.DB.Select(&nearbyMarkers, `
+			SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude, Description, ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance, Address
+			FROM Markers
+			WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
+			ORDER BY distance ASC
+		`, point, point, 10)
+		if err != nil {
+			return nil, fmt.Errorf("error checking for nearby markers: %w", err)
+		}
+
+		// 필터링하여 자기 자신을 제외한 마커만 포함시키기
+		var filteredNearbyMarkers []dto.MarkerWithDistance
+		for _, nMarker := range nearbyMarkers {
+			if nMarker.MarkerID != marker.MarkerID {
+				filteredNearbyMarkers = append(filteredNearbyMarkers, nMarker)
+			}
+		}
+
+		// 주변에 다른 마커들이 있는 경우에만 결과에 추가
+		if len(filteredNearbyMarkers) > 0 {
+			markerGroup := dto.MarkerGroup{
+				CentralMarker: marker,
+				NearbyMarkers: filteredNearbyMarkers,
+			}
+			markerGroups = append(markerGroups, markerGroup)
+		}
+	}
+
+	return markerGroups, nil
 }
