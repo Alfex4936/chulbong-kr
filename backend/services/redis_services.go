@@ -1,11 +1,12 @@
 package services
 
 import (
+	"context"
 	"time"
 
 	"github.com/goccy/go-json"
 
-	"github.com/gofiber/storage/redis/v3"
+	redis "github.com/gofiber/storage/redis/v3"
 )
 
 var (
@@ -20,14 +21,20 @@ const (
 
 // SetCacheEntry sets a cache entry with the given key and value, with an expiration time.
 func SetCacheEntry[T any](key string, value T, expiration time.Duration) error {
-	// Marshal the fiber.Map to JSON
+	// Marshal the value to JSON
 	jsonValue, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
 
-	// Set the cache entry with expiration
-	err = RedisStore.Set(key, jsonValue, expiration)
+	pipe := RedisStore.Conn().TxPipeline()
+	ctx := context.Background()
+
+	pipe.Set(ctx, key, jsonValue, expiration)
+	pipe.Expire(ctx, key, expiration)
+
+	_, err = pipe.Exec(ctx)
+
 	if err != nil {
 		return err
 	}
@@ -61,10 +68,17 @@ func GetCacheEntry[T any](key string) (T, error) {
 // ResetCache invalidates cache entries
 func ResetCache(key string) error {
 	// Delete the metadata key
-	err := RedisStore.Delete(key)
+	pipe := RedisStore.Conn().TxPipeline()
+	ctx := context.Background()
+
+	pipe.Del(ctx, key)
+
+	_, err := pipe.Exec(ctx)
+
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

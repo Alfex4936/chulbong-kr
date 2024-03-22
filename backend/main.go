@@ -49,6 +49,8 @@ import (
 // @host			localhost:9452
 // @BasePath		/api/v1/
 func main() {
+	// godotenv.Overload()
+
 	// Increase GOMAXPROCS
 	runtime.GOMAXPROCS(runtime.NumCPU() * 2) // twice the number of CPUs
 
@@ -254,11 +256,16 @@ func main() {
 
 	// Marker routes
 	api.Get("/markers", handlers.GetAllMarkersHandler)
-	api.Get("/markers-addr", middlewares.AdminOnly, handlers.GetAllMarkersWithAddrHandler)
-	api.Post("/markers-addr", middlewares.AdminOnly, handlers.UpdateMarkersAddressesHandler)
+
+	// api.Get("/markers-addr", middlewares.AdminOnly, handlers.GetAllMarkersWithAddrHandler)
+	// api.Post("/markers-addr", middlewares.AdminOnly, handlers.UpdateMarkersAddressesHandler)
+	// api.Get("/markers-db", middlewares.AdminOnly, handlers.GetMarkersClosebyAdmin)
+
 	api.Get("/markers/:markerId/details", middlewares.AuthSoftMiddleware, handlers.GetMarker)
 	api.Get("/markers/close", handlers.FindCloseMarkersHandler)
 	api.Get("/markers/ranking", handlers.GetMarkerRankingHandler)
+	api.Get("/markers/area-ranking", handlers.GetCurrentAreaMarkerRankingHandler)
+
 	api.Post("/markers/upload", middlewares.AdminOnly, handlers.UploadMarkerPhotoToS3Handler)
 
 	markerGroup := api.Group("/markers")

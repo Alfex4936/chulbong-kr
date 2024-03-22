@@ -16,6 +16,8 @@ import (
 // 클릭 이벤트를 저장할 임시 저장소
 var clickEventBuffer = haxmap.New[int, int]()
 
+const RANK_UPDATE_TIME = 3 * time.Minute
+
 // 클릭 이벤트를 버퍼에 추가하는 함수
 func BufferClickEvent(markerID int) {
 	// 현재 클릭 수 조회
@@ -33,8 +35,7 @@ func BufferClickEvent(markerID int) {
 // 정해진 시간 간격마다 클릭 이벤트 배치 처리를 실행하는 함수
 func ProcessClickEventsBatch() {
 	// 일정 시간 간격으로 배치 처리 실행
-	// 이 타이머 설정은 애플리케이션의 요구 사항에 따라 조정
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(RANK_UPDATE_TIME)
 	defer ticker.Stop() // 함수가 반환될 때 ticker를 정지
 
 	for range ticker.C {
@@ -46,7 +47,7 @@ func ProcessClickEventsBatch() {
 
 // 마커 방문 시 클릭 수를 파이프라인을 사용하여 증가
 func IncrementMarkerClicks(markerClicks *haxmap.Map[int, int]) {
-	pipe := RedisStore.Conn().Pipeline()
+	pipe := RedisStore.Conn().TxPipeline()
 
 	clickEventBuffer.ForEach(func(markerID int, clicks int) bool {
 		// map에서 가져온 클릭 수만큼 점수 증가
@@ -112,4 +113,20 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 	}
 
 	return markerRanks
+}
+
+func RemoveMarkerClick(markerID int) error {
+	ctx := context.Background()
+
+	// Convert markerID to string because Redis sorted set members are strings
+	member := fmt.Sprintf("%d", markerID)
+
+	// Remove the marker from the "marker_clicks" sorted set
+	_, err := RedisStore.Conn().ZRem(ctx, "marker_clicks", member).Result()
+	if err != nil {
+		log.Printf("Error removing marker click: %v", err)
+		return err
+	}
+
+	return nil
 }

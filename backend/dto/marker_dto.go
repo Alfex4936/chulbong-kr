@@ -35,7 +35,7 @@ type MarkerWithDistance struct {
 	MarkerSimple
 	Description string  `json:"description" db:"Description"`
 	Distance    float64 `json:"distance" db:"distance"` // Distance in meters
-	Address     string  `json:"address" db:"Address"`
+	Address     *string `json:"address,omitempty" db:"Address"`
 }
 
 type MarkerWithDislike struct {
@@ -79,4 +79,9 @@ type FacilityRequest struct {
 type MarkerRank struct {
 	MarkerID string
 	Clicks   int
+}
+
+type MarkerGroup struct {
+	CentralMarker MarkerSimple         // 중심 마커
+	NearbyMarkers []MarkerWithDistance // 중심 마커 주변의 마커들
 }
