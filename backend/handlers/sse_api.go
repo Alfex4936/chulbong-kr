@@ -19,7 +19,7 @@ func MarkerUpdateEventHandler(c *websocket.Conn) {
 	userID, ok := c.Locals("userID").(int)
 	if ok {
 		services.WsManager.AddConnection(userID, c)
-		defer services.WsManager.RemoveConnection(userID)
+		defer services.WsManager.RemoveConnectionFromRoom(userID, c)
 	}
 
 	for msg := range ch {
@@ -44,7 +44,7 @@ func MarkerLikeEventHandler(c *websocket.Conn) {
 	}
 
 	services.WsManager.AddConnection(userID, c)
-	defer services.WsManager.RemoveConnection(userID)
+	defer services.WsManager.RemoveConnectionFromRoom(userID, c)
 
 	for msg := range ch {
 		// Expecting msg.Payload to be like "ownerUserID-markerID"

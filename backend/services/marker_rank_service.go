@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/alphadose/haxmap"
+	"github.com/redis/go-redis/v9"
 
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
@@ -17,6 +18,7 @@ import (
 var clickEventBuffer = haxmap.New[int, int]()
 
 const RANK_UPDATE_TIME = 3 * time.Minute
+const MIN_CLICK_RANK = 5
 
 // 클릭 이벤트를 버퍼에 추가하는 함수
 func BufferClickEvent(markerID int) {
@@ -70,7 +72,11 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 		limit = 5
 	}
 	// Sorted Set에서 점수(클릭 수)가 높은 순으로 마커 ID 조회
-	markerScores, err := RedisStore.Conn().ZRevRangeWithScores(context.Background(), "marker_clicks", 0, int64(limit-1)).Result()
+	// markerScores, err := RedisStore.Conn().ZRevRangeWithScores(context.Background(), "marker_clicks", 0, int64(limit-1)).Result()
+	markerScores, err := RedisStore.Conn().ZRangeByScoreWithScores(context.Background(), "marker_clicks", &redis.ZRangeBy{
+		Min: strconv.Itoa(MIN_CLICK_RANK + 1), // "+1" because ZRangeByScore is inclusive, and we want > minScore
+		Max: "+inf",                           // No upper limit
+	}).Result()
 	if err != nil {
 		log.Printf("Error retrieving top markers: %v", err)
 		return nil

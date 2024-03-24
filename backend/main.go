@@ -218,8 +218,40 @@ func main() {
 		HandshakeTimeout: 15 * time.Second,
 	}))
 
+	app.Use("/ws/:markerID", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			middlewares.AuthMiddleware(c)
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+
+	app.Get("/ws/:markerID", websocket.New(func(c *websocket.Conn) {
+		// Extract markerID from the parameter
+		markerID, err := strconv.Atoi(c.Params("markerID"))
+		if err != nil {
+			c.Close()
+			c.WriteJSON("No Authorization for this session.")
+			return
+		}
+
+		handlers.HandleChatRoomHandler(c, markerID)
+	}))
+
+	// HTML
 	app.Get("/main", func(c *fiber.Ctx) error {
 		return c.Render("login", fiber.Map{})
+	})
+	app.Get("/chatroom/:roomID", func(c *fiber.Ctx) error {
+		roomID := c.Params("roomID")
+		username := c.Locals("username")
+		if username == nil {
+			username = "Guest"
+		}
+		return c.Render("chatroom", fiber.Map{
+			"Username": username,
+			"Room":     roomID,
+		})
 	})
 
 	// Setup routes
@@ -265,6 +297,7 @@ func main() {
 	api.Get("/markers/close", handlers.FindCloseMarkersHandler)
 	api.Get("/markers/ranking", handlers.GetMarkerRankingHandler)
 	api.Get("/markers/area-ranking", handlers.GetCurrentAreaMarkerRankingHandler)
+	api.Get("/markers/convert", handlers.ConvertWGS84ToWCONGNAMULHandler)
 
 	api.Post("/markers/upload", middlewares.AdminOnly, handlers.UploadMarkerPhotoToS3Handler)
 
@@ -315,6 +348,12 @@ func main() {
 	services.StartOrphanedPhotosCleanupCron()
 
 	serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))
+
+	// Check if the DEPLOYMENT is not local
+	if os.Getenv("DEPLOYMENT") == "production" {
+		// Send Slack notification
+		go utils.SendDeploymentSuccessNotification("chulbong-kr", "fly.io")
+	}
 
 	// Start the Fiber app
 	if err := app.Listen(serverAddr); err != nil {

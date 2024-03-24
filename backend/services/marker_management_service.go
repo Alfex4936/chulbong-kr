@@ -64,9 +64,9 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 	close(errorChan)
 
 	// Check for errors
-	for _ = range errorChan {
+	for range errorChan {
 		tx.Rollback()
-		return nil, fmt.Errorf("encountered an error during file upload or DB operation.")
+		return nil, fmt.Errorf("encountered an error during file upload or DB operation")
 	}
 
 	// Commit the transaction after all operations succeed
@@ -96,6 +96,16 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 		}
 
 		if err != nil || address == "" {
+			address2, _ := FetchRegionFromAPI(latitude, longitude)
+			if address2 == "-2" {
+				// delete the marker 북한 or 일본
+				_, err = database.DB.Exec("DELETE FROM Markers WHERE MarkerID = ?", markerID)
+				if err != nil {
+					log.Printf("Failed to update address for marker %d: %v", markerID, err)
+				}
+				return // no need to insert in failures
+			}
+
 			var errMsg string
 			if err != nil {
 				errMsg = fmt.Sprintf("Final attempt failed to fetch address for marker %d: %v", markerID, err)
