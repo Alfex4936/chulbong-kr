@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #messages { list-style-type: none; margin: 0; padding: 0; }
+        #messages li { padding: 8px; margin-bottom: 2px; background-color: #f3f3f3; }
+        #message-form { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h2>Welcome, {{ .Username }}!</h2>
+    <ul id="messages"></ul>
+    <form id="message-form">
+        <input id="message-input" autocomplete="off" placeholder="Type your message here..." /><button>Send</button>
+    </form>
+
+    <script>
+        <!-- const roomId = window.location.pathname.split('/')[2];-->
+        const roomId = {{ .Room }};
+        var ws = new WebSocket(`ws://localhost:8080/ws/${roomId}`);
+        ws.onopen = function() {
+            console.log("Connected to chat server in room", roomId);
+        };
+
+        ws.onmessage = function(event) {
+            var messages = document.getElementById('messages');
+            var message = document.createElement('li');
+            message.textContent = event.data;
+            messages.appendChild(message);
+        };
+
+        document.getElementById('message-form').onsubmit = function() {
+            var input = document.getElementById('message-input');
+            ws.send(input.value);
+            input.value = '';
+            return false;
+        };
+    </script>
+</body>
+</html>

@@ -386,7 +386,7 @@ func SetMarkerFacilitiesHandler(c *fiber.Ctx) error {
 	}
 
 	if err := services.SetMarkerFacilities(req.MarkerID, req.Facilities); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to set facilities for marker: " + err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to set facilities for marker"})
 	}
 
 	return c.SendStatus(fiber.StatusOK)

@@ -92,3 +92,69 @@ func IsInSouthKorea(lat, long float64) bool {
 	// Check if within South Korea's bounding box
 	return lat >= SouthKoreaMinLat && lat <= SouthKoreaMaxLat && long >= SouthKoreaMinLong && long <= SouthKoreaMaxLong
 }
+
+// CONVERT ----------------------------------------------------------------
+// WCONGNAMULCoord represents a coordinate in the WCONGNAMUL system.
+type WCONGNAMULCoord struct {
+	X float64 // X coordinate
+	Y float64 // Y coordinate
+}
+
+// ConvertWGS84ToWCONGNAMUL converts coordinates from WGS84 to WCONGNAMUL.
+func ConvertWGS84ToWCONGNAMUL(lat, long float64) WCONGNAMULCoord {
+	x, y := transformWGS84ToKoreaTM(6378137, 0.0033528106647474805, 500000, 200000, 1, 38, 127, lat, long)
+	x = math.Round(x * 2.5)
+	y = math.Round(y * 2.5)
+	return WCONGNAMULCoord{X: x, Y: y}
+}
+
+// transformWGS84ToKoreaTM optimizes the coordinate conversion calculation.
+func transformWGS84ToKoreaTM(d, e, h, f, c, l, m, lat, lon float64) (float64, float64) {
+	A := math.Pi / 180
+	latRad := lat * A
+	lonRad := lon * A
+	lRad := l * A
+	mRad := m * A
+
+	w := 1 / e
+	if e > 1 {
+		w = e
+	}
+
+	z := d * (w - 1) / w
+	G := 1 - (z*z)/(d*d)
+	w = (d*d - z*z) / (z * z)
+	z = (d - z) / (d + z)
+
+	E := d * (1 - z + 5*(z*z-z*z*z)/4 + 81*(z*z*z*z-z*z*z*z*z)/64)
+	I := 3 * d * (z - z*z + 7*(z*z*z-z*z*z*z)/8 + 55*z*z*z*z*z/64) / 2
+	J := 15 * d * (z*z - z*z*z + 3*(z*z*z*z-z*z*z*z*z)/4) / 16
+	L := 35 * d * (z*z*z - z*z*z*z + 11*z*z*z*z*z/16) / 48
+	M := 315 * d * (z*z*z*z - z*z*z*z*z) / 512
+
+	D := lonRad - mRad
+	u := E*lRad - I*math.Sin(2*lRad) + J*math.Sin(4*lRad) - L*math.Sin(6*lRad) + M*math.Sin(8*lRad)
+	z = u * c
+	sinLat := math.Sin(latRad)
+	cosLat := math.Cos(latRad)
+	t := sinLat / cosLat
+	G = d / math.Sqrt(1-G*sinLat*sinLat)
+
+	u = E*latRad - I*math.Sin(2*latRad) + J*math.Sin(4*latRad) - L*math.Sin(6*latRad) + M*math.Sin(8*latRad)
+	o := u * c
+
+	E = G * sinLat * cosLat * c / 2
+	I = G * sinLat * math.Pow(cosLat, 3) * c * (5 - t*t + 9*w + 4*w*w) / 24
+	J = G * sinLat * math.Pow(cosLat, 5) * c * (61 - 58*t*t + t*t*t*t + 270*w - 330*t*t*w + 445*w*w + 324*w*w*w - 680*t*t*w*w + 88*w*w*w*w - 600*t*t*w*w*w - 192*t*t*w*w*w*w) / 720
+	H := G * sinLat * math.Pow(cosLat, 7) * c * (1385 - 3111*t*t + 543*t*t*t*t - t*t*t*t*t*t) / 40320
+	o += D*D*E + D*D*D*D*I + D*D*D*D*D*D*J + D*D*D*D*D*D*D*D*H
+	y := o - z + h
+
+	o = G * cosLat * c
+	z = G * math.Pow(cosLat, 3) * c * (1 - t*t + w) / 6
+	w = G * math.Pow(cosLat, 5) * c * (5 - 18*t*t + t*t*t*t + 14*w - 58*t*t*w + 13*w*w + 4*w*w*w - 64*t*t*w*w - 25*t*t*w*w*w) / 120
+	u = G * math.Pow(cosLat, 7) * c * (61 - 479*t*t + 179*t*t*t*t - t*t*t*t*t*t) / 5040
+	x := f + D*o + D*D*D*z + D*D*D*D*D*w + D*D*D*D*D*D*D*u
+
+	return x, y
+}

@@ -13,7 +13,10 @@ import (
 	"chulbong-kr/models"
 )
 
-const KAKAO_COORD2ADDR = "https://dapi.kakao.com/v2/local/geo/coord2address.json"
+const (
+	KAKAO_COORD2ADDR   = "https://dapi.kakao.com/v2/local/geo/coord2address.json"
+	KAKAO_COORD2REGION = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
+)
 
 var KAKAO_AK = os.Getenv("KAKAO_AK")
 
@@ -127,4 +130,46 @@ func FetchAddressFromAPI(latitude, longitude float64) (string, error) {
 	}
 
 	return "", nil // Address data is empty but no error occurred
+}
+
+// FetchRegionFromAPI queries the external API to get the address for a given latitude and longitude.
+func FetchRegionFromAPI(latitude, longitude float64) (string, error) {
+	client := &http.Client{
+		Timeout: 10 * time.Second, // Set a timeout to avoid hanging the request indefinitely
+	}
+	reqURL := fmt.Sprintf("%s?x=%f&y=%f", KAKAO_COORD2REGION, longitude, latitude)
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return "-1", fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Add("Authorization", "KakaoAK "+KAKAO_AK)
+	resp, err := client.Do(req)
+	if err != nil {
+		return "-1", fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "-1", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var apiResp kakao.KakaoRegionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return "-1", fmt.Errorf("unmarshalling response: %w", err)
+	}
+
+	if len(apiResp.Documents) == 0 {
+		// log.Print("No address found for the given coordinates")
+		return "", nil // Returning nil error to indicate absence of data rather than a failure
+	}
+
+	doc := apiResp.Documents[0]
+	if doc.AddressName == "북한" {
+		return "-2", nil
+	} else if doc.AddressName == "일본" {
+		return "-2", nil
+	}
+
+	return doc.AddressName, nil // Address data is empty but no error occurred
 }

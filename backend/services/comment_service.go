@@ -2,6 +2,7 @@ package services
 
 import (
 	"chulbong-kr/database"
+	"chulbong-kr/dto"
 	"chulbong-kr/models"
 	"fmt"
 	"time"
@@ -92,17 +93,18 @@ func RemoveComment(commentID, userID int) error {
 }
 
 // LoadCommentsForMarker retrieves all active comments for a specific marker
-func LoadCommentsForMarker(markerID, pageSize, offset int) ([]Comment, int, error) {
-	comments := make([]Comment, 0)
+func LoadCommentsForMarker(markerID, pageSize, offset int) ([]dto.CommentWithUsername, int, error) {
+	comments := make([]dto.CommentWithUsername, 0)
 
 	query := `
-        SELECT CommentID, MarkerID, UserID, CommentText, PostedAt, UpdatedAt
-        FROM Comments
-        WHERE MarkerID = ? AND DeletedAt IS NULL
-        ORDER BY PostedAt DESC
+		SELECT C.CommentID, C.MarkerID, C.UserID, C.CommentText, C.PostedAt, C.UpdatedAt, U.Username
+		FROM Comments C
+		LEFT JOIN Users U ON C.UserID = U.UserID
+		WHERE C.MarkerID = ? AND C.DeletedAt IS NULL
+        ORDER BY C.PostedAt DESC
 		LIMIT ? OFFSET ?`
 
-	err := database.DB.Select(&comments, query, markerID, pageSize, offset)
+	err := database.DB.Select(&comments, query, markerID, pageSize, offset) // SELECT has to flatten the struct
 	if err != nil {
 		return nil, 0, fmt.Errorf("error loading comments for marker %d: %w", markerID, err)
 	}
