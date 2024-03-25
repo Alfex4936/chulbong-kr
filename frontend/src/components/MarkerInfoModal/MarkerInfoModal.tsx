@@ -436,10 +436,7 @@ const MarkerInfoModal = ({
               {marker?.updatedAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
               업데이트)
             </div>
-            <div>
-              {marker?.address ||
-                "주소를 불러오는 중입니다. 잠시 후 다시 확인해 주세요!"}
-            </div>
+            <div>{marker?.address}</div>
           </Styled.AddressText>
 
           <Styled.ErrorBox>{roadViewErrorText}</Styled.ErrorBox>

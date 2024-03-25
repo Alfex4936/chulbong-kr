@@ -6,7 +6,7 @@ export const Container = styled.div`
   alignitems: center;
 
   width: 60%;
-  min-width: 300px;
+  min-width: 328px;
   max-width: 500px;
 
   position: absolute;
