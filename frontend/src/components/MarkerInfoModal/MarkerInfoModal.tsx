@@ -431,13 +431,10 @@ const MarkerInfoModal = ({
           </Styled.Facilities>
           <Styled.AddressText>
             <div>
-              <div>
-                {marker?.createdAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
-                등록 (
-                {marker?.updatedAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
-                업데이트)
-              </div>
-              <div>작성자: {marker?.username}</div>
+              {marker?.createdAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
+              등록 (
+              {marker?.updatedAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
+              업데이트)
             </div>
             <div>
               {marker?.address ||

@@ -141,10 +141,13 @@ const MarkerReview = ({ markerId, setIsReview }: Props) => {
                         <div>{comment.commentText}</div>
                         <div />
                         <div>
-                          {comment.postedAt
-                            .toString()
-                            .split("T")[0]
-                            .replace(/-/g, ".")}
+                          <div>
+                            {comment.postedAt
+                              .toString()
+                              .split("T")[0]
+                              .replace(/-/g, ".")}
+                          </div>
+                          <div>{comment.username}</div>
                         </div>
                         <div>
                           {myInfo?.userId === comment.userId && (

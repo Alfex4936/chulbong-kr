@@ -5,4 +5,5 @@ export interface Comment {
   commentText: string;
   postedAt: Date;
   updatedAt: Date;
+  username: string;
 }
