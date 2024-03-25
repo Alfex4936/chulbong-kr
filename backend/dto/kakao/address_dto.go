@@ -6,6 +6,12 @@ type KakaoResponse struct {
 	Documents []Document `json:"documents"`
 }
 
+// KakaoRegionResponse is the top-level structure
+type KakaoRegionResponse struct {
+	Meta      Meta          `json:"meta"`
+	Documents []GeoDocument `json:"documents"`
+}
+
 // Meta contains response related info
 type Meta struct {
 	TotalCount int `json:"total_count"`
@@ -41,4 +47,17 @@ type RoadAddress struct {
 	SubBuildingNo    string `json:"sub_building_no"`
 	BuildingName     string `json:"building_name"`
 	ZoneNo           string `json:"zone_no"`
+}
+
+// GeoDocument represents the structure of a geographical location document.
+type GeoDocument struct {
+	RegionType       string  `json:"region_type"`        // H(행정동) 또는 B(법정동)
+	AddressName      string  `json:"address_name"`       // 전체 지역 명칭
+	Region1DepthName string  `json:"region_1depth_name"` // 지역 1Depth, 시도 단위. 바다 영역은 존재하지 않음
+	Region2DepthName string  `json:"region_2depth_name"` // 지역 2Depth, 구 단위. 바다 영역은 존재하지 않음
+	Region3DepthName string  `json:"region_3depth_name"` // 지역 3Depth, 동 단위. 바다 영역은 존재하지 않음
+	Region4DepthName string  `json:"region_4depth_name"` // 지역 4Depth, region_type이 법정동이며, 리 영역인 경우만 존재
+	Code             string  `json:"code"`               // region 코드
+	X                float64 `json:"x"`                  // X 좌표값, 경위도인 경우 경도(longitude)
+	Y                float64 `json:"y"`                  // Y 좌표값, 경위도인 경우 위도(latitude)
 }

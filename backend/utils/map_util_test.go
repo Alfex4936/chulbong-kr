@@ -7,6 +7,113 @@ import (
 	"testing"
 )
 
+// Test
+
+// GP2TM performs the coordinate conversion calculation.
+func GP2TM2(d, e, h, f, c, l, m, lat, lon float64) (float64, float64) {
+	a := lat
+	b := lon
+	B := f
+	w := e
+	if w > 1 {
+		w = 1 / w
+	}
+	A := math.Atan(1) / 45
+	o := a * A
+	D := b * A
+	u := l * A
+	A *= m
+	w = 1 / w
+	z := d * (w - 1) / w
+	G := (math.Pow(d, 2) - math.Pow(z, 2)) / math.Pow(d, 2)
+	w = (math.Pow(d, 2) - math.Pow(z, 2)) / math.Pow(z, 2)
+	z = (d - z) / (d + z)
+	E := d * (1 - z + 5*(math.Pow(z, 2)-math.Pow(z, 3))/4 + 81*(math.Pow(z, 4)-math.Pow(z, 5))/64)
+	I := 3 * d * (z - math.Pow(z, 2) + 7*(math.Pow(z, 3)-math.Pow(z, 4))/8 + 55*math.Pow(z, 5)/64) / 2
+	J := 15 * d * (math.Pow(z, 2) - math.Pow(z, 3) + 3*(math.Pow(z, 4)-math.Pow(z, 5))/4) / 16
+	L := 35 * d * (math.Pow(z, 3) - math.Pow(z, 4) + 11*math.Pow(z, 5)/16) / 48
+	M := 315 * d * (math.Pow(z, 4) - math.Pow(z, 5)) / 512
+	D -= A
+	u = E*u - I*math.Sin(2*u) + J*math.Sin(4*u) - L*math.Sin(6*u) + M*math.Sin(8*u)
+	z = u * c
+	H := math.Sin(o)
+	u = math.Cos(o)
+	A = H / u
+	w *= math.Pow(u, 2)
+	G = d / math.Sqrt(1-G*math.Pow(math.Sin(o), 2))
+	o = E*o - I*math.Sin(2*o) + J*math.Sin(4*o) - L*math.Sin(6*o) + M*math.Sin(8*o)
+	o *= c
+	E = G * H * u * c / 2
+	I = G * H * math.Pow(u, 3) * c * (5 - math.Pow(A, 2) + 9*w + 4*math.Pow(w, 2)) / 24
+	J = G * H * math.Pow(u, 5) * c * (61 - 58*math.Pow(A, 2) + math.Pow(A, 4) + 270*w - 330*math.Pow(A, 2)*w + 445*math.Pow(w, 2) + 324*math.Pow(w, 3) - 680*math.Pow(A, 2)*math.Pow(w, 2) + 88*math.Pow(w, 4) - 600*math.Pow(A, 2)*math.Pow(w, 3) - 192*math.Pow(A, 2)*math.Pow(w, 4)) / 720
+	H = G * H * math.Pow(u, 7) * c * (1385 - 3111*math.Pow(A, 2) + 543*math.Pow(A, 4) - math.Pow(A, 6)) / 40320
+	o = o + math.Pow(D, 2)*E + math.Pow(D, 4)*I + math.Pow(D, 6)*J + math.Pow(D, 8)*H
+	y := o - z + h
+	o = G * u * c
+	z = G * math.Pow(u, 3) * c * (1 - math.Pow(A, 2) + w) / 6
+	w = G * math.Pow(u, 5) * c * (5 - 18*math.Pow(A, 2) + math.Pow(A, 4) + 14*w - 58*math.Pow(A, 2)*w + 13*math.Pow(w, 2) + 4*math.Pow(w, 3) - 64*math.Pow(A, 2)*math.Pow(w, 2) - 25*math.Pow(A, 2)*math.Pow(w, 3)) / 120
+	u = G * math.Pow(u, 7) * c * (61 - 479*math.Pow(A, 2) + 179*math.Pow(A, 4) - math.Pow(A, 6)) / 5040
+	x := B + D*o + math.Pow(D, 3)*z + math.Pow(D, 5)*w + math.Pow(D, 7)*u
+
+	return x, y
+}
+
+func TestWCONGNAMUL(t *testing.T) {
+	tests := []struct {
+		name                 string
+		lat, long            float64 // Starting point
+		expectedX, expectedY float64 // Expected ending point
+	}{
+		{
+			name:      "Test 1",
+			lat:       37.248098895147216,
+			long:      126.99116337285824,
+			expectedX: 498040.0,
+			expectedY: 1041367.0,
+		},
+		{
+			name:      "Test Not korea 1",
+			lat:       33.248098895147216,
+			long:      126.99116337285824,
+			expectedX: 497941.0,
+			expectedY: -68085.0,
+		},
+		{
+			name:      "Test 3",
+			lat:       35.73294563400083,
+			long:      127.37264182214031,
+			expectedX: 584279.0,
+			expectedY: 621193.0,
+		},
+		{
+			name:      "Test 4",
+			lat:       35.7328,
+			long:      127.37264182214031,
+			expectedX: 584280.0,
+			expectedY: 621153.0,
+		},
+		{
+			name:      "Test 5",
+			lat:       34.248098895147216,
+			long:      126.96666,
+			expectedX: 492322.0,
+			expectedY: 209211.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ConvertWGS84ToWCONGNAMUL(tt.lat, tt.long)
+
+			t.Logf("Calculated WCONGNAMUL: %f, %f", result.X, result.Y)
+			if math.Abs(result.X-tt.expectedX) > 1 || math.Abs(result.Y-tt.expectedY) > 1 { // Allowing a margin of error of 1
+				t.Errorf("ConvertWGS84ToWCONGNAMUL(%v, %v) = (%v, %v), want (%v, %v)",
+					tt.lat, tt.long, result.X, result.Y, tt.expectedX, tt.expectedY)
+			}
+		})
+	}
+}
+
 // Test cases for distance function
 func TestDistance(t *testing.T) {
 	tests := []struct {

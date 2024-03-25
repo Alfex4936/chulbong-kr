@@ -1,0 +1,1 @@
+go test -v .\utils\ -run TestWCONGNAMUL -count=1

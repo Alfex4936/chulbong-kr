@@ -3,6 +3,7 @@ package handlers
 import (
 	"chulbong-kr/dto"
 	"chulbong-kr/services"
+	"chulbong-kr/utils"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -111,4 +112,23 @@ func GetMarkersClosebyAdmin(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(markers)
+}
+
+func ConvertWGS84ToWCONGNAMULHandler(c *fiber.Ctx) error {
+	latParam := c.Query("latitude")
+	longParam := c.Query("longitude")
+
+	lat, err := strconv.ParseFloat(latParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+	}
+
+	long, err := strconv.ParseFloat(longParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+
+	result := utils.ConvertWGS84ToWCONGNAMUL(lat, long)
+
+	return c.JSON(result)
 }
