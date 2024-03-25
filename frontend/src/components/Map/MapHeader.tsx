@@ -47,7 +47,7 @@ const MapHeader = ({ markers, map }: Props) => {
       />
 
       <Tooltip
-        title={isAround ? "스크롤 위로" : "주변 검색"}
+        title={isAround ? "스크롤 위로" : "주변 검색 / 랭킹"}
         arrow
         disableInteractive
       >
@@ -58,6 +58,8 @@ const MapHeader = ({ markers, map }: Props) => {
 
             backgroundColor: "#fff",
             color: "#000",
+
+            fontSize: ".7rem",
 
             zIndex: onBoardingState.step === 10 ? "10000" : "90",
 
@@ -74,7 +76,7 @@ const MapHeader = ({ markers, map }: Props) => {
             handleArroundMarkerScroll();
           }}
         >
-          주변
+          주변/랭킹
         </Button>
       </Tooltip>
     </Styled.Container>

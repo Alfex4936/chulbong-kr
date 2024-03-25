@@ -72,3 +72,9 @@ export const ResultItem = styled.div`
     }
   }
 `;
+
+export const TabContainer = styled.div`
+  border-bottom: 1px solid #eee;
+
+  margin-bottom: 1rem;
+`;

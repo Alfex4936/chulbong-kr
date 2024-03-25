@@ -6,6 +6,8 @@ const useMarkerRankingData = () => {
     queryKey: ["marker-ranking"],
     queryFn: markerRanking,
     retry: false,
+
+    gcTime: 0,
   });
 };
 

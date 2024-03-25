@@ -1,6 +1,7 @@
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SearchIcon from "@mui/icons-material/Search";
+import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { RefObject, useEffect, useRef, useState } from "react";
@@ -10,6 +11,7 @@ import useMapPositionStore from "../../store/useMapPositionStore";
 import useOnBoardingStore from "../../store/useOnBoardingStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import AroundMarker from "../AroundMarker/AroundMarker";
+import Ranking from "../Ranking/Ranking";
 import * as Styled from "./SearchInput.style";
 
 interface KakaoPlace {
@@ -51,6 +53,8 @@ const SearchInput = ({
 
   const [places, setPlaces] = useState<KakaoPlace[] | null>(null);
   const [isResult, setIsResult] = useState(false);
+
+  const [curTab, setCurTab] = useState<number>(0);
 
   useEffect(() => {
     const handleKeyDownClose = (event: KeyboardEvent) => {
@@ -140,6 +144,19 @@ const SearchInput = ({
     map?.setLevel(2);
   };
 
+  const tabs = [
+    {
+      title: "주변 검색",
+      content: (
+        <AroundMarker map={map} ref={aroundMarkerRef} markers={markers} />
+      ),
+    },
+    {
+      title: "랭킹",
+      content: <Ranking map={map} />,
+    },
+  ];
+
   return (
     <div
       style={{
@@ -173,7 +190,27 @@ const SearchInput = ({
       {(isResult || isAround) && (
         <Styled.Result>
           {isAround ? (
-            <AroundMarker map={map} ref={aroundMarkerRef} markers={markers} />
+            <div>
+              <Styled.TabContainer>
+                {tabs.map((tab, index) => {
+                  return (
+                    <Button
+                      key={index}
+                      sx={{
+                        width: "50%",
+                        color: index === curTab ? "#6b73db" : "#333",
+                      }}
+                      onClick={() => {
+                        setCurTab(index);
+                      }}
+                    >
+                      {tab.title}
+                    </Button>
+                  );
+                })}
+              </Styled.TabContainer>
+              {curTab !== null && <div>{tabs[curTab].content}</div>}
+            </div>
           ) : (
             <>
               {places?.map((place) => {
@@ -209,6 +246,7 @@ const SearchInput = ({
               onClick={() => {
                 setIsResult(false);
                 setIsAround(false);
+                setCurTab(0);
                 searchInput.reset();
               }}
               aria-label="move"

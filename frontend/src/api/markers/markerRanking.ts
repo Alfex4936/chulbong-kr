@@ -1,6 +1,13 @@
 import axios from "axios";
 
-const markerRanking = async () => {
+export interface RankingInfo {
+  address: string;
+  latitude: number;
+  longitude: number;
+  makerId: number;
+}
+
+const markerRanking = async (): Promise<RankingInfo[]> => {
   const res = await axios.get(`/api/v1/markers/ranking`);
 
   return res.data;
