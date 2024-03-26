@@ -67,7 +67,7 @@ func main() {
 		Username:  os.Getenv("REDIS_USERNAME"),
 		Password:  os.Getenv("REDIS_PASSWORD"),
 		Database:  0,
-		Reset:     true,
+		Reset:     false,
 		TLSConfig: nil,
 		PoolSize:  10 * runtime.GOMAXPROCS(0),
 	})
@@ -203,24 +203,25 @@ func main() {
 	// app.Use(logger.New())
 	app.Get("/swagger/*", middlewares.AdminOnly, swagger.HandlerDefault)
 
-	app.Use("/cs-ws", func(c *fiber.Ctx) error {
-		if websocket.IsWebSocketUpgrade(c) {
-			middlewares.AuthSoftMiddleware(c)
-			return c.Next()
-		}
-		return fiber.ErrUpgradeRequired
-	})
+	// app.Use("/cs-ws", func(c *fiber.Ctx) error {
+	// 	if websocket.IsWebSocketUpgrade(c) {
+	// 		middlewares.AuthSoftMiddleware(c)
+	// 		return c.Next()
+	// 	}
+	// 	return fiber.ErrUpgradeRequired
+	// })
 
 	// app.Get("/cs-ws/markerUpdates", websocket.New(handlers.MarkerUpdateEventHandler, websocket.Config{
 	// 	HandshakeTimeout: 15 * time.Second,
 	// }))
-	app.Get("/cs-ws/markerLikeUpdates", websocket.New(handlers.MarkerLikeEventHandler, websocket.Config{
-		HandshakeTimeout: 15 * time.Second,
-	}))
 
 	app.Use("/ws/:markerID", func(c *fiber.Ctx) error {
+		middlewares.AuthMiddleware(c)
+		// if c.Locals("username") == nil {
+		// 	return fiber.ErrUnauthorized
+		// }
+
 		if websocket.IsWebSocketUpgrade(c) {
-			middlewares.AuthMiddleware(c)
 			return c.Next()
 		}
 		return fiber.ErrUpgradeRequired
@@ -228,12 +229,12 @@ func main() {
 
 	app.Get("/ws/:markerID", websocket.New(func(c *websocket.Conn) {
 		// Extract markerID from the parameter
-		markerID, err := strconv.Atoi(c.Params("markerID"))
-		if err != nil {
-			c.Close()
-			c.WriteJSON("No Authorization for this session.")
-			return
-		}
+		markerID := c.Params("markerID")
+		// if err != nil {
+		// 	c.Close()
+		// 	c.WriteJSON("No Authorization for this session.")
+		// 	return
+		// }
 
 		handlers.HandleChatRoomHandler(c, markerID)
 	}))
@@ -242,7 +243,7 @@ func main() {
 	app.Get("/main", func(c *fiber.Ctx) error {
 		return c.Render("login", fiber.Map{})
 	})
-	app.Get("/chatroom/:roomID", func(c *fiber.Ctx) error {
+	app.Get("/chatroom/chat/:roomID", func(c *fiber.Ctx) error {
 		roomID := c.Params("roomID")
 		username := c.Locals("username")
 		if username == nil {
@@ -253,6 +254,7 @@ func main() {
 			"Room":     roomID,
 		})
 	})
+	app.Get("/chatroom/list/:markerID", handlers.GetRoomUsersHandler)
 
 	// Setup routes
 	api := app.Group("/api/v1")
@@ -345,6 +347,7 @@ func main() {
 	// Cron jobs
 	services.CronCleanUpToken()
 	services.CronCleanUpPasswordTokens()
+	services.CronResetClickRanking()
 	services.StartOrphanedPhotosCleanupCron()
 
 	serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))
