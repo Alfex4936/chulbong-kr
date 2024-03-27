@@ -52,7 +52,9 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
     ws.current.onmessage = async (event) => {
       const data: ChatMessage = JSON.parse(event.data);
-      setUserId(data.userId);
+      if (userId === 0) {
+        setUserId(data.userId);
+      }
 
       setMessages((prevMessages) => [
         ...prevMessages,
@@ -127,10 +129,24 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
           </Styled.ConnectMessage>
         </div>
         <Styled.MessagesContainer ref={chatBox}>
-          {messages.map((message) => (
-            <Fragment key={message.mid}>
-              {!message.msg.includes("has joined the chat") ? (
-                userId === message.userId ? (
+          {messages.map((message) => {
+            if (message.msg.includes("has joined the chat")) {
+              return (
+                <Styled.JoinUser key={message.mid}>
+                  {message.name}님이 참여하였습니다.
+                </Styled.JoinUser>
+              );
+            }
+            if (message.msg.includes("has left the chat")) {
+              return (
+                <Styled.JoinUser key={message.mid}>
+                  {message.name}님이 나가셨습니다.
+                </Styled.JoinUser>
+              );
+            }
+            return (
+              <Fragment key={message.mid}>
+                {userId === message.userId ? (
                   <Styled.MessageWrapRight>
                     <div>{message.msg}</div>
                     <div>{message.name}</div>
@@ -140,14 +156,10 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
                     <div>{message.msg}</div>
                     <div>{message.name}</div>
                   </Styled.MessageWrapLeft>
-                )
-              ) : (
-                <Styled.JoinUser>
-                  {message.name}님이 참여하였습니다.
-                </Styled.JoinUser>
-              )}
-            </Fragment>
-          ))}
+                )}
+              </Fragment>
+            );
+          })}
         </Styled.MessagesContainer>
       </Styled.Container>
       <Styled.InputWrap>
