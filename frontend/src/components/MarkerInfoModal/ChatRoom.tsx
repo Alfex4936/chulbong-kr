@@ -22,6 +22,7 @@ interface Chatdata {
   name: string;
   isOwner: boolean;
   mid: string;
+  userid: string;
 }
 
 interface Props {
@@ -36,13 +37,12 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
   const ws = useRef<WebSocket | null>(null);
   const chatBox = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [connection, setConnection] = useState(false);
 
   const [messages, setMessages] = useState<Chatdata[]>([]);
   const [connectionMsg, setConnectionMsg] = useState("");
-
-  // const [userId, setUserId] = useState(0);
 
   useEffect(() => {
     ws.current = new WebSocket(
@@ -58,7 +58,6 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
     ws.current.onmessage = async (event) => {
       const data: ChatMessage = JSON.parse(event.data);
-      // setUserId(data.userId);
 
       setMessages((prevMessages) => [
         ...prevMessages,
@@ -67,6 +66,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
           name: data.userNickname,
           isOwner: data.isOwner,
           mid: data.uid,
+          userid: data.userId,
         },
       ]);
     };
@@ -102,6 +102,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
     ws.current?.send(chatValue.value);
 
     chatValue.reset();
+    inputRef.current?.focus();
   };
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -151,7 +152,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
             }
             return (
               <Fragment key={message.mid}>
-                {message.isOwner ? (
+                {message.userid === cidState.cid ? (
                   <Styled.MessageWrapRight>
                     <div>{message.msg}</div>
                     <div>{message.name}</div>
@@ -169,6 +170,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
       </Styled.Container>
       <Styled.InputWrap>
         <Styled.ReviewInput
+          ref={inputRef}
           disabled={!connection}
           type="text"
           name="reveiw-content"
