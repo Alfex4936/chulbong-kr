@@ -1,3 +1,4 @@
+import TravelExploreIcon from "@mui/icons-material/TravelExplore";
 import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
 import { useEffect, useRef, useState } from "react";
@@ -76,7 +77,7 @@ const MapHeader = ({ markers, map }: Props) => {
             handleArroundMarkerScroll();
           }}
         >
-          주변/랭킹
+          <TravelExploreIcon />
         </Button>
       </Tooltip>
     </Styled.Container>

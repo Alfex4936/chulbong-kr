@@ -30,9 +30,10 @@ const UploadImage = () => {
       "image/svg+xml",
       "image/webp",
     ];
+
     if (!e.target.files) return;
 
-    if (!suppertedFormats.includes(e.target.files[0].type)) {
+    if (!suppertedFormats.includes(e.target.files[0]?.type)) {
       setErrorMessage(
         "지원되지 않은 이미지 형식입니다. JPEG, PNG, webp형식의 이미지를 업로드해주세요."
       );
@@ -44,29 +45,27 @@ const UploadImage = () => {
       return;
     }
 
-    if (e.target.files) {
-      let file: File = await resizeFile(e.target.files[0], 0.8);
-      let reader = new FileReader();
+    let file: File = await resizeFile(e.target.files[0], 0.8);
+    let reader = new FileReader();
 
-      reader.onloadend = () => {
-        const imageData = {
-          file: file,
-          previewURL: reader.result as string,
-          id: nanoid(),
-        };
-        setImages((prev) => [...prev, imageData]);
-        formState.setImageForm(imageData);
+    reader.onloadend = () => {
+      const imageData = {
+        file: file,
+        previewURL: reader.result as string,
+        id: nanoid(),
       };
+      setImages((prev) => [...prev, imageData]);
+      formState.setImageForm(imageData);
+    };
 
-      if (file.size / (1024 * 1024) > 10) {
-        setErrorMessage("이미지는 최대 10MB까지 가능합니다.");
-        return;
-      }
-
-      setErrorMessage("");
-
-      reader.readAsDataURL(file);
+    if (file.size / (1024 * 1024) > 10) {
+      setErrorMessage("이미지는 최대 10MB까지 가능합니다.");
+      return;
     }
+
+    setErrorMessage("");
+
+    reader.readAsDataURL(file);
   };
 
   const handleBoxClick = () => {
