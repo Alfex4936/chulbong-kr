@@ -52,9 +52,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
     ws.current.onmessage = async (event) => {
       const data: ChatMessage = JSON.parse(event.data);
-      if (userId === 0) {
-        setUserId(data.userId);
-      }
+      setUserId(data.userId);
 
       setMessages((prevMessages) => [
         ...prevMessages,

@@ -10,6 +10,11 @@ const shimmer = keyframes`
   }
 `;
 
+export const Container = styled.div`
+  max-height: 400px;
+  overflow: auto;
+`;
+
 export const ButtonContainer = styled.div`
   display: flex;
   justify-content: center;

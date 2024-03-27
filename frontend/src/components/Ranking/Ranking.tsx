@@ -55,7 +55,7 @@ const Ranking = ({ map }: Props) => {
   };
 
   return (
-    <div>
+    <Styled.Container>
       <Styled.MessageRed>
         주변 랭킹은 현재 화면 중앙을 기준으로 주변 위치들의 랭킹을 보여줍니다.
       </Styled.MessageRed>
@@ -141,7 +141,7 @@ const Ranking = ({ map }: Props) => {
           )}
         </>
       )}
-    </div>
+    </Styled.Container>
   );
 };
 
