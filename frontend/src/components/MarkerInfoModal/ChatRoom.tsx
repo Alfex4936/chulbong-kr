@@ -10,16 +10,17 @@ import * as Styled from "./ChatRoom.style";
 interface ChatMessage {
   uid: string;
   message: string;
-  userId: number;
+  userId: string;
   userNickname: string;
   roomID: string;
   timestamp: number;
+  isOwner: boolean;
 }
 
 interface Chatdata {
   msg: string;
   name: string;
-  userId: number;
+  isOwner: boolean;
   mid: string;
 }
 
@@ -41,7 +42,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
   const [messages, setMessages] = useState<Chatdata[]>([]);
   const [connectionMsg, setConnectionMsg] = useState("");
 
-  const [userId, setUserId] = useState(0);
+  // const [userId, setUserId] = useState(0);
 
   useEffect(() => {
     ws.current = new WebSocket(
@@ -57,14 +58,14 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
     ws.current.onmessage = async (event) => {
       const data: ChatMessage = JSON.parse(event.data);
-      setUserId(data.userId);
+      // setUserId(data.userId);
 
       setMessages((prevMessages) => [
         ...prevMessages,
         {
           msg: data.message,
           name: data.userNickname,
-          userId: data.userId,
+          isOwner: data.isOwner,
           mid: data.uid,
         },
       ]);
@@ -133,14 +134,14 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
         </div>
         <Styled.MessagesContainer ref={chatBox}>
           {messages.map((message) => {
-            if (message.msg.includes("has joined the chat")) {
+            if (message.msg.includes("님이 입장하셨습니다.")) {
               return (
                 <Styled.JoinUser key={message.mid}>
                   {message.name}님이 참여하였습니다.
                 </Styled.JoinUser>
               );
             }
-            if (message.msg.includes("has left the chat")) {
+            if (message.msg.includes("님이 퇴장하셨습니다.")) {
               return (
                 <Styled.JoinUser key={message.mid}>
                   {message.name}님이 나가셨습니다.
@@ -149,7 +150,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
             }
             return (
               <Fragment key={message.mid}>
-                {userId === message.userId ? (
+                {message.isOwner ? (
                   <Styled.MessageWrapRight>
                     <div>{message.msg}</div>
                     <div>{message.name}</div>
