@@ -19,15 +19,19 @@ import (
 
 var WsRoomManager *RoomConnectionManager = NewRoomConnectionManager()
 
+type ChulbongConn struct {
+	Socket *websocket.Conn
+	UserID string
+}
 type RoomConnectionManager struct {
-	connections       *haxmap.Map[string, []*websocket.Conn] // roomid and users
-	processedMessages *haxmap.Map[string, struct{}]          // uid (struct{} does not occupy any space)
+	connections       *haxmap.Map[string, []*ChulbongConn] // roomid and users
+	processedMessages *haxmap.Map[string, struct{}]        // uid (struct{} does not occupy any space)
 }
 
 // NewRoomConnectionManager initializes a ConnectionManager with a new haxmap instance
 func NewRoomConnectionManager() *RoomConnectionManager {
 	manager := &RoomConnectionManager{
-		connections:       haxmap.New[string, []*websocket.Conn](),
+		connections:       haxmap.New[string, []*ChulbongConn](),
 		processedMessages: haxmap.New[string, struct{}](),
 	}
 	// Start the connection checker
@@ -58,11 +62,11 @@ func (manager *RoomConnectionManager) StartCleanUpProcessedMsg() {
 // CheckConnections iterates over all connections and sends a ping message.
 // Connections that fail to respond can be considered inactive and removed.
 func (manager *RoomConnectionManager) CheckConnections() {
-	manager.connections.ForEach(func(id string, conns []*websocket.Conn) bool {
+	manager.connections.ForEach(func(id string, conns []*ChulbongConn) bool {
 		var inactiveConns []int // Store indexes of inactive connections
 		for i, conn := range conns {
-			conn.SetWriteDeadline(time.Now().Add(30 * time.Second)) // Adjust deadline as needed
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			conn.Socket.SetWriteDeadline(time.Now().Add(30 * time.Second)) // Adjust deadline as needed
+			if err := conn.Socket.WriteMessage(websocket.PingMessage, nil); err != nil {
 				log.Printf("Ping failed for connection: %v. Marking as inactive.", err)
 				inactiveConns = append(inactiveConns, i)
 			}
@@ -83,18 +87,27 @@ func (manager *RoomConnectionManager) CheckConnections() {
 }
 
 // SaveConnection stores a WebSocket connection associated with a markerID in app memory
-func (manager *RoomConnectionManager) SaveConnection(markerID string, conn *websocket.Conn) {
+func (manager *RoomConnectionManager) SaveConnection(markerID, clientId string, conn *websocket.Conn) {
 	key := fmt.Sprintf("marker_%s", markerID)
 
 	// First, try to get the current list of connections for the room.
 	conns, ok := manager.connections.Get(key)
+
 	if !ok {
 		// If it doesn't exist, initialize it with the new connection.
-		conns = []*websocket.Conn{conn}
+		conns = []*ChulbongConn{
+			{
+				Socket: conn,
+				UserID: clientId,
+			},
+		}
 	} else {
 		// If it exists, append the new connection, ensuring not to duplicate.
 		if !contains(conns, conn) {
-			conns = append(conns, conn)
+			conns = append(conns, &ChulbongConn{
+				Socket: conn,
+				UserID: clientId,
+			})
 		}
 	}
 
@@ -104,7 +117,7 @@ func (manager *RoomConnectionManager) SaveConnection(markerID string, conn *webs
 }
 
 // BroadcastMessageToRoom sends a WebSocket message to all users in a specific room
-func (manager *RoomConnectionManager) BroadcastMessageToRoom(roomID, message, userNickname string, userId int) {
+func (manager *RoomConnectionManager) BroadcastMessageToRoom(roomID, message, userNickname, userId string) {
 	key := fmt.Sprintf("marker_%s", roomID)
 	broadcastMsg := dto.BroadcastMessage{
 		UID:          uuid.New().String(),
@@ -115,13 +128,6 @@ func (manager *RoomConnectionManager) BroadcastMessageToRoom(roomID, message, us
 		Timestamp:    time.Now().UnixMilli(),
 	}
 
-	// Serialize the message struct to JSON
-	msgJSON, err := json.Marshal(broadcastMsg)
-	if err != nil {
-		log.Printf("Error marshalling message to JSON: %v", err)
-		return
-	}
-
 	MarkAsProcessed(broadcastMsg.UID)
 	// go PublishChatToRoom(roomID, msgJSON) // TODO: in distributed server
 
@@ -129,7 +135,17 @@ func (manager *RoomConnectionManager) BroadcastMessageToRoom(roomID, message, us
 	if conns, ok := manager.connections.Get(key); ok {
 		// Iterate over the connections and send the message
 		for _, conn := range conns {
-			if err := conn.WriteMessage(websocket.TextMessage, msgJSON); err != nil {
+			if conn.UserID == userId {
+				broadcastMsg.IsOwner = true
+			}
+			// Serialize the message struct to JSON
+			msgJSON, err := json.Marshal(broadcastMsg)
+			if err != nil {
+				log.Printf("Error marshalling message to JSON: %v", err)
+				continue
+			}
+
+			if err := conn.Socket.WriteMessage(websocket.TextMessage, msgJSON); err != nil {
 				log.Printf("Failed to send message to connection in room %s: %v", roomID, err)
 			}
 		}
@@ -139,7 +155,7 @@ func (manager *RoomConnectionManager) BroadcastMessageToRoom(roomID, message, us
 }
 
 // BroadcastMessage sends a WebSocket message to all users
-func (manager *RoomConnectionManager) BroadcastMessage(message []byte, userId int, roomId, userNickname string) {
+func (manager *RoomConnectionManager) BroadcastMessage(message []byte, userId, roomId, userNickname string) {
 	broadcastMsg := dto.BroadcastMessage{
 		UID:          uuid.New().String(),
 		Message:      string(message),
@@ -155,9 +171,9 @@ func (manager *RoomConnectionManager) BroadcastMessage(message []byte, userId in
 		return
 	}
 
-	manager.connections.ForEach(func(key string, conns []*websocket.Conn) bool {
+	manager.connections.ForEach(func(key string, conns []*ChulbongConn) bool {
 		for _, conn := range conns {
-			if err := conn.WriteMessage(websocket.TextMessage, msgJSON); err != nil {
+			if err := conn.Socket.WriteMessage(websocket.TextMessage, msgJSON); err != nil {
 				log.Printf("Failed to send broadcast message to connection for %s: %v", key, err)
 			}
 		}
@@ -173,7 +189,7 @@ func (manager *RoomConnectionManager) RemoveWsFromRoom(markerID string, conn *we
 	if conns, ok := manager.connections.Get(markerIDStr); ok {
 		// Find and remove the specified connection from the slice.
 		for i, c := range conns {
-			if c == conn {
+			if c.Socket == conn {
 				conns = append(conns[:i], conns[i+1:]...)
 				break
 			}
@@ -191,7 +207,7 @@ func (manager *RoomConnectionManager) RemoveWsFromRoom(markerID string, conn *we
 
 // REDIS
 // To see which users are in a room easily (in case distributed servers)
-func AddConnectionRoomToRedis(markerID string, userID int, username string) error {
+func AddConnectionRoomToRedis(markerID, userID, username string) error {
 	ctx := context.Background()
 	key := fmt.Sprintf("room:%s:connections", markerID)
 	connID := uuid.New().String() // unique identifier for the connection
@@ -208,7 +224,7 @@ func AddConnectionRoomToRedis(markerID string, userID int, username string) erro
 		return err
 	}
 
-	// Use HSET to store the connection information, indexed by the UserID
+	// Use HSET to store the connection information, indexed by the userID
 	err = RedisStore.Conn().HSet(ctx, key, userID, jsonConnInfo).Err()
 	if err != nil {
 		return err
@@ -218,12 +234,25 @@ func AddConnectionRoomToRedis(markerID string, userID int, username string) erro
 	return nil
 }
 
-func RemoveConnectionFromRedis(markerID string, userID int) error {
+func CheckDuplicateConnection(markerID, userID string) (bool, error) {
+	ctx := context.Background()
+	key := fmt.Sprintf("room:%s:connections", markerID)
+
+	// Check if there's an entry for this userID
+	exists, err := RedisStore.Conn().HExists(ctx, key, userID).Result()
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+
+func RemoveConnectionFromRedis(markerID, xRequestID string) error {
 	ctx := context.Background()
 	key := fmt.Sprintf("room:%s:connections", markerID)
 
 	// Use HDEL to remove the connection information, indexed by the UserID
-	return RedisStore.Conn().HDel(ctx, key, strconv.Itoa(userID)).Err()
+	return RedisStore.Conn().HDel(ctx, key, xRequestID).Err()
 }
 
 // GetAllRedisConnectionsFromRoom retrieves all connection information for a given room.
@@ -354,9 +383,9 @@ func GenerateKoreanNickname() string {
 }
 
 // contains function to check if the slice already contains the given connection.
-func contains(slice []*websocket.Conn, conn *websocket.Conn) bool {
+func contains(slice []*ChulbongConn, conn *websocket.Conn) bool {
 	for _, item := range slice {
-		if item == conn {
+		if item.Socket == conn {
 			return true
 		}
 	}
