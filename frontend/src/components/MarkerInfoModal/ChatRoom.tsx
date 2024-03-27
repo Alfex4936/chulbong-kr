@@ -46,7 +46,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
   useEffect(() => {
     ws.current = new WebSocket(
-      `wss://api.k-pullup.com/ws/${markerId}&request-id=${cidState.cid}`
+      `wss://api.k-pullup.com/ws/${markerId}?request-id=${cidState.cid}`
     );
 
     ws.current.onopen = () => {
@@ -79,6 +79,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
     };
 
     ws.current.onclose = () => {
+      setIsChatView(false);
       console.log("연결 종료");
     };
 
