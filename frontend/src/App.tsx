@@ -20,6 +20,8 @@ import useModalStore from "./store/useModalStore";
 import useOnBoardingStore from "./store/useOnBoardingStore";
 import useToastStore from "./store/useToastStore";
 import useUserStore from "./store/useUserStore";
+import { nanoid } from "nanoid";
+import useChatIdStore from "./store/useChatIdStore";
 
 import "react-toastify/dist/ReactToastify.css";
 
@@ -31,6 +33,7 @@ const App = () => {
   const toastState = useToastStore();
   const userState = useUserStore();
   const onBoardingState = useOnBoardingStore();
+  const cidState = useChatIdStore();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -72,6 +75,20 @@ const App = () => {
     }
 
     localStorage.setItem("lastVisit", now.toISOString());
+
+    const setId = () => {
+      if (!cidState.cid) {
+        cidState.setId(nanoid());
+      }
+    };
+
+    setId();
+
+    window.addEventListener("storage", setId);
+
+    return () => {
+      window.removeEventListener("storage", setId);
+    };
   }, []);
 
   useEffect(() => {
