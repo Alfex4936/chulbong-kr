@@ -12,8 +12,12 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/v1": {
-        target: "https://chulbong-kr.fly.dev",
-        // target: "http://localhost:9452",
+        target: "https://api.k-pullup.com",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/ws": {
+        target: "wss://api.k-pullup.com",
         changeOrigin: true,
         secure: false,
       },

@@ -437,7 +437,7 @@ export const R10 = styled.div`
 
 export const Step11 = styled.div`
   position: absolute;
-  top: 165px;
+  top: 210px;
   left: 65px;
 
   animation: ${transparent} 0.5s ease-in-out 1 forwards;
@@ -471,6 +471,78 @@ export const R11 = styled.div`
 
 export const Step12 = styled.div`
   position: absolute;
+  top: 230px;
+  left: 65px;
+
+  animation: ${transparent} 0.5s ease-in-out 1 forwards;
+
+  & img {
+    height: 60px;
+  }
+`;
+
+export const R12 = styled.div`
+  position: absolute;
+  top: 100%;
+  left: -100%;
+
+  background-color: #fff;
+  padding: 1rem;
+
+  border-radius: 10px;
+
+  width: 200px;
+
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+
+  & > p:first-of-type {
+    font-size: 1.2rem;
+  }
+  & > p:last-of-type {
+    font-size: 0.8rem;
+  }
+`;
+
+export const Step13 = styled.div`
+  position: absolute;
+  top: 230px;
+  left: 280px;
+
+  animation: ${transparent} 0.5s ease-in-out 1 forwards;
+
+  & img {
+    height: 60px;
+  }
+
+  @media (max-width: 550px) {
+    left: 230px;
+  }
+`;
+
+export const R13 = styled.div`
+  position: absolute;
+  top: 100%;
+  left: -100%;
+
+  background-color: #fff;
+  padding: 1rem;
+
+  border-radius: 10px;
+
+  width: 200px;
+
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+
+  & > p:first-of-type {
+    font-size: 1.2rem;
+  }
+  & > p:last-of-type {
+    font-size: 0.8rem;
+  }
+`;
+
+export const Step14 = styled.div`
+  position: absolute;
   top: 410px;
   right: 65px;
 
@@ -481,7 +553,7 @@ export const Step12 = styled.div`
   }
 `;
 
-export const R12 = styled.div`
+export const R14 = styled.div`
   position: absolute;
   top: 100%;
   left: -100%;
