@@ -13,6 +13,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { isAxiosError } from "axios";
+import { nanoid } from "nanoid";
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +27,7 @@ import useUpdateDesc from "../../hooks/mutation/marker/useUpdateDesc";
 import useGetFacilities from "../../hooks/query/marker/useGetFacilities";
 import useGetMarker from "../../hooks/query/marker/useGetMarker";
 import useInput from "../../hooks/useInput";
+import useChatIdStore from "../../store/useChatIdStore";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
 import type { MarkerClusterer } from "../../types/Cluster.types";
@@ -55,6 +57,7 @@ const MarkerInfoModal = ({
 }: Props) => {
   const toastState = useToastStore();
   const modalState = useModalStore();
+  const cidState = useChatIdStore();
 
   const navigate = useNavigate();
   const query = new URLSearchParams(location.search);
@@ -112,6 +115,10 @@ const MarkerInfoModal = ({
   const [curImage, setCurImage] = useState("");
 
   useEffect(() => {
+    if (!cidState.cid || cidState.cid === "") {
+      cidState.setId(nanoid());
+    }
+
     toastState.close();
     toastState.setToastText("");
   }, []);
