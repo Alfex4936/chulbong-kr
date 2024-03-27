@@ -30,6 +30,23 @@ func CronCleanUpPasswordTokens() {
 	// select {}
 }
 
+func CronResetClickRanking() {
+	c := cron.New()
+	_, err := c.AddFunc("0 2 * * *", func() { // 2 AM every day
+		if err := ResetCache("marker_clicks"); err != nil {
+			// Log the error
+			fmt.Printf("Error reseting marker clicks: %v\n", err)
+		} else {
+			fmt.Println("Marker ranking cleanup executed successfully")
+		}
+	})
+	if err != nil {
+		fmt.Printf("Error scheduling the marker ranking cleanup job: %v\n", err)
+		return
+	}
+	c.Start()
+}
+
 func CronCleanUpToken() {
 	c := cron.New()
 	_, err := c.AddFunc("@daily", func() {
