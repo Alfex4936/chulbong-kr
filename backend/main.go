@@ -67,7 +67,7 @@ func main() {
 		Username:  os.Getenv("REDIS_USERNAME"),
 		Password:  os.Getenv("REDIS_PASSWORD"),
 		Database:  0,
-		Reset:     false,
+		Reset:     true,
 		TLSConfig: nil,
 		PoolSize:  10 * runtime.GOMAXPROCS(0),
 	})
@@ -230,13 +230,8 @@ func main() {
 	app.Get("/ws/:markerID", websocket.New(func(c *websocket.Conn) {
 		// Extract markerID from the parameter
 		markerID := c.Params("markerID")
-		// if err != nil {
-		// 	c.Close()
-		// 	c.WriteJSON("No Authorization for this session.")
-		// 	return
-		// }
-
-		handlers.HandleChatRoomHandler(c, markerID)
+		reqID := c.Query("request-id")
+		handlers.HandleChatRoomHandler(c, markerID, reqID)
 	}))
 
 	// HTML
