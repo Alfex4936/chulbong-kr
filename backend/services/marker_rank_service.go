@@ -65,7 +65,6 @@ func IncrementMarkerClicks(markerClicks *haxmap.Map[int, int]) {
 	}
 }
 
-// TODO: 내 주변 상위 마커 N 개 랭킹 조회도 만들기
 // 상위 N개 마커 랭킹 조회
 func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 	if limit < 3 {
