@@ -4,6 +4,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { Fragment, useEffect, useRef, useState } from "react";
 import useInput from "../../hooks/useInput";
+import useChatIdStore from "../../store/useChatIdStore";
 import * as Styled from "./ChatRoom.style";
 
 interface ChatMessage {
@@ -28,6 +29,8 @@ interface Props {
 }
 
 const ChatRoom = ({ setIsChatView, markerId }: Props) => {
+  const cidState = useChatIdStore();
+
   const chatValue = useInput("");
 
   const ws = useRef<WebSocket | null>(null);
@@ -41,7 +44,9 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
   const [userId, setUserId] = useState(0);
 
   useEffect(() => {
-    ws.current = new WebSocket(`wss://api.k-pullup.com/ws/${markerId}`);
+    ws.current = new WebSocket(
+      `wss://api.k-pullup.com/ws/${markerId}&request-id=${cidState.cid}`
+    );
 
     ws.current.onopen = () => {
       setConnection(true);
