@@ -2,17 +2,18 @@ package dto
 
 // ConnectionInfo structure to hold connection metadata
 type ConnectionInfo struct {
-	UserID   int    `json:"userID"`
+	UserID   string `json:"userID"`
 	RoomID   string `json:"roomID"`
 	Username string `json:"username"`
-	ConnID   string `json:"connID"` // Unique connection identifier
+	ConnID   string `json:"connID"`
 }
 
 type BroadcastMessage struct {
 	UID          string `json:"uid"`
 	Message      string `json:"message"`
-	UserID       int    `json:"userId"`
+	UserID       string `json:"userId"`
 	UserNickname string `json:"userNickname"`
 	RoomID       string `json:"roomID"`
 	Timestamp    int64  `json:"timestamp"` // Unix timestamp
+	IsOwner      bool   `json:"isOwner,omitempty"`
 }
