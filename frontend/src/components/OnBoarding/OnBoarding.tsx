@@ -23,7 +23,7 @@ const OnBoarding = () => {
   const handleNextStep = () => {
     onBoardingState.nextStep();
 
-    if (onBoardingState.step === 12) {
+    if (onBoardingState.step === 14) {
       onBoardingState.close();
     }
   };
@@ -33,14 +33,14 @@ const OnBoarding = () => {
       <Styled.Title
         style={{
           marginTop:
-            onBoardingState.step === 0 || onBoardingState.step === 12
+            onBoardingState.step === 0 || onBoardingState.step === 14
               ? "12rem"
               : "3rem",
         }}
       >
         <p>대한민국 철봉 지도에 오신것을 환영합니다!!</p>
         {onBoardingState.step === 0 && <p>클릭으로 설명 보기</p>}
-        {onBoardingState.step === 12 && <p>시작하기</p>}
+        {onBoardingState.step === 14 && <p>시작하기</p>}
       </Styled.Title>
 
       {(onBoardingState.step === 1 || onBoardingState.step === 2) && (
@@ -162,10 +162,10 @@ const OnBoarding = () => {
             <img src="/images/arrowcu.png" alt="" />
           </div>
           <Styled.R10>
-            <p>주변 검색</p>
+            <p>주변 검색 / 랭킹</p>
             <p>
-              현재 화면에 보이는 지도의 중앙을 기준으로 100m ~ 5km까지 철봉
-              위치를 검색할 수 있습니다!
+              주변 철봉 위치를 검색하고, 사람들이 많이 찾은 위치의 랭킹을 확인할
+              수 있습니다.
             </p>
           </Styled.R10>
         </Styled.Step10>
@@ -177,22 +177,53 @@ const OnBoarding = () => {
             <img src="/images/arrowcu.png" alt="" />
           </div>
           <Styled.R11>
-            <p>범위 지정</p>
-            <p>범위를 지정하고 주변의 철봉 위치를 검색할 수 있습니다!</p>
+            <p>주변 검색</p>
+            <p>
+              주변 검색을 통해 현재 화면에 보이는 지도의 중앙을 기준으로 100m ~
+              5km까지의 범위 지정을 통해 철봉 위치를 검색할 수 있습니다!
+            </p>
           </Styled.R11>
         </Styled.Step11>
       )}
-
       {onBoardingState.step === 12 && (
         <Styled.Step12>
           <div>
-            <img src="/images/arrowR1.png" alt="" />
+            <img src="/images/arrowcu.png" alt="" />
           </div>
           <Styled.R12>
-            <p>도움 말</p>
-            <p>본 설명은 언제든지 다시 보실 수 있습니다!</p>
+            <p>랭킹 (TOP 10)</p>
+            <p>
+              사용자가 많이 보는 철봉 위치의 상위 10개 랭킹을 확인할 수
+              있습니다.
+            </p>
           </Styled.R12>
         </Styled.Step12>
+      )}
+      {onBoardingState.step === 13 && (
+        <Styled.Step13>
+          <div>
+            <img src="/images/arrowcu.png" alt="" />
+          </div>
+          <Styled.R13>
+            <p>랭킹 (주변 랭킹)</p>
+            <p>
+              현재 화면의 중앙을 기준으로 사용자가 많이 보는 철봉 랭킹을 확인할
+              수 있습니다.
+            </p>
+          </Styled.R13>
+        </Styled.Step13>
+      )}
+
+      {onBoardingState.step === 14 && (
+        <Styled.Step14>
+          <div>
+            <img src="/images/arrowR1.png" alt="" />
+          </div>
+          <Styled.R14>
+            <p>도움 말</p>
+            <p>본 설명은 언제든지 다시 보실 수 있습니다!</p>
+          </Styled.R14>
+        </Styled.Step14>
       )}
 
       <Button

@@ -1,6 +1,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
+import MarkUnreadChatAltIcon from "@mui/icons-material/MarkUnreadChatAlt";
 import PlaceIcon from "@mui/icons-material/Place";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import ShareIcon from "@mui/icons-material/Share";
@@ -31,6 +32,7 @@ import type { MarkerClusterer } from "../../types/Cluster.types";
 import type { KakaoMarker } from "../../types/KakaoMap.types";
 import ActionButton from "../ActionButton/ActionButton";
 import type { MarkerInfo } from "../Map/Map";
+import ChatRoom from "./ChatRoom";
 import * as Styled from "./MarkerInfoModal.style";
 import MarkerInfoSkeleton from "./MarkerInfoSkeleton";
 import MarkerReview from "./MarkerReview";
@@ -97,6 +99,8 @@ const MarkerInfoModal = ({
   const [isReview, setIsReview] = useState(false);
 
   const [isRoadView, setIsRoadView] = useState(false);
+
+  const [isChatView, setIsChatView] = useState(false);
 
   const [isRoadViewError, setIsRoadViewError] = useState(false);
   const [roadViewErrorText, setRoadViewErrorText] = useState("");
@@ -166,6 +170,10 @@ const MarkerInfoModal = ({
 
   const handleViewReview = () => {
     setIsReview(true);
+  };
+
+  const handleViewChat = () => {
+    setIsChatView((prev) => !prev);
   };
 
   const handleDislike = async () => {
@@ -265,6 +273,24 @@ const MarkerInfoModal = ({
     }
   }
 
+  if (isReview) {
+    return (
+      <MarkerReview
+        setIsReview={setIsReview}
+        markerId={marker?.markerId as number}
+      />
+    );
+  }
+
+  if (isChatView) {
+    return (
+      <ChatRoom
+        setIsChatView={setIsChatView}
+        markerId={marker?.markerId as number}
+      />
+    );
+  }
+
   return (
     <div>
       <Helmet>
@@ -279,185 +305,195 @@ const MarkerInfoModal = ({
         />
       </Helmet>
 
-      {isReview ? (
-        <MarkerReview
-          setIsReview={setIsReview}
-          markerId={marker?.markerId as number}
-        />
-      ) : (
-        <Styled.Container>
-          <Tooltip title="닫기" arrow disableInteractive>
-            <IconButton
-              onClick={() => {
-                setMarkerInfoModal(false);
-                if (sharedMarker && sharedMarkerLat && sharedMarkerLng) {
-                  navigate("/");
-                }
-              }}
-              aria-label="delete"
-              sx={{
-                position: "absolute",
-                top: "0",
-                right: "0",
-              }}
-            >
-              <CloseIcon />
+      <Styled.Container>
+        <Tooltip title="닫기" arrow disableInteractive>
+          <IconButton
+            onClick={() => {
+              setMarkerInfoModal(false);
+              if (sharedMarker && sharedMarkerLat && sharedMarkerLng) {
+                navigate("/");
+              }
+            }}
+            aria-label="delete"
+            sx={{
+              position: "absolute",
+              top: "0",
+              right: "0",
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Tooltip>
+        <Styled.ImagesContainer>
+          <Styled.imageWrap>
+            {isRoadView ? (
+              <MarkerRoadView
+                lat={marker?.latitude as number}
+                lng={marker?.longitude as number}
+                setIsRoadView={setIsRoadView}
+                setIsRoadViewError={setIsRoadViewError}
+              />
+            ) : (
+              <>
+                <img
+                  src={marker?.photos ? curImage : noimg}
+                  alt="철봉 상세 이미지"
+                />
+                <Styled.description>
+                  {marker?.isChulbong && (
+                    <>
+                      <Tooltip title="수정" arrow disableInteractive>
+                        <IconButton
+                          onClick={() => {
+                            setViewInput(true);
+                          }}
+                          aria-label="edit"
+                          sx={{
+                            position: "absolute",
+                            top: "0",
+                            left: "0",
+                            color: "#fff",
+                          }}
+                        >
+                          <EditIcon
+                            sx={{
+                              width: "20px",
+                              height: "20px",
+                            }}
+                          />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  )}
+
+                  {viewInput ? (
+                    <Styled.InputWrap>
+                      <Styled.DescInput
+                        id="edit"
+                        type="text"
+                        onChange={descInput.onChange}
+                      />
+                      <Styled.ButtonWrap>
+                        <ActionButton
+                          bg="black"
+                          onClick={() => {
+                            updateDesc();
+                            setViewInput(false);
+                          }}
+                        >
+                          수정
+                        </ActionButton>
+                        <ActionButton
+                          bg="gray"
+                          onClick={() => {
+                            setViewInput(false);
+                          }}
+                        >
+                          취소
+                        </ActionButton>
+                      </Styled.ButtonWrap>
+                    </Styled.InputWrap>
+                  ) : (
+                    <div>
+                      {marker?.description || "작성된 설명이 없습니다."}
+                    </div>
+                  )}
+                </Styled.description>
+              </>
+            )}
+          </Styled.imageWrap>
+          {marker?.photos && marker?.photos?.length > 1 && (
+            <Styled.ImagePreviewWrap>
+              {marker?.photos?.map((photo) => {
+                return (
+                  <Tooltip
+                    title="이미지 보기"
+                    arrow
+                    disableInteractive
+                    key={photo.photoId}
+                  >
+                    <button
+                      style={{
+                        border:
+                          photo.photoUrl === curImage ? "1.5px solid" : "none",
+                      }}
+                      onClick={() => {
+                        setCurImage(photo.photoUrl);
+                      }}
+                    >
+                      <img src={photo.photoUrl} />
+                    </button>
+                  </Tooltip>
+                );
+              })}
+            </Styled.ImagePreviewWrap>
+          )}
+        </Styled.ImagesContainer>
+        <Styled.Facilities>
+          {facilities &&
+            (facilities[0]?.quantity ? (
+              <div>
+                <span>철봉</span>
+                <span>{facilities[0]?.quantity}</span>
+                <span>개</span>
+              </div>
+            ) : null)}
+          {facilities &&
+            (facilities[1]?.quantity ? (
+              <div>
+                <span>평행봉</span>
+                <span>{facilities[1]?.quantity}</span>
+                <span>개</span>
+              </div>
+            ) : null)}
+        </Styled.Facilities>
+        <Styled.AddressText>
+          <div>
+            {marker?.createdAt.toString().split("T")[0].replace(/-/g, ".")} 등록
+            ({marker?.updatedAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
+            업데이트)
+          </div>
+          <div>{marker?.address}</div>
+        </Styled.AddressText>
+
+        <Styled.ErrorBox>{roadViewErrorText}</Styled.ErrorBox>
+        <Styled.BottomButtons>
+          <Tooltip title="리뷰 보기" arrow disableInteractive>
+            <IconButton onClick={handleViewReview} aria-label="review">
+              <RateReviewIcon />
             </IconButton>
           </Tooltip>
-          <Styled.ImagesContainer>
-            <Styled.imageWrap>
-              {isRoadView ? (
-                <MarkerRoadView
-                  lat={marker?.latitude as number}
-                  lng={marker?.longitude as number}
-                  setIsRoadView={setIsRoadView}
-                  setIsRoadViewError={setIsRoadViewError}
-                />
-              ) : (
-                <>
-                  <img
-                    src={marker?.photos ? curImage : noimg}
-                    alt="철봉 상세 이미지"
-                  />
-                  <Styled.description>
-                    {marker?.isChulbong && (
-                      <>
-                        <Tooltip title="수정" arrow disableInteractive>
-                          <IconButton
-                            onClick={() => {
-                              setViewInput(true);
-                            }}
-                            aria-label="edit"
-                            sx={{
-                              position: "absolute",
-                              top: "0",
-                              left: "0",
-                              color: "#fff",
-                            }}
-                          >
-                            <EditIcon
-                              sx={{
-                                width: "20px",
-                                height: "20px",
-                              }}
-                            />
-                          </IconButton>
-                        </Tooltip>
-                      </>
-                    )}
-
-                    {viewInput ? (
-                      <Styled.InputWrap>
-                        <Styled.DescInput
-                          id="edit"
-                          type="text"
-                          onChange={descInput.onChange}
-                        />
-                        <Styled.ButtonWrap>
-                          <ActionButton
-                            bg="black"
-                            onClick={() => {
-                              updateDesc();
-                              setViewInput(false);
-                            }}
-                          >
-                            수정
-                          </ActionButton>
-                          <ActionButton
-                            bg="gray"
-                            onClick={() => {
-                              setViewInput(false);
-                            }}
-                          >
-                            취소
-                          </ActionButton>
-                        </Styled.ButtonWrap>
-                      </Styled.InputWrap>
-                    ) : (
-                      <div>
-                        {marker?.description || "작성된 설명이 없습니다."}
-                      </div>
-                    )}
-                  </Styled.description>
-                </>
-              )}
-            </Styled.imageWrap>
-            {marker?.photos && marker?.photos?.length > 1 && (
-              <Styled.ImagePreviewWrap>
-                {marker?.photos?.map((photo) => {
-                  return (
-                    <Tooltip
-                      title="이미지 보기"
-                      arrow
-                      disableInteractive
-                      key={photo.photoId}
-                    >
-                      <button
-                        style={{
-                          border:
-                            photo.photoUrl === curImage
-                              ? "1.5px solid"
-                              : "none",
-                        }}
-                        onClick={() => {
-                          setCurImage(photo.photoUrl);
-                        }}
-                      >
-                        <img src={photo.photoUrl} />
-                      </button>
-                    </Tooltip>
-                  );
-                })}
-              </Styled.ImagePreviewWrap>
-            )}
-          </Styled.ImagesContainer>
-          <Styled.Facilities>
-            {facilities &&
-              (facilities[0]?.quantity ? (
-                <div>
-                  <span>철봉</span>
-                  <span>{facilities[0]?.quantity}</span>
-                  <span>개</span>
-                </div>
-              ) : null)}
-            {facilities &&
-              (facilities[1]?.quantity ? (
-                <div>
-                  <span>평행봉</span>
-                  <span>{facilities[1]?.quantity}</span>
-                  <span>개</span>
-                </div>
-              ) : null)}
-          </Styled.Facilities>
-          <Styled.AddressText>
-            <div>
-              {marker?.createdAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
-              등록 (
-              {marker?.updatedAt.toString().split("T")[0].replace(/-/g, ".")}{" "}
-              업데이트)
-            </div>
-            <div>{marker?.address}</div>
-          </Styled.AddressText>
-
-          <Styled.ErrorBox>{roadViewErrorText}</Styled.ErrorBox>
-          <Styled.BottomButtons>
-            <Tooltip title="리뷰 보기" arrow disableInteractive>
-              <IconButton onClick={handleViewReview} aria-label="review">
-                <RateReviewIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="거리뷰" arrow disableInteractive>
-              <IconButton
-                onClick={() => {
-                  setIsRoadView(true);
+          <Tooltip title="채팅 참여" arrow disableInteractive>
+            <IconButton onClick={handleViewChat} aria-label="review">
+              <MarkUnreadChatAltIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="거리뷰" arrow disableInteractive>
+            <IconButton
+              onClick={() => {
+                setIsRoadView(true);
+              }}
+              aria-label="review"
+            >
+              <PlaceIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="공유 링크 복사" arrow disableInteractive>
+            <IconButton onClick={copyTextToClipboard} aria-label="dislike">
+              <div
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  position: "relative",
                 }}
-                aria-label="review"
               >
-                <PlaceIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="공유 링크 복사" arrow disableInteractive>
-              <IconButton onClick={copyTextToClipboard} aria-label="dislike">
+                <ShareIcon />
+              </div>
+            </IconButton>
+          </Tooltip>
+          {marker?.favorited ? (
+            <Tooltip title="좋아요 취소" arrow disableInteractive>
+              <IconButton onClick={handleLike} aria-label="dislike">
                 <div
                   style={{
                     width: "24px",
@@ -465,95 +501,80 @@ const MarkerInfoModal = ({
                     position: "relative",
                   }}
                 >
-                  <ShareIcon />
+                  <Styled.DislikeCount>
+                    {marker?.favCount || 0}
+                  </Styled.DislikeCount>
+                  <ThumbUpAltIcon />
                 </div>
               </IconButton>
             </Tooltip>
-            {marker?.favorited ? (
-              <Tooltip title="좋아요 취소" arrow disableInteractive>
-                <IconButton onClick={handleLike} aria-label="dislike">
-                  <div
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      position: "relative",
-                    }}
-                  >
-                    <Styled.DislikeCount>
-                      {marker?.favCount || 0}
-                    </Styled.DislikeCount>
-                    <ThumbUpAltIcon />
-                  </div>
-                </IconButton>
-              </Tooltip>
-            ) : (
-              <Tooltip title="좋아요" arrow disableInteractive>
-                <IconButton onClick={handleLike} aria-label="dislike">
-                  <div
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      position: "relative",
-                    }}
-                  >
-                    <Styled.DislikeCount>
-                      {marker?.favCount || 0}
-                    </Styled.DislikeCount>
-                    <ThumbUpOffAltIcon />
-                  </div>
-                </IconButton>
-              </Tooltip>
-            )}
-            {marker?.disliked ? (
-              <Tooltip title="싫어요 취소" arrow disableInteractive>
-                <IconButton onClick={handleDislike} aria-label="dislike">
-                  <div
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      position: "relative",
-                    }}
-                  >
-                    <Styled.DislikeCount>
-                      {marker?.dislikeCount || 0}
-                    </Styled.DislikeCount>
-                    <ThumbDownAltIcon />
-                  </div>
-                </IconButton>
-              </Tooltip>
-            ) : (
-              <Tooltip title="싫어요" arrow disableInteractive>
-                <IconButton onClick={handleDislike} aria-label="dislike">
-                  <div
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      position: "relative",
-                    }}
-                  >
-                    <Styled.DislikeCount>
-                      {marker?.dislikeCount || 0}
-                    </Styled.DislikeCount>
-                    <ThumbDownOffAltIcon />
-                  </div>
-                </IconButton>
-              </Tooltip>
-            )}
+          ) : (
+            <Tooltip title="좋아요" arrow disableInteractive>
+              <IconButton onClick={handleLike} aria-label="dislike">
+                <div
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    position: "relative",
+                  }}
+                >
+                  <Styled.DislikeCount>
+                    {marker?.favCount || 0}
+                  </Styled.DislikeCount>
+                  <ThumbUpOffAltIcon />
+                </div>
+              </IconButton>
+            </Tooltip>
+          )}
+          {marker?.disliked ? (
+            <Tooltip title="싫어요 취소" arrow disableInteractive>
+              <IconButton onClick={handleDislike} aria-label="dislike">
+                <div
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    position: "relative",
+                  }}
+                >
+                  <Styled.DislikeCount>
+                    {marker?.dislikeCount || 0}
+                  </Styled.DislikeCount>
+                  <ThumbDownAltIcon />
+                </div>
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <Tooltip title="싫어요" arrow disableInteractive>
+              <IconButton onClick={handleDislike} aria-label="dislike">
+                <div
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    position: "relative",
+                  }}
+                >
+                  <Styled.DislikeCount>
+                    {marker?.dislikeCount || 0}
+                  </Styled.DislikeCount>
+                  <ThumbDownOffAltIcon />
+                </div>
+              </IconButton>
+            </Tooltip>
+          )}
 
-            {marker?.isChulbong && (
-              <Tooltip title="삭제 하기" arrow disableInteractive>
-                <IconButton onClick={handleDelete} aria-label="delete">
-                  {deleteLoading ? (
-                    <CircularProgress color="inherit" size={20} />
-                  ) : (
-                    <DeleteOutlineIcon />
-                  )}
-                </IconButton>
-              </Tooltip>
-            )}
-          </Styled.BottomButtons>
-        </Styled.Container>
-      )}
+          {marker?.isChulbong && (
+            <Tooltip title="삭제 하기" arrow disableInteractive>
+              <IconButton onClick={handleDelete} aria-label="delete">
+                {deleteLoading ? (
+                  <CircularProgress color="inherit" size={20} />
+                ) : (
+                  <DeleteOutlineIcon />
+                )}
+              </IconButton>
+            </Tooltip>
+          )}
+        </Styled.BottomButtons>
+      </Styled.Container>
     </div>
   );
 };

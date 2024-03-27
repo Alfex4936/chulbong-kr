@@ -90,7 +90,7 @@ export const LoginButtonWrap = styled.div`
 
   z-index: 10;
 
-  @media (max-width: 380px) {
+  @media (max-width: 410px) {
     top: 80px;
   }
 `;

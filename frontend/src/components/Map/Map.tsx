@@ -662,10 +662,10 @@ const Map = () => {
         shape="circle"
         top={400}
         right={20}
-        zIndex={onBoardingState.step === 12 ? 10000 : 10}
+        zIndex={onBoardingState.step === 14 ? 10000 : 10}
         tooltip="도움말"
         onClickFn={() => {
-          if (onBoardingState.step === 12) return;
+          if (onBoardingState.step === 14) return;
           onBoardingState.open();
         }}
       />

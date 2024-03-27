@@ -91,8 +91,11 @@ const SearchInput = ({
     if (onBoardingState.step === 9) {
       setIsResult(true);
       fetch();
+    } else if (onBoardingState.step === 12 || onBoardingState.step === 13) {
+      setCurTab(1);
     } else {
       setIsResult(false);
+      setCurTab(0);
     }
   }, [onBoardingState.step]);
 

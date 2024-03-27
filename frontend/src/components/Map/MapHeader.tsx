@@ -24,7 +24,7 @@ const MapHeader = ({ markers, map }: Props) => {
       return;
     }
 
-    if (onBoardingState.step === 11) {
+    if (onBoardingState.step >= 11 && onBoardingState.step <= 13) {
       setIsAround(true);
     } else {
       setIsAround(false);
@@ -59,8 +59,6 @@ const MapHeader = ({ markers, map }: Props) => {
 
             backgroundColor: "#fff",
             color: "#000",
-
-            fontSize: ".7rem",
 
             zIndex: onBoardingState.step === 10 ? "10000" : "90",
 
