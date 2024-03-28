@@ -42,7 +42,7 @@ export const Modal = styled.div`
 
   padding: 2rem;
 
-  max-width: 450px;
+  max-width: 540px;
   min-width: 300px;
   width: 90%;
 

@@ -40,15 +40,26 @@ export const MessageWrapLeft = styled.div`
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
+  text-align: left;
 
   margin: 1rem;
 
   & > div:first-of-type {
     display: inline-block;
 
+    max-width: 50%;
+
     padding: 0.3rem;
     background-color: #e9efff;
     border-radius: 4px;
+
+    word-wrap: break-word;
+    white-space: -moz-pre-wrap;
+    white-space: pre-wrap;
+
+    overflow: auto;
+
+    text-overflow: none;
   }
   & > div:last-of-type {
     font-size: 0.5rem;
@@ -61,15 +72,26 @@ export const MessageWrapRight = styled.div`
   flex-direction: column;
   align-items: flex-end;
   justify-content: flex-end;
+  text-align: left;
 
   margin: 1rem;
 
   & > div:first-of-type {
     display: inline-block;
 
+    max-width: 50%;
+
     padding: 0.3rem;
     background-color: #c0d0ff;
     border-radius: 4px;
+
+    word-wrap: break-word;
+    white-space: -moz-pre-wrap;
+    white-space: pre-wrap;
+
+    overflow: auto;
+
+    text-overflow: none;
   }
   & > div:last-of-type {
     font-size: 0.5rem;
