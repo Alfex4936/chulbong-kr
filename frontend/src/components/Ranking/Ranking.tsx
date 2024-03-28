@@ -8,6 +8,7 @@ import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap } from "../../types/KakaoMap.types";
 import ActionButton from "../ActionButton/ActionButton";
 import * as Styled from "./Ranking.style";
+import type { RankingInfo } from "../../api/markers/markerRanking";
 
 const TOP10_RANKING_NUMBER = 0;
 const AROUND_RANKING_NUMBER = 1;
@@ -53,7 +54,6 @@ const Ranking = ({ map }: Props) => {
     map.setCenter(moveLatLon);
     map?.setLevel(2);
   };
-
   return (
     <Styled.Container>
       <Styled.MessageRed>
@@ -82,61 +82,73 @@ const Ranking = ({ map }: Props) => {
         <>
           {curRanking === TOP10_RANKING_NUMBER && (
             <>
-              {topRanking?.map((item, index) => {
-                return (
-                  <Styled.ResultItem key={item.makerId}>
-                    <span>{index + 1}등</span>
-                    <span>{item.address}</span>
-                    <span>
-                      <Tooltip title="이동" arrow disableInteractive>
-                        <IconButton
-                          onClick={() => {
-                            handleMove(item.latitude, item.longitude);
-                          }}
-                          aria-label="move"
-                          sx={{
-                            color: "#444",
-                            width: "25px",
-                            height: "25px",
-                          }}
-                        >
-                          <LocationOnIcon sx={{ fontSize: 18 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </span>
-                  </Styled.ResultItem>
-                );
-              })}
+              {topRanking && topRanking?.length > 0 ? (
+                <>
+                  {topRanking?.map((item: RankingInfo, index) => {
+                    return (
+                      <Styled.ResultItem key={item.makerId}>
+                        <span>{index + 1}등</span>
+                        <span>{item.address}</span>
+                        <span>
+                          <Tooltip title="이동" arrow disableInteractive>
+                            <IconButton
+                              onClick={() => {
+                                handleMove(item.latitude, item.longitude);
+                              }}
+                              aria-label="move"
+                              sx={{
+                                color: "#444",
+                                width: "25px",
+                                height: "25px",
+                              }}
+                            >
+                              <LocationOnIcon sx={{ fontSize: 18 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </span>
+                      </Styled.ResultItem>
+                    );
+                  })}
+                </>
+              ) : (
+                <div>순위에 등록된 위치가 없습니다.</div>
+              )}
             </>
           )}
 
           {curRanking === AROUND_RANKING_NUMBER && (
             <>
-              {topRankingAria?.map((item, index) => {
-                return (
-                  <Styled.ResultItem key={item.makerId}>
-                    <span>{index + 1}등</span>
-                    <span>{item.address}</span>
-                    <span>
-                      <Tooltip title="이동" arrow disableInteractive>
-                        <IconButton
-                          onClick={() => {
-                            handleMove(item.latitude, item.longitude);
-                          }}
-                          aria-label="move"
-                          sx={{
-                            color: "#444",
-                            width: "25px",
-                            height: "25px",
-                          }}
-                        >
-                          <LocationOnIcon sx={{ fontSize: 18 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </span>
-                  </Styled.ResultItem>
-                );
-              })}
+              {topRankingAria && topRankingAria?.length > 0 ? (
+                <>
+                  {topRankingAria?.map((item: RankingInfo, index) => {
+                    return (
+                      <Styled.ResultItem key={item.makerId}>
+                        <span>{index + 1}등</span>
+                        <span>{item.address}</span>
+                        <span>
+                          <Tooltip title="이동" arrow disableInteractive>
+                            <IconButton
+                              onClick={() => {
+                                handleMove(item.latitude, item.longitude);
+                              }}
+                              aria-label="move"
+                              sx={{
+                                color: "#444",
+                                width: "25px",
+                                height: "25px",
+                              }}
+                            >
+                              <LocationOnIcon sx={{ fontSize: 18 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </span>
+                      </Styled.ResultItem>
+                    );
+                  })}
+                </>
+              ) : (
+                <div>순위에 등록된 위치가 없습니다.</div>
+              )}
             </>
           )}
         </>
