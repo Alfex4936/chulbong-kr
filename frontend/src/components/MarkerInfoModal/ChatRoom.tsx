@@ -44,6 +44,8 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
   const [messages, setMessages] = useState<Chatdata[]>([]);
   const [connectionMsg, setConnectionMsg] = useState("");
 
+  const [roomTitle, setRoomTitle] = useState("");
+
   useEffect(() => {
     ws.current = new WebSocket(
       `wss://api.k-pullup.com/ws/${markerId}?request-id=${cidState.cid}`
@@ -58,6 +60,9 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
     ws.current.onmessage = async (event) => {
       const data: ChatMessage = JSON.parse(event.data);
+      if (data.userNickname === "chulbong-kr") {
+        setRoomTitle(data.message);
+      }
 
       setMessages((prevMessages) => [
         ...prevMessages,
@@ -128,6 +133,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
           <ArrowBackIcon />
         </IconButton>
       </Tooltip>
+      <div>{roomTitle}</div>
       <Styled.Container>
         <div>
           <Styled.ConnectMessage>
@@ -136,6 +142,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
         </div>
         <Styled.MessagesContainer ref={chatBox}>
           {messages.map((message) => {
+            if (message.name === "chulbong-kr") return;
             if (message.msg.includes("님이 입장하셨습니다.")) {
               return (
                 <Styled.JoinUser key={message.mid}>
@@ -170,6 +177,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
       </Styled.Container>
       <Styled.InputWrap>
         <Styled.ReviewInput
+          maxLength={40}
           ref={inputRef}
           disabled={!connection}
           type="text"
