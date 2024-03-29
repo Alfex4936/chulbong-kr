@@ -11,7 +11,7 @@ import "./style.css";
 
 Sentry.init({
   dsn:
-    window.location.hostname === "localhost"
+    window.location.hostname === "local.k-pullup.com"
       ? undefined
       : import.meta.env.VITE_DSN,
   integrations: [
