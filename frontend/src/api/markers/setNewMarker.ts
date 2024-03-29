@@ -1,5 +1,5 @@
-import { Marker } from "@/types/Marker.types";
-import axios from "axios";
+import type { Marker } from "../../types/Marker.types";
+import instance from "../instance";
 
 export interface SetMarkerReq {
   photos: File[];
@@ -25,7 +25,7 @@ const setNewMarker = async (multipart: SetMarkerReq): Promise<SetMarkerRes> => {
   formData.append("description", multipart.description);
 
   try {
-    const res = await axios.post(`/api/v1/markers/new`, formData, {
+    const res = await instance.post(`/api/v1/markers/new`, formData, {
       withCredentials: true,
     });
 

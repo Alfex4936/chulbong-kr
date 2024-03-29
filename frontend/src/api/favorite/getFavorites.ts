@@ -1,4 +1,4 @@
-import axios from "axios";
+import instance from "../instance";
 
 interface Favorite {
   latitude: number;
@@ -10,7 +10,7 @@ interface Favorite {
 
 const getFavorites = async (): Promise<Favorite[]> => {
   try {
-    const res = await axios.get(`/api/v1/users/favorites`);
+    const res = await instance.get(`/api/v1/users/favorites`);
 
     return res.data;
   } catch (error) {

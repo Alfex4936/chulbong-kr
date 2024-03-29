@@ -1,4 +1,4 @@
-import axios from "axios";
+import instance from "../instance";
 
 interface Props {
   lat: number;
@@ -30,7 +30,7 @@ const getCloseMarker = async ({
   pageParam,
 }: Props): Promise<CloseMarkerRes> => {
   try {
-    const res = await axios.get(
+    const res = await instance.get(
       `/api/v1/markers/close?latitude=${lat}&longitude=${lon}&distance=${distance}&n=5&page=${pageParam}`
     );
 

@@ -1,8 +1,8 @@
-import axios from "axios";
+import instance from "../instance";
 
 const deleteMarker = async (id: number) => {
   try {
-    const res = await axios.delete(`/api/v1/markers/${id}`, {
+    const res = await instance.delete(`/api/v1/markers/${id}`, {
       withCredentials: true,
     });
 
