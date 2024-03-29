@@ -8,11 +8,12 @@ import * as Styled from "./MapHeader.style";
 import SearchInput from "./SearchInput";
 
 interface Props {
+  markerInfoModal: boolean;
   markers: KakaoMarker[];
   map: KakaoMap | null;
 }
 
-const MapHeader = ({ markers, map }: Props) => {
+const MapHeader = ({ markers, map, markerInfoModal }: Props) => {
   const onBoardingState = useOnBoardingStore();
 
   const [isAround, setIsAround] = useState(false);
@@ -44,6 +45,7 @@ const MapHeader = ({ markers, map }: Props) => {
         markers={markers}
         aroundMarkerRef={aroundMarkerRef}
         isAround={isAround}
+        markerInfoModal={markerInfoModal}
         setIsAround={setIsAround}
       />
 
