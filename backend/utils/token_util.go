@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	mrand "math/rand"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -37,7 +38,7 @@ func GenerateState() string {
 }
 
 func GenerateLoginCookie(value string) fiber.Cookie {
-	return fiber.Cookie{
+	cookie := fiber.Cookie{
 		Name:     LOGIN_TOKEN_COOKIE,
 		Value:    value,                              // The token generated for the user
 		Expires:  time.Now().Add(24 * 7 * time.Hour), // Set the cookie to expire in 7 days
@@ -46,10 +47,15 @@ func GenerateLoginCookie(value string) fiber.Cookie {
 		SameSite: "Lax",                              // Lax, None, or Strict. Lax is a reasonable default
 		Path:     "/",                                // Scope of the cookie
 	}
+
+	if os.Getenv("DEPLOYMENT") == "production" {
+		cookie.Domain = ".k-pullup.com" // Allow cookie to be shared across all subdomains
+	}
+	return cookie
 }
 
 func ClearLoginCookie() fiber.Cookie {
-	return fiber.Cookie{
+	cookie := fiber.Cookie{
 		Name:     LOGIN_TOKEN_COOKIE,
 		Value:    "",                         // The token generated for the user
 		Expires:  time.Now().Add(-time.Hour), // Set the cookie to be expired
@@ -58,4 +64,9 @@ func ClearLoginCookie() fiber.Cookie {
 		SameSite: "Lax",                      // Lax, None, or Strict. Lax is a reasonable default
 		Path:     "/",                        // Scope of the cookie
 	}
+
+	if os.Getenv("DEPLOYMENT") == "production" {
+		cookie.Domain = ".k-pullup.com" // Allow cookie to be shared across all subdomains
+	}
+	return cookie
 }

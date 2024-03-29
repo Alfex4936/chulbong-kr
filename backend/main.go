@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/gofiber/storage/redis/v3"
 	"github.com/gofiber/swagger"
 	"github.com/gofiber/template/django/v3"
+	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -49,7 +51,7 @@ import (
 // @host			localhost:9452
 // @BasePath		/api/v1/
 func main() {
-	// godotenv.Overload()
+	godotenv.Overload()
 
 	// Increase GOMAXPROCS
 	runtime.GOMAXPROCS(runtime.NumCPU() * 2) // twice the number of CPUs
@@ -203,20 +205,8 @@ func main() {
 	// app.Use(logger.New())
 	app.Get("/swagger/*", middlewares.AdminOnly, swagger.HandlerDefault)
 
-	// app.Use("/cs-ws", func(c *fiber.Ctx) error {
-	// 	if websocket.IsWebSocketUpgrade(c) {
-	// 		middlewares.AuthSoftMiddleware(c)
-	// 		return c.Next()
-	// 	}
-	// 	return fiber.ErrUpgradeRequired
-	// })
-
-	// app.Get("/cs-ws/markerUpdates", websocket.New(handlers.MarkerUpdateEventHandler, websocket.Config{
-	// 	HandshakeTimeout: 15 * time.Second,
-	// }))
-
 	app.Use("/ws/:markerID", func(c *fiber.Ctx) error {
-		middlewares.AuthMiddleware(c)
+		// middlewares.AuthMiddleware(c)
 		// if c.Locals("username") == nil {
 		// 	return fiber.ErrUnauthorized
 		// }
@@ -232,25 +222,29 @@ func main() {
 		markerID := c.Params("markerID")
 		reqID := c.Query("request-id")
 		handlers.HandleChatRoomHandler(c, markerID, reqID)
+	}, websocket.Config{
+		// Set the handshake timeout to a reasonable duration to prevent slowloris attacks.
+		HandshakeTimeout: 5 * time.Second,
+
+		// Origins: []string{"http://localhost:8080", "https://chulbong-kr.vercel.app", "https://www.k-pullup.com"},
+
+		EnableCompression: true,
+
+		RecoverHandler: func(c *websocket.Conn) {
+			// Custom recover logic. By default, it logs the error and stack trace.
+			if r := recover(); r != nil {
+				fmt.Fprintf(os.Stderr, "WebSocket panic: %v\n", r)
+				debug.PrintStack()
+				c.WriteMessage(websocket.CloseMessage, []byte{})
+				c.Close()
+			}
+		},
 	}))
 
 	// HTML
 	app.Get("/main", func(c *fiber.Ctx) error {
 		return c.Render("login", fiber.Map{})
 	})
-	app.Get("/chatroom/chat/:roomID", func(c *fiber.Ctx) error {
-		roomID := c.Params("roomID")
-		username := c.Locals("username")
-		if username == nil {
-			username = "Guest"
-		}
-		return c.Render("chatroom", fiber.Map{
-			"Username": username,
-			"Room":     roomID,
-		})
-	})
-	app.Get("/chatroom/list/:markerID", handlers.GetRoomUsersHandler)
-
 	// Setup routes
 	api := app.Group("/api/v1")
 

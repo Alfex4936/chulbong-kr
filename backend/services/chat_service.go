@@ -6,33 +6,113 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"strconv"
+	"sync"
 	"time"
 
-	"github.com/alphadose/haxmap"
+	"github.com/cespare/xxhash/v2"
 	"github.com/goccy/go-json"
 	"github.com/gofiber/contrib/websocket"
+	csmap "github.com/mhmtszr/concurrent-swiss-map"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/google/uuid"
 )
+
+var adjectives = []string{
+	"귀여운",     // Cute
+	"멋진",      // Cool
+	"착한",      // Kind
+	"용감한",     // Brave
+	"영리한",     // Clever
+	"재미있는",    // Fun
+	"행복한",     // Happy
+	"사랑스러운",   // Lovely
+	"기운찬",     // Energetic
+	"빛나는",     // Shining
+	"평화로운",    // Peaceful
+	"신비로운",    // Mysterious
+	"자유로운",    // Free
+	"매력적인",    // Charming
+	"섬세한",     // Delicate
+	"우아한",     // Elegant
+	"활발한",     // Lively
+	"강인한",     // Strong
+	"독특한",     // Unique
+	"무서운",     // Scary
+	"꿈꾸는",     // Dreamy
+	"느긋한",     // Relaxed
+	"열정적인",    // Passionate
+	"소중한",     // Precious
+	"신선한",     // Fresh
+	"창의적인",    // Creative
+	"우수한",     // Excellent
+	"재치있는",    // Witty
+	"감각적인",    // Sensual
+	"흥미로운",    // Interesting
+	"유명한",     // Famous
+	"현명한",     // Wise
+	"대담한",     // Bold
+	"침착한",     // Calm
+	"신속한",     // Swift
+	"화려한",     // Gorgeous
+	"정열적인",    // Passionate (Alternate)
+	"끈기있는",    // Persistent
+	"애정이 깊은",  // Affectionate
+	"민첩한",     // Agile
+	"빠른",      // Quick
+	"조용한",     // Quiet
+	"명랑한",     // Cheerful
+	"정직한",     // Honest
+	"용서하는",    // Forgiving
+	"용기있는",    // Courageous
+	"성실한",     // Sincere
+	"호기심이 많은", // Curious
+	"겸손한",     // Humble
+	"관대한",     // Generous
+}
+
+// 9 names
+var names = []string{
+	"라이언", // Ryan
+	"어피치", // Apeach
+	"콘",   // Con
+	"무지",  // Muzi
+	"네오",  // Neo
+	"프로도", // Frodo
+	"제이지", // Jay-G
+	"튜브",  // Tube
+	"철봉",  // chulbong
+}
 
 var WsRoomManager *RoomConnectionManager = NewRoomConnectionManager()
 
 type ChulbongConn struct {
 	Socket *websocket.Conn
 	UserID string
+	Mutex  *sync.Mutex
 }
 type RoomConnectionManager struct {
-	connections       *haxmap.Map[string, []*ChulbongConn] // roomid and users
-	processedMessages *haxmap.Map[string, struct{}]        // uid (struct{} does not occupy any space)
+	connections       *csmap.CsMap[string, []*ChulbongConn] // roomid and users
+	processedMessages *csmap.CsMap[string, struct{}]        // uid (struct{} does not occupy any space)
+	mu                *sync.Mutex
 }
 
 // NewRoomConnectionManager initializes a ConnectionManager with a new haxmap instance
 func NewRoomConnectionManager() *RoomConnectionManager {
+	hasher := func(key string) uint64 {
+		return xxhash.Sum64String(key)
+	}
+
 	manager := &RoomConnectionManager{
-		connections:       haxmap.New[string, []*ChulbongConn](),
-		processedMessages: haxmap.New[string, struct{}](),
+		connections: csmap.Create(
+			csmap.WithShardCount[string, []*ChulbongConn](64),
+			csmap.WithCustomHasher[string, []*ChulbongConn](hasher),
+		),
+		processedMessages: csmap.Create(
+			csmap.WithShardCount[string, struct{}](64),
+			csmap.WithCustomHasher[string, struct{}](hasher),
+		),
+		mu: &sync.Mutex{},
 	}
 	// Start the connection checker
 	manager.StartConnectionChecker()
@@ -41,7 +121,7 @@ func NewRoomConnectionManager() *RoomConnectionManager {
 }
 
 func (manager *RoomConnectionManager) StartConnectionChecker() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(3 * time.Minute)
 	go func() {
 		for range ticker.C {
 			manager.CheckConnections()
@@ -54,7 +134,7 @@ func (manager *RoomConnectionManager) StartCleanUpProcessedMsg() {
 	ticker := time.NewTicker(1 * time.Hour)
 	go func() {
 		for range ticker.C {
-			manager.processedMessages = haxmap.New[string, struct{}]()
+			manager.processedMessages.Clear()
 		}
 	}()
 }
@@ -62,58 +142,77 @@ func (manager *RoomConnectionManager) StartCleanUpProcessedMsg() {
 // CheckConnections iterates over all connections and sends a ping message.
 // Connections that fail to respond can be considered inactive and removed.
 func (manager *RoomConnectionManager) CheckConnections() {
-	manager.connections.ForEach(func(id string, conns []*ChulbongConn) bool {
-		var inactiveConns []int // Store indexes of inactive connections
-		for i, conn := range conns {
-			conn.Socket.SetWriteDeadline(time.Now().Add(30 * time.Second)) // Adjust deadline as needed
+	manager.connections.Range(func(id string, conns []*ChulbongConn) bool {
+		var activeConns []*ChulbongConn // Store active connections
+
+		for _, conn := range conns {
+			conn.Mutex.Lock()
+			conn.Socket.SetWriteDeadline(time.Now().Add(30 * time.Second))
 			if err := conn.Socket.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("Ping failed for connection: %v. Marking as inactive.", err)
-				inactiveConns = append(inactiveConns, i)
+				// If ping fails, log and skip adding this connection to activeConns
+				// log.Printf("Ping failed for connection: %v. Marking as inactive.", err)
+				continue
 			}
+			conn.Mutex.Unlock()
+			// If ping succeeds, add connection to activeConns
+			activeConns = append(activeConns, conn)
 		}
-		// Remove inactive connections
-		for _, i := range inactiveConns {
-			conns = append(conns[:i], conns[i+1:]...)
-		}
-		// If all connections for a user are inactive, delete the user's entry
-		if len(conns) == 0 {
-			manager.connections.Del(id)
+
+		// Update the map only if there are active connections left
+		if len(activeConns) == 0 && id != "suwon" {
+			manager.connections.Delete(id)
 		} else {
-			manager.connections.Set(id, conns) // Update the slice in the map
+			manager.connections.Store(id, activeConns)
 		}
 		return true
 	})
-
 }
 
 // SaveConnection stores a WebSocket connection associated with a markerID in app memory
 func (manager *RoomConnectionManager) SaveConnection(markerID, clientId string, conn *websocket.Conn) {
+	manager.mu.Lock()         // Lock at the start of the method
+	defer manager.mu.Unlock() // Unlock when the method returns
+
 	key := fmt.Sprintf("marker_%s", markerID)
 
-	// First, try to get the current list of connections for the room.
-	conns, ok := manager.connections.Get(key)
+	newConn := &ChulbongConn{
+		Socket: conn,
+		UserID: clientId,
+		Mutex:  &sync.Mutex{},
+	}
 
+	// Check if there's already a connection list for this markerID
+	manager.connections.SetIfAbsent(key, []*ChulbongConn{newConn})
+
+	conns, ok := manager.connections.Load(key) // Doesn't have GetOrSet
 	if !ok {
-		// If it doesn't exist, initialize it with the new connection.
-		conns = []*ChulbongConn{
-			{
-				Socket: conn,
-				UserID: clientId,
-			},
-		}
-	} else {
-		// If it exists, append the new connection, ensuring not to duplicate.
-		if !contains(conns, conn) {
-			conns = append(conns, &ChulbongConn{
-				Socket: conn,
-				UserID: clientId,
-			})
+		return
+	}
+
+	// If we reach here, it means the list existed, so we must check for duplicates and append if necessary
+	for _, item := range conns {
+		if item.UserID == clientId {
+			// Connection for clientId already exists, avoid adding a duplicate
+			return
 		}
 	}
 
-	// Update the map with the new or modified slice.
-	manager.connections.Set(key, conns)
+	updatedConns := append(conns, newConn)
 
+	// Update the map with the new or modified slice
+	manager.connections.Store(key, updatedConns)
+}
+
+func (manager *RoomConnectionManager) BroadcastUserCountToRoom(roomID string) {
+	userCount, err := GetUserCountInRoom(context.Background(), roomID)
+	if err != nil {
+		log.Printf("Error getting user count: %v", err)
+		return
+	}
+
+	message := fmt.Sprintf("%s (%d명 접속 중)", roomID, userCount)
+	// Your existing method to broadcast a message to all users in the room
+	manager.BroadcastMessageToRoom(roomID, message, "chulbong-kr", "")
 }
 
 // BroadcastMessageToRoom sends a WebSocket message to all users in a specific room
@@ -128,30 +227,33 @@ func (manager *RoomConnectionManager) BroadcastMessageToRoom(roomID, message, us
 		Timestamp:    time.Now().UnixMilli(),
 	}
 
-	MarkAsProcessed(broadcastMsg.UID)
 	// go PublishChatToRoom(roomID, msgJSON) // TODO: in distributed server
 
+	// Serialize the message struct to JSON
+	msgJSON, err := json.Marshal(broadcastMsg)
+	if err != nil {
+		log.Printf("Error marshalling message to JSON: %v", err)
+		return
+	}
+
+	markAsProcessed(broadcastMsg.UID)
+
 	// Retrieve the slice of connections for the given roomID from the manager's connections map
-	if conns, ok := manager.connections.Get(key); ok {
+	if conns, ok := manager.connections.Load(key); ok {
 		// Iterate over the connections and send the message
 		for _, conn := range conns {
-			if conn.UserID == userId {
-				broadcastMsg.IsOwner = true
-			}
-			// Serialize the message struct to JSON
-			msgJSON, err := json.Marshal(broadcastMsg)
-			if err != nil {
-				log.Printf("Error marshalling message to JSON: %v", err)
+
+			conn.Mutex.Lock()
+			if err := conn.Socket.WriteMessage(websocket.TextMessage, msgJSON); err != nil {
+				// log.Printf("Failed to send message to connection in room %s: %v", roomID, err)
 				continue
 			}
-
-			if err := conn.Socket.WriteMessage(websocket.TextMessage, msgJSON); err != nil {
-				log.Printf("Failed to send message to connection in room %s: %v", roomID, err)
-			}
+			conn.Mutex.Unlock()
 		}
-	} else {
-		log.Printf("No connections found for room %s", roomID)
 	}
+	//  else {
+	// 	log.Printf("No connections found for room %s", roomID)
+	// }
 }
 
 // BroadcastMessage sends a WebSocket message to all users
@@ -171,11 +273,13 @@ func (manager *RoomConnectionManager) BroadcastMessage(message []byte, userId, r
 		return
 	}
 
-	manager.connections.ForEach(func(key string, conns []*ChulbongConn) bool {
+	manager.connections.Range(func(key string, conns []*ChulbongConn) bool {
 		for _, conn := range conns {
+			conn.Mutex.Lock()
 			if err := conn.Socket.WriteMessage(websocket.TextMessage, msgJSON); err != nil {
 				log.Printf("Failed to send broadcast message to connection for %s: %v", key, err)
 			}
+			conn.Mutex.Unlock()
 		}
 		return true // Continue iteration
 	})
@@ -186,7 +290,7 @@ func (manager *RoomConnectionManager) RemoveWsFromRoom(markerID string, conn *we
 	markerIDStr := fmt.Sprintf("marker_%s", markerID)
 
 	// Retrieve the current list of connections for the room.
-	if conns, ok := manager.connections.Get(markerIDStr); ok {
+	if conns, ok := manager.connections.Load(markerIDStr); ok {
 		// Find and remove the specified connection from the slice.
 		for i, c := range conns {
 			if c.Socket == conn {
@@ -197,10 +301,10 @@ func (manager *RoomConnectionManager) RemoveWsFromRoom(markerID string, conn *we
 
 		// If the slice is empty after removal, delete the entry from the map.
 		if len(conns) == 0 {
-			manager.connections.Del(markerIDStr)
+			manager.connections.Delete(markerIDStr)
 		} else {
 			// Otherwise, update the map with the modified slice.
-			manager.connections.Set(markerIDStr, conns)
+			manager.connections.Store(markerIDStr, conns)
 		}
 	}
 }
@@ -255,6 +359,11 @@ func RemoveConnectionFromRedis(markerID, xRequestID string) error {
 	return RedisStore.Conn().HDel(ctx, key, xRequestID).Err()
 }
 
+func GetUserCountInRoom(ctx context.Context, markerID string) (int64, error) {
+	key := fmt.Sprintf("room:%s:connections", markerID)
+	return RedisStore.Conn().HLen(ctx, key).Result()
+}
+
 // GetAllRedisConnectionsFromRoom retrieves all connection information for a given room.
 func GetAllRedisConnectionsFromRoom(markerID string) ([]dto.ConnectionInfo, error) {
 	ctx := context.Background()
@@ -302,7 +411,7 @@ func ProcessMessageFromSubscription(msg []byte) {
 		return // Skip processing if we've already handled this message
 	}
 
-	MarkAsProcessed(broadcastMsg.UID) // Mark the message as processed locally
+	markAsProcessed(broadcastMsg.UID) // Mark the message as processed locally
 
 	// then broadcast
 	WsRoomManager.BroadcastMessageToRoom(broadcastMsg.RoomID, broadcastMsg.Message, broadcastMsg.UserNickname, broadcastMsg.UserID)
@@ -322,47 +431,6 @@ func PublishChatToRoom(markerID string, message []byte) error {
 }
 
 func GenerateKoreanNickname() string {
-	// 25 adj
-	adjectives := []string{
-		"귀여운",   // Cute
-		"멋진",    // Cool
-		"착한",    // Kind
-		"용감한",   // Brave
-		"영리한",   // Clever
-		"재미있는",  // Fun
-		"행복한",   // Happy
-		"사랑스러운", // Lovely
-		"기운찬",   // Energetic
-		"빛나는",   // Shining
-		"평화로운",  // Peaceful
-		"신비로운",  // Mysterious
-		"자유로운",  // Free
-		"매력적인",  // Charming
-		"섬세한",   // Delicate
-		"우아한",   // Elegant
-		"활발한",   // Lively
-		"강인한",   // Strong
-		"독특한",   // Unique
-		"무서운",   // Scary
-		"꿈꾸는",   // Dreamy
-		"느긋한",   // Relaxed
-		"열정적인",  // Passionate
-		"소중한",   // Precious
-		"신선한",   // Fresh
-	}
-
-	// 9 names
-	names := []string{
-		"라이언", // Ryan
-		"어피치", // Apeach
-		"콘",   // Con
-		"무지",  // Muzi
-		"네오",  // Neo
-		"프로도", // Frodo
-		"제이지", // Jay-G
-		"튜브",  // Tube
-		"철봉",  // chulbong
-	}
 
 	// Select a random
 	adjective := adjectives[rand.Intn(len(adjectives))]
@@ -379,46 +447,14 @@ func GenerateKoreanNickname() string {
 	// highly unlikely.
 	// 25 * 9 * 16^8 (UUID first 8 characters)
 	// UUID can conflict by root(16*8) = 65,536
-	return fmt.Sprintf("%s%s-%s", adjective, name, shortUID)
-}
-
-// contains function to check if the slice already contains the given connection.
-func contains(slice []*ChulbongConn, conn *websocket.Conn) bool {
-	for _, item := range slice {
-		if item.Socket == conn {
-			return true
-		}
-	}
-	return false
-}
-
-func retrieveConnID(markerID string, userID int) (string, error) {
-	ctx := context.Background()
-	key := fmt.Sprintf("room:%s:connections", markerID)
-
-	// Get the connection information stored under the UserID key
-	jsonConnInfo, err := RedisStore.Conn().HGet(ctx, key, strconv.Itoa(userID)).Result()
-	if err != nil {
-		if err == redis.Nil {
-			return "", fmt.Errorf("no connection info found for user %d in room %s", userID, markerID)
-		}
-		return "", err
-	}
-
-	var connInfo dto.ConnectionInfo
-	err = json.Unmarshal([]byte(jsonConnInfo), &connInfo)
-	if err != nil {
-		return "", err
-	}
-
-	return connInfo.ConnID, nil
+	return fmt.Sprintf("%s %s [%s]", adjective, name, shortUID)
 }
 
 func hasProcessed(uid string) bool {
-	_, exists := WsRoomManager.processedMessages.Get(uid)
+	_, exists := WsRoomManager.processedMessages.Load(uid)
 	return exists
 }
 
-func MarkAsProcessed(uid string) {
-	WsRoomManager.processedMessages.Set(uid, struct{}{})
+func markAsProcessed(uid string) {
+	WsRoomManager.processedMessages.Store(uid, struct{}{})
 }
