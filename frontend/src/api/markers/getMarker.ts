@@ -1,9 +1,9 @@
-import { Marker } from "@/types/Marker.types";
-import axios from "axios";
+import type { Marker } from "../../types/Marker.types";
+import instance from "../instance";
 
 const getMarker = async (id: number): Promise<Marker> => {
   try {
-    const res = await axios.get(`/api/v1/markers/${id}/details`);
+    const res = await instance.get(`/api/v1/markers/${id}/details`);
 
     return res.data;
   } catch (error) {

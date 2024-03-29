@@ -1,8 +1,8 @@
-import axios from "axios";
+import instance from "../instance";
 
 const logout = async () => {
   try {
-    const res = await axios.post(`/api/v1/auth/logout`, {
+    const res = await instance.post(`/api/v1/auth/logout`, {
       withCredentials: true,
     });
 

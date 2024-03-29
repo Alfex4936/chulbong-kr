@@ -1,8 +1,8 @@
-import axios from "axios";
+import instance from "../instance";
 
 const adminCheck = async () => {
   try {
-    const res = await axios.get(`/api/v1/admin`);
+    const res = await instance.get(`/api/v1/admin`);
 
     return res.data;
   } catch (error) {

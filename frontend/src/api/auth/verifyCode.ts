@@ -1,4 +1,4 @@
-import axios from "axios";
+import instance from "../instance";
 
 interface Props {
   email: string;
@@ -12,7 +12,10 @@ const verifyCode = async ({ email, code }: Props): Promise<string> => {
   formData.append("token", code);
 
   try {
-    const res = await axios.post(`/api/v1/auth/verify-email/confirm`, formData);
+    const res = await instance.post(
+      `/api/v1/auth/verify-email/confirm`,
+      formData
+    );
 
     return res.data;
   } catch (error) {

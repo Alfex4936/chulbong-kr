@@ -1,4 +1,4 @@
-import axios from "axios";
+import instance from "../instance";
 
 export interface Facilities {
   facilityId: number;
@@ -12,7 +12,7 @@ const setFacilities = async (markerId: number, facilities: Facilities[]) => {
   };
 
   try {
-    const res = await axios.post(`/api/v1/markers/facilities`, body, {
+    const res = await instance.post(`/api/v1/markers/facilities`, body, {
       withCredentials: true,
     });
 

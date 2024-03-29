@@ -1,4 +1,4 @@
-import axios from "axios";
+import instance from "../instance";
 
 const updateDescription = async (desc: string, id: number) => {
   const formData = new FormData();
@@ -6,7 +6,7 @@ const updateDescription = async (desc: string, id: number) => {
   formData.append("description", desc);
 
   try {
-    const res = await axios.put(`/api/v1/markers/${id}`, formData, {
+    const res = await instance.put(`/api/v1/markers/${id}`, formData, {
       withCredentials: true,
     });
 

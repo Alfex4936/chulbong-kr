@@ -1,5 +1,5 @@
-import { Marker } from "@/types/Marker.types";
-import axios from "axios";
+import type { Marker } from "../../types/Marker.types";
+import instance from "../instance";
 
 interface MyMarkerRes {
   currentPage: number;
@@ -14,7 +14,7 @@ const getMyMarker = async ({
   pageParam: number;
 }): Promise<MyMarkerRes> => {
   try {
-    const res = await axios.get(`/api/v1/markers/my?page=${pageParam}`);
+    const res = await instance.get(`/api/v1/markers/my?page=${pageParam}`);
 
     return res.data;
   } catch (error) {
