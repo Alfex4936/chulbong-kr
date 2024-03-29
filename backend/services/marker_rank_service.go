@@ -2,12 +2,14 @@ package services
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"strconv"
 	"time"
 
-	"github.com/alphadose/haxmap"
+	"github.com/cespare/xxhash/v2"
+	csmap "github.com/mhmtszr/concurrent-swiss-map"
 	"github.com/redis/go-redis/v9"
 
 	"chulbong-kr/database"
@@ -15,7 +17,15 @@ import (
 )
 
 // 클릭 이벤트를 저장할 임시 저장소
-var clickEventBuffer = haxmap.New[int, int]()
+var clickEventBuffer = csmap.Create(
+	csmap.WithShardCount[int, int](64),
+	csmap.WithCustomHasher[int, int](func(key int) uint64 {
+		// Convert int to a byte slice
+		bs := make([]byte, 8)
+		binary.LittleEndian.PutUint64(bs, uint64(key))
+		return xxhash.Sum64(bs)
+	}),
+)
 
 const RANK_UPDATE_TIME = 3 * time.Minute
 const MIN_CLICK_RANK = 5
@@ -23,15 +33,17 @@ const MIN_CLICK_RANK = 5
 // 클릭 이벤트를 버퍼에 추가하는 함수
 func BufferClickEvent(markerID int) {
 	// 현재 클릭 수 조회
-	val, ok := clickEventBuffer.Get(markerID)
+	// 마커 ID가 존재하지 않으면 클릭 수를 1로 설정
+	clickEventBuffer.SetIfAbsent(markerID, 1)
+
+	actual, ok := clickEventBuffer.Load(markerID)
 	if !ok {
-		// 마커 ID가 존재하지 않으면 클릭 수를 1로 설정
-		clickEventBuffer.Set(markerID, 1)
-	} else {
-		// 마커 ID가 존재하면 클릭 수를 1 증가
-		newClicks := val + 1
-		clickEventBuffer.Set(markerID, newClicks)
+		return
 	}
+
+	// 마커 ID가 존재하면 클릭 수를 1 증가
+	newClicks := actual + 1
+	clickEventBuffer.Store(markerID, newClicks)
 }
 
 // 정해진 시간 간격마다 클릭 이벤트 배치 처리를 실행하는 함수
@@ -43,15 +55,15 @@ func ProcessClickEventsBatch() {
 	for range ticker.C {
 		IncrementMarkerClicks(clickEventBuffer)
 		// 처리 후 버퍼 초기화
-		clickEventBuffer = haxmap.New[int, int]()
+		clickEventBuffer.Clear()
 	}
 }
 
 // 마커 방문 시 클릭 수를 파이프라인을 사용하여 증가
-func IncrementMarkerClicks(markerClicks *haxmap.Map[int, int]) {
+func IncrementMarkerClicks(markerClicks *csmap.CsMap[int, int]) {
 	pipe := RedisStore.Conn().TxPipeline()
 
-	clickEventBuffer.ForEach(func(markerID int, clicks int) bool {
+	clickEventBuffer.Range(func(markerID int, clicks int) bool {
 		// map에서 가져온 클릭 수만큼 점수 증가
 		scoreIncrement := float64(clicks)
 		pipe.ZIncrBy(context.Background(), "marker_clicks", scoreIncrement, fmt.Sprintf("%d", markerID))

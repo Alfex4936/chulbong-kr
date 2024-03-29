@@ -4,6 +4,7 @@ import (
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
 	"log"
+	"strings"
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -13,6 +14,11 @@ import (
 func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 	// clientId := c.Locals("userID").(int)
 	// clientNickname := c.Locals("username").(string)
+	if markerID == "" || strings.Contains(markerID, "&") {
+		c.WriteJSON(fiber.Map{"error": "wrong marker id"})
+		c.Close()
+		return
+	}
 	clientId := reqID
 
 	exists, _ := services.CheckDuplicateConnection(markerID, clientId)
@@ -34,6 +40,7 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 	// Broadcast join message
 	// broadcasts directly by app memory objects
 	services.WsRoomManager.BroadcastMessageToRoom(markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientId)
+	services.WsRoomManager.BroadcastUserCountToRoom(markerID) // sends how many users in the room
 
 	defer func() {
 		// On disconnect, remove the client from the room
@@ -42,17 +49,18 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 
 		// Broadcast leave message
 		services.WsRoomManager.BroadcastMessageToRoom(markerID, clientNickname+" 님이 퇴장하셨습니다.", clientNickname, clientId)
+		services.WsRoomManager.BroadcastUserCountToRoom(markerID) // sends how many users in the room
 	}()
 
-	c.SetPingHandler(func(appData string) error {
-		// Respond with a pong
-		return c.WriteMessage(websocket.PongMessage, []byte(appData))
-	})
+	// c.SetPingHandler(func(appData string) error {
+	// 	// Respond with a pong
+	// 	return c.WriteMessage(websocket.PongMessage, []byte(appData))
+	// })
 
 	for {
 		_, message, err := c.ReadMessage()
 		if err != nil {
-			log.Printf("Error reading message: %v", err)
+			// log.Printf("Error reading message: %v", err)
 			break
 		}
 
