@@ -54,6 +54,7 @@
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "vite": "^3.0.7",
-    "vite-plugin-html-env": "^1.2.8"
+    "vite-plugin-html-env": "^1.2.8",
+    "vite-plugin-mkcert": "^1.17.5"
   }
 }

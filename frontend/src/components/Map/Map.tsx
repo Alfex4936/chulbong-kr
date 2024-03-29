@@ -421,7 +421,7 @@ const Map = () => {
 
   return (
     <Styled.Container>
-      <MapHeader map={map} markers={markers} />
+      <MapHeader map={map} markers={markers} markerInfoModal={markerInfoModal}/>
       <Styled.MapContainer ref={mapRef} />
       {(isLoading || gpsLoading) && (
         <CenterBox bg="black">

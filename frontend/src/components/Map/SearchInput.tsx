@@ -34,6 +34,7 @@ interface Props {
   markers: KakaoMarker[];
   aroundMarkerRef: RefObject<HTMLDivElement>;
   isAround: boolean;
+  markerInfoModal: boolean;
   setIsAround: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
@@ -42,6 +43,7 @@ const SearchInput = ({
   markers,
   aroundMarkerRef,
   isAround,
+  markerInfoModal,
   setIsAround,
 }: Props) => {
   const mapPosition = useMapPositionStore();
@@ -58,6 +60,10 @@ const SearchInput = ({
 
   useEffect(() => {
     const handleKeyDownClose = (event: KeyboardEvent) => {
+      if (markerInfoModal) {
+        searchInputRef.current?.blur();
+        return;
+      }
       if (event.key === "/") {
         searchInputRef.current?.focus();
       } else if (event.key === "Escape") {
@@ -71,7 +77,7 @@ const SearchInput = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDownClose);
     };
-  }, []);
+  }, [markerInfoModal]);
 
   useEffect(() => {
     if (!onBoardingState.isOnBoarding) {
