@@ -1,5 +1,5 @@
-import axios from "axios";
-import { Comment } from "@/types/Comments.types";
+import type { Comment } from "../../types/Comments.types";
+import instance from "../instance";
 
 interface Props {
   id: number;
@@ -15,7 +15,7 @@ interface CommentsRes {
 
 const getCommets = async ({ id, pageParam }: Props): Promise<CommentsRes> => {
   try {
-    const res = await axios.get(
+    const res = await instance.get(
       `/api/v1/comments/${id}/comments?page=${pageParam}`
     );
 

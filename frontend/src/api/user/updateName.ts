@@ -1,8 +1,8 @@
-import axios from "axios";
+import instance from "../instance";
 
 const updateName = async (name: string) => {
   try {
-    const res = await axios.patch(`/api/v1/users/me`, {
+    const res = await instance.patch(`/api/v1/users/me`, {
       username: name,
     });
 

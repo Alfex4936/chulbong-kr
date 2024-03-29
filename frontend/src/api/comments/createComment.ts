@@ -1,11 +1,11 @@
-import axios from "axios";
+import instance from "../instance";
 
 const createComment = async (body: {
   markerId: number;
   commentText: string;
 }) => {
   try {
-    const res = await axios.post(`/api/v1/comments`, body);
+    const res = await instance.post(`/api/v1/comments`, body);
 
     return res.data;
   } catch (error) {
