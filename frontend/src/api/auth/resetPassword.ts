@@ -1,4 +1,4 @@
-import axios from "axios";
+import instance from "../instance";
 
 const resetPassword = async (token: string, password: string) => {
   const formData = new FormData();
@@ -7,7 +7,7 @@ const resetPassword = async (token: string, password: string) => {
   formData.append("token", token);
 
   try {
-    const res = await axios.post(`/api/v1/auth/reset-password`, formData);
+    const res = await instance.post(`/api/v1/auth/reset-password`, formData);
 
     return res.data;
   } catch (error) {

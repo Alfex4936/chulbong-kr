@@ -1,4 +1,4 @@
-import axios from "axios";
+import instance from "../instance";
 import type { Facilities } from "./setFacilities";
 
 interface FacilitiesRes extends Facilities {
@@ -7,7 +7,7 @@ interface FacilitiesRes extends Facilities {
 
 const getFacilities = async (markerId: number): Promise<FacilitiesRes[]> => {
   try {
-    const res = await axios.get(`/api/v1/markers/${markerId}/facilities`, {
+    const res = await instance.get(`/api/v1/markers/${markerId}/facilities`, {
       withCredentials: true,
     });
 

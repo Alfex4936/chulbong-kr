@@ -1,5 +1,5 @@
-import axios from "axios";
-import { User } from "@/types/User.types";
+import type { User } from "../../types/User.types";
+import instance from "../instance";
 
 export interface SigninReq {
   username?: string;
@@ -13,7 +13,7 @@ export interface SigninRes extends Omit<User, "username"> {
 
 const signin = async (body: SigninReq): Promise<SigninRes> => {
   try {
-    const res = await axios.post(`/api/v1/auth/signup`, body);
+    const res = await instance.post(`/api/v1/auth/signup`, body);
 
     return res.data;
   } catch (error) {

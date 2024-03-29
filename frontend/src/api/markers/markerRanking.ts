@@ -1,4 +1,4 @@
-import axios from "axios";
+import instance from "../instance";
 
 export interface RankingInfo {
   address: string;
@@ -8,7 +8,7 @@ export interface RankingInfo {
 }
 
 const markerRanking = async (): Promise<RankingInfo[]> => {
-  const res = await axios.get(`/api/v1/markers/ranking`);
+  const res = await instance.get(`/api/v1/markers/ranking`);
 
   return res.data;
 };

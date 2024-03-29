@@ -1,4 +1,4 @@
-import axios from "axios";
+import instance from "../instance";
 
 interface MyInfo {
   userId: number;
@@ -8,7 +8,7 @@ interface MyInfo {
 
 const getMyInfo = async (): Promise<MyInfo> => {
   try {
-    const res = await axios.get(`/api/v1/users/me`);
+    const res = await instance.get(`/api/v1/users/me`);
 
     return res.data;
   } catch (error) {
