@@ -11,11 +11,13 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/dto/kakao"
 	"chulbong-kr/models"
+	"chulbong-kr/utils"
 )
 
 const (
 	KAKAO_COORD2ADDR   = "https://dapi.kakao.com/v2/local/geo/coord2address.json"
 	KAKAO_COORD2REGION = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
+	KAKAO_WEATHER      = "https://map.kakao.com/api/dapi/point/weather?inputCoordSystem=WCONGNAMUL&outputCoordSystem=WCONGNAMUL&version=2&service=map.daum.net"
 )
 
 var KAKAO_AK = os.Getenv("KAKAO_AK")
@@ -172,4 +174,51 @@ func FetchRegionFromAPI(latitude, longitude float64) (string, error) {
 	}
 
 	return doc.AddressName, nil // Address data is empty but no error occurred
+}
+
+// FetchWeatherFromAddress
+func FetchWeatherFromAddress(latitude, longitude float64) (*kakao.WeatherRequest, error) {
+	client := &http.Client{
+		Timeout: 10 * time.Second, // Set a timeout to avoid hanging the request indefinitely
+	}
+
+	wcongnamul := utils.ConvertWGS84ToWCONGNAMUL(latitude, longitude)
+
+	reqURL := fmt.Sprintf("%s&x=%f&y=%f", KAKAO_WEATHER, wcongnamul.X, wcongnamul.Y)
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Add("Referer", reqURL)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var apiResp kakao.WeatherResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("unmarshalling response: %w", err)
+	}
+
+	if apiResp.Codes.ResultCode != "OK" {
+		// log.Print("No weather found for this address")
+		return nil, fmt.Errorf("no weather found for this address")
+	}
+
+	icon := fmt.Sprintf("https://t1.daumcdn.net/localimg/localimages/07/2018/pc/weather/ico_weather%s.png", apiResp.WeatherInfos.Current.IconId)
+	weatherRequest := kakao.WeatherRequest{
+		Temperature: apiResp.WeatherInfos.Current.Temperature,
+		Desc:        apiResp.WeatherInfos.Current.Desc,
+		IconImage:   icon,
+		Humidity:    apiResp.WeatherInfos.Current.Humidity,
+		Rainfall:    apiResp.WeatherInfos.Current.Rainfall,
+		Snowfall:    apiResp.WeatherInfos.Current.Snowfall,
+	}
+	return &weatherRequest, nil
 }
