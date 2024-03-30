@@ -65,6 +65,7 @@ const SearchInput = ({
         return;
       }
       if (event.key === "/") {
+        event.preventDefault();
         searchInputRef.current?.focus();
       } else if (event.key === "Escape") {
         searchInput.reset();
