@@ -36,10 +36,11 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	}
 
 	// Fetch UserID and Username based on Email
-	userQuery := `SELECT Username, Email FROM Users WHERE UserID = ?`
+	userQuery := `SELECT Username, Email, Role FROM Users WHERE UserID = ?`
 	var username string
 	var email string
-	err = database.DB.QueryRow(userQuery, userID).Scan(&username, &email)
+	var role string
+	err = database.DB.QueryRow(userQuery, userID).Scan(&username, &email, &role)
 	if err != nil {
 		cookie := utils.ClearLoginCookie()
 		c.Cookie(&cookie)
@@ -53,6 +54,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	c.Locals("userID", userID)
 	c.Locals("username", username)
 	c.Locals("email", email)
+	c.Locals("role", role)
 
 	// log.Printf("[DEBUG] Authenticated. %s", email)
 	return c.Next()

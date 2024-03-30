@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cespare/xxhash/v2"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
 	"github.com/redis/go-redis/v9"
+	"github.com/zeebo/xxh3"
 
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
@@ -23,7 +23,7 @@ var clickEventBuffer = csmap.Create(
 		// Convert int to a byte slice
 		bs := make([]byte, 8)
 		binary.LittleEndian.PutUint64(bs, uint64(key))
-		return xxhash.Sum64(bs)
+		return xxh3.Hash(bs)
 	}),
 )
 
