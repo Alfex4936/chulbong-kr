@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"bytes"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
+	"context"
 	"log"
 	"strings"
 
@@ -31,7 +33,7 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 	// clientId := rand.Int()
 
 	// clientNickname := "user-" + uuid.New().String()
-	clientNickname := services.GenerateKoreanNickname()
+	clientNickname := utils.GenerateKoreanNickname()
 
 	// WsRoomManager = connections *haxmap.Map[string, []*websocket.Conn] // concurrent map
 	services.WsRoomManager.SaveConnection(markerID, clientId, c)          // saves to local websocket conncetions
@@ -39,7 +41,9 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 
 	// Broadcast join message
 	// broadcasts directly by app memory objects
-	services.WsRoomManager.BroadcastMessageToRoom(markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientId)
+	services.PublishMessageToAMQP(context.Background(), markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientId)
+	// services.WsRoomManager.BroadcastMessageToRoom(markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientId)
+
 	services.WsRoomManager.BroadcastUserCountToRoom(markerID) // sends how many users in the room
 
 	defer func() {
@@ -48,7 +52,8 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 		services.RemoveConnectionFromRedis(markerID, reqID)
 
 		// Broadcast leave message
-		services.WsRoomManager.BroadcastMessageToRoom(markerID, clientNickname+" 님이 퇴장하셨습니다.", clientNickname, clientId)
+		services.PublishMessageToAMQP(context.Background(), markerID, clientNickname+" 님이 퇴장하셨습니다.", clientNickname, clientId)
+		// services.WsRoomManager.BroadcastMessageToRoom(markerID, clientNickname+" 님이 퇴장하셨습니다.", clientNickname, clientId)
 		services.WsRoomManager.BroadcastUserCountToRoom(markerID) // sends how many users in the room
 	}()
 
@@ -64,23 +69,29 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 			break
 		}
 
-		messageString := string(message)
+		if bytes.Equal(message, []byte("ping")) {
+			if err := c.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
+				log.Printf("Error sending 'pong': %v", err)
+			}
+			continue // Skip further processing for this message
+		}
+
+		message = bytes.TrimSpace(message)
+		if len(message) == 0 {
+			continue
+		}
+
+		messageString := string(message) // Convert to string only when necessary
 		bad, _ := utils.CheckForBadWords(messageString)
 		if bad {
 			continue
 		}
 
-		if messageString == "ping" {
-			err = c.WriteMessage(websocket.TextMessage, []byte("pong"))
-			if err != nil {
-				log.Printf("Error sending 'pong': %v", err)
-			}
-			continue // Skip further processing for this message
+		// Publish the valid message to the RabbitMQ queue for this chat room
+		services.PublishMessageToAMQP(context.Background(), markerID, messageString, clientNickname, clientId)
 
-		}
-
-		// Broadcast received message
-		services.WsRoomManager.BroadcastMessageToRoom(markerID, messageString, clientNickname, clientId)
+		// // Broadcast received message
+		// services.WsRoomManager.BroadcastMessageToRoom(markerID, messageString, clientNickname, clientId)
 	}
 }
 

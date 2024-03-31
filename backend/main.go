@@ -33,6 +33,7 @@ import (
 	"github.com/gofiber/swagger"
 	"github.com/gofiber/template/django/v3"
 	_ "github.com/joho/godotenv/autoload"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -73,6 +74,13 @@ func main() {
 		PoolSize:  10 * runtime.GOMAXPROCS(0),
 	})
 	services.RedisStore = store
+
+	// Message Broker
+	connection, err := amqp.Dial(os.Getenv("LAVINMQ_HOST"))
+	if err != nil {
+		log.Panicf("Failed to connect to LavinMQ")
+	}
+	services.LavinMQClient = connection
 
 	if err := utils.LoadBadWords("badwords.txt"); err != nil {
 		log.Fatalf("Failed to load bad words: %v", err)
