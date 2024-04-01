@@ -33,7 +33,7 @@ const LocalChat = ({ setLocalChat }: Props) => {
 
   useEffect(() => {
     const code = getRegion(address?.depth1 as string).getCode();
-    if (!address || isError || code === 30) {
+    if (!address || isError || code === "") {
       setConnectionMsg("채팅 서비스를 지원하지 않는 지역입니다!");
       return;
     }
@@ -76,6 +76,7 @@ const LocalChat = ({ setLocalChat }: Props) => {
         "채팅방에 참여 중 에러가 발생하였습니다. 잠시 후 다시 시도해 주세요!"
       );
       console.error("연결 에러:", error);
+      setLocalChat(false);
     };
 
     ws.current.onclose = () => {
@@ -121,14 +122,14 @@ const LocalChat = ({ setLocalChat }: Props) => {
         <Styled.MessagesContainer ref={chatBox}>
           {messages.map((message) => {
             if (message.name === "chulbong-kr") return;
-            if (message.msg.includes("님이 입장하셨습니다.")) {
+            if (message.msg?.includes("님이 입장하셨습니다.")) {
               return (
                 <Styled.JoinUser key={message.mid}>
                   {message.name}님이 참여하였습니다.
                 </Styled.JoinUser>
               );
             }
-            if (message.msg.includes("님이 퇴장하셨습니다.")) {
+            if (message.msg?.includes("님이 퇴장하셨습니다.")) {
               return (
                 <Styled.JoinUser key={message.mid}>
                   {message.name}님이 나가셨습니다.
