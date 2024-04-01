@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/goccy/go-json"
 	"github.com/gofiber/contrib/websocket"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
 	"github.com/redis/go-redis/v9"
+	"github.com/zeebo/xxh3"
 
 	"github.com/google/uuid"
 )
@@ -100,7 +100,7 @@ type RoomConnectionManager struct {
 // NewRoomConnectionManager initializes a ConnectionManager with a new haxmap instance
 func NewRoomConnectionManager() *RoomConnectionManager {
 	hasher := func(key string) uint64 {
-		return xxhash.Sum64String(key)
+		return xxh3.HashString(key)
 	}
 
 	manager := &RoomConnectionManager{

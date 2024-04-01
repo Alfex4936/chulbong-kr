@@ -138,6 +138,7 @@ func UpdateMarker(c *fiber.Ctx) error {
 func DeleteMarkerHandler(c *fiber.Ctx) error {
 	// Auth
 	userID := c.Locals("userID").(int)
+	userRole := c.Locals("role").(string)
 
 	// Get MarkerID from the URL parameter
 	markerIDParam := c.Params("markerID")
@@ -147,9 +148,9 @@ func DeleteMarkerHandler(c *fiber.Ctx) error {
 	}
 
 	// Call the service function to delete the marker, now passing userID as well
-	err = services.DeleteMarker(userID, markerID)
+	err = services.DeleteMarker(userID, markerID, userRole)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete marker: " + err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete marker"})
 	}
 
 	go services.RemoveMarkerClick(markerID)

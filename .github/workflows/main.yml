@@ -1,14 +1,54 @@
-name: Notify Slack on Backend Change
+name: Notify Slack on Changes
+
 on:
   push:
-    paths:
+    branches: 
+      - main
+    paths: 
+      - 'frontend/**'
       - 'backend/**'
 
 jobs:
-  notifySlack:
+  notifySlackFrontend:
+    if: contains(github.event.commits[*].modified, 'frontend/') || contains(github.event.commits[*].added, 'frontend/') || contains(github.event.commits[*].removed, 'frontend/')
     runs-on: ubuntu-latest
     steps:
-      - name: Notify Slack
+      - name: Notify Slack about Frontend Changes
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          fields: repo,message,commit,author,action
+          custom_payload: |
+            {
+              "channel": "#프론트엔드",
+              "username": "GitHub",
+              "text": "A new commit has been pushed to `frontend/` on the `main` branch: ${{ github.event.head_commit.message }}",
+              "icon_emoji": ":octocat:",
+              "attachments": [{
+                "color": "#f4e242",
+                "fields": [{
+                    "title": "Commit",
+                    "value": "<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
+                    "short": true
+                  },{
+                    "title": "Author",
+                    "value": "${{ github.actor }}",
+                    "short": true
+                  },{
+                    "title": "Message",
+                    "value": "${{ github.event.head_commit.message }}",
+                    "short": false
+                  }]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_FRONTEND_URL }}
+
+  notifySlackBackend:
+    if: contains(github.event.commits[*].modified, 'backend/') || contains(github.event.commits[*].added, 'backend/') || contains(github.event.commits[*].removed, 'backend/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack about Backend Changes
         uses: 8398a7/action-slack@v3
         with:
           status: custom
@@ -17,7 +57,7 @@ jobs:
             {
               "channel": "#백엔드",
               "username": "GitHub",
-              "text": "A new commit has been pushed to `backend/`: ${{ github.event.head_commit.message }}",
+              "text": "A new commit has been pushed to `backend/` on the `main` branch: ${{ github.event.head_commit.message }}",
               "icon_emoji": ":octocat:",
               "attachments": [{
                 "color": "#42e2f4",
@@ -32,7 +72,7 @@ jobs:
                   },{
                     "title": "Message",
                     "value": "${{ github.event.head_commit.message }}",
-                    "short": false // Setting this to false to ensure the commit message isn't truncated
+                    "short": false
                   }]
               }]
             }

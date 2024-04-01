@@ -114,6 +114,27 @@ func GetMarkersClosebyAdmin(c *fiber.Ctx) error {
 	return c.JSON(markers)
 }
 
+func GetWeatherByWGS84Handler(c *fiber.Ctx) error {
+	latParam := c.Query("latitude")
+	longParam := c.Query("longitude")
+
+	lat, err := strconv.ParseFloat(latParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+	}
+
+	long, err := strconv.ParseFloat(longParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+
+	result, err := services.FetchWeatherFromAddress(lat, long)
+	if err != nil {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Failed to fetch weather from address: " + err.Error()})
+	}
+
+	return c.JSON(result)
+}
 func ConvertWGS84ToWCONGNAMULHandler(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")
