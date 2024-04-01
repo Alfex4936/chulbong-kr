@@ -1,42 +1,42 @@
 const getRegion = (
   name?: string,
   code?: string
-): { getCode: () => number; getTitle: () => string } => {
+): { getCode: () => string; getTitle: () => string } => {
   const getCode = () => {
-    if (name === "제주특별자치도") return 1;
-    else if (name === "전남") return 2;
-    else if (name === "전북특별자치도") return 3;
-    else if (name === "경남") return 4;
-    else if (name === "경북") return 5;
-    else if (name === "대구") return 6;
-    else if (name === "울산") return 7;
-    else if (name === "충북") return 8;
-    else if (name === "충남") return 9;
-    else if (name === "대전") return 10;
-    else if (name === "강원특별자치도") return 11;
-    else if (name === "경기") return 12;
-    else if (name === "서울") return 13;
-    else if (name === "인천") return 14;
-    else if (name === "부산") return 15;
-    else return 30;
+    if (name === "제주특별자치도") return "jj";
+    else if (name === "전남") return "jn";
+    else if (name === "전북특별자치도") return "jb";
+    else if (name === "경남") return "gn";
+    else if (name === "경북") return "gb";
+    else if (name === "대구") return "dg";
+    else if (name === "울산") return "us";
+    else if (name === "충북") return "cb";
+    else if (name === "충남") return "cn";
+    else if (name === "대전") return "dj";
+    else if (name === "강원특별자치도") return "gw";
+    else if (name === "경기") return "gg";
+    else if (name === "서울") return "so";
+    else if (name === "인천") return "ic";
+    else if (name === "부산") return "bs";
+    else return "";
   };
 
   const getTitle = () => {
-    if (code === "1") return "제주도 채팅방";
-    else if (name === "2") return "전라남도 채팅방";
-    else if (name === "3") return "전북특별자치도 채팅방";
-    else if (name === "4") return "경상남도 채팅방";
-    else if (name === "5") return "경상북도 채팅방";
-    else if (name === "6") return "대구 채팅방";
-    else if (name === "7") return "울산 채팅방";
-    else if (name === "8") return "충청북도 채팅방";
-    else if (name === "9") return "충청남도 채팅방";
-    else if (name === "10") return "대전 채팅방";
-    else if (name === "11") return "강원도 채팅방";
-    else if (name === "12") return "경기도 채팅방";
-    else if (name === "13") return "서울 채팅방";
-    else if (name === "14") return "인천 채팅방";
-    else if (name === "15") return "부산 채팅방";
+    if (code === "jj") return "제주도 채팅방";
+    else if (name === "jn") return "전라남도 채팅방";
+    else if (name === "jb") return "전북특별자치도 채팅방";
+    else if (name === "gn") return "경상남도 채팅방";
+    else if (name === "gb") return "경상북도 채팅방";
+    else if (name === "dg") return "대구 채팅방";
+    else if (name === "us") return "울산 채팅방";
+    else if (name === "cb") return "충청북도 채팅방";
+    else if (name === "cn") return "충청남도 채팅방";
+    else if (name === "dj") return "대전 채팅방";
+    else if (name === "gw") return "강원도 채팅방";
+    else if (name === "gg") return "경기도 채팅방";
+    else if (name === "so") return "서울 채팅방";
+    else if (name === "ic") return "인천 채팅방";
+    else if (name === "bs") return "부산 채팅방";
     else return "";
   };
 
