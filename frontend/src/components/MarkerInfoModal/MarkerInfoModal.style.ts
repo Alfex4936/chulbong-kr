@@ -5,6 +5,24 @@ export const Container = styled.div`
   flex-direction: column;
 `;
 
+export const Weather = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 0.5rem;
+
+  & > div:first-of-type {
+    font-size: 1.3rem;
+    font-weight: bold;
+
+    margin-left: 0.5rem;
+  }
+  // & > div:last-of-type {
+  //   font-size: 0.8rem;
+  // }
+`;
+
 export const ImagesContainer = styled.div`
   display: flex;
   justify-content: flex-start;

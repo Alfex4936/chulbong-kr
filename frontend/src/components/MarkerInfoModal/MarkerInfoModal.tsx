@@ -26,8 +26,10 @@ import useUndoDislike from "../../hooks/mutation/marker/useUndoDislike";
 import useUpdateDesc from "../../hooks/mutation/marker/useUpdateDesc";
 import useGetFacilities from "../../hooks/query/marker/useGetFacilities";
 import useGetMarker from "../../hooks/query/marker/useGetMarker";
+import useWeatherData from "../../hooks/query/marker/useWeatherData";
 import useInput from "../../hooks/useInput";
 import useChatIdStore from "../../store/useChatIdStore";
+import useMapPositionStore from "../../store/useMapPositionStore";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
 import type { MarkerClusterer } from "../../types/Cluster.types";
@@ -58,6 +60,7 @@ const MarkerInfoModal = ({
   const toastState = useToastStore();
   const modalState = useModalStore();
   const cidState = useChatIdStore();
+  const positionState = useMapPositionStore();
 
   const navigate = useNavigate();
   const query = new URLSearchParams(location.search);
@@ -75,6 +78,11 @@ const MarkerInfoModal = ({
   } = useGetMarker(currentMarkerInfo.markerId);
 
   const { data: facilities } = useGetFacilities(currentMarkerInfo.markerId);
+
+  const { data: weather } = useWeatherData(
+    positionState.lat,
+    positionState.lng
+  );
 
   const { mutateAsync: updateDesc } = useUpdateDesc(
     descInput.value,
@@ -331,6 +339,11 @@ const MarkerInfoModal = ({
             <CloseIcon />
           </IconButton>
         </Tooltip>
+        <Styled.Weather>
+          <img src={weather?.iconImage} alt={weather?.desc} />
+          <div>{weather?.temperature}℃</div>
+          {/* <div>({weather?.desc})</div> */}
+        </Styled.Weather>
         <Styled.ImagesContainer>
           <Styled.imageWrap>
             {isRoadView ? (
