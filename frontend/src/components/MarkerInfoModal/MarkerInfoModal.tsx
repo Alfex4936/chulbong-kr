@@ -29,7 +29,6 @@ import useGetMarker from "../../hooks/query/marker/useGetMarker";
 import useWeatherData from "../../hooks/query/marker/useWeatherData";
 import useInput from "../../hooks/useInput";
 import useChatIdStore from "../../store/useChatIdStore";
-import useMapPositionStore from "../../store/useMapPositionStore";
 import useModalStore from "../../store/useModalStore";
 import useToastStore from "../../store/useToastStore";
 import type { MarkerClusterer } from "../../types/Cluster.types";
@@ -60,7 +59,6 @@ const MarkerInfoModal = ({
   const toastState = useToastStore();
   const modalState = useModalStore();
   const cidState = useChatIdStore();
-  const positionState = useMapPositionStore();
 
   const navigate = useNavigate();
   const query = new URLSearchParams(location.search);
@@ -75,13 +73,15 @@ const MarkerInfoModal = ({
     isLoading,
     isError,
     error,
+    isSuccess,
   } = useGetMarker(currentMarkerInfo.markerId);
 
   const { data: facilities } = useGetFacilities(currentMarkerInfo.markerId);
 
   const { data: weather, isLoading: weatherLoading } = useWeatherData(
-    positionState.lat,
-    positionState.lng
+    marker?.latitude as number,
+    marker?.longitude as number,
+    isSuccess
   );
 
   const { mutateAsync: updateDesc } = useUpdateDesc(
@@ -320,7 +320,9 @@ const MarkerInfoModal = ({
         />
       </Helmet>
 
-      <Styled.Container>
+      <Styled.Container
+        style={{ marginTop: weather?.desc !== "" ? "-1rem" : "0" }}
+      >
         <Tooltip title="닫기" arrow disableInteractive>
           <IconButton
             onClick={() => {
@@ -341,7 +343,7 @@ const MarkerInfoModal = ({
         </Tooltip>
         {weatherLoading ? (
           <Styled.WeatherSkeleton />
-        ) : (
+        ) : weather?.desc === "" ? null : (
           <Styled.Weather>
             <img src={weather?.iconImage} alt={weather?.desc} />
             <div>{weather?.temperature}℃</div>

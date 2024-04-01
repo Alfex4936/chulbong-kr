@@ -646,14 +646,17 @@ const Map = () => {
         />
       </Styled.LoginButtonWrap>
 
-      <FloatingButton
-        text={<MarkUnreadChatAltIcon />}
-        top={140}
-        right={20}
-        zIndex={onBoardingState.step === 4 ? 10000 : 10}
-        tooltip={`${address?.depth1} 채팅방 입장`}
-        onClickFn={handleOpenLocalChat}
-      />
+      {address?.depth1 && (
+        <FloatingButton
+          text={<MarkUnreadChatAltIcon />}
+          top={140}
+          right={20}
+          zIndex={onBoardingState.step === 4 ? 10000 : 10}
+          tooltip={`${address?.depth1} 채팅방 입장`}
+          onClickFn={handleOpenLocalChat}
+        />
+      )}
+
       <FloatingButton
         text={<MyLocationIcon />}
         top={200}
