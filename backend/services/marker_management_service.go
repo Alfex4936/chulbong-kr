@@ -328,7 +328,7 @@ func UpdateMarkerDescriptionOnly(markerID int, description string) error {
 }
 
 // DeleteMarker deletes a marker and its associated photos from the database and S3.
-func DeleteMarker(userID, markerID int) error {
+func DeleteMarker(userID, markerID int, userRole string) error {
 	// Start a transaction
 	tx, err := database.DB.Beginx()
 	if err != nil {
@@ -343,7 +343,7 @@ func DeleteMarker(userID, markerID int) error {
 		tx.Rollback()
 		return fmt.Errorf("checking marker ownership: %w", err)
 	}
-	if ownerID != userID {
+	if userRole != "admin" && ownerID != userID {
 		tx.Rollback()
 		return fmt.Errorf("user %d is not authorized to delete marker %d", userID, markerID)
 	}

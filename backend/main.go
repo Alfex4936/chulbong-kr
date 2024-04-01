@@ -32,7 +32,6 @@ import (
 	"github.com/gofiber/storage/redis/v3"
 	"github.com/gofiber/swagger"
 	"github.com/gofiber/template/django/v3"
-	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -51,7 +50,7 @@ import (
 // @host			localhost:9452
 // @BasePath		/api/v1/
 func main() {
-	godotenv.Overload()
+	// godotenv.Overload()
 
 	// Increase GOMAXPROCS
 	runtime.GOMAXPROCS(runtime.NumCPU() * 2) // twice the number of CPUs
@@ -289,6 +288,7 @@ func main() {
 	api.Get("/markers/ranking", handlers.GetMarkerRankingHandler)
 	api.Get("/markers/area-ranking", handlers.GetCurrentAreaMarkerRankingHandler)
 	api.Get("/markers/convert", handlers.ConvertWGS84ToWCONGNAMULHandler)
+	api.Get("/markers/weather", handlers.GetWeatherByWGS84Handler)
 
 	api.Post("/markers/upload", middlewares.AdminOnly, handlers.UploadMarkerPhotoToS3Handler)
 
