@@ -8,6 +8,7 @@ import type {
 import AddIcon from "@mui/icons-material/Add";
 import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
+import MarkUnreadChatAltIcon from "@mui/icons-material/MarkUnreadChatAlt";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -36,11 +37,13 @@ import AddChinupSkeleton from "../AddChinupBarForm/AddChinupSkeleton";
 import CenterBox from "../CenterBox/CenterBox";
 import FloatingButton from "../FloatingButton/FloatingButton";
 import Input from "../Input/Input";
+import LocalChatSkeleton from "../LocalChat/LocalChatSkeleton";
 import MarkerInfoSkeleton from "../MarkerInfoModal/MarkerInfoSkeleton";
 import BasicModal from "../Modal/Modal";
 import MyInfoModal from "../MyInfoModal/MyInfoModal";
 import * as Styled from "./Map.style";
 import MapHeader from "./MapHeader";
+import useAddressData from "../../hooks/useAddressData";
 
 import "ldrs/ring";
 import OnBoarding from "../OnBoarding/OnBoarding";
@@ -51,6 +54,7 @@ const AddChinupBarForm = lazy(
 const MarkerInfoModal = lazy(
   () => import("../MarkerInfoModal/MarkerInfoModal")
 );
+const LocalChat = lazy(() => import("../LocalChat/LocalChat"));
 
 export interface MarkerInfo {
   markerId: number;
@@ -71,6 +75,8 @@ const Map = () => {
 
   const emailInput = useInput("");
 
+  const { address } = useAddressData();
+
   const { data, isLoading, isError } = useGetAllMarker();
 
   const { mutateAsync: deleteUser } = useDeleteUser();
@@ -81,6 +87,8 @@ const Map = () => {
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
+
+  const [localChat, setLocalChat] = useState(false); // 지역 채팅 모달 표시 여부
 
   const [isMarked, setIsMarked] = useState(false); // 위치 등록하기 토스트 모달 표시 여부
   const [openForm, setOpenForm] = useState(false); // 위치 등록 폼 모달 표시 여부
@@ -415,6 +423,10 @@ const Map = () => {
     }
   };
 
+  const handleOpenLocalChat = () => {
+    setLocalChat(true);
+  };
+
   bouncy.register();
 
   return (
@@ -485,6 +497,14 @@ const Map = () => {
               setMarkers={setMarkers}
               clusterer={clusterer as MarkerClusterer}
             />
+          </Suspense>
+        </BasicModal>
+      )}
+
+      {localChat && (
+        <BasicModal setState={setLocalChat}>
+          <Suspense fallback={<LocalChatSkeleton />}>
+            <LocalChat setLocalChat={setLocalChat} />
           </Suspense>
         </BasicModal>
       )}
@@ -626,6 +646,14 @@ const Map = () => {
         />
       </Styled.LoginButtonWrap>
 
+      <FloatingButton
+        text={<MarkUnreadChatAltIcon />}
+        top={140}
+        right={20}
+        zIndex={onBoardingState.step === 4 ? 10000 : 10}
+        tooltip={`${address?.depth1} 채팅방 입장`}
+        onClickFn={handleOpenLocalChat}
+      />
       <FloatingButton
         text={<MyLocationIcon />}
         top={200}

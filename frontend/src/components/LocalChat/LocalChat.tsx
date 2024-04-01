@@ -1,39 +1,24 @@
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ReplyIcon from "@mui/icons-material/Reply";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { Fragment, useEffect, useRef, useState } from "react";
+import useAddressData from "../../hooks/useAddressData";
 import useInput from "../../hooks/useInput";
 import useChatIdStore from "../../store/useChatIdStore";
-import * as Styled from "./ChatRoom.style";
-
-export interface ChatMessage {
-  uid: string;
-  message: string;
-  userId: string;
-  userNickname: string;
-  roomID: string;
-  timestamp: number;
-  isOwner: boolean;
-}
-
-export interface Chatdata {
-  msg: string;
-  name: string;
-  isOwner: boolean;
-  mid: string;
-  userid: string;
-}
+import getRegion from "../../utils/getRegionCode";
+import type { ChatMessage, Chatdata } from "../MarkerInfoModal/ChatRoom";
+import * as Styled from "./LocalChat.style";
 
 interface Props {
-  setIsChatView: React.Dispatch<React.SetStateAction<boolean>>;
-  markerId: number;
+  setLocalChat: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const ChatRoom = ({ setIsChatView, markerId }: Props) => {
+const LocalChat = ({ setLocalChat }: Props) => {
   const cidState = useChatIdStore();
 
   const chatValue = useInput("");
+
+  const { address, isError } = useAddressData();
 
   const ws = useRef<WebSocket | null>(null);
   const chatBox = useRef<HTMLDivElement>(null);
@@ -47,8 +32,14 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
   const [roomTitle, setRoomTitle] = useState("");
 
   useEffect(() => {
+    const code = getRegion(address?.depth1 as string).getCode();
+    if (!address || isError || code === 30) {
+      setConnectionMsg("채팅 서비스를 지원하지 않는 지역입니다!");
+      return;
+    }
+
     ws.current = new WebSocket(
-      `wss://api.k-pullup.com/ws/${markerId}?request-id=${cidState.cid}`
+      `wss://api.k-pullup.com/ws/${code}?request-id=${cidState.cid}`
     );
 
     ws.current.onopen = () => {
@@ -61,7 +52,11 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
     ws.current.onmessage = async (event) => {
       const data: ChatMessage = JSON.parse(event.data);
       if (data.userNickname === "chulbong-kr") {
-        setRoomTitle(data.message);
+        const titleArr = data.message.split(" ");
+
+        titleArr[0] = getRegion(data.roomID).getTitle();
+
+        setRoomTitle(titleArr.join(" "));
       }
 
       setMessages((prevMessages) => [
@@ -84,14 +79,14 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
     };
 
     ws.current.onclose = () => {
-      setIsChatView(false);
+      setLocalChat(false);
       console.log("연결 종료");
     };
 
     return () => {
       ws.current?.close();
     };
-  }, []);
+  }, [address]);
 
   useEffect(() => {
     const scrollBox = chatBox.current;
@@ -103,9 +98,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
   const handleChat = () => {
     if (chatValue.value === "") return;
-
     ws.current?.send(chatValue.value);
-
     chatValue.reset();
     inputRef.current?.focus();
   };
@@ -118,22 +111,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
   return (
     <div>
-      <Tooltip title="이전" arrow disableInteractive>
-        <IconButton
-          onClick={() => {
-            setIsChatView(false);
-          }}
-          aria-label="delete"
-          sx={{
-            position: "absolute",
-            top: "0",
-            left: "0",
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-      </Tooltip>
-      <div>{roomTitle}</div>
+      d<div>{roomTitle}</div>
       <Styled.Container>
         <div>
           <Styled.ConnectMessage>
@@ -196,4 +174,4 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
   );
 };
 
-export default ChatRoom;
+export default LocalChat;

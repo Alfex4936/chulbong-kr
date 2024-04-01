@@ -1,7 +1,7 @@
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import CircularProgress from "@mui/material/CircularProgress";
-import { AxiosError } from "axios";
+// import { AxiosError } from "axios";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Flip, ToastContainer, toast } from "react-toastify";
@@ -12,9 +12,9 @@ import LoginFormSkeleton from "./components/LoginForm/LoginFormSkeleton";
 import Map from "./components/Map/Map";
 import BasicModal from "./components/Modal/Modal";
 import SignupFormSkeleton from "./components/SignupForm/SignupFormSkeleton";
-import useLogout from "./hooks/mutation/auth/useLogout";
+// import useLogout from "./hooks/mutation/auth/useLogout";
 import useResetPassword from "./hooks/mutation/auth/useResetPassword";
-import useGetMyInfo from "./hooks/query/user/useGetMyInfo";
+// import useGetMyInfo from "./hooks/query/user/useGetMyInfo";
 import useInput from "./hooks/useInput";
 import useModalStore from "./store/useModalStore";
 import useOnBoardingStore from "./store/useOnBoardingStore";
@@ -49,9 +49,9 @@ const App = () => {
     isPending,
     isSuccess,
   } = useResetPassword(token as string, passwordInput.value);
-  const { mutate: logout } = useLogout();
+  // const { mutate: logout } = useLogout();
 
-  const { isError, error } = useGetMyInfo();
+  // const { isError, error } = useGetMyInfo();
 
   const [viewPassword, setViewPassword] = useState(false);
 
@@ -97,18 +97,18 @@ const App = () => {
     }
   }, [token, email]);
 
-  useEffect(() => {
-    const handleLogout = () => {
-      logout();
-      userState.resetUser();
-    };
+  // useEffect(() => {
+  //   const handleLogout = () => {
+  //     logout();
+  //     userState.resetUser();
+  //   };
 
-    if (isError) {
-      if (error instanceof AxiosError) {
-        handleLogout();
-      }
-    }
-  }, [isError, error]);
+  //   if (isError) {
+  //     if (error instanceof AxiosError) {
+  //       handleLogout();
+  //     }
+  //   }
+  // }, [isError, error]);
 
   const notify = () => toast(toastState.toastText);
 
