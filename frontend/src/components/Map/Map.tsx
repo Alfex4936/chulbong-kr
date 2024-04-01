@@ -328,15 +328,13 @@ const Map = () => {
           map.setCenter(moveLatLon);
           setGpsLoading(false);
         },
-        (error) => {
-          console.error(error);
+        () => {
+          alert("위치 정보 접근을 허용해 주세요.");
           setGpsLoading(false);
         }
       );
     } else {
-      alert(
-        "Geolocation is not supported by this browser or map is not loaded yet."
-      );
+      alert("해당 브라우저에서 지원하지 않는 기능입니다.");
     }
   };
 
@@ -421,7 +419,11 @@ const Map = () => {
 
   return (
     <Styled.Container>
-      <MapHeader map={map} markers={markers} markerInfoModal={markerInfoModal}/>
+      <MapHeader
+        map={map}
+        markers={markers}
+        markerInfoModal={markerInfoModal}
+      />
       <Styled.MapContainer ref={mapRef} />
       {(isLoading || gpsLoading) && (
         <CenterBox bg="black">
