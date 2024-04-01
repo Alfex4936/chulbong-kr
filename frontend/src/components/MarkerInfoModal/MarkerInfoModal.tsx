@@ -79,7 +79,7 @@ const MarkerInfoModal = ({
 
   const { data: facilities } = useGetFacilities(currentMarkerInfo.markerId);
 
-  const { data: weather } = useWeatherData(
+  const { data: weather, isLoading: weatherLoading } = useWeatherData(
     positionState.lat,
     positionState.lng
   );
@@ -339,11 +339,16 @@ const MarkerInfoModal = ({
             <CloseIcon />
           </IconButton>
         </Tooltip>
-        <Styled.Weather>
-          <img src={weather?.iconImage} alt={weather?.desc} />
-          <div>{weather?.temperature}℃</div>
-          {/* <div>({weather?.desc})</div> */}
-        </Styled.Weather>
+        {weatherLoading ? (
+          <Styled.WeatherSkeleton />
+        ) : (
+          <Styled.Weather>
+            <img src={weather?.iconImage} alt={weather?.desc} />
+            <div>{weather?.temperature}℃</div>
+            {/* <div>({weather?.desc})</div> */}
+          </Styled.Weather>
+        )}
+
         <Styled.ImagesContainer>
           <Styled.imageWrap>
             {isRoadView ? (

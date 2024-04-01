@@ -1,8 +1,20 @@
 import styled from "@emotion/styled";
+import { keyframes } from "@emotion/react";
+
+const shimmer = keyframes`
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+`;
 
 export const Container = styled.div`
   display: flex;
   flex-direction: column;
+
+  margin-top: -1rem;
 `;
 
 export const Weather = styled.div`
@@ -21,6 +33,30 @@ export const Weather = styled.div`
   // & > div:last-of-type {
   //   font-size: 0.8rem;
   // }
+`;
+
+export const WeatherSkeleton = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: auto;
+  margin-bottom: 0.5rem;
+
+  width: 60px;
+  height: 40px;
+
+  background: #f6f7f8;
+  background-image: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #f7f7f7 50%,
+    #f0f0f0 75%
+  );
+
+  animation: ${shimmer} 1.2s ease-in-out infinite;
+
+  border-radius: 1rem;
 `;
 
 export const ImagesContainer = styled.div`
