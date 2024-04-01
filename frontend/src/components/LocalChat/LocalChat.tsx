@@ -90,6 +90,17 @@ const LocalChat = ({ setLocalChat }: Props) => {
   }, [address]);
 
   useEffect(() => {
+    if (!ws) return;
+    const pingInterval = setInterval(() => {
+      ws.current?.send(JSON.stringify({ type: "ping" }));
+    }, 30000);
+
+    return () => {
+      clearInterval(pingInterval);
+    };
+  }, []);
+
+  useEffect(() => {
     const scrollBox = chatBox.current;
 
     if (scrollBox) {
