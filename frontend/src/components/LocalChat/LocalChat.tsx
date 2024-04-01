@@ -111,7 +111,7 @@ const LocalChat = ({ setLocalChat }: Props) => {
 
   return (
     <div>
-      d<div>{roomTitle}</div>
+      <div>{roomTitle}</div>
       <Styled.Container>
         <div>
           <Styled.ConnectMessage>
