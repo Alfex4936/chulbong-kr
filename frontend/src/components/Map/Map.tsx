@@ -10,6 +10,7 @@ import GpsOffIcon from "@mui/icons-material/GpsOff";
 import LoginIcon from "@mui/icons-material/Login";
 import MarkUnreadChatAltIcon from "@mui/icons-material/MarkUnreadChatAlt";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import RemoveIcon from "@mui/icons-material/Remove";
 import Button from "@mui/material/Button";
@@ -24,6 +25,7 @@ import useRequestPasswordReset from "../../hooks/mutation/auth/useRequestPasswor
 import useDeleteUser from "../../hooks/mutation/user/useDeleteUser";
 import useGetAllMarker from "../../hooks/query/marker/useGetAllMarker";
 import useGetMyInfo from "../../hooks/query/user/useGetMyInfo";
+import useAddressData from "../../hooks/useAddressData";
 import useInput from "../../hooks/useInput";
 import useMap from "../../hooks/useMap";
 import useMapPositionStore from "../../store/useMapPositionStore";
@@ -43,7 +45,6 @@ import BasicModal from "../Modal/Modal";
 import MyInfoModal from "../MyInfoModal/MyInfoModal";
 import * as Styled from "./Map.style";
 import MapHeader from "./MapHeader";
-import useAddressData from "../../hooks/useAddressData";
 
 import "ldrs/ring";
 import OnBoarding from "../OnBoarding/OnBoarding";
@@ -55,6 +56,7 @@ const MarkerInfoModal = lazy(
   () => import("../MarkerInfoModal/MarkerInfoModal")
 );
 const LocalChat = lazy(() => import("../LocalChat/LocalChat"));
+const Notice = lazy(() => import("../Notice/Notice"));
 
 export interface MarkerInfo {
   markerId: number;
@@ -87,6 +89,8 @@ const Map = () => {
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
+
+  const [noticeModal, setNoticeModal] = useState(false);
 
   const [localChat, setLocalChat] = useState(false); // 지역 채팅 모달 표시 여부
 
@@ -121,6 +125,22 @@ const Map = () => {
 
   const imageSize = new window.kakao.maps.Size(39, 39);
   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+  useEffect(() => {
+    const lastVisit = localStorage.getItem("lastVisit");
+    const now = new Date();
+
+    if (lastVisit) {
+      const lastVisitDate = new Date(lastVisit);
+      const daysDifference = Math.floor(
+        (now.getTime() - lastVisitDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysDifference >= 4) setNoticeModal(true);
+    } else {
+      setNoticeModal(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!onBoardingState.isOnBoarding) {
@@ -470,6 +490,14 @@ const Map = () => {
         </BasicModal>
       )}
 
+      {noticeModal && (
+        <BasicModal setState={setNoticeModal}>
+          <Suspense fallback={<AddChinupSkeleton />}>
+            <Notice />
+          </Suspense>
+        </BasicModal>
+      )}
+
       {openForm && (
         <BasicModal setState={setOpenForm}>
           <Suspense fallback={<AddChinupSkeleton />}>
@@ -700,6 +728,17 @@ const Map = () => {
         onClickFn={() => {
           if (onBoardingState.step === 14) return;
           onBoardingState.open();
+        }}
+      />
+      <FloatingButton
+        text={<NotificationsIcon />}
+        shape="circle"
+        top={450}
+        right={20}
+        // zIndex={}
+        tooltip="공지"
+        onClickFn={() => {
+          setNoticeModal(true);
         }}
       />
       {myInfoModal && (
