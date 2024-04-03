@@ -74,6 +74,7 @@ const LoginForm = () => {
 
     const handleKeyDownClose = (event: KeyboardEvent) => {
       if (event.key === "Enter") {
+        if (loading) return;
         handleSubmit();
       }
     };
@@ -83,7 +84,7 @@ const LoginForm = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDownClose);
     };
-  }, [emailInput.value, passwordInput.value]);
+  }, [emailInput.value, passwordInput.value, loading]);
 
   const handleSubmit = async () => {
     let isValid = true;
