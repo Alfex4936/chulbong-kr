@@ -14,9 +14,9 @@ const Notice = () => {
           aria-controls="panel1-content"
           id="panel1-header"
         >
-          <span>
+          <Styled.TitleIcon>
             <NotificationsNoneIcon />
-          </span>
+          </Styled.TitleIcon>
           <Styled.NoticeTitle>위치별 채팅 기능 추가</Styled.NoticeTitle>
         </AccordionSummary>
         <AccordionDetails>
@@ -34,9 +34,9 @@ const Notice = () => {
           aria-controls="panel2-content"
           id="panel2-header"
         >
-          <span>
+          <Styled.TitleIcon>
             <NotificationsNoneIcon />
-          </span>
+          </Styled.TitleIcon>
           <Styled.NoticeTitle>지역별 채팅 기능 추가</Styled.NoticeTitle>
         </AccordionSummary>
         <AccordionDetails>
@@ -54,9 +54,9 @@ const Notice = () => {
           aria-controls="panel2-content"
           id="panel2-header"
         >
-          <span>
+          <Styled.TitleIcon>
             <NotificationsNoneIcon />
-          </span>
+          </Styled.TitleIcon>
           <Styled.NoticeTitle>철봉 위치 날씨 표시</Styled.NoticeTitle>
         </AccordionSummary>
         <AccordionDetails>
