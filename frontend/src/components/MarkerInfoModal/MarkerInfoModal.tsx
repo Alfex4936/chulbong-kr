@@ -81,7 +81,8 @@ const MarkerInfoModal = ({
   const { data: weather, isLoading: weatherLoading } = useWeatherData(
     marker?.latitude as number,
     marker?.longitude as number,
-    isSuccess
+    isSuccess,
+    marker?.markerId as number
   );
 
   const { mutateAsync: updateDesc } = useUpdateDesc(
