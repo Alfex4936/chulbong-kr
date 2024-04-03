@@ -85,7 +85,7 @@ const Map = () => {
   const { mutateAsync: sendPasswordReset } = useRequestPasswordReset(
     emailInput.value
   );
-  const { data: myInfo } = useGetMyInfo();
+  const { data: myInfo, isFetching: isMyFetching } = useGetMyInfo();
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const map = useMap(mapRef);
@@ -661,6 +661,7 @@ const Map = () => {
           left={0}
           shape="circle"
           tooltip={myInfo ? "메뉴" : "로그인"}
+          disabled={myInfo ? false : isMyFetching}
           onClickFn={
             myInfo
               ? myInfoModal
