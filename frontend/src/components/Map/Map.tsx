@@ -679,7 +679,6 @@ const Map = () => {
           text={<MarkUnreadChatAltIcon />}
           top={140}
           right={20}
-          zIndex={onBoardingState.step === 4 ? 10000 : 10}
           tooltip={`${address?.depth1} 채팅방 입장`}
           onClickFn={handleOpenLocalChat}
         />
