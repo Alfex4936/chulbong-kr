@@ -6,6 +6,10 @@ export const Container = styled.div`
   overflow: auto;
 `;
 
+export const TitleIcon = styled.span`
+  margin-right: 1.5rem;
+`;
+
 export const NoticeTitle = styled.h1`
   font-weight: bold;
 
