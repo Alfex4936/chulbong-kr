@@ -7,6 +7,9 @@ import useInput from "../../hooks/useInput";
 import useChatIdStore from "../../store/useChatIdStore";
 import * as Styled from "./ChatRoom.style";
 
+import { useTranslation } from 'react-i18next';
+import '../../i18n';
+
 export interface ChatMessage {
   uid: string;
   message: string;
@@ -31,6 +34,8 @@ interface Props {
 }
 
 const ChatRoom = ({ setIsChatView, markerId }: Props) => {
+  const { t } = useTranslation();
+
   const cidState = useChatIdStore();
 
   const chatValue = useInput("");
@@ -53,9 +58,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
 
     ws.current.onopen = () => {
       setConnection(true);
-      setConnectionMsg(
-        "비속어 사용에 주의해주세요. 이후 서비스 사용이 제한될 수 있습니다!"
-      );
+      setConnectionMsg(t('connectionMessage'));
     };
 
     ws.current.onmessage = async (event) => {
@@ -91,7 +94,7 @@ const ChatRoom = ({ setIsChatView, markerId }: Props) => {
     return () => {
       ws.current?.close();
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const scrollBox = chatBox.current;
