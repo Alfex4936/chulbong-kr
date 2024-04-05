@@ -14,6 +14,9 @@ import AroundMarker from "../AroundMarker/AroundMarker";
 import Ranking from "../Ranking/Ranking";
 import * as Styled from "./SearchInput.style";
 
+import { useTranslation } from 'react-i18next';
+import '../../i18n';
+
 interface KakaoPlace {
   address_name: string;
   category_group_code: string;
@@ -46,6 +49,8 @@ const SearchInput = ({
   markerInfoModal,
   setIsAround,
 }: Props) => {
+  const { t } = useTranslation();
+
   const mapPosition = useMapPositionStore();
   const onBoardingState = useOnBoardingStore();
 
@@ -156,13 +161,13 @@ const SearchInput = ({
 
   const tabs = [
     {
-      title: "주변 검색",
+      title: t('map.searchNearby'),
       content: (
         <AroundMarker map={map} ref={aroundMarkerRef} markers={markers} />
       ),
     },
     {
-      title: "랭킹",
+      title: t('map.ranking'),
       content: <Ranking map={map} />,
     },
   ];
@@ -191,7 +196,7 @@ const SearchInput = ({
             setIsAround(false);
           }}
         />
-        <Tooltip title="검색" arrow disableInteractive>
+        <Tooltip title={t("map.search")} arrow disableInteractive>
           <IconButton aria-label="send" onClick={handleSearch}>
             <SearchIcon />
           </IconButton>
@@ -230,7 +235,7 @@ const SearchInput = ({
                       <span>{place.place_name}</span>
                       <span>({place.address_name})</span>
                     </div>
-                    <Tooltip title="이동" arrow disableInteractive>
+                    <Tooltip title={t("map.move")} arrow disableInteractive>
                       <IconButton
                         onClick={() => {
                           // console.log(Number(place.y), Number(place.x));
@@ -251,7 +256,7 @@ const SearchInput = ({
               })}
             </>
           )}
-          <Tooltip title="닫기" arrow disableInteractive>
+          <Tooltip title={t("map.close")} arrow disableInteractive>
             <IconButton
               onClick={() => {
                 setIsResult(false);
