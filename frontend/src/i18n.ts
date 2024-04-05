@@ -18,7 +18,7 @@ const resources = {
 
 i18n
     // detect the user language
-    // .use(LanguageDetector)
+    .use(LanguageDetector)
     // pass the i18n instance to the react-i18next components.
     .use(initReactI18next)
     // init i18next
