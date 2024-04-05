@@ -1,19 +1,16 @@
 name: Notify Slack on Changes
 
 on:
-  push:
-    branches: 
-      - main
-    paths: 
-      - 'frontend/**'
-      - 'backend/**'
+  repository_dispatch:
+    types: [frontend-changes, backend-changes]
+  workflow_dispatch:
 
 jobs:
   notifySlackFrontend:
-    if: contains(github.event.commits[*].modified, 'frontend/') || contains(github.event.commits[*].added, 'frontend/') || contains(github.event.commits[*].removed, 'frontend/')
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack about Frontend Changes
+        if: ${{ github.event.action == 'frontend-changes' }}
         uses: 8398a7/action-slack@v3
         with:
           status: custom
@@ -45,10 +42,10 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_FRONTEND_URL }}
 
   notifySlackBackend:
-    if: contains(github.event.commits[*].modified, 'backend/') || contains(github.event.commits[*].added, 'backend/') || contains(github.event.commits[*].removed, 'backend/')
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack about Backend Changes
+        if: ${{ github.event.action == 'backend-changes' }}
         uses: 8398a7/action-slack@v3
         with:
           status: custom
