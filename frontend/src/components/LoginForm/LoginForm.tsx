@@ -12,7 +12,12 @@ import passwordValidate from "../../utils/passwordValidate";
 import Input from "../Input/Input";
 import * as Styled from "./LoginForm.style";
 
+import { useTranslation } from 'react-i18next';
+import '../../i18n';
+
 const LoginForm = () => {
+  const { t } = useTranslation();
+
   const modalState = useModalStore();
   const userState = useUserStore();
 
@@ -34,20 +39,20 @@ const LoginForm = () => {
       let isValid = true;
 
       if (emailInput.value === "") {
-        setEmailError("이메일을 입력해 주세요");
+        setEmailError(t("login.enterEmail"));
         isValid = false;
       } else if (!emailValidate(emailInput.value)) {
-        setEmailError("이메일 형식이 아닙니다.");
+        setEmailError(t("login.emailInvalidFormat"));
         isValid = false;
       } else {
         setEmailError("");
       }
 
       if (passwordInput.value === "") {
-        setPasswordError("비밀번호 입력해 주세요");
+        setPasswordError(t("login.enterPassword"));
         isValid = false;
       } else if (!passwordValidate(passwordInput.value)) {
-        setPasswordError("특수문자 포함 8 ~ 20자 사이로 입력해 주세요.");
+        setPasswordError(t("login.passwordRequirements"));
         isValid = false;
       } else {
         setPasswordError("");
@@ -64,7 +69,7 @@ const LoginForm = () => {
           modalState.close();
           userState.setLogin();
         } catch (error) {
-          setLoginError("유요하지 않은 회원 정보입니다.");
+          setLoginError(t("login.invalidCredentials"));
           userState.resetUser();
         } finally {
           setLoading(false);
@@ -90,20 +95,20 @@ const LoginForm = () => {
     let isValid = true;
 
     if (emailInput.value === "") {
-      setEmailError("이메일을 입력해 주세요");
+      setEmailError(t("login.enterEmail"));
       isValid = false;
     } else if (!emailValidate(emailInput.value)) {
-      setEmailError("이메일 형식이 아닙니다.");
+      setEmailError(t("login.emailInvalidFormat"));
       isValid = false;
     } else {
       setEmailError("");
     }
 
     if (passwordInput.value === "") {
-      setPasswordError("비밀번호 입력해 주세요");
+      setPasswordError(t("login.enterPassword"));
       isValid = false;
     } else if (!passwordValidate(passwordInput.value)) {
-      setPasswordError("특수문자 포함 8 ~ 20자 사이로 입력해 주세요.");
+      setPasswordError(t("login.passwordRequirements"));
       isValid = false;
     } else {
       setPasswordError("");
@@ -121,7 +126,7 @@ const LoginForm = () => {
         userState.setLogin();
       } catch (error) {
         console.log(error);
-        setLoginError("유요하지 않은 회원 정보입니다.");
+        setLoginError(t("login.invalidCredentials"));
         userState.resetUser();
       } finally {
         setLoading(false);
@@ -136,12 +141,12 @@ const LoginForm = () => {
 
   return (
     <form>
-      <Styled.FormTitle>로그인</Styled.FormTitle>
+      <Styled.FormTitle>{t("map.auth.login")}</Styled.FormTitle>
       <Styled.InputWrap>
         <Input
           type="email"
           id="email"
-          placeholder="이메일"
+          placeholder={t("map.auth.email")}
           value={emailInput.value}
           onChange={(e) => {
             emailInput.onChange(e);
@@ -165,7 +170,7 @@ const LoginForm = () => {
           }}
           type={viewPassword ? "text" : "password"}
           id="password"
-          placeholder="비밀번호"
+          placeholder={t("map.auth.password")}
           value={passwordInput.value}
           onChange={(e) => {
             passwordInput.onChange(e);
@@ -192,25 +197,25 @@ const LoginForm = () => {
         {loading ? (
           <CircularProgress size={20} sx={{ color: "#fff" }} />
         ) : (
-          "로그인"
+          t("map.auth.login")
         )}
       </Button>
       <div style={{ marginTop: "1rem" }}>
         <Styled.SignupButtonWrap>
-          <p>계정이 없으신가요?</p>
+          <p>{t("login.noAccount")}</p>
           <Styled.SigninLinkButton onClick={handleClickEmailSignin}>
-            이메일로 회원가입 하기
+            {t("login.signUpWithEmail")}
           </Styled.SigninLinkButton>
         </Styled.SignupButtonWrap>
         <Styled.SignupButtonWrap>
-          <p>비밀번호를 잊어버리셨나요?</p>
+          <p>{t("login.forgotPassword")}</p>
           <Styled.SigninLinkButton
             onClick={() => {
               modalState.close();
               modalState.openPassword();
             }}
           >
-            비밀번호 변경하기
+            {t("login.changePassword")}
           </Styled.SigninLinkButton>
         </Styled.SignupButtonWrap>
       </div>

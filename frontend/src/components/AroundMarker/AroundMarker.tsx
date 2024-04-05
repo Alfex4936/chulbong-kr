@@ -12,6 +12,9 @@ import useMapPositionStore from "../../store/useMapPositionStore";
 import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./AroundMarker.style";
 
+import { useTranslation } from 'react-i18next';
+import '../../i18n';
+
 interface Props extends ComponentProps<"div"> {
   markers: KakaoMarker[];
   map: KakaoMap;
@@ -38,6 +41,7 @@ const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
     lon: positionState.lng,
     distance: distance,
   });
+  const { t } = useTranslation();
 
   const boxRef = useRef(null);
 
@@ -114,10 +118,10 @@ const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
     <Styled.Container ref={ref as React.RefObject<HTMLDivElement>} {...props}>
       <div>
         <Styled.MessageRed>
-          거리는 부정확할 수 있고, 현재 보이는 화면 중앙에서부터 찾습니다
+          {t("around.searchInfo")}
         </Styled.MessageRed>
         <Styled.RangeContainer>
-          <p>주변 {distance}m</p>
+          <p>{t("around.within")} {distance}m</p>
           <div style={{ flexGrow: "1" }}>
             <input
               type="range"
@@ -128,7 +132,7 @@ const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
               onChange={handleChange}
             />
           </div>
-          <Tooltip title="검색" arrow disableInteractive>
+          <Tooltip title={t("map.search")} arrow disableInteractive>
             <IconButton
               onClick={handleSearch}
               aria-label="delete"
@@ -159,16 +163,16 @@ const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
                           ({~~marker.distance}m)
                         </Styled.Distance>
                         <Styled.Description>
-                          {marker.description || "설명 없음..."}
+                          {marker.description || t("around.noDesc")}
                         </Styled.Description>
                       </Styled.DescriptionWrap>
                       <Styled.AddressText>
                         {marker.address ||
-                          "주소를 불러오는 중입니다. 잠시 후 다시 확인해 주세요!"}
+                          t("around.loadingAddr")}
                       </Styled.AddressText>
                     </Styled.MarkerListTop>
                     <div>
-                      <Tooltip title="이동" arrow disableInteractive>
+                      <Tooltip title={t("map.move")} arrow disableInteractive>
                         <IconButton
                           onClick={() => {
                             handleMove(marker.latitude, marker.longitude);
@@ -196,10 +200,10 @@ const AroundMarker = forwardRef(({ markers, map, ...props }: Props, ref) => {
 
       <Styled.LoadList />
       {data?.pages[0].markers === null && (
-        <div style={{ padding: "1rem" }}>주변에 철봉이 없습니다.</div>
+        <div style={{ padding: "1rem" }}>{t("around.noPullup")}</div>
       )}
       {isError && (
-        <div style={{ padding: "1rem" }}>잠시 후 다시 시도해 주세요</div>
+        <div style={{ padding: "1rem" }}>{t("around.tryAgain")}</div>
       )}
       {hasNextPage && (
         <Styled.ListSkeleton ref={boxRef}>

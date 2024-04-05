@@ -17,7 +17,12 @@ import Input from "../Input/Input";
 import CertificationCount from "./CertificationCount";
 import * as Styled from "./SignupForm.style";
 
+import { useTranslation } from 'react-i18next';
+import '../../i18n';
+
 const SignupForm = () => {
+  const { t } = useTranslation();
+
   const modalState = useModalStore();
   const toastState = useToastStore();
 
@@ -59,44 +64,44 @@ const SignupForm = () => {
     let isValid = true;
 
     if (!validattionComplete) {
-      setCodeError("인증을 완료해 주세요");
+      setCodeError(t("signup.completeVerification"));
       isValid = false;
     } else {
       setCodeError("");
     }
 
     if (nameInput.value === "") {
-      setNameError("닉네임을 입력해 주세요");
+      setNameError(t("signup.enterNickname"));
       isValid = false;
     } else {
       setNameError("");
     }
 
     if (emailInput.value === "") {
-      setEmailError("이메일을 입력해 주세요");
+      setEmailError(t("login.enterEmail"));
       isValid = false;
     } else if (!emailValidate(emailInput.value)) {
-      setEmailError("이메일 형식이 아닙니다.");
+      setEmailError(t("login.emailInvalidFormat"));
       isValid = false;
     } else {
       setEmailError("");
     }
 
     if (passwordInput.value === "") {
-      setPasswordError("비밀번호를 입력해 주세요");
+      setPasswordError(t("login.enterPassword"));
       isValid = false;
     } else if (!passwordValidate(passwordInput.value)) {
-      setPasswordError("특수문자 포함 8 ~ 20자 사이로 입력해 주세요.");
+      setPasswordError(t("login.passwordRequirements"));
       isValid = false;
     } else {
       setPasswordError("");
     }
 
     if (verifyPasswordInput.value === "") {
-      setVerifyPasswordError("비밀번호를 입력해 주세요.");
+      setVerifyPasswordError(t("login.enterPassword"));
       isValid = false;
     } else if (passwordInput.value !== verifyPasswordInput.value) {
-      setVerifyPasswordError("비밀번호를 확인해 주세요.");
+      setVerifyPasswordError(t("signup.confirmPassword"));
       isValid = false;
     } else {
       setVerifyPasswordError("");
@@ -110,8 +115,8 @@ const SignupForm = () => {
         password: passwordInput.value,
       })
         .then(() => {
-          toastState.setToastText("회원 가입 완료");
-          setSuccessMessage("회원 가입 완료!");
+          toastState.setToastText(t("signup.signupComplete"));
+          setSuccessMessage(t("signup.signupComplete") + "!");
           toastState.open();
           modalState.close();
           modalState.openLogin();
@@ -119,9 +124,9 @@ const SignupForm = () => {
         .catch((error) => {
           setLoading(false);
           if (error.response.status === 409) {
-            setSigninError("이미 등록된 회원입니다.");
+            setSigninError(t("signup.alreadyRegistered"));
           } else {
-            setSigninError("잠시 후 다시 시도해 주세요.");
+            setSigninError(t("signup.tryAgainLater"));
           }
           console.log(error);
         });
@@ -131,10 +136,10 @@ const SignupForm = () => {
   const handleGetCode = async () => {
     setStartTimer(false);
     if (emailInput.value === "") {
-      setEmailError("이메일을 입력해 주세요");
+      setEmailError(t("login.enterEmail"));
       return;
     } else if (!emailValidate(emailInput.value)) {
-      setEmailError("이메일 형식이 아닙니다.");
+      setEmailError(t("login.emailInvalidFormat"));
       return;
     }
 
@@ -150,9 +155,9 @@ const SignupForm = () => {
       if (isAxiosError(error)) {
         console.log(error);
         if (error.response?.status === 409) {
-          setEmailError("이미 등록된 이메일입니다.");
+          setEmailError(t("login.emailAlreadyRegistered"));
         } else {
-          setEmailError("에러");
+          setEmailError(t("login.error"));
         }
       }
     } finally {
@@ -176,7 +181,7 @@ const SignupForm = () => {
       if (isAxiosError(error)) {
         console.log(error.response?.status);
         if (error.response?.status === 400) {
-          setCodeError("유효하지 않은 코드입니다. 다시 시도해 주세요.");
+          setCodeError(t("login.invalidCode"));
         }
       }
     } finally {
@@ -186,13 +191,13 @@ const SignupForm = () => {
 
   return (
     <form>
-      <Styled.FormTitle>회원가입</Styled.FormTitle>
+      <Styled.FormTitle>{t("signup.signup")}</Styled.FormTitle>
       <Styled.InputWrap>
         <Input
           type="text"
           id="name"
           data-testid="name"
-          placeholder="닉네임"
+          placeholder={t("signup.nickname")}
           value={nameInput.value}
           onChange={(e) => {
             nameInput.onChange(e);
@@ -207,14 +212,14 @@ const SignupForm = () => {
           type="email"
           id="email"
           data-testid="email"
-          placeholder="이메일"
+          placeholder={t("map.auth.email")}
           buttonText={
             getCodeLoading ? (
               <CircularProgress size={15} sx={{ color: "#fff" }} />
             ) : getCodeComplete ? (
-              "다시 요청"
+              t("signup.requestAgain")
             ) : (
-              "인증 요청"
+              t("signup.requestVerification")
             )
           }
           value={emailInput.value}
@@ -236,14 +241,14 @@ const SignupForm = () => {
             type="number"
             id="code"
             data-testid="code"
-            placeholder="인증번호"
+            placeholder={t("signup.verificationCode")}
             buttonText={
               validateCodeLoading ? (
                 <CircularProgress size={15} sx={{ color: "#fff" }} />
               ) : validattionComplete ? (
                 <CheckIcon />
               ) : (
-                "인증 확인"
+                t("signup.verify")
               )
             }
             value={codeInput.value}
@@ -285,7 +290,7 @@ const SignupForm = () => {
           type={viewPassword ? "text" : "password"}
           id="password"
           data-testid="password"
-          placeholder="비밀번호"
+          placeholder={t("map.auth.password")}
           value={passwordInput.value}
           onChange={(e) => {
             passwordInput.onChange(e);
@@ -312,7 +317,7 @@ const SignupForm = () => {
           type={viewVerifyPassword ? "text" : "password"}
           id="verify-password"
           data-testid="verify-password"
-          placeholder="비밀번호 확인"
+          placeholder={t("signup.confirmPasswordLabel")}
           value={verifyPasswordInput.value}
           onChange={(e) => {
             verifyPasswordInput.onChange(e);
@@ -342,7 +347,7 @@ const SignupForm = () => {
         {loading ? (
           <CircularProgress size={20} sx={{ color: "#fff" }} />
         ) : (
-          "회원가입"
+          t("signup.signup")
         )}
       </Button>
       <div data-testid="signup-success">{successMessage}</div>

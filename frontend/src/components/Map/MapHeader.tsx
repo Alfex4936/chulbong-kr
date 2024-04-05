@@ -7,6 +7,9 @@ import type { KakaoMap, KakaoMarker } from "../../types/KakaoMap.types";
 import * as Styled from "./MapHeader.style";
 import SearchInput from "./SearchInput";
 
+import { useTranslation } from 'react-i18next';
+import '../../i18n';
+
 interface Props {
   markerInfoModal: boolean;
   markers: KakaoMarker[];
@@ -14,6 +17,8 @@ interface Props {
 }
 
 const MapHeader = ({ markers, map, markerInfoModal }: Props) => {
+  const { t } = useTranslation();
+
   const onBoardingState = useOnBoardingStore();
 
   const [isAround, setIsAround] = useState(false);
@@ -50,7 +55,7 @@ const MapHeader = ({ markers, map, markerInfoModal }: Props) => {
       />
 
       <Tooltip
-        title={isAround ? "스크롤 위로" : "주변 검색 / 랭킹"}
+        title={isAround ? t("mapHeader.scroll") : t("mapHeader.tooltip")}
         arrow
         disableInteractive
       >

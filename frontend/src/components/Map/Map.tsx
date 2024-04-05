@@ -49,6 +49,9 @@ import MapHeader from "./MapHeader";
 import "ldrs/ring";
 import OnBoarding from "../OnBoarding/OnBoarding";
 
+import { useTranslation } from 'react-i18next';
+import '../../i18n';
+
 const AddChinupBarForm = lazy(
   () => import("../AddChinupBarForm/AddChinupBarForm")
 );
@@ -63,6 +66,8 @@ export interface MarkerInfo {
 }
 
 const Map = () => {
+  const { t } = useTranslation();
+
   const modalState = useModalStore();
   const userState = useUserStore();
   const formState = useUploadFormDataStore();
@@ -357,12 +362,12 @@ const Map = () => {
           setGpsLoading(false);
         },
         () => {
-          alert("위치 정보 접근을 허용해 주세요.");
+          alert(t("map.errors.allowLocation"));
           setGpsLoading(false);
         }
       );
     } else {
-      alert("해당 브라우저에서 지원하지 않는 기능입니다.");
+      alert(t("map.errors.featureNotSupported"));
     }
   };
 
@@ -405,7 +410,7 @@ const Map = () => {
       setMyInfoModal(false);
       setDeleteUserModal(false);
 
-      toastState.setToastText("탈퇴 완료");
+      toastState.setToastText(t("map.auth.unsubscribeConfirmed"));
       toastState.open();
     } catch (error) {
       console.log(error);
@@ -420,7 +425,7 @@ const Map = () => {
       await sendPasswordReset();
       setSendOk(true);
     } catch (error) {
-      setEmailError("잠시 후 다시 시도해 주세요!");
+      setEmailError(t("around.tryAgain"));
       console.log(error);
     } finally {
       setChangePasswordLoading(false);
@@ -469,7 +474,7 @@ const Map = () => {
 
       {!isLoading && isError && (
         <BasicModal>
-          <div>철봉 마커를 가져오는 데 실패하였습니다.</div>
+          <div>{t("map.errors.failedToRetrieve")}</div>
           <Button
             onClick={() => {
               window.location.reload();
@@ -485,7 +490,7 @@ const Map = () => {
               },
             }}
           >
-            다시 시도하기
+            {t("map.chat.tryAgain")}
           </Button>
         </BasicModal>
       )}
@@ -540,9 +545,9 @@ const Map = () => {
       {deleteUserModal && (
         <BasicModal setState={setDeleteUserModal}>
           <Styled.AlertText>
-            <p>정말 탈퇴하시겠습니까?</p>
+            <p>{t("map.auth.areYouSure")}</p>
             <p>
-              추가하신 마커는 유지되고, 작성한 댓글 밑 사진은 모두 삭제됩니다!
+              {t("map.auth.unsubMessage")}
             </p>
           </Styled.AlertText>
           <Styled.DeleteUserButtonsWrap>
@@ -550,7 +555,7 @@ const Map = () => {
               {deleteUserLoading ? (
                 <CircularProgress size={20} sx={{ color: "#fff" }} />
               ) : (
-                "탈퇴하기"
+                t("map.auth.unsubscribe")
               )}
             </ActionButton>
             <ActionButton
@@ -559,7 +564,7 @@ const Map = () => {
                 setDeleteUserModal(false);
               }}
             >
-              취소
+              {t("map.auth.cancel")}
             </ActionButton>
           </Styled.DeleteUserButtonsWrap>
         </BasicModal>
@@ -574,7 +579,7 @@ const Map = () => {
                 fontSize: "1.5rem",
               }}
             >
-              이메일을 확인해 주세요!
+              {t("map.auth.checkEmail")}
             </p>
           ) : (
             <>
@@ -584,12 +589,12 @@ const Map = () => {
                   fontSize: "1.5rem",
                 }}
               >
-                비밀번호 변경
+                {t("map.auth.changePassword")}
               </p>
               <Input
                 type="email"
                 id="email"
-                placeholder="이메일"
+                placeholder={t("map.auth.email")}
                 value={emailInput.value}
                 onChange={(e) => {
                   emailInput.onChange(e);
@@ -602,7 +607,7 @@ const Map = () => {
                   {changePasswordLoading ? (
                     <CircularProgress size={20} sx={{ color: "#fff" }} />
                   ) : (
-                    "메일 보내기"
+                    t("map.auth.send")
                   )}
                 </ActionButton>
                 <ActionButton
@@ -611,7 +616,7 @@ const Map = () => {
                     modalState.close();
                   }}
                 >
-                  취소
+                  {t("map.auth.cancel")}
                 </ActionButton>
               </Styled.ChangePasswordButtonsWrap>
             </>
@@ -648,7 +653,7 @@ const Map = () => {
         >
           X
         </Styled.ExitButton>
-        위치 등록하기
+        {t("map.marker.add")}
       </Button>
       <Styled.LoginButtonWrap
         style={{
@@ -660,15 +665,15 @@ const Map = () => {
           top={0}
           left={0}
           shape="circle"
-          tooltip={myInfo ? "메뉴" : "로그인"}
+          tooltip={myInfo ? t("map.menu") : t("map.auth.login")}
           disabled={myInfo ? false : isMyFetching}
           onClickFn={
             myInfo
               ? myInfoModal
                 ? () => {
-                    if (onBoardingState.step === 3) return;
-                    setMyInfoModal(false);
-                  }
+                  if (onBoardingState.step === 3) return;
+                  setMyInfoModal(false);
+                }
                 : handleMyInfo
               : handleOpen
           }
@@ -680,7 +685,7 @@ const Map = () => {
           text={<MarkUnreadChatAltIcon />}
           top={140}
           right={20}
-          tooltip={`${address?.depth1} 채팅방 입장`}
+          tooltip={`${address?.depth1}: ${t("map.chat.enterRoom")}`}
           onClickFn={handleOpenLocalChat}
         />
       )}
@@ -690,7 +695,7 @@ const Map = () => {
         top={200}
         right={20}
         zIndex={onBoardingState.step === 4 ? 10000 : 10}
-        tooltip="내 위치"
+        tooltip={t("map.myLocation")}
         onClickFn={centerMapOnCurrentPosition}
       />
       <FloatingButton
@@ -698,7 +703,7 @@ const Map = () => {
         top={241}
         right={20}
         zIndex={onBoardingState.step === 5 ? 10000 : 10}
-        tooltip="위치 초기화"
+        tooltip={t("map.resetLocation")}
         onClickFn={resetCurrentPosition}
       />
 
@@ -707,7 +712,7 @@ const Map = () => {
         top={300}
         right={20}
         zIndex={onBoardingState.step === 6 ? 10000 : 10}
-        tooltip="확대"
+        tooltip={t("map.zoomIn")}
         onClickFn={zoomIn}
       />
       <FloatingButton
@@ -715,7 +720,7 @@ const Map = () => {
         top={341}
         right={20}
         zIndex={onBoardingState.step === 7 ? 10000 : 10}
-        tooltip="축소"
+        tooltip={t("map.zoomOut")}
         onClickFn={zoomOut}
       />
       <FloatingButton
@@ -724,7 +729,7 @@ const Map = () => {
         top={400}
         right={20}
         zIndex={onBoardingState.step === 14 ? 10000 : 10}
-        tooltip="도움말"
+        tooltip={t("map.help")}
         onClickFn={() => {
           if (onBoardingState.step === 14) return;
           onBoardingState.open();
@@ -736,7 +741,7 @@ const Map = () => {
         top={450}
         right={20}
         // zIndex={}
-        tooltip="공지"
+        tooltip={t("map.notice")}
         onClickFn={() => {
           setNoticeModal(true);
         }}
