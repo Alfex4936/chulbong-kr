@@ -10,6 +10,9 @@ import ActionButton from "../ActionButton/ActionButton";
 import * as Styled from "./Ranking.style";
 import type { RankingInfo } from "../../api/markers/markerRanking";
 
+import { useTranslation } from 'react-i18next';
+import '../../i18n';
+
 const TOP10_RANKING_NUMBER = 0;
 const AROUND_RANKING_NUMBER = 1;
 
@@ -18,6 +21,8 @@ interface Props {
 }
 
 const Ranking = ({ map }: Props) => {
+  const { t } = useTranslation();
+
   const mapPosition = useMapPositionStore();
 
   const {
@@ -57,7 +62,7 @@ const Ranking = ({ map }: Props) => {
   return (
     <Styled.Container>
       <Styled.MessageRed>
-        주변 랭킹은 현재 화면 중앙을 기준으로 주변 위치들의 랭킹을 보여줍니다.
+        {t("ranking.description")}
       </Styled.MessageRed>
       <Styled.ButtonContainer>
         <ActionButton
@@ -70,13 +75,13 @@ const Ranking = ({ map }: Props) => {
           bg={curRanking === AROUND_RANKING_NUMBER ? "black" : "gray"}
           onClick={hanldeClickTopRankingAria}
         >
-          주변 랭킹
+          {t("ranking.title")}
         </ActionButton>
       </Styled.ButtonContainer>
       {topRankingLoading ||
-      topRankingAriaLoading ||
-      topRankingFetching ||
-      topRankingAriaFetching ? (
+        topRankingAriaLoading ||
+        topRankingFetching ||
+        topRankingAriaFetching ? (
         <Styled.ListSkeleton />
       ) : (
         <>
@@ -87,10 +92,10 @@ const Ranking = ({ map }: Props) => {
                   {topRanking?.map((item: RankingInfo, index) => {
                     return (
                       <Styled.ResultItem key={item.makerId}>
-                        <span>{index + 1}등</span>
+                        <span>{index + 1}{t("ranking.position")}</span>
                         <span>{item.address}</span>
                         <span>
-                          <Tooltip title="이동" arrow disableInteractive>
+                          <Tooltip title={t("map.move")} arrow disableInteractive>
                             <IconButton
                               onClick={() => {
                                 handleMove(item.latitude, item.longitude);
@@ -111,7 +116,7 @@ const Ranking = ({ map }: Props) => {
                   })}
                 </>
               ) : (
-                <div>순위에 등록된 위치가 없습니다.</div>
+                <div>{t("ranking.noLocations")}</div>
               )}
             </>
           )}
@@ -123,10 +128,10 @@ const Ranking = ({ map }: Props) => {
                   {topRankingAria?.map((item: RankingInfo, index) => {
                     return (
                       <Styled.ResultItem key={item.makerId}>
-                        <span>{index + 1}등</span>
+                        <span>{index + 1} {t("ranking.position")}</span>
                         <span>{item.address}</span>
                         <span>
-                          <Tooltip title="이동" arrow disableInteractive>
+                          <Tooltip title={t("map.move")} arrow disableInteractive>
                             <IconButton
                               onClick={() => {
                                 handleMove(item.latitude, item.longitude);
@@ -147,7 +152,7 @@ const Ranking = ({ map }: Props) => {
                   })}
                 </>
               ) : (
-                <div>순위에 등록된 위치가 없습니다.</div>
+                <div>{t("ranking.noLocations")}</div>
               )}
             </>
           )}
