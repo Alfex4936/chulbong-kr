@@ -1,0 +1,34 @@
+name: Dispatch Trigger
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "backend/**"
+
+jobs:
+  triggerDispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Trigger Repository Dispatch for Frontend Changes
+        if: ${{ contains(git diff --name-only HEAD~1 HEAD, 'frontend/') }}
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          repository: ${{ github.repository }}
+          event-type: frontend-changes
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
+
+      - name: Trigger Repository Dispatch for Backend Changes
+        if: ${{ contains(git diff --name-only HEAD~1 HEAD, 'backend/') }}
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          repository: ${{ github.repository }}
+          event-type: backend-changes
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
