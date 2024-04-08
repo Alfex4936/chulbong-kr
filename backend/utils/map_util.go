@@ -1,6 +1,10 @@
 package utils
 
-import "math"
+import (
+	"math"
+
+	"github.com/Alfex4936/tzf"
+)
 
 /*
 북한 제외
@@ -49,6 +53,9 @@ const (
 )
 
 const RadiusOfEarthMeters float64 = 6370986
+const KoreaTimeZone = "Asia/Seoul"
+
+var TimeZoneFinder tzf.F
 
 // Haversine formula
 func approximateDistance(lat1, long1, lat2, long2 float64) float64 {
@@ -91,6 +98,11 @@ func IsInSouthKorea(lat, long float64) bool {
 
 	// Check if within South Korea's bounding box
 	return lat >= SouthKoreaMinLat && lat <= SouthKoreaMaxLat && long >= SouthKoreaMinLong && long <= SouthKoreaMaxLong
+}
+
+func IsInSouthKoreaPrecisely(lat, lng float64) bool {
+	// Get timezone name for the coordinates
+	return TimeZoneFinder.GetTimezoneName(lng, lat) == KoreaTimeZone
 }
 
 // CONVERT ----------------------------------------------------------------

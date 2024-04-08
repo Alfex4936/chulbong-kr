@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"chulbong-kr/dto"
+	"chulbong-kr/models"
+	"chulbong-kr/protos"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
 	"fmt"
@@ -9,13 +11,26 @@ import (
 	"mime/multipart"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/goccy/go-json"
+
 	"github.com/gofiber/fiber/v2"
+	"google.golang.org/protobuf/proto"
+)
+
+var (
+	// cache to store encoded marker data
+	MarkersLocalCache []byte // 400 kb is fine here
+	CacheMutex        sync.RWMutex
 )
 
 func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
-	go services.ResetCache(services.ALL_MARKERS_KEY)
+	// go services.ResetCache(services.ALL_MARKERS_KEY)
+	CacheMutex.Lock()
+	MarkersLocalCache = nil
+	CacheMutex.Unlock()
 
 	// Parse the multipart form
 	form, err := c.MultipartForm()
@@ -30,7 +45,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Location Must Be Inside South Korea
-	if !utils.IsInSouthKorea(latitude, longitude) {
+	if !utils.IsInSouthKoreaPrecisely(latitude, longitude) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations only allowed within South Korea."})
 	}
 
@@ -59,6 +74,8 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	go services.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userId))
+
 	return c.Status(fiber.StatusCreated).JSON(marker)
 }
 
@@ -70,14 +87,66 @@ func GetAllMarkersHandler(c *fiber.Ctx) error {
 		return c.JSON(cachedMarkers)
 	}
 
-	markersWithPhotos, err := services.GetAllMarkers()
+	markers, err := services.GetAllMarkers() // []dto.MarkerSimple, err
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	go services.SetCacheEntry(services.ALL_MARKERS_KEY, markersWithPhotos, 30*time.Minute)
+	go services.SetCacheEntry(services.ALL_MARKERS_KEY, markers, 30*time.Minute)
 
-	return c.JSON(markersWithPhotos)
+	return c.JSON(markers)
+}
+
+func GetAllMarkersLocalHandler(c *fiber.Ctx) error {
+	CacheMutex.RLock()
+	cached := MarkersLocalCache
+	CacheMutex.RUnlock()
+
+	c.Set("Content-type", "application/json")
+
+	if cached != nil {
+		// If cache is not empty, directly return the cached binary data as JSON
+		c.Append("X-Cache", "hit")
+		return c.Send(cached)
+	}
+
+	// Fetch markers if cache is empty
+	markers, err := services.GetAllMarkers() // []dto.MarkerSimple, err
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Marshal the markers to JSON for caching and response
+	markersJSON, err := json.Marshal(markers)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode markers"})
+	}
+
+	// Update cache
+	CacheMutex.Lock()
+	MarkersLocalCache = markersJSON
+	CacheMutex.Unlock()
+
+	return c.Send(markersJSON)
+}
+
+func GetAllMarkersProtoHandler(c *fiber.Ctx) error {
+	markers, err := services.GetAllMarkersProto()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	markerList := &protos.MarkerList{
+		Markers: markers,
+	}
+
+	data, err := proto.Marshal(markerList)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+
+	c.Type("application/protobuf")
+	return c.Send(data)
 }
 
 // ADMIN
@@ -119,6 +188,7 @@ func GetMarker(c *fiber.Ctx) error {
 	}
 
 	go services.BufferClickEvent(markerID)
+	go services.SaveUniqueVisitor(c.Params("markerId"), utils.GetUserIP(c))
 	return c.JSON(marker)
 }
 
@@ -154,7 +224,14 @@ func DeleteMarkerHandler(c *fiber.Ctx) error {
 	}
 
 	go services.RemoveMarkerClick(markerID)
-	go services.ResetCache(services.ALL_MARKERS_KEY)
+	// go services.ResetCache(services.ALL_MARKERS_KEY)
+
+	CacheMutex.Lock()
+	MarkersLocalCache = nil
+	CacheMutex.Unlock()
+
+	go services.ResetCache(fmt.Sprintf("facilities:%d", markerID))
+	go services.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
 
 	return c.SendStatus(fiber.StatusOK)
 }
@@ -269,6 +346,18 @@ func GetUserMarkersHandler(c *fiber.Ctx) error {
 	}
 	pageSize := 4
 
+	// Construct a unique cache key using userID and page
+	cacheKey := fmt.Sprintf("userMarkers:%d:page:%d", userID, page)
+	var cachedResponse fiber.Map
+
+	// Attempt to retrieve from cache
+	cachedResponse, _ = services.GetCacheEntry[fiber.Map](cacheKey)
+
+	if cachedResponse != nil {
+		// Cache hit, return cached response
+		return c.JSON(cachedResponse)
+	}
+
 	markersWithPhotos, total, err := services.GetAllMarkersByUserWithPagination(userID, page, pageSize)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "check if you have added markers"})
@@ -276,13 +365,19 @@ func GetUserMarkersHandler(c *fiber.Ctx) error {
 
 	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
 
-	// Return the filtered markers with pagination info
-	return c.JSON(fiber.Map{
+	// Prepare the response
+	response := fiber.Map{
 		"markers":      markersWithPhotos,
 		"currentPage":  page,
 		"totalPages":   totalPages,
 		"totalMarkers": total,
-	})
+	}
+
+	// Cache the response for future requests
+	go services.SetCacheEntry(cacheKey, response, 30*time.Minute)
+
+	// Return the response
+	return c.JSON(response)
 }
 
 // CheckDislikeStatus handler
@@ -372,10 +467,27 @@ func GetFacilitiesHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Marker ID"})
 	}
 
-	facilities, err := services.GetFacilitiesByMarkerID(markerID)
+	// Attempt to retrieve from cache first
+	var facilities []models.Facility
+	cacheKey := fmt.Sprintf("facilities:%d", markerID)
+	cachedFacilities, cacheErr := services.GetCacheEntry[[]models.Facility](cacheKey)
+	if cacheErr != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to access cache"})
+	}
+
+	if cachedFacilities != nil {
+		c.Append("X-Cache", "hit")
+		// Cache hit, return cached facilities
+		return c.JSON(cachedFacilities)
+	}
+
+	facilities, err = services.GetFacilitiesByMarkerID(markerID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve facilities"})
 	}
+
+	// Cache the result for future requests
+	go services.SetCacheEntry(cacheKey, facilities, 1*time.Hour)
 
 	return c.JSON(facilities)
 }
@@ -389,6 +501,8 @@ func SetMarkerFacilitiesHandler(c *fiber.Ctx) error {
 	if err := services.SetMarkerFacilities(req.MarkerID, req.Facilities); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to set facilities for marker"})
 	}
+
+	services.ResetCache(fmt.Sprintf("facilities:%d", req.MarkerID))
 
 	return c.SendStatus(fiber.StatusOK)
 }

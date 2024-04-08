@@ -1,0 +1,54 @@
+goos: windows
+goarch: amd64
+pkg: chulbong-kr/benchmark
+cpu: Intel(R) Core(TM) i5-10600KF CPU @ 4.10GHz
+BenchmarkMapHaxMapSet                      	 1262943	       862.9 ns/op	      90 B/op	       2 allocs/op
+BenchmarkMapHaxMapSet-2                    	 1736323	       776.8 ns/op	     102 B/op	       2 allocs/op
+BenchmarkMapHaxMapSet-4                    	 1855448	       733.1 ns/op	     100 B/op	       2 allocs/op
+BenchmarkMapHaxMapSet-12                   	 1864862	       712.2 ns/op	      99 B/op	       2 allocs/op
+BenchmarkMapXSyncMapSet                    	 1868034	       821.6 ns/op	     114 B/op	       2 allocs/op
+BenchmarkMapXSyncMapSet-2                  	 2159416	       758.3 ns/op	     105 B/op	       2 allocs/op
+BenchmarkMapXSyncMapSet-4                  	 2461863	       963.7 ns/op	     153 B/op	       2 allocs/op
+BenchmarkMapXSyncMapSet-12                 	 2649654	       746.2 ns/op	     145 B/op	       2 allocs/op
+BenchmarkMapHaxMapCustomHasherSet          	 1490466	       850.1 ns/op	      86 B/op	       2 allocs/op
+BenchmarkMapHaxMapCustomHasherSet-2        	 1773075	       736.4 ns/op	     101 B/op	       2 allocs/op
+BenchmarkMapHaxMapCustomHasherSet-4        	 2083556	       623.1 ns/op	      96 B/op	       2 allocs/op
+BenchmarkMapHaxMapCustomHasherSet-12       	 2225929	       600.1 ns/op	      94 B/op	       2 allocs/op
+BenchmarkMapCsMapSet                       	 3017326	       428.4 ns/op	      77 B/op	       1 allocs/op
+BenchmarkMapCsMapSet-2                     	 3121030	       533.6 ns/op	      75 B/op	       1 allocs/op
+BenchmarkMapCsMapSet-4                     	 2972686	       418.8 ns/op	      78 B/op	       1 allocs/op
+BenchmarkMapCsMapSet-12                    	 2960886	       415.7 ns/op	      78 B/op	       1 allocs/op
+BenchmarkMapHaxMapGet                      	23880834	        54.74 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapGet-2                    	24271893	        50.11 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapGet-4                    	25587008	        49.00 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapGet-12                   	26528950	        54.27 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapXSyncMapGet                    	24584168	        54.80 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapXSyncMapGet-2                  	24698676	        48.89 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapXSyncMapGet-4                  	24944498	        50.89 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapXSyncMapGet-12                 	24631350	        54.08 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapCustomHasherGet          	25453496	        48.73 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapCustomHasherGet-2        	25049890	        46.61 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapCustomHasherGet-4        	25338426	        46.78 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapCustomHasherGet-12       	25070196	        46.93 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapCsMapGet                       	15738674	        74.74 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapCsMapGet-2                     	15191892	        73.70 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapCsMapGet-4                     	16277475	        79.42 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapCsMapGet-12                    	15387554	        74.48 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapDelete                   	 1000000	      5000 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapDelete-2                 	 1000000	      5000 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapDelete-4                 	 1000000	      5073 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapDelete-12                	 1000000	      5049 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapXSyncMapDelete                 	26832910	        45.27 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapXSyncMapDelete-2               	26399038	        44.81 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapXSyncMapDelete-4               	26121198	        46.48 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapXSyncMapDelete-12              	23282253	        45.59 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapCustomHasherDelete       	 1000000	      4984 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapCustomHasherDelete-2     	 1000000	      4938 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapCustomHasherDelete-4     	 1000000	      5484 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapHaxMapCustomHasherDelete-12    	 1000000	      5191 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapCsMapDelete                    	18921862	        62.86 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapCsMapDelete-2                  	18991488	        77.26 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapCsMapDelete-4                  	19559678	        61.50 ns/op	       3 B/op	       0 allocs/op
+BenchmarkMapCsMapDelete-12                 	19474954	        61.68 ns/op	       3 B/op	       0 allocs/op
+PASS
+ok  	chulbong-kr/benchmark	105.061s

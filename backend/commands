@@ -1,1 +1,2 @@
 go test -v .\utils\ -run TestWCONGNAMUL -count=1
+go test -benchmem -run=^$ -bench '^(BenchmarkHaxMapSet|BenchmarkXSyncMapSet|BenchmarkHaxMapGet|BenchmarkXSyncMapGet|BenchmarkHaxMapDelete|BenchmarkXSyncMapDelete)$' -cpu 1,2,4 chulbong-kr/benchmark

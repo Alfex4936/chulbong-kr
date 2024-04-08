@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -21,7 +23,7 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 	}
 	clientId := reqID
 
-	exists, _ := services.CheckDuplicateConnection(markerID, clientId)
+	exists, _ := services.WsRoomManager.CheckDuplicateConnectionByLocal(markerID, clientId)
 	if exists {
 		c.WriteJSON(fiber.Map{"error": "duplicate connection"})
 		c.Close()
@@ -31,25 +33,27 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 	// clientId := rand.Int()
 
 	// clientNickname := "user-" + uuid.New().String()
-	clientNickname := services.GenerateKoreanNickname()
+	clientNickname := utils.GenerateKoreanNickname()
 
 	// WsRoomManager = connections *haxmap.Map[string, []*websocket.Conn] // concurrent map
-	services.WsRoomManager.SaveConnection(markerID, clientId, c)          // saves to local websocket conncetions
-	services.AddConnectionRoomToRedis(markerID, clientId, clientNickname) // saves to redis, "room:%s:connections"
+	services.WsRoomManager.SaveConnection(markerID, clientId, c) // saves to local websocket conncetions
+	// services.AddConnectionRoomToRedis(markerID, clientId, clientNickname) // saves to redis, "room:%s:connections"
 
 	// Broadcast join message
 	// broadcasts directly by app memory objects
+	// services.PublishMessageToAMQP(context.Background(), markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientId)
 	services.WsRoomManager.BroadcastMessageToRoom(markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientId)
-	services.WsRoomManager.BroadcastUserCountToRoom(markerID) // sends how many users in the room
+	services.WsRoomManager.BroadcastUserCountToRoomByLocal(markerID) // sends how many users in the room
 
 	defer func() {
 		// On disconnect, remove the client from the room
-		services.WsRoomManager.RemoveWsFromRoom(markerID, c)
-		services.RemoveConnectionFromRedis(markerID, reqID)
+		services.WsRoomManager.RemoveWsFromRoom(markerID, clientId, c)
+		// services.RemoveConnectionFromRedis(markerID, reqID)
 
 		// Broadcast leave message
+		// services.PublishMessageToAMQP(context.Background(), markerID, clientNickname+" 님이 퇴장하셨습니다.", clientNickname, clientId)
 		services.WsRoomManager.BroadcastMessageToRoom(markerID, clientNickname+" 님이 퇴장하셨습니다.", clientNickname, clientId)
-		services.WsRoomManager.BroadcastUserCountToRoom(markerID) // sends how many users in the room
+		services.WsRoomManager.BroadcastUserCountToRoomByLocal(markerID) // sends how many users in the room
 	}()
 
 	// c.SetPingHandler(func(appData string) error {
@@ -58,29 +62,53 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 	// })
 
 	for {
+		if err := c.SetReadDeadline(time.Now().Add(time.Second * 60)); err != nil {
+			break
+		}
 		_, message, err := c.ReadMessage()
 		if err != nil {
 			// log.Printf("Error reading message: %v", err)
 			break
 		}
 
-		messageString := string(message)
-		bad, _ := utils.CheckForBadWords(messageString)
-		if bad {
+		if bytes.Equal(message, []byte(`{"type":"ping"}`)) {
+			// if mType == 9 || mType == 10 {
+			services.WsRoomManager.UpdateLastPing(markerID, c)
+			// if err := c.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
+			// 	log.Printf("Error sending 'pong': %v", err)
+			// }
+			continue // Skip further processing for this message
+		}
+
+		message = bytes.TrimSpace(message)
+		if len(message) == 0 {
 			continue
 		}
 
-		if messageString == "ping" {
-			err = c.WriteMessage(websocket.TextMessage, []byte("pong"))
-			if err != nil {
-				log.Printf("Error sending 'pong': %v", err)
-			}
-			continue // Skip further processing for this message
+		messageString := string(message) // Convert to string only when necessary
 
+		// First, remove URLs from the message
+		messageWithoutURLs := utils.RemoveURLs(messageString)
+
+		// Then, replace bad words with asterisks in the message string
+		cleanMessage, err := utils.ReplaceBadWords(messageWithoutURLs)
+		if err != nil {
+			log.Printf("Error replacing bad words: %v", err)
+			continue
 		}
 
+		if cleanMessage == "" {
+			continue
+		}
+
+		// Publish the valid message to the RabbitMQ queue for this chat room
+		// services.PublishMessageToAMQP(context.Background(), markerID, cleanMessage, clientNickname, clientId)
+
 		// Broadcast received message
-		services.WsRoomManager.BroadcastMessageToRoom(markerID, messageString, clientNickname, clientId)
+		services.WsRoomManager.UpdateLastPing(markerID, c)
+		if err := services.WsRoomManager.BroadcastMessageToRoom(markerID, cleanMessage, clientNickname, clientId); err != nil {
+			break
+		}
 	}
 }
 

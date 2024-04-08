@@ -12,6 +12,7 @@ import (
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
+	"chulbong-kr/protos"
 )
 
 var CLIENT_ADDR = os.Getenv("CLIENT_ADDR")
@@ -157,6 +158,25 @@ func GetAllMarkers() ([]dto.MarkerSimple, error) {
         Markers;`
 
 	var markers []dto.MarkerSimple
+	err := database.DB.Select(&markers, markerQuery)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching markers: %w", err)
+	}
+
+	return markers, nil
+}
+
+func GetAllMarkersProto() ([]*protos.Marker, error) {
+	// Simplified query to fetch only the marker IDs, latitudes, and longitudes
+	const markerQuery = `
+    SELECT 
+        MarkerID, 
+        ST_X(Location) AS Latitude,
+        ST_Y(Location) AS Longitude
+    FROM 
+        Markers;`
+
+	var markers []*protos.Marker
 	err := database.DB.Select(&markers, markerQuery)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)

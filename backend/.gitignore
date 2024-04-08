@@ -10,3 +10,4 @@ badwords.txt
 *.csv
 *.py
 *.json
+dragonfly/
