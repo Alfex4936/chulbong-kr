@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
 	"github.com/redis/go-redis/v9"
 	"github.com/zeebo/xxh3"
@@ -24,6 +25,13 @@ var clickEventBuffer = csmap.Create(
 		bs := make([]byte, 8)
 		binary.LittleEndian.PutUint64(bs, uint64(key))
 		return xxh3.Hash(bs)
+	}),
+)
+
+var SketchedLocations = csmap.Create(
+	csmap.WithShardCount[string, *hyperloglog.Sketch](64),
+	csmap.WithCustomHasher[string, *hyperloglog.Sketch](func(key string) uint64 {
+		return xxh3.HashString(key)
 	}),
 )
 
@@ -46,6 +54,41 @@ func BufferClickEvent(markerID int) {
 	clickEventBuffer.Store(markerID, newClicks)
 }
 
+func SaveUniqueVisitor(markerID string, uniqueUser string) {
+	if markerID == "" || uniqueUser == "" {
+		return
+	}
+
+	SketchedLocations.SetIfAbsent(markerID, hyperloglog.New14())
+	sketch, ok := SketchedLocations.Load(markerID)
+	if !ok {
+		return
+	}
+
+	sketch.Insert([]byte(uniqueUser))
+}
+
+func GetUniqueVisitorCount(markerID string) int {
+	sketch, ok := SketchedLocations.Load(markerID)
+	if !ok {
+		return 0
+	}
+	return int(sketch.Estimate())
+}
+
+func GetAllUniqueVisitorCounts() map[string]int {
+	result := make(map[string]int)
+
+	// Iterate through all items in the concurrent map
+	SketchedLocations.Range(func(markerID string, sketch *hyperloglog.Sketch) bool {
+		count := int(sketch.Estimate())
+		result[markerID] = count
+		return true
+	})
+
+	return result
+}
+
 // 정해진 시간 간격마다 클릭 이벤트 배치 처리를 실행하는 함수
 func ProcessClickEventsBatch() {
 	// 일정 시간 간격으로 배치 처리 실행
@@ -61,7 +104,7 @@ func ProcessClickEventsBatch() {
 
 // 마커 방문 시 클릭 수를 파이프라인을 사용하여 증가
 func IncrementMarkerClicks(markerClicks *csmap.CsMap[int, int]) {
-	pipe := RedisStore.Conn().TxPipeline()
+	pipe := RedisStore.TxPipeline()
 
 	clickEventBuffer.Range(func(markerID int, clicks int) bool {
 		// map에서 가져온 클릭 수만큼 점수 증가
@@ -84,7 +127,7 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 	}
 	// Sorted Set에서 점수(클릭 수)가 높은 순으로 마커 ID 조회
 	// markerScores, err := RedisStore.Conn().ZRevRangeWithScores(context.Background(), "marker_clicks", 0, int64(limit-1)).Result()
-	markerScores, err := RedisStore.Conn().ZRangeByScoreWithScores(context.Background(), "marker_clicks", &redis.ZRangeBy{
+	markerScores, err := RedisStore.ZRangeByScoreWithScores(context.Background(), "marker_clicks", &redis.ZRangeBy{
 		Min: strconv.Itoa(MIN_CLICK_RANK + 1), // "+1" because ZRangeByScore is inclusive, and we want > minScore
 		Max: "+inf",                           // No upper limit
 	}).Result()
@@ -139,7 +182,7 @@ func RemoveMarkerClick(markerID int) error {
 	member := fmt.Sprintf("%d", markerID)
 
 	// Remove the marker from the "marker_clicks" sorted set
-	_, err := RedisStore.Conn().ZRem(ctx, "marker_clicks", member).Result()
+	_, err := RedisStore.ZRem(ctx, "marker_clicks", member).Result()
 	if err != nil {
 		log.Printf("Error removing marker click: %v", err)
 		return err

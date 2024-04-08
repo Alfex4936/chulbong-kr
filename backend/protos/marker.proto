@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+option go_package = "chulbong-kr/protos;marker";
+
+message Marker {
+  int32 markerId = 1;
+  double latitude = 2;
+  double longitude = 3;
+}
+
+message MarkerList {
+  repeated Marker markers = 1;
+}

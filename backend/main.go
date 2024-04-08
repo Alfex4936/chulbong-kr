@@ -6,6 +6,8 @@ import (
 	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
+	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log"
@@ -15,6 +17,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Alfex4936/tzf"
 	"github.com/goccy/go-json"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -29,10 +32,15 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/monitor"
 	"github.com/gofiber/fiber/v2/middleware/pprof"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
-	"github.com/gofiber/storage/redis/v3"
+	"github.com/redis/go-redis/v9"
+
+	// "github.com/gofiber/storage/redis/v3"
 	"github.com/gofiber/swagger"
 	"github.com/gofiber/template/django/v3"
+	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
+
+	// amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -50,29 +58,51 @@ import (
 // @host			localhost:9452
 // @BasePath		/api/v1/
 func main() {
-	// godotenv.Overload()
+	if os.Getenv("DEPLOYMENT") != "production" {
+		godotenv.Overload()
+	}
 
 	// Increase GOMAXPROCS
 	runtime.GOMAXPROCS(runtime.NumCPU() * 2) // twice the number of CPUs
 
-	redisPortStr := os.Getenv("REDIS_PORT")
-	redisPort, err := strconv.Atoi(redisPortStr)
+	// Initialize redis
+	rdb := redis.NewClient(&redis.Options{
+		Addr:       os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT"),
+		Username:   os.Getenv("REDIS_USERNAME"),
+		Password:   os.Getenv("REDIS_PASSWORD"),
+		DB:         0,
+		PoolSize:   10 * runtime.GOMAXPROCS(0),
+		MaxRetries: 5,
+		TLSConfig:  &tls.Config{InsecureSkipVerify: true},
+	})
+
+	// Ping the server to check connection
+	err := rdb.Ping(context.Background()).Err()
 	if err != nil {
-		log.Fatalf("Failed to convert REDIS_PORT to integer: %v", err)
+		log.Fatalf("Error connecting to Redis: %v", err)
 	}
 
-	// Initialize redis
-	store := redis.New(redis.Config{
-		Host:      os.Getenv("REDIS_HOST"),
-		Port:      redisPort,
-		Username:  os.Getenv("REDIS_USERNAME"),
-		Password:  os.Getenv("REDIS_PASSWORD"),
-		Database:  0,
-		Reset:     true,
-		TLSConfig: nil,
-		PoolSize:  10 * runtime.GOMAXPROCS(0),
-	})
-	services.RedisStore = store
+	// Flush the Redis database to clear all keys
+	// if err := rdb.FlushDB(context.Background()).Err(); err != nil {
+	// 	log.Fatalf("Error flushing the Redis database: %v", err)
+	// } else {
+	// 	log.Println("Redis database flushed successfully.")
+	// }
+
+	services.RedisStore = rdb
+
+	finder, err := tzf.NewDefaultFinder()
+	if err != nil {
+		log.Fatalf("Failed to initialize timezone finder: %v", err)
+	}
+	utils.TimeZoneFinder = finder
+
+	// Message Broker
+	// connection, err := amqp.Dial(os.Getenv("LAVINMQ_HOST"))
+	// if err != nil {
+	// 	log.Panicf("Failed to connect to LavinMQ")
+	// }
+	// services.LavinMQClient = connection
 
 	if err := utils.LoadBadWords("badwords.txt"); err != nil {
 		log.Fatalf("Failed to load bad words: %v", err)
@@ -146,7 +176,7 @@ func main() {
 			return ctx.Status(code).JSON(errorResponse)
 		},
 	})
-	app.Server().MaxConnsPerIP = 10
+	// app.Server().MaxConnsPerIP = 10
 
 	go services.ProcessClickEventsBatch()
 
@@ -173,18 +203,37 @@ func main() {
 	app.Use(pprof.New())
 
 	app.Use(compress.New(compress.Config{
-		Next: func(c *fiber.Ctx) bool {
-			// Compress only for /api/v1/markers; return false to apply compression
-			return c.Path() != "/api/v1/markers"
-		},
+		// Next: func(c *fiber.Ctx) bool {
+		// 	// Compress only for /api/v1/markers; return false to apply compression
+		// 	return c.Path() != "/api/v1/markers"
+		// },
 		Level: compress.LevelBestSpeed,
 	}))
 
 	app.Use(helmet.New(helmet.Config{XSSProtection: "1; mode=block"}))
 	app.Use(limiter.New(limiter.Config{
-		Max:               50,
-		Expiration:        45 * time.Second,
+		Next: func(c *fiber.Ctx) bool {
+			// Skip rate limiting for /users/logout and /users/me
+			path := c.Path()
+			if path == "/api/v1/auth/logout" || path == "/api/v1/users/me" {
+				return true // Returning true skips the limiter
+			}
+			return false // Apply the limiter for all other paths
+		},
+
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return utils.GetUserIP(c)
+		},
+		Max:               60,
+		Expiration:        1 * time.Minute,
 		LimiterMiddleware: limiter.SlidingWindow{},
+		LimitReached: func(c *fiber.Ctx) error {
+			// Custom response when rate limit is exceeded
+			c.Set(fiber.HeaderContentType, fiber.MIMETextPlainCharsetUTF8)
+			c.Status(429).SendString("Too many requests, please try again later.")
+			return nil
+		},
+		SkipFailedRequests: true,
 	}))
 	app.Get("/metrics", middlewares.AdminOnly, monitor.New(monitor.Config{
 		Title:   "chulbong-kr System Metrics",
@@ -225,7 +274,7 @@ func main() {
 		// Set the handshake timeout to a reasonable duration to prevent slowloris attacks.
 		HandshakeTimeout: 5 * time.Second,
 
-		// Origins: []string{"http://localhost:8080", "https://chulbong-kr.vercel.app", "https://www.k-pullup.com"},
+		Origins: []string{"https://test.k-pullup.com", "https://www.k-pullup.com"},
 
 		EnableCompression: true,
 
@@ -277,15 +326,20 @@ func main() {
 	}
 
 	// Marker routes
-	api.Get("/markers", handlers.GetAllMarkersHandler)
+	// api.Get("/markers2", handlers.GetAllMarkersHandler)
+	// api.Get("/markers2", handlers.GetAllMarkersProtoHandler)
+	api.Get("/markers", handlers.GetAllMarkersLocalHandler)
 
 	// api.Get("/markers-addr", middlewares.AdminOnly, handlers.GetAllMarkersWithAddrHandler)
 	// api.Post("/markers-addr", middlewares.AdminOnly, handlers.UpdateMarkersAddressesHandler)
 	// api.Get("/markers-db", middlewares.AdminOnly, handlers.GetMarkersClosebyAdmin)
 
 	api.Get("/markers/:markerId/details", middlewares.AuthSoftMiddleware, handlers.GetMarker)
+	api.Get("/markers/:markerID/facilities", handlers.GetFacilitiesHandler)
 	api.Get("/markers/close", handlers.FindCloseMarkersHandler)
 	api.Get("/markers/ranking", handlers.GetMarkerRankingHandler)
+	api.Get("/markers/unique-ranking", handlers.GetUniqueVisitorCountHandler)
+	api.Get("/markers/unique-ranking/all", handlers.GetAllUniqueVisitorCountHandler)
 	api.Get("/markers/area-ranking", handlers.GetCurrentAreaMarkerRankingHandler)
 	api.Get("/markers/convert", handlers.ConvertWGS84ToWCONGNAMULHandler)
 	api.Get("/markers/weather", handlers.GetWeatherByWGS84Handler)
@@ -298,7 +352,6 @@ func main() {
 
 		markerGroup.Get("/my", handlers.GetUserMarkersHandler)
 		markerGroup.Get("/:markerID/dislike-status", handlers.CheckDislikeStatus)
-		markerGroup.Get("/:markerID/facilities", handlers.GetFacilitiesHandler)
 		// markerGroup.Get("/:markerId", handlers.GetMarker)
 
 		markerGroup.Post("/new", handlers.CreateMarkerWithPhotosHandler)

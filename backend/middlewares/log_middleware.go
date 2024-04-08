@@ -24,15 +24,7 @@ func ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 		method := c.Method()
 		path := c.OriginalURL()
 
-		clientIP := c.Get("Fly-Client-IP")
-		// If Fly-Client-IP is not found, fall back to X-Forwarded-For
-		if clientIP == "" {
-			clientIP = c.Get("X-Forwarded-For")
-		}
-		// If X-Forwarded-For is also empty, use c.IP() as the last resort
-		if clientIP == "" {
-			clientIP = c.IP()
-		}
+		clientIP := utils.GetUserIP(c)
 
 		userAgent := c.Get(fiber.HeaderUserAgent)
 		referer := c.Get(fiber.HeaderReferer)

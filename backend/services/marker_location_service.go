@@ -80,7 +80,7 @@ func FindRankedMarkersInCurrentArea(lat, long float64, distance, limit int) ([]d
 	// Fetch the click count for these markers from Redis
 	rankedMarkers := make([]dto.MarkerWithDistance, 0) // Use a new slice for markers with clicks
 	for _, marker := range nearbyMarkers {
-		score, err := RedisStore.Conn().ZScore(context.Background(), "marker_clicks", strconv.Itoa(marker.MarkerID)).Result()
+		score, err := RedisStore.ZScore(context.Background(), "marker_clicks", strconv.Itoa(marker.MarkerID)).Result()
 		if err == nil && score > float64(MIN_CLICK_RANK) { // Include markers with score > minScore
 			marker.Distance = score // Distance field is used to store score for ranking
 			rankedMarkers = append(rankedMarkers, marker)

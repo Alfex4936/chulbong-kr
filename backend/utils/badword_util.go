@@ -40,6 +40,25 @@ func CheckForBadWords(input string) (bool, error) {
 	return badWordRegex.MatchString(input), nil
 }
 
+func ReplaceBadWords(input string) (string, error) {
+	if badWordRegex == nil {
+		return input, errors.New("bad words pattern not compiled")
+	}
+
+	// Use ReplaceAllStringFunc to replace bad words with asterisks
+	return badWordRegex.ReplaceAllStringFunc(input, func(match string) string {
+		// Replace each character of the bad word with an asterisk
+		return strings.Repeat("*", len([]rune(match)))
+	}), nil
+}
+
+func RemoveURLs(input string) string {
+	// Compile the regular expression for matching URLs
+	urlRegex := regexp.MustCompile(`\bhttps?:\/\/\S+\b`)
+	// Replace URLs with an empty string
+	return urlRegex.ReplaceAllString(input, "")
+}
+
 // func CheckForBadWords(input string) (bool, error) {
 // 	// TODO: Normalize input for comparison
 

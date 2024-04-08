@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
-
-	redis "github.com/gofiber/storage/redis/v3"
+	"github.com/redis/go-redis/v9"
+	// redis "github.com/gofiber/storage/redis/v3"
 )
 
 var (
-	RedisStore *redis.Storage
+	RedisStore *redis.Client
 )
 
 const (
@@ -27,7 +27,7 @@ func SetCacheEntry[T any](key string, value T, expiration time.Duration) error {
 		return err
 	}
 
-	pipe := RedisStore.Conn().TxPipeline()
+	pipe := RedisStore.TxPipeline()
 	ctx := context.Background()
 
 	pipe.Set(ctx, key, jsonValue, expiration)
@@ -46,15 +46,21 @@ func SetCacheEntry[T any](key string, value T, expiration time.Duration) error {
 func GetCacheEntry[T any](key string) (T, error) {
 	var result T
 
-	// Get the cache entry
-	jsonValue, err := RedisStore.Get(key)
-	if err != nil {
+	// Execute the Get command
+	cmd := RedisStore.Get(context.Background(), key)
+	jsonValue, err := cmd.Result()
+
+	// Handle potential errors
+	if err == redis.Nil {
+		// Key does not exist
+		return result, nil // or errors.New("key does not exist")
+	} else if err != nil {
 		return result, err
 	}
 
 	// Unmarshal JSON into
 	if len(jsonValue) > 0 {
-		err = json.Unmarshal(jsonValue, &result)
+		err = json.Unmarshal([]byte(jsonValue), &result)
 		if err != nil {
 			return result, err
 		}
@@ -68,13 +74,49 @@ func GetCacheEntry[T any](key string) (T, error) {
 // ResetCache invalidates cache entries
 func ResetCache(key string) error {
 	// Delete the metadata key
-	pipe := RedisStore.Conn().TxPipeline()
+	pipe := RedisStore.TxPipeline()
 	ctx := context.Background()
 
 	pipe.Del(ctx, key)
 
 	_, err := pipe.Exec(ctx)
 
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ResetAllCache invalidates cache entries
+func ResetAllCache(pattern string) error {
+	// Delete the metadata key
+	pipe := RedisStore.TxPipeline()
+	ctx := context.Background()
+
+	// Use SCAN to find all keys matching the pattern
+	var cursor uint64
+	var err error
+	for {
+		var keys []string
+		keys, cursor, err = RedisStore.Scan(ctx, cursor, pattern, 10).Result()
+		if err != nil {
+			return err
+		}
+
+		// Delete the keys found in this scan iteration
+		for _, key := range keys {
+			pipe.Del(ctx, key)
+		}
+
+		// If the cursor returned by SCAN is 0, we've iterated through all the keys
+		if cursor == 0 {
+			break
+		}
+	}
+
+	// Execute the delete commands in the pipeline
+	_, err = pipe.Exec(ctx)
 	if err != nil {
 		return err
 	}
