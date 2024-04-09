@@ -324,6 +324,15 @@ const MarkerInfoModal = ({
       <Styled.Container
         style={{ marginTop: weather?.desc !== "" ? "-1rem" : "0" }}
       >
+        {isRoadView && (
+          <MarkerRoadView
+            lat={marker?.latitude as number}
+            lng={marker?.longitude as number}
+            setIsRoadView={setIsRoadView}
+            setIsRoadViewError={setIsRoadViewError}
+          />
+        )}
+
         <Tooltip title="닫기" arrow disableInteractive>
           <IconButton
             onClick={() => {
@@ -354,83 +363,70 @@ const MarkerInfoModal = ({
 
         <Styled.ImagesContainer>
           <Styled.imageWrap>
-            {isRoadView ? (
-              <MarkerRoadView
-                lat={marker?.latitude as number}
-                lng={marker?.longitude as number}
-                setIsRoadView={setIsRoadView}
-                setIsRoadViewError={setIsRoadViewError}
+            <div>
+              <img
+                src={marker?.photos ? curImage : noimg}
+                alt="철봉 상세 이미지"
               />
-            ) : (
-              <>
-                <div>
-                  <img
-                    src={marker?.photos ? curImage : noimg}
-                    alt="철봉 상세 이미지"
-                  />
-                </div>
-                <Styled.description>
-                  {marker?.isChulbong && (
-                    <>
-                      <Tooltip title="수정" arrow disableInteractive>
-                        <IconButton
-                          onClick={() => {
-                            setViewInput(true);
-                          }}
-                          aria-label="edit"
-                          sx={{
-                            position: "absolute",
-                            top: "0",
-                            left: "0",
-                            color: "#fff",
-                          }}
-                        >
-                          <EditIcon
-                            sx={{
-                              width: "20px",
-                              height: "20px",
-                            }}
-                          />
-                        </IconButton>
-                      </Tooltip>
-                    </>
-                  )}
-
-                  {viewInput ? (
-                    <Styled.InputWrap>
-                      <Styled.DescInput
-                        id="edit"
-                        type="text"
-                        onChange={descInput.onChange}
+            </div>
+            <Styled.description>
+              {marker?.isChulbong && (
+                <>
+                  <Tooltip title="수정" arrow disableInteractive>
+                    <IconButton
+                      onClick={() => {
+                        setViewInput(true);
+                      }}
+                      aria-label="edit"
+                      sx={{
+                        position: "absolute",
+                        top: "0",
+                        left: "0",
+                        color: "#fff",
+                      }}
+                    >
+                      <EditIcon
+                        sx={{
+                          width: "20px",
+                          height: "20px",
+                        }}
                       />
-                      <Styled.ButtonWrap>
-                        <ActionButton
-                          bg="black"
-                          onClick={() => {
-                            updateDesc();
-                            setViewInput(false);
-                          }}
-                        >
-                          수정
-                        </ActionButton>
-                        <ActionButton
-                          bg="gray"
-                          onClick={() => {
-                            setViewInput(false);
-                          }}
-                        >
-                          취소
-                        </ActionButton>
-                      </Styled.ButtonWrap>
-                    </Styled.InputWrap>
-                  ) : (
-                    <div>
-                      {marker?.description || "작성된 설명이 없습니다."}
-                    </div>
-                  )}
-                </Styled.description>
-              </>
-            )}
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
+
+              {viewInput ? (
+                <Styled.InputWrap>
+                  <Styled.DescInput
+                    id="edit"
+                    type="text"
+                    onChange={descInput.onChange}
+                  />
+                  <Styled.ButtonWrap>
+                    <ActionButton
+                      bg="black"
+                      onClick={() => {
+                        updateDesc();
+                        setViewInput(false);
+                      }}
+                    >
+                      수정
+                    </ActionButton>
+                    <ActionButton
+                      bg="gray"
+                      onClick={() => {
+                        setViewInput(false);
+                      }}
+                    >
+                      취소
+                    </ActionButton>
+                  </Styled.ButtonWrap>
+                </Styled.InputWrap>
+              ) : (
+                <div>{marker?.description || "작성된 설명이 없습니다."}</div>
+              )}
+            </Styled.description>
           </Styled.imageWrap>
           {marker?.photos && marker?.photos?.length > 1 && (
             <Styled.ImagePreviewWrap>
