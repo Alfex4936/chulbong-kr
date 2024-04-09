@@ -363,10 +363,12 @@ const MarkerInfoModal = ({
               />
             ) : (
               <>
-                <img
-                  src={marker?.photos ? curImage : noimg}
-                  alt="철봉 상세 이미지"
-                />
+                <div>
+                  <img
+                    src={marker?.photos ? curImage : noimg}
+                    alt="철봉 상세 이미지"
+                  />
+                </div>
                 <Styled.description>
                   {marker?.isChulbong && (
                     <>
