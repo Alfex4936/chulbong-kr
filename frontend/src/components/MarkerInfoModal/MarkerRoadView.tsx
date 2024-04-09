@@ -36,13 +36,11 @@ const MarkerRoadView = ({
 
   return (
     <Styled.Container>
-      <Styled.RoadViewContainer ref={roadViewRef} />
       <Styled.Exit>
         <Button
           sx={{
             color: "#fff",
-            fontWeight: "bold",
-            fontSize: "1.5rem",
+            fontSize: "1rem",
             "&:hover": {
               backgroundColor: "rgba(0,0,0,0.5)",
             },
@@ -54,6 +52,7 @@ const MarkerRoadView = ({
           닫기
         </Button>
       </Styled.Exit>
+      <Styled.RoadViewContainer ref={roadViewRef} />
     </Styled.Container>
   );
 };
