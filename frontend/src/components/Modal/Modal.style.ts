@@ -46,6 +46,8 @@ export const Modal = styled.div`
   min-width: 300px;
   width: 90%;
 
+  max-height: 600px;
+
   background-color: #fff;
 
   border-radius: 1rem;

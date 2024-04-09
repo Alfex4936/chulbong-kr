@@ -70,18 +70,23 @@ export const imageWrap = styled.div`
 
   width: 85%;
 
+  & > div:first-of-type {
+    max-height: 360px;
+
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+
   & img {
     object-fit: cover;
     background-position: center;
     background-size: cover;
 
+    width: 100%;
+    max-height: 360px;
     display: block;
 
-    border-radius: 1rem;
     box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
-
-    width: 100%;
-    height: 85%;
 
     user-select: none;
   }
