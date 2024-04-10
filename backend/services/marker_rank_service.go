@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
@@ -56,6 +58,11 @@ func BufferClickEvent(markerID int) {
 
 func SaveUniqueVisitor(markerID string, uniqueUser string) {
 	if markerID == "" || uniqueUser == "" {
+		return
+	}
+
+	_, isInt := strconv.Atoi(markerID)
+	if isInt != nil {
 		return
 	}
 
@@ -131,27 +138,25 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 		Min: strconv.Itoa(MIN_CLICK_RANK + 1), // "+1" because ZRangeByScore is inclusive, and we want > minScore
 		Max: "+inf",                           // No upper limit
 	}).Result()
+
 	if err != nil {
 		log.Printf("Error retrieving top markers: %v", err)
 		return nil
 	}
 
-	var markerIDs []int // 조회한 마커 ID를 저장할 슬라이스
-	for _, markerScore := range markerScores {
-		// Redis에서 조회한 마커 ID를 정수로 변환
-		markerIDStr, _ := markerScore.Member.(string)
-		markerID, err := strconv.Atoi(markerIDStr)
-		if err != nil {
-			log.Printf("Error converting marker ID: %v", err)
-			continue
-		}
-
-		markerIDs = append(markerIDs, markerID)
+	if len(markerScores) == 0 {
+		return []dto.MarkerSimpleWithAddr{} // Early return if no markers are found.
 	}
 
-	// 데이터베이스에서 마커의 상세 정보 조회
-	markerRanks := make([]dto.MarkerSimpleWithAddr, 0)
-	const markerQuery = `
+	// Collect all marker IDs from the sorted set result for a batch database query.
+	markerIDs := make([]interface{}, len(markerScores))
+	for i, markerScore := range markerScores {
+		markerIDStr, _ := markerScore.Member.(string)
+		markerIDs[i] = markerIDStr // Directly use string ID to avoid unnecessary conversions.
+	}
+
+	// Query to retrieve markers by a set of IDs in a single SQL call.
+	var markerQuery = `
     SELECT 
         MarkerID, 
         ST_X(Location) AS Latitude,
@@ -159,17 +164,14 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
         Address
     FROM 
         Markers
-	WHERE MarkerID = ?`
+    WHERE MarkerID IN (?` + strings.Repeat(",?", len(markerIDs)-1) + `)
+    ORDER BY FIELD(MarkerID, ?` + strings.Repeat(",?", len(markerIDs)-1) + `)`
 
-	for _, markerID := range markerIDs {
-		var marker dto.MarkerSimpleWithAddr
-		err := database.DB.Get(&marker, markerQuery, markerID)
-		if err != nil {
-			log.Printf("Error retrieving marker: %v", err)
-			continue
-		}
-
-		markerRanks = append(markerRanks, marker)
+	markerRanks := make([]dto.MarkerSimpleWithAddr, 0, len(markerIDs))
+	err = database.DB.Select(&markerRanks, markerQuery, append(markerIDs, markerIDs...)...) // Duplicating markerIDs for both IN and ORDER BY.
+	if err != nil {
+		log.Printf("Error retrieving markers from DB: %v", err)
+		return nil
 	}
 
 	return markerRanks
@@ -189,4 +191,46 @@ func RemoveMarkerClick(markerID int) error {
 	}
 
 	return nil
+}
+
+// Admin
+func ResetAndRandomizeClickRanking() {
+	markers, err := GetAllMarkers()
+	if err != nil {
+		log.Printf("Error fetching markers: %v", err)
+		return
+	}
+
+	// Ensure the slice has markers, and if not, there's nothing more to do
+	if len(markers) == 0 {
+		log.Println("No markers found.")
+		return
+	}
+
+	// Randomly pick up to 5 marker IDs
+	rand.Shuffle(len(markers), func(i, j int) {
+		markers[i], markers[j] = markers[j], markers[i]
+	})
+
+	numMarkers := len(markers)
+	if numMarkers > 5 {
+		numMarkers = 5
+	}
+
+	selectedMarkers := markers[:numMarkers]
+
+	// Reset the "marker_clicks" sorted set in Redis
+	RedisStore.Del(context.Background(), "marker_clicks")
+
+	// Re-populate "marker_clicks" with the selected markers
+	for _, marker := range selectedMarkers {
+		score := float64(10 + rand.Intn(6)) // Random score between 10 and 15, inclusive
+
+		RedisStore.ZAdd(context.Background(), "marker_clicks", redis.Z{
+			Score:  score,
+			Member: fmt.Sprintf("%d", marker.MarkerID),
+		})
+	}
+
+	log.Printf("%d markers were randomly selected and added to Redis ranking.", numMarkers)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -16,12 +17,17 @@ import (
 )
 
 const (
+	KAKAO_GEOCODE      = "https://dapi.kakao.com/v2/local/geo/address.json"
 	KAKAO_COORD2ADDR   = "https://dapi.kakao.com/v2/local/geo/coord2address.json"
 	KAKAO_COORD2REGION = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
 	KAKAO_WEATHER      = "https://map.kakao.com/api/dapi/point/weather?inputCoordSystem=WCONGNAMUL&outputCoordSystem=WCONGNAMUL&version=2&service=map.daum.net"
 )
 
 var KAKAO_AK = os.Getenv("KAKAO_AK")
+
+var HTTPClient = &http.Client{
+	Timeout: 10 * time.Second, // Set a timeout to avoid hanging requests indefinitely
+}
 
 // GetFacilitiesByMarkerID retrieves facilities for a given marker ID.
 func GetFacilitiesByMarkerID(markerID int) ([]models.Facility, error) {
@@ -94,9 +100,6 @@ func UpdateMarkerAddress(markerID int, address string) error {
 
 // FetchAddressFromAPI queries the external API to get the address for a given latitude and longitude.
 func FetchAddressFromAPI(latitude, longitude float64) (string, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second, // Set a timeout to avoid hanging the request indefinitely
-	}
 	reqURL := fmt.Sprintf("%s?x=%f&y=%f", KAKAO_COORD2ADDR, longitude, latitude)
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
@@ -104,7 +107,7 @@ func FetchAddressFromAPI(latitude, longitude float64) (string, error) {
 	}
 
 	req.Header.Add("Authorization", "KakaoAK "+KAKAO_AK)
-	resp, err := client.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return "-1", fmt.Errorf("executing request: %w", err)
 	}
@@ -135,11 +138,56 @@ func FetchAddressFromAPI(latitude, longitude float64) (string, error) {
 	return "", nil // Address data is empty but no error occurred
 }
 
+// FetchXYFromAPI queries the external API to get the latitude and longitude for a given address.
+func FetchXYFromAPI(address string) (float64, float64, error) {
+	reqURL := fmt.Sprintf("%s?query=%s", KAKAO_GEOCODE, address)
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return 0.0, 0.0, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Add("Authorization", "KakaoAK "+KAKAO_AK)
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return 0.0, 0.0, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0.0, 0.0, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var apiResp kakao.KakaoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return 0.0, 0.0, fmt.Errorf("unmarshalling response: %w", err)
+	}
+
+	if len(apiResp.Documents) == 0 {
+		// log.Print("No address found for the given coordinates")
+		return 0.0, 0.0, nil // Returning nil error to indicate absence of data rather than a failure
+	}
+
+	doc := apiResp.Documents[0]
+	if doc.X != nil && doc.Y != nil {
+
+		latitude, err := strconv.ParseFloat(*doc.X, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid latitude")
+		}
+
+		longitude, err := strconv.ParseFloat(*doc.Y, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid longitude")
+		}
+
+		return latitude, longitude, nil
+	}
+
+	return 0.0, 0.0, nil // Address data is empty but no error occurred
+}
+
 // FetchRegionFromAPI queries the external API to get the address for a given latitude and longitude.
 func FetchRegionFromAPI(latitude, longitude float64) (string, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second, // Set a timeout to avoid hanging the request indefinitely
-	}
 	reqURL := fmt.Sprintf("%s?x=%f&y=%f", KAKAO_COORD2REGION, longitude, latitude)
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
@@ -147,7 +195,7 @@ func FetchRegionFromAPI(latitude, longitude float64) (string, error) {
 	}
 
 	req.Header.Add("Authorization", "KakaoAK "+KAKAO_AK)
-	resp, err := client.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return "-1", fmt.Errorf("executing request: %w", err)
 	}
@@ -179,10 +227,6 @@ func FetchRegionFromAPI(latitude, longitude float64) (string, error) {
 
 // FetchWeatherFromAddress
 func FetchWeatherFromAddress(latitude, longitude float64) (*kakao.WeatherRequest, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second, // Set a timeout to avoid hanging the request indefinitely
-	}
-
 	wcongnamul := utils.ConvertWGS84ToWCONGNAMUL(latitude, longitude)
 
 	reqURL := fmt.Sprintf("%s&x=%f&y=%f", KAKAO_WEATHER, wcongnamul.X, wcongnamul.Y)
@@ -192,7 +236,7 @@ func FetchWeatherFromAddress(latitude, longitude float64) (*kakao.WeatherRequest
 	}
 
 	req.Header.Add("Referer", reqURL)
-	resp, err := client.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}

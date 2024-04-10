@@ -185,7 +185,7 @@ def json_insert():
 
     cursor = cnx.cursor()
 
-    delete_all_markers(cursor)
+    # delete_all_markers(cursor)
 
     # Insert markers
     insert_markers_json(cursor, processed_markers)

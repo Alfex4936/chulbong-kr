@@ -14,13 +14,20 @@ type KakaoRegionResponse struct {
 
 // Meta contains response related info
 type Meta struct {
-	TotalCount int `json:"total_count"`
+	TotalCount    int   `json:"total_count"`
+	PageableCount *int  `json:"pageable_count"`
+	IsEnd         *bool `json:"is_end"`
 }
 
 // Document contains address details
 type Document struct {
 	Address     *Address     `json:"address"`
 	RoadAddress *RoadAddress `json:"road_address"`
+
+	AddressName *string `json:"address_name"`
+	AddressType *string `json:"address_type"`
+	X           *string `json:"x"`
+	Y           *string `json:"y"`
 }
 
 // Address contains detailed info about the 지번 address

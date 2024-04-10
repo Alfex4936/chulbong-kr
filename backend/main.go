@@ -83,11 +83,11 @@ func main() {
 	}
 
 	// Flush the Redis database to clear all keys
-	// if err := rdb.FlushDB(context.Background()).Err(); err != nil {
-	// 	log.Fatalf("Error flushing the Redis database: %v", err)
-	// } else {
-	// 	log.Println("Redis database flushed successfully.")
-	// }
+	if err := rdb.FlushDB(context.Background()).Err(); err != nil {
+		log.Fatalf("Error flushing the Redis database: %v", err)
+	} else {
+		log.Println("Redis database flushed successfully.")
+	}
 
 	services.RedisStore = rdb
 
@@ -253,22 +253,34 @@ func main() {
 	// app.Use(logger.New())
 	app.Get("/swagger/*", middlewares.AdminOnly, swagger.HandlerDefault)
 
-	app.Use("/ws/:markerID", func(c *fiber.Ctx) error {
-		// middlewares.AuthMiddleware(c)
-		// if c.Locals("username") == nil {
-		// 	return fiber.ErrUnauthorized
-		// }
+	app.Get("/ws/:markerID", func(c *fiber.Ctx) error {
+		// Extract markerID from the parameter
+		markerID := c.Params("markerID")
+		reqID := c.Query("request-id")
 
+		// Use GetBanDetails to check if the user is banned and get the remaining ban time
+		banned, remainingTime, err := services.WsRoomManager.GetBanDetails(markerID, reqID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Internal server error"})
+		}
+		if banned {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error":         "User is banned",
+				"remainingTime": remainingTime.Seconds(), // Respond with remaining time in seconds
+			})
+		}
+
+		// Proceed with WebSocket upgrade if not banned
 		if websocket.IsWebSocketUpgrade(c) {
 			return c.Next()
 		}
 		return fiber.ErrUpgradeRequired
-	})
-
-	app.Get("/ws/:markerID", websocket.New(func(c *websocket.Conn) {
-		// Extract markerID from the parameter
+	}, websocket.New(func(c *websocket.Conn) {
+		// Extract markerID from the parameter again if necessary
 		markerID := c.Params("markerID")
 		reqID := c.Query("request-id")
+
+		// Now, the connection is already upgraded to WebSocket, and you've passed the ban check.
 		handlers.HandleChatRoomHandler(c, markerID, reqID)
 	}, websocket.Config{
 		// Set the handshake timeout to a reasonable duration to prevent slowloris attacks.
@@ -298,6 +310,7 @@ func main() {
 
 	api.Get("/google", handlers.GetGoogleAuthHandler(conf))
 	api.Get("/admin", middlewares.AdminOnly, func(c *fiber.Ctx) error { return c.JSON("good") })
+	api.Post("/chat/ban/:markerID/:userID", middlewares.AdminOnly, handlers.BanUserHandler)
 
 	// Authentication routes
 	authGroup := api.Group("/auth")
@@ -342,6 +355,7 @@ func main() {
 	api.Get("/markers/unique-ranking/all", handlers.GetAllUniqueVisitorCountHandler)
 	api.Get("/markers/area-ranking", handlers.GetCurrentAreaMarkerRankingHandler)
 	api.Get("/markers/convert", handlers.ConvertWGS84ToWCONGNAMULHandler)
+	api.Get("/markers/location-check", handlers.IsInSouthKoreaHandler)
 	api.Get("/markers/weather", handlers.GetWeatherByWGS84Handler)
 
 	api.Post("/markers/upload", middlewares.AdminOnly, handlers.UploadMarkerPhotoToS3Handler)
@@ -398,6 +412,9 @@ func main() {
 	if os.Getenv("DEPLOYMENT") == "production" {
 		// Send Slack notification
 		go utils.SendDeploymentSuccessNotification("chulbong-kr", "fly.io")
+
+		// Random ranking
+		go services.ResetAndRandomizeClickRanking()
 	}
 
 	// Start the Fiber app

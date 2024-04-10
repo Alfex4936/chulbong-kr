@@ -99,7 +99,11 @@ func GetCurrentAreaMarkerRankingHandler(c *fiber.Ctx) error {
 
 	markers, err := services.FindRankedMarkersInCurrentArea(lat, long, currentAreaDistance, limit)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve markers"})
+	}
+
+	if markers == nil {
+		return c.JSON([]dto.MarkerWithDistance{})
 	}
 
 	return c.JSON(markers)
@@ -152,4 +156,23 @@ func ConvertWGS84ToWCONGNAMULHandler(c *fiber.Ctx) error {
 	result := utils.ConvertWGS84ToWCONGNAMUL(lat, long)
 
 	return c.JSON(result)
+}
+
+func IsInSouthKoreaHandler(c *fiber.Ctx) error {
+	latParam := c.Query("latitude")
+	longParam := c.Query("longitude")
+
+	lat, err := strconv.ParseFloat(latParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+	}
+
+	long, err := strconv.ParseFloat(longParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+
+	result := utils.IsInSouthKoreaPrecisely(lat, long)
+
+	return c.JSON(fiber.Map{"result": result})
 }
