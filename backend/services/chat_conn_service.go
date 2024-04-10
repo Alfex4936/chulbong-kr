@@ -3,6 +3,7 @@ package services
 import (
 	"chulbong-kr/dto"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -248,6 +249,33 @@ func (manager *RoomConnectionManager) RemoveWsFromRoom(markerID, clientId string
 	}
 }
 
+// KickUserFromRoom closes the connection for a user in a specified room.
+func (manager *RoomConnectionManager) KickUserFromRoom(markerID, userID string) error {
+	key := fmt.Sprintf("marker_%s", markerID)
+	conns, ok := manager.connections.Load(key)
+	if !ok {
+		return errors.New("room not found")
+	}
+
+	// Iterate over the connections to find the user
+	for i, conn := range conns {
+		if conn.UserID == userID {
+			// Close the connection
+			close(conn.Send) // Signal the writePump goroutine to exit
+			conn.Socket.Close()
+
+			// Remove the connection from the slice
+			if len(conns) == 0 {
+				manager.connections.Delete(key)
+			} else {
+				manager.connections.Store(key, append(conns[:i], conns[i+1:]...))
+			}
+			return nil
+		}
+	}
+	return errors.New("user not found in room")
+}
+
 func GetUserCountInRoom(ctx context.Context, markerID string) (int64, error) {
 	key := fmt.Sprintf("room:%s:connections", markerID)
 	return RedisStore.HLen(ctx, key).Result()
@@ -312,4 +340,35 @@ func (conn *ChulbongConn) writePump() {
 			}
 		}
 	}
+}
+
+func (manager *RoomConnectionManager) BanUser(markerID, userID string, duration time.Duration) error {
+	// First, kick the user from the room.
+	err := manager.KickUserFromRoom(markerID, userID)
+	if err != nil {
+		log.Printf("Error kicking user %s from room %s: %v", userID, markerID, err)
+	}
+
+	// Then, set the ban in Redis.
+	banKey := fmt.Sprintf("ban_%s_%s", markerID, userID)
+	return RedisStore.Set(context.Background(), banKey, "banned", duration).Err()
+}
+
+func (manager *RoomConnectionManager) GetBanDetails(markerID, userID string) (banned bool, remainingTime time.Duration, err error) {
+	banKey := fmt.Sprintf("ban_%s_%s", markerID, userID)
+	exists, err := RedisStore.Exists(context.Background(), banKey).Result()
+	if err != nil {
+		return false, 0, err
+	}
+	if exists == 0 {
+		return false, 0, nil
+	}
+
+	// Get the remaining TTL of the ban
+	ttl, err := RedisStore.TTL(context.Background(), banKey).Result()
+	if err != nil {
+		return true, 0, err
+	}
+
+	return true, ttl, nil
 }
