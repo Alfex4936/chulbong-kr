@@ -149,6 +149,28 @@ func GetAllMarkersProtoHandler(c *fiber.Ctx) error {
 	return c.Send(data)
 }
 
+// GetAllNewMarkersHandler handles requests to fetch a paginated list of newly added markers.
+func GetAllNewMarkersHandler(c *fiber.Ctx) error {
+	// Extract page and pageSize from query parameters. Provide default values if not specified.
+	page, err := strconv.Atoi(c.Query("page", "1")) // Default to page 1 if not specified
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid page number"})
+	}
+
+	pageSize, err := strconv.Atoi(c.Query("pageSize", "10")) // Default to 10 markers per page if not specified
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid page size"})
+	}
+
+	// Call the service to get markers
+	markers, err := services.GetAllNewMarkers(page, pageSize)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not fetch markers"})
+	}
+
+	return c.JSON(markers)
+}
+
 // ADMIN
 func GetAllMarkersWithAddrHandler(c *fiber.Ctx) error {
 	markersWithPhotos, err := services.GetAllMarkersWithAddr()

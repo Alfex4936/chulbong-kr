@@ -185,6 +185,36 @@ func GetAllMarkersProto() ([]*protos.Marker, error) {
 	return markers, nil
 }
 
+// GetAllNewMarkers returns a paginated, simplified list of the most recently added markers.
+func GetAllNewMarkers(page, pageSize int) ([]dto.MarkerSimple, error) {
+	if page < 1 {
+		page = 1 // Ensure page starts at 1
+	}
+	if pageSize < 1 {
+		pageSize = 10 // Default pageSize to 10 if invalid
+	}
+	offset := (page - 1) * pageSize
+
+	const markerQuery = `
+    SELECT 
+        MarkerID, 
+        ST_X(Location) AS Latitude,
+        ST_Y(Location) AS Longitude
+    FROM 
+        Markers
+    ORDER BY 
+        createdAt DESC
+    LIMIT ? OFFSET ?;`
+
+	var markers []dto.MarkerSimple
+	err := database.DB.Select(&markers, markerQuery, pageSize, offset)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching markers: %w", err)
+	}
+
+	return markers, nil
+}
+
 // GetAllMarkersWithAddr fetches all markers and returns only those with an address not found or empty.
 func GetAllMarkersWithAddr() ([]dto.MarkerSimpleWithAddr, error) {
 	const markerQuery = `SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude FROM Markers;`
