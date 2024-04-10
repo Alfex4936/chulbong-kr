@@ -18,11 +18,11 @@ jobs:
       - name: Get changed files
         id: files
         run: |
-          echo "::set-output name=frontend_changed::$(git diff --name-only HEAD~1 HEAD | grep 'frontend/' || echo '')"
-          echo "::set-output name=backend_changed::$(git diff --name-only HEAD~1 HEAD | grep 'backend/' || echo '')"
+          echo "frontend_changed=$(git diff --name-only HEAD~1 HEAD | grep 'frontend/' || echo '')" >> $GITHUB_ENV
+          echo "backend_changed=$(git diff --name-only HEAD~1 HEAD | grep 'backend/' || echo '')" >> $GITHUB_ENV
 
       - name: Trigger Repository Dispatch for Frontend Changes
-        if: steps.files.outputs.frontend_changed != ''
+        if: env.frontend_changed != ''
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -31,7 +31,7 @@ jobs:
           client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
 
       - name: Trigger Repository Dispatch for Backend Changes
-        if: steps.files.outputs.backend_changed != ''
+        if: env.backend_changed != ''
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
