@@ -342,6 +342,7 @@ func main() {
 	// api.Get("/markers2", handlers.GetAllMarkersHandler)
 	// api.Get("/markers2", handlers.GetAllMarkersProtoHandler)
 	api.Get("/markers", handlers.GetAllMarkersLocalHandler)
+	api.Get("/markers/new", handlers.GetAllNewMarkersHandler)
 
 	// api.Get("/markers-addr", middlewares.AdminOnly, handlers.GetAllMarkersWithAddrHandler)
 	// api.Post("/markers-addr", middlewares.AdminOnly, handlers.UpdateMarkersAddressesHandler)
