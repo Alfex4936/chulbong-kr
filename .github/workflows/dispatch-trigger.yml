@@ -20,12 +20,12 @@ jobs:
         shell: bash
         run: |
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            echo "frontend_changed=$(git diff --name-only HEAD~1 HEAD | grep 'frontend/' || echo '')" >> $GITHUB_ENV
-            echo "backend_changed=$(git diff --name-only HEAD~1 HEAD | grep 'backend/' || echo '')" >> $GITHUB_ENV
+            echo "frontend_changed=$(git diff --name-only HEAD~1 HEAD | grep 'frontend/' | tr '\n' ',' || echo '')" >> $GITHUB_ENV
+            echo "backend_changed=$(git diff --name-only HEAD~1 HEAD | grep 'backend/' | tr '\n' ',' || echo '')" >> $GITHUB_ENV
           else
             echo "Checking all files since there's no previous commit."
-            echo "frontend_changed=$(git ls-tree --name-only -r HEAD | grep 'frontend/' || echo '')" >> $GITHUB_ENV
-            echo "backend_changed=$(git ls-tree --name-only -r HEAD | grep 'backend/' || echo '')" >> $GITHUB_ENV
+            echo "frontend_changed=$(git ls-tree --name-only -r HEAD | grep 'frontend/' | tr '\n' ',' || echo '')" >> $GITHUB_ENV
+            echo "backend_changed=$(git ls-tree --name-only -r HEAD | grep 'backend/' | tr '\n' ',' || echo '')" >> $GITHUB_ENV
           fi
 
       - name: Trigger Repository Dispatch for Frontend Changes
