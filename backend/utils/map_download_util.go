@@ -7,7 +7,6 @@ import (
 	"image/draw"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/go-pdf/fpdf"
 	"github.com/google/uuid"
+	"golang.org/x/image/webp"
 )
 
 var HTTPClientUtil = &http.Client{
@@ -25,14 +25,14 @@ var HTTPClientUtil = &http.Client{
 func OverlayImages(baseImageFile, markerImagePath string) (string, error) {
 	originalBaseImg, _, err := loadImage(baseImageFile) // Load the original base image
 	if err != nil {
-		panic(err) // Handle the error properly
+		return "", err
 	}
 	originalBaseBounds := originalBaseImg.Bounds()
 
 	resultImg := image.NewRGBA(originalBaseBounds)
 	draw.Draw(resultImg, originalBaseBounds, originalBaseImg, image.Point{}, draw.Src)
 
-	files, err := ioutil.ReadDir(markerImagePath)
+	files, err := os.ReadDir(markerImagePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read marker image path: %w", err)
 	}
@@ -51,6 +51,49 @@ func OverlayImages(baseImageFile, markerImagePath string) (string, error) {
 	resultPath := filepath.Join(markerImagePath, "result.png")
 	if err := saveImage(resultImg, resultPath); err != nil {
 		return "", fmt.Errorf("failed to save result image: %w", err)
+	}
+
+	return resultPath, nil
+}
+
+// PlaceMarkersOnImage places markers on the given base image according to their WCONGNAMUL coordinates.
+func PlaceMarkersOnImage(baseImageFile string, markers []WCONGNAMULCoord, centerCX, centerCY float64) (string, error) {
+	baseImg, _, err := loadImage(baseImageFile)
+	if err != nil {
+		return "", err
+	}
+	bounds := baseImg.Bounds()
+	resultImg := image.NewRGBA(bounds)
+	draw.Draw(resultImg, bounds, baseImg, image.Point{}, draw.Src)
+
+	// SCALE by 2.5 in 1280x1080 image only, center (centerCX, centerCY).
+	// Load the marker icon
+	markerIconPath := "fonts/marker_40x40.webp"
+	markerIcon, _ := LoadWebP(markerIconPath)
+	markerBounds := markerIcon.Bounds()
+	markerWidth := markerBounds.Dx()
+	markerHeight := markerBounds.Dy()
+
+	for _, marker := range markers {
+		x, y := PlaceMarkerOnImage(marker.X, marker.Y, centerCX, centerCY, bounds.Dx(), bounds.Dy())
+
+		// Calculate the top-left position to start drawing the marker icon
+		// Ensure the entire marker icon is within bounds before drawing
+		startX := x - int(markerWidth)/2 - 5 // 5px out
+		startY := y - int(markerHeight)
+
+		// Draw the resized marker icon
+		draw.Draw(resultImg, image.Rect(startX, startY, startX+int(markerWidth), startY+int(markerHeight)), markerIcon, image.Point{0, 0}, draw.Over)
+
+		// Ensure (x,y) is within bounds
+		//if x >= 0 && x < bounds.Dx() && y >= 0 && y < bounds.Dy() {
+		//	resultImg.Set(x, y, color.RGBA{255, 0, 0, 255}) // Red color
+		//}
+	}
+
+	resultPath := filepath.Join(filepath.Dir(baseImageFile), "result_with_markers.png")
+	if err := saveImage(resultImg, resultPath); err != nil {
+		return "", fmt.Errorf("failed to save image with markers: %w", err)
 	}
 
 	return resultPath, nil
@@ -128,6 +171,8 @@ func GenerateMapPDF(imagePath, tempDir, title string) (string, error) {
 		return "", err
 	}
 
+	os.Remove(imagePath) // Remove the image file after generating the PDF file
+
 	return pdfPath, nil
 }
 
@@ -158,4 +203,31 @@ func DownloadFile(URL, destPath string) error {
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
 	return err
+}
+
+// PlaceMarkerOnImage calculates (x,y) position in imagem SCALE by 2.5 in 1280x1080 image only.
+func PlaceMarkerOnImage(CX, CY, centerCX, centerCY float64, imageWidth, imageHeight int) (int, int) {
+	deltaX := CX - centerCX
+	deltaY := CY - centerCY
+
+	cxUnitsPerPixel := 3190.0 / float64(imageWidth)
+	cyUnitsPerPixel := 3190.0 / float64(imageWidth)
+
+	pixelOffsetX := deltaX / cxUnitsPerPixel
+	pixelOffsetY := deltaY / cyUnitsPerPixel
+
+	markerPosX := (imageWidth / 2) + int(pixelOffsetX)
+	markerPosY := (imageHeight / 2) - int(pixelOffsetY)
+
+	return markerPosX, markerPosY
+}
+
+// LoadWebP loads a WEBP image from the specified file path.
+func LoadWebP(filePath string) (image.Image, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return webp.Decode(file)
 }

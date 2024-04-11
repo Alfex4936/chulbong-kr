@@ -32,8 +32,10 @@ require (
 	github.com/Alfex4936/tzf v1.0.5
 	github.com/alphadose/haxmap v1.3.1
 	github.com/axiomhq/hyperloglog v0.0.0-20240319100328-84253e514e02
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/puzpuzpuz/xsync/v3 v3.1.0
 	github.com/stretchr/testify v1.9.0
+	golang.org/x/image v0.15.0
 )
 
 require (
@@ -67,10 +69,8 @@ require (
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
 	github.com/go-openapi/spec v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
-	github.com/go-pdf/fpdf v0.9.0 // indirect
 	github.com/gofiber/template v1.8.3 // indirect
 	github.com/gofiber/utils v1.1.0 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.7 // indirect
@@ -87,15 +87,9 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/savsgio/gotils v0.0.0-20240303185622-093b76447511 // indirect
 	github.com/swaggo/files/v2 v2.0.0 // indirect
-	github.com/tidwall/cities v0.1.0 // indirect
 	github.com/tidwall/geoindex v1.7.0 // indirect
 	github.com/tidwall/geojson v1.4.5 // indirect
-	github.com/tidwall/gjson v1.12.1 // indirect
-	github.com/tidwall/lotsa v1.0.3 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tidwall/rtree v1.10.0 // indirect
-	github.com/tidwall/sjson v1.2.4 // indirect
 	github.com/tinylib/msgp v1.1.9 // indirect
 	github.com/twpayne/go-polyline v1.1.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
@@ -104,10 +98,8 @@ require (
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
-	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/tools v0.20.0 // indirect
-	google.golang.org/appengine v1.6.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

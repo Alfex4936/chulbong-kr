@@ -362,7 +362,8 @@ func main() {
 	api.Get("/markers/convert", handlers.ConvertWGS84ToWCONGNAMULHandler)
 	api.Get("/markers/location-check", handlers.IsInSouthKoreaHandler)
 	api.Get("/markers/weather", handlers.GetWeatherByWGS84Handler)
-	api.Get("/markers/save-offline", handlers.SaveOfflineMapHandler)
+
+	api.Get("/markers/save-offline", handlers.SaveOfflineMap2Handler)
 
 	api.Post("/markers/upload", middlewares.AdminOnly, handlers.UploadMarkerPhotoToS3Handler)
 
@@ -411,7 +412,7 @@ func main() {
 	services.CronCleanUpPasswordTokens()
 	services.CronResetClickRanking()
 	services.StartOrphanedPhotosCleanupCron()
-	go cleanUpOldDirs(os.TempDir(), 3*time.Minute)
+	go cleanUpOldDirs(os.TempDir(), 2*time.Minute)
 
 	serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))
 
@@ -445,7 +446,7 @@ func setTokenExpirationTime() {
 }
 
 func cleanUpOldDirs(dir string, maxAge time.Duration) {
-	ticker := time.NewTicker(15 * time.Minute)
+	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
 
 	for range ticker.C {
