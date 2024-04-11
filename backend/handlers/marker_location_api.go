@@ -176,3 +176,24 @@ func IsInSouthKoreaHandler(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"result": result})
 }
+
+func SaveOfflineMapHandler(c *fiber.Ctx) error {
+	latParam := c.Query("latitude")
+	longParam := c.Query("longitude")
+
+	lat, err := strconv.ParseFloat(latParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+	}
+	long, err := strconv.ParseFloat(longParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+
+	pdf, err := services.SaveOfflineMap(lat, long)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create a PDF: " + err.Error()})
+	}
+
+	return c.Download(pdf)
+}

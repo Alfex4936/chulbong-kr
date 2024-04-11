@@ -12,9 +12,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Alfex4936/tzf"
@@ -82,11 +84,13 @@ func main() {
 		log.Fatalf("Error connecting to Redis: %v", err)
 	}
 
-	// Flush the Redis database to clear all keys
-	if err := rdb.FlushDB(context.Background()).Err(); err != nil {
-		log.Fatalf("Error flushing the Redis database: %v", err)
-	} else {
-		log.Println("Redis database flushed successfully.")
+	if os.Getenv("DEPLOYMENT") == "production" {
+		// Flush the Redis database to clear all keys
+		if err := rdb.FlushDB(context.Background()).Err(); err != nil {
+			log.Fatalf("Error flushing the Redis database: %v", err)
+		} else {
+			log.Println("Redis database flushed successfully.")
+		}
 	}
 
 	services.RedisStore = rdb
@@ -358,6 +362,7 @@ func main() {
 	api.Get("/markers/convert", handlers.ConvertWGS84ToWCONGNAMULHandler)
 	api.Get("/markers/location-check", handlers.IsInSouthKoreaHandler)
 	api.Get("/markers/weather", handlers.GetWeatherByWGS84Handler)
+	api.Get("/markers/save-offline", handlers.SaveOfflineMapHandler)
 
 	api.Post("/markers/upload", middlewares.AdminOnly, handlers.UploadMarkerPhotoToS3Handler)
 
@@ -406,6 +411,7 @@ func main() {
 	services.CronCleanUpPasswordTokens()
 	services.CronResetClickRanking()
 	services.StartOrphanedPhotosCleanupCron()
+	go cleanUpOldDirs(os.TempDir(), 3*time.Minute)
 
 	serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))
 
@@ -436,4 +442,33 @@ func setTokenExpirationTime() {
 
 	// Assign the converted duration to the global variable
 	services.TOKEN_DURATION = time.Duration(durationInt) * time.Hour
+}
+
+func cleanUpOldDirs(dir string, maxAge time.Duration) {
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			log.Printf("Failed to list directories in %s: %v", dir, err)
+			continue
+		}
+
+		now := time.Now()
+		for _, file := range files {
+			if file.IsDir() && strings.HasPrefix(file.Name(), "chulbongkr-") {
+				dirPath := filepath.Join(dir, file.Name())
+				fileInfo, _ := file.Info()
+
+				if now.Sub(fileInfo.ModTime()) > maxAge {
+					if err := os.RemoveAll(dirPath); err != nil {
+						log.Printf("Failed to delete old directory %s: %v", dirPath, err)
+					} else {
+						log.Printf("Deleted old directory %s", dirPath)
+					}
+				}
+			}
+		}
+	}
 }
