@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -203,7 +202,6 @@ func SaveOfflineMap(lat, lng float64) (string, error) {
 	// 2. Get the static map image (base_map_blah.png)
 	// temporarily download from fmt.Sprintf("%s&MX=%f%MY=%f", KAKAO_STATIC, map_wcon.X, map_wcon.Y)
 	tempDir, err := os.MkdirTemp("", "chulbongkr-*") // Use "" for the system default temp directory
-	log.Printf("🎯🎯🎯 tempDir: %s", tempDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp directory")
 	}
@@ -223,15 +221,6 @@ func SaveOfflineMap(lat, lng float64) (string, error) {
 	if total == 0 {
 		return "", nil // Return nil to signify no markers in the area, reducing slice allocation
 	}
-
-	// for i, marker := range nearbyMarkers {
-	// 	markerWcon := utils.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
-	// 	baseImageFile := fmt.Sprintf("marker_img-%d.png", i+1)
-	// 	utils.DownloadFile(
-	// 		fmt.Sprintf("%s&MX=%f&MY=%f&CX=%f&CY=%f", KAKAO_STATIC, mapWcon.X, mapWcon.Y, markerWcon.X, markerWcon.Y),
-	// 		path.Join(tempDir, tempImagePath, baseImageFile),
-	// 	)
-	// }
 
 	var wg sync.WaitGroup
 	errors := make(chan error, len(nearbyMarkers))
@@ -283,6 +272,69 @@ func SaveOfflineMap(lat, lng float64) (string, error) {
 	// 	time.Sleep(5 * time.Minute)
 	// 	os.RemoveAll(tempDir)
 	// }()
+
+	return downloadPath, nil
+}
+
+// SaveOfflineMap2 draws markers with go rather than download images
+func SaveOfflineMap2(lat, lng float64) (string, error) {
+	if !utils.IsInSouthKoreaPrecisely(lat, lng) {
+		return "", fmt.Errorf("only allowed in South Korea")
+	}
+
+	// 0. Get Address of lat/lng
+	address, _ := FetchAddressFromAPI(lat, lng)
+	if address == "-2" {
+		return "", fmt.Errorf("address not found")
+	}
+	if address == "-1" {
+		address = "대한민국 철봉 지도"
+	}
+
+	// 1. Convert them into WCONGNAMUL
+	mapWcon := utils.ConvertWGS84ToWCONGNAMUL(lat, lng)
+
+	// 2. Get the static map image (base_map_blah.png)
+	// temporarily download from fmt.Sprintf("%s&MX=%f%MY=%f", KAKAO_STATIC, map_wcon.X, map_wcon.Y)
+	tempDir, err := os.MkdirTemp("", "chulbongkr-*") // Use "" for the system default temp directory
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory")
+	}
+	// defer os.RemoveAll(tempDir)
+
+	baseImageFile := fmt.Sprintf("base_map-%s.png", uuid.New().String())
+	baseImageFilePath := path.Join(tempDir, baseImageFile)
+	utils.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f", KAKAO_STATIC, mapWcon.X, mapWcon.Y), baseImageFilePath)
+
+	// 3. Load all close markers nearby map lat/lng
+	// Predefine capacity for slices based on known limits to avoid multiple allocations
+	// 1280*720 500m
+	nearbyMarkers, total, err := FindClosestNMarkersWithinDistance(lat, lng, 700, 30, 0) // meter, pageSize, offset
+	if err != nil {
+		return "", fmt.Errorf("failed to find nearby markers")
+	}
+	if total == 0 {
+		return "", nil // Return nil to signify no markers in the area, reducing slice allocation
+	}
+
+	markers := make([]utils.WCONGNAMULCoord, len(nearbyMarkers))
+	for i, marker := range nearbyMarkers {
+		markers[i] = utils.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
+	}
+
+	// 4. Place them
+	resultImagePath, err := utils.PlaceMarkersOnImage(baseImageFilePath, markers, mapWcon.X, mapWcon.Y)
+	if err != nil {
+		return "", fmt.Errorf("failed to overlay images")
+	}
+
+	os.Remove(baseImageFilePath) // Remove base image file
+
+	// 5. Make PDF
+	downloadPath, err := utils.GenerateMapPDF(resultImagePath, tempDir, address)
+	if err != nil {
+		return "", fmt.Errorf("failed to make pdf file: " + err.Error())
+	}
 
 	return downloadPath, nil
 }
