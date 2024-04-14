@@ -192,6 +192,23 @@ func UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*models.Us
 	return updatedUser, nil
 }
 
+// GetAllReportsByUser retrieves all reports submitted by a specific user from the database.
+func GetAllReportsByUser(userID int) ([]dto.MarkerReportResponse, error) {
+	const query = `
+    SELECT ReportID, MarkerID, UserID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude,
+           Description, ReportImageURL, CreatedAt
+    FROM Reports
+    WHERE UserID = ?
+    ORDER BY CreatedAt DESC
+    `
+	reports := make([]dto.MarkerReportResponse, 0)
+	if err := database.DB.Select(&reports, query, userID); err != nil {
+		return nil, fmt.Errorf("error querying reports: %w", err)
+	}
+
+	return reports, nil
+}
+
 func GetAllFavorites(userID int) ([]dto.MarkerSimpleWithDescrption, error) {
 	favorites := make([]dto.MarkerSimpleWithDescrption, 0)
 	const query = `

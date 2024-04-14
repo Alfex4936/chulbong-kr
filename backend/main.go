@@ -190,6 +190,7 @@ func main() {
 	// Middlewares
 	app.Use(healthcheck.New(healthcheck.Config{
 		LivenessProbe: func(c *fiber.Ctx) bool {
+			log.Printf("---- %s", utils.CreateAnonymousID(c))
 			return true
 		},
 		LivenessEndpoint: "/",
@@ -316,6 +317,12 @@ func main() {
 	api.Get("/admin", middlewares.AdminOnly, func(c *fiber.Ctx) error { return c.JSON("good") })
 	api.Post("/chat/ban/:markerID/:userID", middlewares.AdminOnly, handlers.BanUserHandler)
 
+	adminGroup := api.Group("/admin")
+	{
+		adminGroup.Use(middlewares.AdminOnly)
+		adminGroup.Get("/dead", handlers.ListUnreferencedS3ObjectsHandler)
+	}
+
 	// Authentication routes
 	authGroup := api.Group("/auth")
 	{
@@ -337,9 +344,10 @@ func main() {
 		userGroup.Use(middlewares.AuthMiddleware)
 		userGroup.Get("/me", handlers.ProfileHandler)
 		userGroup.Get("/favorites", handlers.GetFavoritesHandler)
+		userGroup.Get("/reports", handlers.GetMyReportsHandler)
 		userGroup.Patch("/me", handlers.UpdateUserHandler)
 		userGroup.Delete("/me", handlers.DeleteUserHandler)
-		userGroup.Delete("/s3/objects", handlers.DeleteObjectFromS3Handler)
+		userGroup.Delete("/s3/objects", middlewares.AdminOnly, handlers.DeleteObjectFromS3Handler)
 	}
 
 	// Marker routes
@@ -405,6 +413,14 @@ func main() {
 		// tossGroup.Get("/fail", handlers.FailToss)
 	}
 
+	reportGroup := api.Group("/reports")
+	{
+		reportGroup.Get("/all", handlers.GetAllReportsHandler)
+		reportGroup.Get("/marker/:markerID", handlers.GetMarkerReportsHandler)
+
+		reportGroup.Post("", middlewares.AuthSoftMiddleware, handlers.ReportHandler)
+	}
+
 	// app.Get("/example-optional/:param?", handlers.QueryParamsExample)
 
 	// Cron jobs
@@ -452,7 +468,7 @@ func cleanUpOldDirs(dir string, maxAge time.Duration) {
 	for range ticker.C {
 		files, err := os.ReadDir(dir)
 		if err != nil {
-			log.Printf("Failed to list directories in %s: %v", dir, err)
+			// log.Printf("Failed to list directories in %s: %v", dir, err)
 			continue
 		}
 
@@ -463,11 +479,13 @@ func cleanUpOldDirs(dir string, maxAge time.Duration) {
 				fileInfo, _ := file.Info()
 
 				if now.Sub(fileInfo.ModTime()) > maxAge {
-					if err := os.RemoveAll(dirPath); err != nil {
-						log.Printf("Failed to delete old directory %s: %v", dirPath, err)
-					} else {
-						log.Printf("Deleted old directory %s", dirPath)
-					}
+					os.RemoveAll(dirPath)
+
+					// if err := os.RemoveAll(dirPath); err != nil {
+					// 	log.Printf("Failed to delete old directory %s: %v", dirPath, err)
+					// } else {
+					// 	log.Printf("Deleted old directory %s", dirPath)
+					// }
 				}
 			}
 		}

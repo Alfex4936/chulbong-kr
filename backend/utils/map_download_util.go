@@ -22,6 +22,21 @@ var HTTPClientUtil = &http.Client{
 	Timeout: 10 * time.Second, // Set a timeout to avoid hanging requests indefinitely
 }
 
+var monthsInKorean = map[time.Month]string{
+	time.January:   "1",
+	time.February:  "2",
+	time.March:     "3",
+	time.April:     "4",
+	time.May:       "5",
+	time.June:      "6",
+	time.July:      "7",
+	time.August:    "8",
+	time.September: "9",
+	time.October:   "10",
+	time.November:  "11",
+	time.December:  "12",
+}
+
 func OverlayImages(baseImageFile, markerImagePath string) (string, error) {
 	originalBaseImg, _, err := loadImage(baseImageFile) // Load the original base image
 	if err != nil {
@@ -155,15 +170,41 @@ func GenerateMapPDF(imagePath, tempDir, title string) (string, error) {
 	pdf.AddPage()
 
 	pdf.AddUTF8Font("NanumGothic", "", "fonts/nanum.ttf")
-	// Korean font
-
+	// Set the Korean font
 	pdf.SetFont("NanumGothic", "", 10)
-	pdf.CellFormat(190, 10, "More at k-pullup.com", "0", 1, "C", false, pdf.AddLink(), "https://k-pullup.com")
-	pdf.SetFont("NanumGothic", "", 16)
-	pdf.CellFormat(190, 10, title, "0", 1, "C", false, 0, "")
+	totalWidth := 190.0 // the full width of the page area used
 
-	pdf.ImageOptions(imagePath, 10, 30, 190, 0, false, fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
+	// Print the date string, centered
+	now := time.Now()
+	dateString := fmt.Sprintf("%d년 %s월 %d일", now.Year(), monthsInKorean[now.Month()], now.Day())
+	pdf.CellFormat(totalWidth, 10, dateString, "0", 1, "C", false, 0, "")
 
+	// Print the title, centered
+	pdf.SetFont("NanumGothic", "", 16) // Set font size to 16 for title
+	pdf.SetTextColor(0, 0, 0)          // Reset text color to black for the title
+	pdf.CellFormat(totalWidth, 10, title, "0", 1, "C", false, 0, "")
+
+	// Add image
+	pdf.ImageOptions(imagePath, 10, 40, totalWidth, 0, false, fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "https://k-pullup.com")
+
+	// Print the "More at k-pullup.com" as one unit, centered
+	pdf.SetFont("NanumGothic", "", 8) // Reset the font size to 10 if needed
+	pdf.SetTextColor(0, 0, 0)         // Black color for "More at "
+	moreAtText := "More at "
+	kPullupText := "https://k-pullup.com"
+	fullLinkText := moreAtText + kPullupText
+	// fullLinkWidth := pdf.GetStringWidth(fullLinkText)
+
+	// Calculate starting X position to center the full link text
+	// linkStartX := (totalWidth - fullLinkWidth) / 2
+	// log.Printf("Starting X position to center the full link text: %f", linkStartX)
+	pdf.SetX(87)
+	pdf.SetY(200)
+	pdf.CellFormat(totalWidth, 10, fullLinkText, "0", 0, "R", false, 0, "")
+	// Create an invisible link over "k-pullup.com"
+	pdf.LinkString(pdf.GetX()+pdf.GetStringWidth(moreAtText), pdf.GetY(), pdf.GetStringWidth(kPullupText), 10, "https://k-pullup.com")
+
+	// Save the PDF
 	pdfName := fmt.Sprintf("kpullup-%s.pdf", uuid.New().String())
 	pdfPath := path.Join(tempDir, pdfName)
 	err := pdf.OutputFileAndClose(pdfPath)
@@ -171,7 +212,8 @@ func GenerateMapPDF(imagePath, tempDir, title string) (string, error) {
 		return "", err
 	}
 
-	os.Remove(imagePath) // Remove the image file after generating the PDF file
+	// Remove the temporary image file
+	os.Remove(imagePath)
 
 	return pdfPath, nil
 }

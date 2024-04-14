@@ -102,3 +102,22 @@ func GetFavoritesHandler(c *fiber.Ctx) error {
 
 	return c.JSON(favorites)
 }
+
+// GetMyReportsHandler handles requests to get all reports submitted by the logged-in user.
+func GetMyReportsHandler(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(int) // Make sure to handle errors and cases where userID might not be set
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
+	}
+
+	reports, err := services.GetAllReportsByUser(userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get reports"})
+	}
+
+	if len(reports) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "No reports found"})
+	}
+
+	return c.JSON(reports)
+}
