@@ -10,7 +10,7 @@ import (
 
 func CronCleanUpPasswordTokens() {
 	c := cron.New()
-	_, err := c.AddFunc("@hourly", func() {
+	_, err := c.AddFunc("@daily", func() {
 		fmt.Println("Running cleanup job...")
 		if err := DeleteExpiredPasswordTokens(); err != nil {
 			// Log the error

@@ -213,7 +213,10 @@ func SaveOfflineMap2Handler(c *fiber.Ctx) error {
 
 	pdf, err := services.SaveOfflineMap2(lat, long)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create a PDF: " + err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create a PDF"})
+	}
+	if pdf == "" {
+		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{"error": "no content for this location"})
 	}
 
 	return c.Download(pdf)

@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -113,4 +114,20 @@ func GetUserIP(c *fiber.Ctx) string {
 		clientIP = c.IP()
 	}
 	return clientIP
+}
+
+func anonymizeIP(c *fiber.Ctx) string {
+	ip := GetUserIP(c)
+	parts := strings.Split(ip, ".")
+	if len(parts) >= 2 {
+		return parts[0] + "." + parts[1] // Return only the first two segments
+	}
+	return ip // Fallback in case of unexpected format
+}
+
+func CreateAnonymousID(c *fiber.Ctx) string {
+	adjective := adjectives[rand.Intn(len(adjectives))]
+	name := names[rand.Intn(len(names))]
+
+	return fmt.Sprintf("%s%s#%s", adjective, name, anonymizeIP(c)) // Combine nickname and IP
 }

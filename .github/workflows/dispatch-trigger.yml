@@ -48,8 +48,6 @@ jobs:
         if: env.frontend_changed == 'true'
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          repository: ${{ github.repository }}
           event-type: frontend-changes
           client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
       
@@ -57,8 +55,6 @@ jobs:
         if: env.backend_changed == 'true'
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          repository: ${{ github.repository }}
           event-type: backend-changes
           client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
 

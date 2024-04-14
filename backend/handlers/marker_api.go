@@ -39,7 +39,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Check if latitude and longitude are provided
-	latitude, longitude, err := getLatLong(form)
+	latitude, longitude, err := GetLatLngFromForm(form)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -55,7 +55,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Set default description if it's empty or not provided
-	description := getDescription(form)
+	description := GetDescriptionFromForm(form)
 	if containsBadWord, _ := utils.CheckForBadWords(description); containsBadWord {
 		return c.Status(fiber.StatusBadRequest).SendString("Comment contains inappropriate content.")
 	}
@@ -69,9 +69,9 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}, userId, form)
 	if err != nil {
 		if strings.Contains(err.Error(), "an error during file") {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "an error during file upload"})
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal error happened, try again later"})
 	}
 
 	go services.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userId))
@@ -548,7 +548,7 @@ func UpdateMarkersAddressesHandler(c *fiber.Ctx) error {
 
 // helpers
 
-func getLatLong(form *multipart.Form) (float64, float64, error) {
+func GetLatLngFromForm(form *multipart.Form) (float64, float64, error) {
 	latStr, latOk := form.Value["latitude"]
 	longStr, longOk := form.Value["longitude"]
 	if !latOk || !longOk || len(latStr[0]) == 0 || len(longStr[0]) == 0 {
@@ -568,8 +568,15 @@ func getLatLong(form *multipart.Form) (float64, float64, error) {
 	return latitude, longitude, nil
 }
 
-func getDescription(form *multipart.Form) string {
+func GetDescriptionFromForm(form *multipart.Form) string {
 	if descValues, exists := form.Value["description"]; exists && len(descValues[0]) > 0 {
+		return descValues[0]
+	}
+	return ""
+}
+
+func GetMarkerIDFromForm(form *multipart.Form) string {
+	if descValues, exists := form.Value["markerId"]; exists && len(descValues[0]) > 0 {
 		return descValues[0]
 	}
 	return ""
