@@ -7,6 +7,7 @@ import (
 	"image/draw"
 	"image/png"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path"
@@ -272,4 +273,35 @@ func LoadWebP(filePath string) (image.Image, error) {
 	}
 	defer file.Close()
 	return webp.Decode(file)
+}
+
+func PlaceMarkerOnImageDynamic(CX, CY, centerCX, centerCY float64, imageWidth, imageHeight, zoomLevel int) (int, int) {
+	// Base scale for zoom level 0 (fully zoomed out)
+	const baseScale = 0.3125
+
+	// full coordinate range visible at zoom level 0 for a standard image size
+	const baseWidth = 1280     // Standard width at zoom level 0
+	const baseHeight = 1080    // Standard height at zoom level 0
+	const baseCXRange = 3190.0 // Total CX range at zoom level 0
+	const baseCYRange = 3190.0 // Total CY range at zoom level 0
+
+	// Calculate scale factor based on current zoom level
+	scale := baseScale * math.Pow(2, float64(zoomLevel))
+
+	// Calculate the actual number of coordinate units per pixel at the current zoom level and image size
+	cxUnitsPerPixel := (baseCXRange / float64(baseWidth)) / scale * float64(baseWidth) / float64(imageWidth)
+	cyUnitsPerPixel := (baseCYRange / float64(baseHeight)) / scale * float64(baseHeight) / float64(imageHeight)
+
+	// Calculate the pixel offset from the center
+	deltaX := CX - centerCX
+	deltaY := CY - centerCY
+
+	pixelOffsetX := deltaX / cxUnitsPerPixel
+	pixelOffsetY := deltaY / cyUnitsPerPixel
+
+	// Calculate the absolute pixel coordinates
+	markerPosX := (imageWidth / 2) + int(pixelOffsetX)
+	markerPosY := (imageHeight / 2) - int(pixelOffsetY)
+
+	return markerPosX, markerPosY
 }

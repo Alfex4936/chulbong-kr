@@ -2,15 +2,39 @@ package handlers
 
 import (
 	"chulbong-kr/dto"
+	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
+
+// RegisterAuthRoutes sets up the routes for auth handling within the application.
+func RegisterAuthRoutes(api fiber.Router) {
+	oauth2 := generateOAuthConfig()
+
+	api.Get("/google", getGoogleAuthHandler(oauth2))
+	authGroup := api.Group("/auth")
+	{
+		authGroup.Post("/signup", signUpHandler)
+		authGroup.Post("/login", loginHandler)
+		authGroup.Post("/logout", middlewares.AuthMiddleware, logoutHandler)
+		authGroup.Get("/google/callback", getGoogleCallbackHandler(oauth2))
+		authGroup.Post("/verify-email/send", sendVerificationEmailHandler)
+		authGroup.Post("/verify-email/confirm", validateTokenHandler)
+
+		// Finding password
+		authGroup.Post("/request-password-reset", requestResetPasswordHandler)
+		authGroup.Post("/reset-password", resetPasswordHandler)
+	}
+}
 
 // SignUp User godoc
 //
@@ -31,7 +55,7 @@ import (
 //	@Failure		409	{object}	map[string]interface{}	"Email already registered"
 //	@Failure		500	{object}	map[string]interface{}	"An error occurred while creating the user"
 //	@Router			/auth/signup [post]
-func SignUpHandler(c *fiber.Ctx) error {
+func signUpHandler(c *fiber.Ctx) error {
 	var signUpReq dto.SignUpRequest
 	if err := c.BodyParser(&signUpReq); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse JSON, wrong sign up form."})
@@ -80,7 +104,7 @@ func SignUpHandler(c *fiber.Ctx) error {
 // @Failure	401	{object}	map[string]interface{}	"Invalid email or password"
 // @Failure	500	{object}	map[string]interface{}	"Failed to generate token"
 // @Router		/auth/login [post]
-func LoginHandler(c *fiber.Ctx) error {
+func loginHandler(c *fiber.Ctx) error {
 	var request dto.LoginRequest
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
@@ -109,7 +133,7 @@ func LoginHandler(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-func LogoutHandler(c *fiber.Ctx) error {
+func logoutHandler(c *fiber.Ctx) error {
 	// Retrieve user ID from context or session
 	userID, ok := c.Locals("userID").(int)
 	if !ok {
@@ -150,7 +174,7 @@ func LogoutHandler(c *fiber.Ctx) error {
 // @Failure	409	{object}	map[string]interface{}	"Email already registered"
 // @Failure	500	{object}	map[string]interface{}	"An unexpected error occurred"
 // @Router		/auth/send-verification-email [post]
-func SendVerificationEmailHandler(c *fiber.Ctx) error {
+func sendVerificationEmailHandler(c *fiber.Ctx) error {
 	userEmail := c.FormValue("email")
 	_, err := services.GetUserByEmail(userEmail)
 	if err == nil {
@@ -212,7 +236,7 @@ func SendVerificationEmailHandler(c *fiber.Ctx) error {
 // @Failure	400	{object}	map[string]interface{}	"Invalid or expired token"
 // @Failure	500	{object}	map[string]interface{}	"Error validating token"
 // @Router		/auth/validate-token [post]
-func ValidateTokenHandler(c *fiber.Ctx) error {
+func validateTokenHandler(c *fiber.Ctx) error {
 	token := c.FormValue("token")
 	email := c.FormValue("email")
 
@@ -245,7 +269,7 @@ func ValidateTokenHandler(c *fiber.Ctx) error {
 // @Success	200	"Password reset request initiated successfully"
 // @Failure	500	{object}	map[string]interface{}	"Failed to request reset password"
 // @Router		/auth/request-reset-password [post]
-func RequestResetPasswordHandler(c *fiber.Ctx) error {
+func requestResetPasswordHandler(c *fiber.Ctx) error {
 	email := c.FormValue("email")
 
 	// Generate the password reset token
@@ -286,7 +310,7 @@ func RequestResetPasswordHandler(c *fiber.Ctx) error {
 // @Success	200	"Password reset successfully"
 // @Failure	500	{object}	map[string]interface{}	"Failed to reset password"
 // @Router		/auth/reset-password [post]
-func ResetPasswordHandler(c *fiber.Ctx) error {
+func resetPasswordHandler(c *fiber.Ctx) error {
 	token := c.FormValue("token")
 	newPassword := c.FormValue("password")
 
@@ -296,4 +320,15 @@ func ResetPasswordHandler(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusOK)
+}
+
+func generateOAuthConfig() *oauth2.Config {
+	// OAuth2 Configuration
+	return &oauth2.Config{
+		ClientID:     os.Getenv("G_CLIENT_ID"),
+		ClientSecret: os.Getenv("G_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("G_REDIRECT"),
+		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
+		Endpoint:     google.Endpoint,
+	}
 }

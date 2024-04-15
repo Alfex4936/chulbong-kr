@@ -4,14 +4,57 @@ import (
 	"chulbong-kr/database"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/robfig/cron/v3"
 )
 
+func RunAllCrons() {
+	CronCleanUpToken()
+	CronCleanUpPasswordTokens()
+	CronResetClickRanking()
+	CronOrphanedPhotosCleanup()
+	CronCleanUpOldDirs()
+	CronProcessClickEventsBatch(RANK_UPDATE_TIME)
+}
+
+// CronService holds a reference to a cron scheduler and its related setup.
+type CronService struct {
+	cron *cron.Cron
+}
+
+var (
+	instance *CronService
+	once     sync.Once
+)
+
+// GetCronService returns a singleton instance of CronService, creating it if not already present.
+func GetCronService() *CronService {
+	once.Do(func() {
+		c := cron.New(cron.WithChain(
+			cron.Recover(cron.DefaultLogger),
+		))
+		instance = &CronService{
+			cron: c,
+		}
+		instance.cron.Start()
+	})
+	return instance
+}
+
+// Schedule a new job with a cron specification.
+func (cs *CronService) Schedule(spec string, cmd func()) (cron.EntryID, error) {
+	job := cron.FuncJob(cmd)
+	return cs.cron.AddJob(spec, job)
+}
+
 func CronCleanUpPasswordTokens() {
-	c := cron.New()
-	_, err := c.AddFunc("@daily", func() {
-		fmt.Println("Running cleanup job...")
+	c := GetCronService()
+	_, err := c.Schedule("@daily", func() {
 		if err := DeleteExpiredPasswordTokens(); err != nil {
 			// Log the error
 			fmt.Printf("Error deleting expired tokens: %v\n", err)
@@ -24,13 +67,12 @@ func CronCleanUpPasswordTokens() {
 		fmt.Printf("Error scheduling the token cleanup job: %v\n", err)
 		return
 	}
-	c.Start()
 
 }
 
 func CronResetClickRanking() {
-	c := cron.New()
-	_, err := c.AddFunc("0 2 * * 1", func() { // 2 AM every Monday
+	c := GetCronService()
+	_, err := c.Schedule("0 2 * * 1", func() { // 2 AM every Monday
 
 		// handlers.CacheMutex.Lock()
 		// handlers.MarkersLocalCache = nil
@@ -51,12 +93,39 @@ func CronResetClickRanking() {
 		fmt.Printf("Error scheduling the marker ranking cleanup job: %v\n", err)
 		return
 	}
-	c.Start()
+}
+
+func CronProcessClickEventsBatch(interval time.Duration) {
+	c := GetCronService()
+	var spec string
+
+	switch {
+	case interval < time.Hour:
+		// Minutes interval
+		minutes := int(interval.Minutes())
+		spec = fmt.Sprintf("*/%d * * * *", minutes)
+	case interval >= time.Hour && interval < 24*time.Hour:
+		// Hourly interval
+		hours := int(interval.Hours())
+		spec = fmt.Sprintf("0 */%d * * *", hours)
+	default:
+		// Default to every 10 minutes if the interval is oddly long or unspecified
+		spec = "*/10 * * * *"
+	}
+
+	_, err := c.Schedule(spec, func() {
+		fmt.Println("Processing batch job...")
+		ProcessClickEventsBatch()
+	})
+	if err != nil {
+		fmt.Printf("Error setting up cron job: %v\n", err)
+		return
+	}
 }
 
 func CronCleanUpToken() {
-	c := cron.New()
-	_, err := c.AddFunc("@daily", func() {
+	c := GetCronService()
+	_, err := c.Schedule("@daily", func() {
 		if err := DeleteExpiredTokens(); err != nil {
 			// Log the error
 			fmt.Printf("Error deleting expired tokens: %v\n", err)
@@ -69,13 +138,12 @@ func CronCleanUpToken() {
 		fmt.Printf("Error scheduling the token cleanup job: %v\n", err)
 		return
 	}
-	c.Start()
 }
 
-// StartOrphanedPhotosCleanupCron starts the cron job for cleaning up orphaned photos.
-func StartOrphanedPhotosCleanupCron() {
-	c := cron.New()
-	_, err := c.AddFunc("@daily", func() {
+// CronOrphanedPhotosCleanup starts the cron job for cleaning up orphaned photos.
+func CronOrphanedPhotosCleanup() {
+	c := GetCronService()
+	_, err := c.Schedule("@daily", func() {
 		if err := deleteOrphanedPhotos(); err != nil {
 			fmt.Printf("Error cleaning up orphaned photos: %v\n", err)
 		} else {
@@ -86,7 +154,57 @@ func StartOrphanedPhotosCleanupCron() {
 		fmt.Printf("Error scheduling the orphaned photos cleanup job: %v\n", err)
 		return
 	}
-	c.Start()
+}
+
+// CronCleanUpOldDirs periodically checks and removes directories older than maxAge.
+func CronCleanUpOldDirs() {
+	c := GetCronService()
+	tempDir := os.TempDir()
+	maxAge := 2 * time.Minute
+
+	_, err := c.Schedule("*/10 * * * *", func() { // every 10 minutes
+		if err := cleanTempDir(tempDir, maxAge); err != nil {
+			fmt.Printf("Error cleaning up orphaned photos: %v\n", err)
+		} else {
+			fmt.Println("Orphaned photos cleanup executed successfully")
+		}
+	})
+	if err != nil {
+		fmt.Printf("Error scheduling the orphaned photos cleanup job: %v\n", err)
+		return
+	}
+}
+
+// -----HELPER
+
+// cleanTempDir removes temp directories that are older than the maxAge.
+func cleanTempDir(dir string, maxAge time.Duration) error {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("failed to list directories in %s: %w", dir, err)
+	}
+
+	now := time.Now()
+	for _, file := range files {
+		if file.IsDir() && strings.HasPrefix(file.Name(), "chulbongkr-") {
+			dirPath := filepath.Join(dir, file.Name())
+			fileInfo, err := file.Info()
+			if err != nil {
+				// log.Printf("Failed to get info for directory %s: %v", dirPath, err)
+				continue
+			}
+
+			if now.Sub(fileInfo.ModTime()) > maxAge {
+				os.RemoveAll(dirPath)
+				//if err := os.RemoveAll(dirPath); err != nil {
+				//	log.Printf("Failed to delete old directory %s: %v", dirPath, err)
+				//} else {
+				//	log.Printf("Deleted old directory %s", dirPath)
+				//}
+			}
+		}
+	}
+	return nil
 }
 
 // deleteOrphanedPhotos checks for photos without a corresponding marker and deletes them.

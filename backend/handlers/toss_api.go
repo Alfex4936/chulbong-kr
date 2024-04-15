@@ -13,6 +13,16 @@ var (
 	TOSS_PAYMENT_API_URL = "https://api.tosspayments.com/v1/payments/"
 )
 
+// RegisterTossPaymentRoutes sets up the routes for toss payments handling within the application.
+func RegisterTossPaymentRoutes(api fiber.Router) {
+	tossGroup := api.Group("/payments/toss")
+	{
+		tossGroup.Post("/confirm", confirmToss)
+		// tossGroup.Get("/success", handlers.SuccessToss)
+		// tossGroup.Get("/fail", handlers.FailToss)
+	}
+}
+
 // frontend handles
 // func SuccessToss(c *fiber.Ctx) error {
 // 	// Extract query parameters
@@ -65,7 +75,7 @@ var (
 // 	return c.SendString("Failed")
 // }
 
-func ConfirmToss(c *fiber.Ctx) error {
+func confirmToss(c *fiber.Ctx) error {
 	// Extract paymentKey, orderId, and amount from the request body
 	var requestBody struct {
 		PaymentKey string `json:"paymentKey"`

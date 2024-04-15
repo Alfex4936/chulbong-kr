@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"chulbong-kr/dto"
+	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
 	"strconv"
@@ -9,8 +10,21 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// PostCommentHandler creates a new comment
-func PostCommentHandler(c *fiber.Ctx) error {
+// RegisterCommentRoutes sets up the routes for comments handling within the application.
+func RegisterCommentRoutes(api fiber.Router) {
+	api.Get("/comments/:markerId/comments", loadCommentsHandler)
+
+	commentGroup := api.Group("/comments")
+	{
+		commentGroup.Use(middlewares.AuthMiddleware)
+		commentGroup.Post("", postCommentHandler)
+		commentGroup.Patch("/:commentId", updateCommentHandler)
+		commentGroup.Delete("/:commentId", removeCommentHandler)
+	}
+}
+
+// postCommentHandler creates a new comment
+func postCommentHandler(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(int)
 	var req dto.CommentRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -19,7 +33,7 @@ func PostCommentHandler(c *fiber.Ctx) error {
 
 	containsBadWord, _ := utils.CheckForBadWords(req.CommentText)
 	if containsBadWord {
-		return c.Status(fiber.StatusBadRequest).SendString("Comment contains inappropriate content.")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment contains inappropriate content."})
 	}
 
 	comment, err := services.CreateComment(req.MarkerID, userID, req.CommentText)
@@ -29,7 +43,7 @@ func PostCommentHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(comment)
 }
 
-func UpdateCommentHandler(c *fiber.Ctx) error {
+func updateCommentHandler(c *fiber.Ctx) error {
 	commentID, err := strconv.Atoi(c.Params("commentId"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid comment ID"})
@@ -47,16 +61,16 @@ func UpdateCommentHandler(c *fiber.Ctx) error {
 	// Call the service function to update the comment
 	if err := services.UpdateComment(commentID, userID, request.CommentText); err != nil {
 		if err.Error() == "comment not found or not owned by user" {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Failed to update the comment"})
 		}
 		// Handle other potential errors
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update comment"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update the comment"})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Comment updated successfully"})
 }
 
-func RemoveCommentHandler(c *fiber.Ctx) error {
+func removeCommentHandler(c *fiber.Ctx) error {
 	commentID, err := strconv.Atoi(c.Params("commentId"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid comment ID"})
@@ -75,7 +89,7 @@ func RemoveCommentHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Comment removed successfully"})
 }
 
-func LoadCommentsHandler(c *fiber.Ctx) error {
+func loadCommentsHandler(c *fiber.Ctx) error {
 	var params dto.CommentLoadParams
 	if err := c.QueryParser(&params); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid query parameters"})

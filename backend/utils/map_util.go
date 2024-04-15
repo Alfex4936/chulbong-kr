@@ -55,6 +55,20 @@ const (
 const RadiusOfEarthMeters float64 = 6370986
 const KoreaTimeZone = "Asia/Seoul"
 
+const (
+	// Constants related to the WGS84 ellipsoid.
+	aWGS84           float64 = 6378137 // Semi-major axis.
+	flatteningFactor float64 = 0.0033528106647474805
+
+	// Constants for Korea TM projection.
+	k0          float64 = 1      // Scale factor.
+	dx          float64 = 500000 // False Easting.
+	dy          float64 = 200000 // False Northing.
+	lat0        float64 = 38     // Latitude of origin.
+	lon0        float64 = 127    // Longitude of origin.
+	scaleFactor float64 = 2.5
+)
+
 var TimeZoneFinder tzf.F
 
 // Haversine formula
@@ -114,9 +128,10 @@ type WCONGNAMULCoord struct {
 
 // ConvertWGS84ToWCONGNAMUL converts coordinates from WGS84 to WCONGNAMUL.
 func ConvertWGS84ToWCONGNAMUL(lat, long float64) WCONGNAMULCoord {
-	x, y := transformWGS84ToKoreaTM(6378137, 0.0033528106647474805, 500000, 200000, 1, 38, 127, lat, long)
-	x = math.Round(x * 2.5)
-	y = math.Round(y * 2.5)
+	x, y := transformWGS84ToKoreaTM(aWGS84, flatteningFactor, dx, dy, k0, lat0, lon0, lat, long)
+	// x, y := transformWGS84ToKoreaTM(aWGS84, flatteningFactor, dx, dy, k0, lat0, lon0, lat, long)
+	x = math.Round(x * scaleFactor)
+	y = math.Round(y * scaleFactor)
 	return WCONGNAMULCoord{X: x, Y: y}
 }
 

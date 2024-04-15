@@ -187,8 +187,6 @@ func UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*models.Us
 		return nil, fmt.Errorf("error fetching updated user: %w", err)
 	}
 
-	ResetCache("/api/v1/users/me_GET")
-
 	return updatedUser, nil
 }
 
