@@ -76,7 +76,7 @@ func RemoveURLs(input string) string {
 // 	return false, nil
 // }
 
-// LoadBadWords loads bad words from a file into memory
+// LoadBadWords loads bad words from a file into memory with optimizations.
 func LoadBadWords(filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -84,7 +84,16 @@ func LoadBadWords(filePath string) error {
 	}
 	defer file.Close()
 
+	// Estimate the number of words if known or use a high number.
+	const estimatedWords = 1000
+	badWordsList = make([]string, 0, estimatedWords)
+
+	// Create a buffer and attach it to scanner.
 	scanner := bufio.NewScanner(file)
+	const maxCapacity = 10 * 1024 // 10KB;
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+
 	for scanner.Scan() {
 		word := scanner.Text()
 		badWordsList = append(badWordsList, word)
@@ -94,6 +103,9 @@ func LoadBadWords(filePath string) error {
 		return err
 	}
 
-	CompileBadWordsPattern()
+	// Optimize memory usage by shrinking the slice to the actual number of words.
+	badWordsList = append([]string{}, badWordsList...)
+
+	go CompileBadWordsPattern() // Compile in a goroutine if it's safe to do asynchronously.
 	return nil
 }

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"chulbong-kr/dto"
+	"chulbong-kr/middlewares"
 	"chulbong-kr/models"
 	"chulbong-kr/protos"
 	"chulbong-kr/services"
@@ -26,7 +27,55 @@ var (
 	CacheMutex        sync.RWMutex
 )
 
-func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
+// RegisterMarkerRoutes sets up the routes for markers handling within the application.
+func RegisterMarkerRoutes(api fiber.Router) {
+	// Marker routes
+	// api.Get("/markers2", handlers.GetAllMarkersHandler)
+	// api.Get("/markers2", handlers.GetAllMarkersProtoHandler)
+	api.Get("/markers", getAllMarkersLocalHandler)
+	api.Get("/markers/new", getAllNewMarkersHandler)
+
+	// api.Get("/markers-addr", middlewares.AdminOnly, handlers.GetAllMarkersWithAddrHandler)
+	// api.Post("/markers-addr", middlewares.AdminOnly, handlers.UpdateMarkersAddressesHandler)
+	// api.Get("/markers-db", middlewares.AdminOnly, handlers.GetMarkersClosebyAdmin)
+
+	api.Get("/markers/:markerId/details", middlewares.AuthSoftMiddleware, getMarker)
+	api.Get("/markers/:markerID/facilities", getFacilitiesHandler)
+	api.Get("/markers/close", findCloseMarkersHandler)
+	api.Get("/markers/ranking", getMarkerRankingHandler)
+	api.Get("/markers/unique-ranking", getUniqueVisitorCountHandler)
+	api.Get("/markers/unique-ranking/all", getAllUniqueVisitorCountHandler)
+	api.Get("/markers/area-ranking", getCurrentAreaMarkerRankingHandler)
+	api.Get("/markers/convert", convertWGS84ToWCONGNAMULHandler)
+	api.Get("/markers/location-check", isInSouthKoreaHandler)
+	api.Get("/markers/weather", getWeatherByWGS84Handler)
+
+	api.Get("/markers/save-offline", saveOfflineMap2Handler)
+
+	api.Post("/markers/upload", middlewares.AdminOnly, uploadMarkerPhotoToS3Handler)
+
+	markerGroup := api.Group("/markers")
+	{
+		markerGroup.Use(middlewares.AuthMiddleware)
+
+		markerGroup.Get("/my", getUserMarkersHandler)
+		markerGroup.Get("/:markerID/dislike-status", checkDislikeStatus)
+		// markerGroup.Get("/:markerId", handlers.GetMarker)
+
+		markerGroup.Post("/new", createMarkerWithPhotosHandler)
+		markerGroup.Post("/facilities", setMarkerFacilitiesHandler)
+		markerGroup.Post("/:markerID/dislike", leaveDislikeHandler)
+		markerGroup.Post("/:markerID/favorites", addFavoriteHandler)
+
+		markerGroup.Put("/:markerID", updateMarker)
+
+		markerGroup.Delete("/:markerID", deleteMarkerHandler)
+		markerGroup.Delete("/:markerID/dislike", undoDislikeHandler)
+		markerGroup.Delete("/:markerID/favorites", removeFavoriteHandler)
+	}
+}
+
+func createMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	// go services.ResetCache(services.ALL_MARKERS_KEY)
 	CacheMutex.Lock()
 	MarkersLocalCache = nil
@@ -41,12 +90,12 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	// Check if latitude and longitude are provided
 	latitude, longitude, err := GetLatLngFromForm(form)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to parse latitude/longitude"})
 	}
 
 	// Location Must Be Inside South Korea
 	if !utils.IsInSouthKoreaPrecisely(latitude, longitude) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations only allowed within South Korea."})
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations are only allowed within South Korea."})
 	}
 
 	// Checking if there's a marker close to the latitude and longitude
@@ -57,7 +106,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	// Set default description if it's empty or not provided
 	description := GetDescriptionFromForm(form)
 	if containsBadWord, _ := utils.CheckForBadWords(description); containsBadWord {
-		return c.Status(fiber.StatusBadRequest).SendString("Comment contains inappropriate content.")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment contains inappropriate content."})
 	}
 
 	userId := c.Locals("userID").(int)
@@ -79,7 +128,7 @@ func CreateMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(marker)
 }
 
-func GetAllMarkersHandler(c *fiber.Ctx) error {
+func getAllMarkersHandler(c *fiber.Ctx) error {
 	cachedMarkers, cacheErr := services.GetCacheEntry[[]dto.MarkerSimple](services.ALL_MARKERS_KEY)
 	if cacheErr == nil && cachedMarkers != nil {
 		// Cache hit
@@ -97,7 +146,7 @@ func GetAllMarkersHandler(c *fiber.Ctx) error {
 	return c.JSON(markers)
 }
 
-func GetAllMarkersLocalHandler(c *fiber.Ctx) error {
+func getAllMarkersLocalHandler(c *fiber.Ctx) error {
 	CacheMutex.RLock()
 	cached := MarkersLocalCache
 	CacheMutex.RUnlock()
@@ -130,7 +179,7 @@ func GetAllMarkersLocalHandler(c *fiber.Ctx) error {
 	return c.Send(markersJSON)
 }
 
-func GetAllMarkersProtoHandler(c *fiber.Ctx) error {
+func getAllMarkersProtoHandler(c *fiber.Ctx) error {
 	markers, err := services.GetAllMarkersProto()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -150,7 +199,7 @@ func GetAllMarkersProtoHandler(c *fiber.Ctx) error {
 }
 
 // GetAllNewMarkersHandler handles requests to fetch a paginated list of newly added markers.
-func GetAllNewMarkersHandler(c *fiber.Ctx) error {
+func getAllNewMarkersHandler(c *fiber.Ctx) error {
 	// Extract page and pageSize from query parameters. Provide default values if not specified.
 	page, err := strconv.Atoi(c.Query("page", "1")) // Default to page 1 if not specified
 	if err != nil {
@@ -172,7 +221,7 @@ func GetAllNewMarkersHandler(c *fiber.Ctx) error {
 }
 
 // ADMIN
-func GetAllMarkersWithAddrHandler(c *fiber.Ctx) error {
+func getAllMarkersWithAddrHandler(c *fiber.Ctx) error {
 	markersWithPhotos, err := services.GetAllMarkersWithAddr()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -182,7 +231,7 @@ func GetAllMarkersWithAddrHandler(c *fiber.Ctx) error {
 }
 
 // GetMarker handler
-func GetMarker(c *fiber.Ctx) error {
+func getMarker(c *fiber.Ctx) error {
 	markerID, err := strconv.Atoi(c.Params("markerId"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Marker ID"})
@@ -215,7 +264,7 @@ func GetMarker(c *fiber.Ctx) error {
 }
 
 // UpdateMarker updates an existing marker
-func UpdateMarker(c *fiber.Ctx) error {
+func updateMarker(c *fiber.Ctx) error {
 	markerID, _ := strconv.Atoi(c.Params("markerID"))
 	description := c.FormValue("description")
 
@@ -227,7 +276,7 @@ func UpdateMarker(c *fiber.Ctx) error {
 }
 
 // DeleteMarkerHandler handles the HTTP request to delete a marker.
-func DeleteMarkerHandler(c *fiber.Ctx) error {
+func deleteMarkerHandler(c *fiber.Ctx) error {
 	// Auth
 	userID := c.Locals("userID").(int)
 	userRole := c.Locals("role").(string)
@@ -259,7 +308,7 @@ func DeleteMarkerHandler(c *fiber.Ctx) error {
 }
 
 // UploadMarkerPhotoToS3Handler to upload a file to S3
-func UploadMarkerPhotoToS3Handler(c *fiber.Ctx) error {
+func uploadMarkerPhotoToS3Handler(c *fiber.Ctx) error {
 	// Parse the multipart form
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -286,35 +335,8 @@ func UploadMarkerPhotoToS3Handler(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"urls": urls})
 }
 
-// DeleteObjectFromS3Handler handles requests to delete objects from S3.
-func DeleteObjectFromS3Handler(c *fiber.Ctx) error {
-	var requestBody struct {
-		ObjectURL string `json:"objectUrl"`
-	}
-	if err := c.BodyParser(&requestBody); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Request body is not valid"})
-	}
-
-	// Ensure the object URL is not empty
-	if requestBody.ObjectURL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Object URL is required"})
-	}
-
-	// Call the service function to delete the object from S3
-	if err := services.DeleteDataFromS3(requestBody.ObjectURL); err != nil {
-		// Determine if the error should be a 404 not found or a 500 internal server error
-		if err.Error() == "object not found" {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Object not found"})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete object from S3"})
-	}
-
-	// Return a success response
-	return c.SendStatus(fiber.StatusNoContent)
-}
-
 // / DISLIKE
-func LeaveDislikeHandler(c *fiber.Ctx) error {
+func leaveDislikeHandler(c *fiber.Ctx) error {
 	// Auth
 	userID := c.Locals("userID").(int)
 
@@ -335,7 +357,7 @@ func LeaveDislikeHandler(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func UndoDislikeHandler(c *fiber.Ctx) error {
+func undoDislikeHandler(c *fiber.Ctx) error {
 	// Auth
 	userID := c.Locals("userID").(int)
 
@@ -355,7 +377,7 @@ func UndoDislikeHandler(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func GetUserMarkersHandler(c *fiber.Ctx) error {
+func getUserMarkersHandler(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User not authenticated"})
@@ -403,7 +425,7 @@ func GetUserMarkersHandler(c *fiber.Ctx) error {
 }
 
 // CheckDislikeStatus handler
-func CheckDislikeStatus(c *fiber.Ctx) error {
+func checkDislikeStatus(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(int)
 	markerID, err := strconv.Atoi(c.Params("markerID"))
 	if err != nil {
@@ -419,7 +441,7 @@ func CheckDislikeStatus(c *fiber.Ctx) error {
 }
 
 // AddFavoriteHandler adds a new favorite marker for the user.
-func AddFavoriteHandler(c *fiber.Ctx) error {
+func addFavoriteHandler(c *fiber.Ctx) error {
 	userData, err := services.GetUserFromContext(c)
 	if err != nil {
 		return err // fiber err
@@ -456,7 +478,7 @@ func AddFavoriteHandler(c *fiber.Ctx) error {
 	})
 }
 
-func RemoveFavoriteHandler(c *fiber.Ctx) error {
+func removeFavoriteHandler(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
@@ -483,7 +505,7 @@ func RemoveFavoriteHandler(c *fiber.Ctx) error {
 }
 
 // GetFacilitiesHandler handles requests to get facilities by marker ID.
-func GetFacilitiesHandler(c *fiber.Ctx) error {
+func getFacilitiesHandler(c *fiber.Ctx) error {
 	markerID, err := strconv.Atoi(c.Params("markerID"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Marker ID"})
@@ -514,7 +536,7 @@ func GetFacilitiesHandler(c *fiber.Ctx) error {
 	return c.JSON(facilities)
 }
 
-func SetMarkerFacilitiesHandler(c *fiber.Ctx) error {
+func setMarkerFacilitiesHandler(c *fiber.Ctx) error {
 	var req dto.FacilityRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse request"})
@@ -530,7 +552,7 @@ func SetMarkerFacilitiesHandler(c *fiber.Ctx) error {
 }
 
 // UpdateMarkersAddressesHandler handles the request to update all markers' addresses.
-func UpdateMarkersAddressesHandler(c *fiber.Ctx) error {
+func updateMarkersAddressesHandler(c *fiber.Ctx) error {
 	updatedMarkers, err := services.UpdateMarkersAddresses()
 	if err != nil {
 		// Log the error and return a generic error message to the client

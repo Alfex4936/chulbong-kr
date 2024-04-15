@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"chulbong-kr/dto"
+	"chulbong-kr/middlewares"
 	"chulbong-kr/models"
 	"chulbong-kr/services"
 	"fmt"
@@ -11,8 +12,22 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// RegisterUserRoutes sets up the routes for user handling within the application.
+func RegisterUserRoutes(api fiber.Router) {
+	userGroup := api.Group("/users")
+	{
+		userGroup.Use(middlewares.AuthMiddleware)
+		userGroup.Get("/me", profileHandler)
+		userGroup.Get("/favorites", getFavoritesHandler)
+		userGroup.Get("/reports", getMyReportsHandler)
+		userGroup.Patch("/me", updateUserHandler)
+		userGroup.Delete("/me", deleteUserHandler)
+		userGroup.Delete("/s3/objects", middlewares.AdminOnly, deleteObjectFromS3Handler)
+	}
+}
+
 // UpdateUserHandler
-func UpdateUserHandler(c *fiber.Ctx) error {
+func updateUserHandler(c *fiber.Ctx) error {
 	userData, err := services.GetUserFromContext(c)
 	if err != nil {
 		return err // fiber err
@@ -35,7 +50,7 @@ func UpdateUserHandler(c *fiber.Ctx) error {
 }
 
 // DeleteUserHandler deletes the currently authenticated user
-func DeleteUserHandler(c *fiber.Ctx) error {
+func deleteUserHandler(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
@@ -50,7 +65,7 @@ func DeleteUserHandler(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent) // 204 for successful deletion with no content in response
 }
 
-func ProfileHandler(c *fiber.Ctx) error {
+func profileHandler(c *fiber.Ctx) error {
 	userData, err := services.GetUserFromContext(c)
 	if err != nil {
 		return err // fiber err
@@ -77,7 +92,7 @@ func ProfileHandler(c *fiber.Ctx) error {
 	return c.JSON(user)
 }
 
-func GetFavoritesHandler(c *fiber.Ctx) error {
+func getFavoritesHandler(c *fiber.Ctx) error {
 	userData, err := services.GetUserFromContext(c)
 	if err != nil {
 		return err // fiber err
@@ -104,7 +119,7 @@ func GetFavoritesHandler(c *fiber.Ctx) error {
 }
 
 // GetMyReportsHandler handles requests to get all reports submitted by the logged-in user.
-func GetMyReportsHandler(c *fiber.Ctx) error {
+func getMyReportsHandler(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int) // Make sure to handle errors and cases where userID might not be set
 	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
@@ -120,4 +135,31 @@ func GetMyReportsHandler(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(reports)
+}
+
+// DeleteObjectFromS3Handler handles requests to delete objects from S3.
+func deleteObjectFromS3Handler(c *fiber.Ctx) error {
+	var requestBody struct {
+		ObjectURL string `json:"objectUrl"`
+	}
+	if err := c.BodyParser(&requestBody); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Request body is not valid"})
+	}
+
+	// Ensure the object URL is not empty
+	if requestBody.ObjectURL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Object URL is required"})
+	}
+
+	// Call the service function to delete the object from S3
+	if err := services.DeleteDataFromS3(requestBody.ObjectURL); err != nil {
+		// Determine if the error should be a 404 not found or a 500 internal server error
+		if err.Error() == "object not found" {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Object not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete object from S3"})
+	}
+
+	// Return a success response
+	return c.SendStatus(fiber.StatusNoContent)
 }

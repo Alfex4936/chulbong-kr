@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"chulbong-kr/dto"
+	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
 	"strconv"
@@ -10,8 +11,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// RegisterReportRoutes sets up the routes for report handling within the application.
+func RegisterReportRoutes(api fiber.Router) {
+	reportGroup := api.Group("/reports")
+	{
+		reportGroup.Get("/all", getAllReportsHandler)
+		reportGroup.Get("/marker/:markerID", getMarkerReportsHandler)
+		reportGroup.Post("", middlewares.AuthSoftMiddleware, createReportHandler)
+	}
+}
+
 // GetAllReportsHandler retrieves all reports for all markers, grouped by MarkerID.
-func GetAllReportsHandler(c *fiber.Ctx) error {
+func getAllReportsHandler(c *fiber.Ctx) error {
 	reports, err := services.GetAllReports()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get reports"})
@@ -38,7 +49,7 @@ func GetAllReportsHandler(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-func GetMarkerReportsHandler(c *fiber.Ctx) error {
+func getMarkerReportsHandler(c *fiber.Ctx) error {
 	markerID, err := strconv.Atoi(c.Params("markerID"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Marker ID"})
@@ -51,7 +62,7 @@ func GetMarkerReportsHandler(c *fiber.Ctx) error {
 	return c.JSON(reports)
 }
 
-func ReportHandler(c *fiber.Ctx) error {
+func createReportHandler(c *fiber.Ctx) error {
 	// Parse the multipart form
 	form, err := c.MultipartForm()
 	if err != nil {

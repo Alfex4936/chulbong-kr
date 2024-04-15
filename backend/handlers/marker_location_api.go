@@ -31,7 +31,7 @@ import (
 // @Failure	404	{object}	map[string]interface{}	"No markers found within the specified distance"
 // @Failure	500	{object}	map[string]interface{}	"Internal server error"
 // @Router		/markers/close [get]
-func FindCloseMarkersHandler(c *fiber.Ctx) error {
+func findCloseMarkersHandler(c *fiber.Ctx) error {
 	var params dto.QueryParams
 	if err := c.QueryParser(&params); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid query parameters"})
@@ -74,7 +74,7 @@ func FindCloseMarkersHandler(c *fiber.Ctx) error {
 	})
 }
 
-func GetCurrentAreaMarkerRankingHandler(c *fiber.Ctx) error {
+func getCurrentAreaMarkerRankingHandler(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")
 	limitParam := c.Query("limit", "5") // Default limit
@@ -109,7 +109,7 @@ func GetCurrentAreaMarkerRankingHandler(c *fiber.Ctx) error {
 	return c.JSON(markers)
 }
 
-func GetMarkersClosebyAdmin(c *fiber.Ctx) error {
+func getMarkersClosebyAdmin(c *fiber.Ctx) error {
 	markers, err := services.CheckNearbyMarkersInDB()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve markers: " + err.Error()})
@@ -118,7 +118,7 @@ func GetMarkersClosebyAdmin(c *fiber.Ctx) error {
 	return c.JSON(markers)
 }
 
-func GetWeatherByWGS84Handler(c *fiber.Ctx) error {
+func getWeatherByWGS84Handler(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")
 
@@ -139,7 +139,7 @@ func GetWeatherByWGS84Handler(c *fiber.Ctx) error {
 
 	return c.JSON(result)
 }
-func ConvertWGS84ToWCONGNAMULHandler(c *fiber.Ctx) error {
+func convertWGS84ToWCONGNAMULHandler(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")
 
@@ -158,7 +158,7 @@ func ConvertWGS84ToWCONGNAMULHandler(c *fiber.Ctx) error {
 	return c.JSON(result)
 }
 
-func IsInSouthKoreaHandler(c *fiber.Ctx) error {
+func isInSouthKoreaHandler(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")
 
@@ -177,7 +177,8 @@ func IsInSouthKoreaHandler(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"result": result})
 }
 
-func SaveOfflineMapHandler(c *fiber.Ctx) error {
+// DEPRECATED: Use version 2
+func saveOfflineMapHandler(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")
 
@@ -198,7 +199,7 @@ func SaveOfflineMapHandler(c *fiber.Ctx) error {
 	return c.Download(pdf)
 }
 
-func SaveOfflineMap2Handler(c *fiber.Ctx) error {
+func saveOfflineMap2Handler(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")
 

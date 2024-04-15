@@ -12,7 +12,7 @@ import (
 )
 
 // GetGoogleAuthHandler generates a handler to redirect to Google OAuth2
-func GetGoogleAuthHandler(conf *oauth2.Config) fiber.Handler {
+func getGoogleAuthHandler(conf *oauth2.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Generate a state string for CSRF protection
 		state := utils.GenerateState()
@@ -28,7 +28,7 @@ func GetGoogleAuthHandler(conf *oauth2.Config) fiber.Handler {
 }
 
 // GetGoogleCallbackHandler generates a handler for the OAuth2 callback from Google
-func GetGoogleCallbackHandler(conf *oauth2.Config) fiber.Handler {
+func getGoogleCallbackHandler(conf *oauth2.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Validate state
 		state := c.Cookies("oauthstate")
