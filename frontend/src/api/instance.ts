@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from "axios";
 
 const baseInterceptors = (instance: AxiosInstance) => {
   let isRateLimitAlertShown = false;
+
   instance.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -14,15 +15,14 @@ const baseInterceptors = (instance: AxiosInstance) => {
         alert("요청이 너무 많습니다. 나중에 다시 시도해주세요.");
         setTimeout(() => (isRateLimitAlertShown = false), 3000);
       }
+
       return Promise.reject(error);
     }
   );
 };
 
 const base = () => {
-  const instance = axios.create({
-    // timeout: 1000,
-  });
+  const instance = axios.create();
 
   baseInterceptors(instance);
 

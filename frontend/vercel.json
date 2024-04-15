@@ -1,9 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/api/v1/:path*",
-      "destination": "https://chulbong-kr.fly.dev/api/v1/:path*"
-    },
-    { "source": "/(.*)", "destination": "/" }
-  ]
-}
