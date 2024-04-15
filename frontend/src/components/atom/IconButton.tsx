@@ -13,7 +13,7 @@ const IconButton = ({ icon, selected, text, ...props }: Props) => {
       {...props}
     >
       <div
-        className="flex flex-col justify-center items-center w-16 h-16 cursor-pointer bg-grey rounded-sm mo:w-[44px] mo:h-[50px]"
+        className="flex flex-col justify-center items-center w-12 h-16 cursor-pointer bg-grey rounded-sm mo:w-[44px] mo:h-[50px]"
         style={{
           backgroundColor: selected ? "#f0f0f0" : "#222222",
         }}

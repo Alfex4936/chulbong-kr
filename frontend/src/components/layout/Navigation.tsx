@@ -10,8 +10,6 @@ import UserCircleIcon from "@/components/icons/UserCircleIcon";
 import { usePathname, useRouter } from "next/navigation";
 import MapButton from "../common/MapButton";
 
-// TODO: 그림자 변경
-
 const Navigation = () => {
   const pathname = usePathname();
   const router = useRouter();
@@ -22,14 +20,16 @@ const Navigation = () => {
 
   return (
     <div
-      className="w-20 h-screen bg-black-light shadow-2xl p-4 z-20
+      className="w-16 h-screen bg-black-light shadow-mdxl p-4 z-20
                     mo:w-screen mo:h-14 mo:flex mo:items-center mo:pl-0 mo:pr-0 mo:border-t mo:border-solid mo:border-black"
     >
       <div
         className="flex flex-col items-center 
                       mo:flex-row mo:max-w-[430px] mo:w-full mo:min-w-80 mo:justify-between mo:ml-auto mo:mr-auto"
       >
-        <div className="text-grey text-center w-10 mt-2 mb-6 mo:hidden">철봉</div>
+        <div className="text-grey text-center w-10 mt-2 mb-6 mo:hidden">
+          철봉
+        </div>
         <div className="mo:flex mo:w-1/2 mo:justify-around">
           <IconButton
             text="홈"
