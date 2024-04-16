@@ -20,7 +20,7 @@ const MapClient = () => {
 
     window.kakao.maps.load(() => {
       const options = {
-        center: new window.kakao.maps.LatLng(33.450701, 126.570667),
+        center: new window.kakao.maps.LatLng(37.566535, 126.9779692),
         level: 3,
         maxLevel: 12,
       };
@@ -68,7 +68,11 @@ const MapClient = () => {
     if (!map) return;
 
     map.relayout();
-  }, [isOpen, mapLoading]);
+
+    const resizeTime = setTimeout(() => map.relayout(), 200);
+
+    return () => clearTimeout(resizeTime);
+  }, [isOpen, mapLoading, map]);
 
   return (
     <div className="relative w-full mo:hidden">
