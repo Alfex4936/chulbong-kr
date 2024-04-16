@@ -2,6 +2,7 @@ import GrowBox from "@/components/atom/GrowBox";
 import { ArrowRightIcon } from "@/components/icons/ArrowIcons";
 import NotificationIcon from "@/components/icons/NotificationIcon";
 // TODO: 공지 기능 연동 (후순위)
+// TODO: 공지 배경 색상 추가? border X
 
 type Props = {};
 
