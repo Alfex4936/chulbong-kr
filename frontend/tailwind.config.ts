@@ -38,6 +38,7 @@ const config = {
         "grey-blue": "#cbd5e1",
         red: "#ff8a8a",
         white: "#fff",
+        "slate-dark": "rgba(100, 116, 139, 0.4)",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
