@@ -13,7 +13,7 @@ import (
 	"github.com/gofiber/contrib/websocket"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
 	"github.com/puzpuzpuz/xsync/v3"
-	"github.com/redis/go-redis/v9"
+	"github.com/redis/rueidis"
 	"github.com/zeebo/xxh3"
 
 	"github.com/google/uuid"
@@ -214,11 +214,29 @@ func (c *ChulbongConn) GetLastSeen() time.Time {
 }
 
 // SubscribeToChatUpdate to subscribe to messages
-func SubscribeToChatUpdate(markerID string) *redis.PubSub {
+func SubscribeToChatUpdate(markerID string) {
 	key := fmt.Sprintf("room:%s:messages", markerID)
 
-	pubsub := RedisStore.Subscribe(context.Background(), key)
-	return pubsub
+	// Using a dedicated connection for subscription
+	dedicatedClient, cancel := RedisStore.Dedicate()
+	defer cancel() // Ensure resources are cleaned up properly
+
+	// Set up pub/sub hooks
+	wait := dedicatedClient.SetPubSubHooks(rueidis.PubSubHooks{
+		OnMessage: func(m rueidis.PubSubMessage) {
+			// Handle incoming messages
+			fmt.Printf("Received message: %s\n", m.Message)
+		},
+	})
+
+	// Subscribe to the channel
+	dedicatedClient.Do(context.Background(), dedicatedClient.B().Subscribe().Channel(key).Build())
+
+	// Use the wait channel to handle disconnection
+	err := <-wait // will receive a value if the client disconnects
+	if err != nil {
+		fmt.Printf("Disconnected due to: %v\n", err)
+	}
 }
 
 // PublishChatToRoom publishes a chat message to a specific room
@@ -226,10 +244,6 @@ func PublishChatToRoom(markerID string, message []byte) error {
 	key := fmt.Sprintf("room:%s:messages", markerID)
 
 	// Publish the serialized message to the Redis pub/sub system
-	err := RedisStore.Publish(context.Background(), key, message).Err()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	err := RedisStore.Do(context.Background(), RedisStore.B().Publish().Channel(key).Message(rueidis.BinaryString(message)).Build()).Error()
+	return err
 }

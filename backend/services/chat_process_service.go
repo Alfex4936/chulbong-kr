@@ -51,7 +51,9 @@ func processRetryQueue(ctx context.Context) {
 			// Attempt removal again
 			ctx := context.Background()
 			key := fmt.Sprintf("room:%s:connections", task.MarkerID)
-			if err := RedisStore.HDel(ctx, key, task.RequestID).Err(); err != nil {
+
+			hdelCmd := RedisStore.B().Hdel().Key(key).Field(task.RequestID).Build()
+			if err := RedisStore.Do(ctx, hdelCmd).Error(); err != nil {
 				log.Printf("Retry failed for removal task, consider further action: %v", err)
 			}
 		case <-ctx.Done():
