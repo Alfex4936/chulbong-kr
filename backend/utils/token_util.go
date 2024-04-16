@@ -1,11 +1,11 @@
 package utils
 
 import (
+	"chulbong-kr/configs"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	mrand "math/rand"
-	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -48,7 +48,7 @@ func GenerateLoginCookie(value string) fiber.Cookie {
 		Path:     "/",                                // Scope of the cookie
 	}
 
-	if os.Getenv("DEPLOYMENT") == "production" {
+	if configs.IS_PRODUCTION == "production" {
 		cookie.Domain = ".k-pullup.com" // Allow cookie to be shared across all subdomains
 	}
 	return cookie
@@ -65,7 +65,7 @@ func ClearLoginCookie() fiber.Cookie {
 		Path:     "/",                        // Scope of the cookie
 	}
 
-	if os.Getenv("DEPLOYMENT") == "production" {
+	if configs.IS_PRODUCTION == "production" {
 		cookie.Domain = ".k-pullup.com" // Allow cookie to be shared across all subdomains
 	}
 	return cookie

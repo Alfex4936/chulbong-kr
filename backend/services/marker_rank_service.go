@@ -12,7 +12,6 @@ import (
 
 	"github.com/axiomhq/hyperloglog"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
-	"github.com/redis/go-redis/v9"
 	"github.com/zeebo/xxh3"
 
 	"chulbong-kr/database"
@@ -111,20 +110,20 @@ func ProcessClickEventsBatch() {
 
 // 마커 방문 시 클릭 수를 파이프라인을 사용하여 증가
 func IncrementMarkerClicks(markerClicks *csmap.CsMap[int, int]) {
-	pipe := RedisStore.TxPipeline()
+	ctx := context.Background()
 
-	clickEventBuffer.Range(func(markerID int, clicks int) bool {
-		// map에서 가져온 클릭 수만큼 점수 증가
+	markerClicks.Range(func(markerID int, clicks int) bool {
 		scoreIncrement := float64(clicks)
-		pipe.ZIncrBy(context.Background(), "marker_clicks", scoreIncrement, fmt.Sprintf("%d", markerID))
-		return true // return `true` to continue iteration and `false` to break iteration
+		// Build and execute the ZINCRBY command for each marker
+		zIncrCmd := RedisStore.B().Zincrby().Key("marker_clicks").Increment(scoreIncrement).Member(fmt.Sprintf("%d", markerID)).Build()
+		if err := RedisStore.Do(ctx, zIncrCmd).Error(); err != nil {
+			log.Printf("Error incrementing clicks for marker %d: %v", markerID, err)
+		} else {
+			// If successful, delete the marker from the map
+			markerClicks.Delete(markerID)
+		}
+		return true // Continue iterating
 	})
-
-	// Execute all commands in the pipeline
-	_, err := pipe.Exec(context.Background())
-	if err != nil {
-		log.Printf("Error incrementing marker clicks: %v", err)
-	}
 }
 
 // 상위 N개 마커 랭킹 조회
@@ -133,11 +132,19 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 		limit = 5
 	}
 	// Sorted Set에서 점수(클릭 수)가 높은 순으로 마커 ID 조회
-	// markerScores, err := RedisStore.Conn().ZRevRangeWithScores(context.Background(), "marker_clicks", 0, int64(limit-1)).Result()
-	markerScores, err := RedisStore.ZRangeByScoreWithScores(context.Background(), "marker_clicks", &redis.ZRangeBy{
-		Min: strconv.Itoa(MIN_CLICK_RANK + 1), // "+1" because ZRangeByScore is inclusive, and we want > minScore
-		Max: "+inf",                           // No upper limit
-	}).Result()
+	ctx := context.Background()
+
+	// Convert minClickRank to string and prepare for the ZRangeByScore command
+	minScore := strconv.Itoa(MIN_CLICK_RANK + 1) // "+1" to adjust for exclusive minimum
+
+	// Use ZREVRANGEBYSCORE to get marker IDs in descending order based on score
+	markerScores, err := RedisStore.Do(ctx, RedisStore.B().Zrevrangebyscore().
+		Key("marker_clicks").
+		Max("+inf").
+		Min(minScore).
+		Withscores().
+		Limit(0, int64(limit)).
+		Build()).AsZScores()
 
 	if err != nil {
 		log.Printf("Error retrieving top markers: %v", err)
@@ -151,8 +158,7 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 	// Collect all marker IDs from the sorted set result for a batch database query.
 	markerIDs := make([]interface{}, len(markerScores))
 	for i, markerScore := range markerScores {
-		markerIDStr, _ := markerScore.Member.(string)
-		markerIDs[i] = markerIDStr // Directly use string ID to avoid unnecessary conversions.
+		markerIDs[i] = markerScore.Member // Directly use string ID to avoid unnecessary conversions.
 	}
 
 	// Query to retrieve markers by a set of IDs in a single SQL call.
@@ -184,7 +190,9 @@ func RemoveMarkerClick(markerID int) error {
 	member := fmt.Sprintf("%d", markerID)
 
 	// Remove the marker from the "marker_clicks" sorted set
-	_, err := RedisStore.ZRem(ctx, "marker_clicks", member).Result()
+	RedisStore.Do(ctx, RedisStore.B().Zrem().Key("marker_clicks").Member(member).Build())
+
+	err := RedisStore.Do(ctx, RedisStore.B().Zrem().Key("marker_clicks").Member(member).Build()).Error()
 	if err != nil {
 		log.Printf("Error removing marker click: %v", err)
 		return err
@@ -212,24 +220,24 @@ func ResetAndRandomizeClickRanking() {
 		markers[i], markers[j] = markers[j], markers[i]
 	})
 
-	numMarkers := len(markers)
-	if numMarkers > 5 {
-		numMarkers = 5
-	}
+	numMarkers := rand.Intn(6) + 4 // 4 ~ 9
 
 	selectedMarkers := markers[:numMarkers]
 
+	ctx := context.Background()
+
 	// Reset the "marker_clicks" sorted set in Redis
-	RedisStore.Del(context.Background(), "marker_clicks")
+	RedisStore.Do(ctx, RedisStore.B().Del().Key("marker_clicks").Build())
 
 	// Re-populate "marker_clicks" with the selected markers
+	// Prepare the ZADD command
+	zaddCmd := RedisStore.B().Zadd().Key("marker_clicks").ScoreMember()
 	for _, marker := range selectedMarkers {
-		score := float64(10 + rand.Intn(6)) // Random score between 10 and 15, inclusive
-
-		RedisStore.ZAdd(context.Background(), "marker_clicks", redis.Z{
-			Score:  score,
-			Member: fmt.Sprintf("%d", marker.MarkerID),
-		})
+		score := float64(10 + rand.Intn(6)) // Random score between 10 and 15
+		zaddCmd = zaddCmd.ScoreMember(score, fmt.Sprintf("%d", marker.MarkerID))
+	}
+	if err := RedisStore.Do(ctx, zaddCmd.Build()).Error(); err != nil {
+		log.Printf("Error adding markers to sorted set: %v", err)
 	}
 
 	log.Printf("%d markers were randomly selected and added to Redis ranking.", numMarkers)

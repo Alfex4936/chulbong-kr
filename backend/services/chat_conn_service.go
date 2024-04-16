@@ -12,6 +12,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/google/uuid"
+	"github.com/redis/rueidis"
 )
 
 // SaveConnection stores a WebSocket connection associated with a markerID in app memory
@@ -89,13 +90,23 @@ func AddConnectionRoomToRedis(markerID, userID, username string) error {
 		return err
 	}
 
-	// Use HSET to store the connection information, indexed by the userID
-	err = RedisStore.HSet(ctx, key, userID, jsonConnInfo).Err()
-	if err != nil {
+	// Use HSET to set the field value
+	setCmd := RedisStore.B().Hset().
+		Key(key).
+		FieldValue().
+		FieldValue(userID, rueidis.BinaryString(jsonConnInfo)).
+		Build()
+
+	// Execute the HSET command
+	if err := RedisStore.Do(ctx, setCmd).Error(); err != nil {
 		return err
 	}
 
-	RedisStore.Expire(ctx, key, 1*time.Hour)
+	// Set expiration on the whole hash key
+	expireCmd := RedisStore.B().Expire().Key(key).Seconds(int64(time.Hour / time.Second)).Build()
+	if err := RedisStore.Do(ctx, expireCmd).Error(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -103,10 +114,13 @@ func CheckDuplicateConnection(markerID, userID string) (bool, error) {
 	ctx := context.Background()
 	key := fmt.Sprintf("room:%s:connections", markerID)
 
-	// Check if there's an entry for this userID
-	exists, err := RedisStore.HExists(ctx, key, userID).Result()
+	// Build the HEXISTS command
+	cmd := RedisStore.B().Hexists().Key(key).Field(userID).Build()
+
+	// Execute the HEXISTS command
+	exists, err := RedisStore.Do(ctx, cmd).AsBool()
 	if err != nil {
-		return false, err
+		return false, err // Proper error handling
 	}
 
 	return exists, nil
@@ -214,7 +228,8 @@ func RemoveConnectionFromRedis(markerID, xRequestID string) {
 	key := fmt.Sprintf("room:%s:connections", markerID)
 
 	// Use HDEL to remove the connection information, indexed by the UserID
-	if err := RedisStore.HDel(ctx, key, xRequestID).Err(); err != nil {
+	cmd := RedisStore.B().Hdel().Key(key).Field(xRequestID).Build()
+	if err := RedisStore.Do(ctx, cmd).Error(); err != nil {
 		enqueueRemovalTask(markerID, xRequestID)
 	}
 }
@@ -278,7 +293,10 @@ func (manager *RoomConnectionManager) KickUserFromRoom(markerID, userID string) 
 
 func GetUserCountInRoom(ctx context.Context, markerID string) (int64, error) {
 	key := fmt.Sprintf("room:%s:connections", markerID)
-	return RedisStore.HLen(ctx, key).Result()
+
+	// Use HLEN to get the number of connections in the room
+	cmd := RedisStore.B().Hlen().Key(key).Build()
+	return RedisStore.Do(ctx, cmd).AsInt64()
 }
 
 func (manager *RoomConnectionManager) GetUserCountInRoomByLocal(markerID string) (int, error) {
@@ -296,19 +314,20 @@ func GetAllRedisConnectionsFromRoom(markerID string) ([]dto.ConnectionInfo, erro
 	ctx := context.Background()
 	key := fmt.Sprintf("room:%s:connections", markerID)
 
-	// Retrieve all field-value pairs from the hash
-	results, err := RedisStore.HGetAll(ctx, key).Result()
+	// Use HGETALL to retrieve all field-value pairs from the hash
+	cmd := RedisStore.B().Hgetall().Key(key).Build()
+
+	// Execute the command and get the result as a string map
+	result, err := RedisStore.Do(ctx, cmd).AsStrMap()
 	if err != nil {
 		return nil, err
 	}
 
-	// Deserialize the connection information
-	var connections []dto.ConnectionInfo
-	for _, jsonConnInfo := range results {
+	// Deserialize the connection information from JSON stored in each field
+	connections := make([]dto.ConnectionInfo, 0, len(result))
+	for _, jsonConnInfo := range result {
 		var connInfo dto.ConnectionInfo
-		err := json.Unmarshal([]byte(jsonConnInfo), &connInfo)
-		if err != nil {
-			// Handle the error as appropriate: log it, skip it, etc.
+		if err := json.Unmarshal([]byte(jsonConnInfo), &connInfo); err != nil {
 			log.Printf("Error unmarshaling connection info: %v", err)
 			continue
 		}
@@ -351,24 +370,47 @@ func (manager *RoomConnectionManager) BanUser(markerID, userID string, duration 
 
 	// Then, set the ban in Redis.
 	banKey := fmt.Sprintf("ban_%s_%s", markerID, userID)
-	return RedisStore.Set(context.Background(), banKey, "banned", duration).Err()
+	ctx := context.Background()
+
+	// Use Set to set the ban in Redis
+	cmd := RedisStore.B().Set().Key(banKey).Value("banned").Nx().Ex(duration).Build()
+	return RedisStore.Do(ctx, cmd).Error()
 }
 
 func (manager *RoomConnectionManager) GetBanDetails(markerID, userID string) (banned bool, remainingTime time.Duration, err error) {
 	banKey := fmt.Sprintf("ban_%s_%s", markerID, userID)
-	exists, err := RedisStore.Exists(context.Background(), banKey).Result()
+	ctx := context.Background()
+
+	// Use HGETALL to retrieve all field-value pairs from the hash
+	cmd := RedisStore.B().Exists().Key(banKey).Build()
+
+	// Execute the command and get the result as a string map
+	exists, err := RedisStore.Do(ctx, cmd).AsBool()
 	if err != nil {
 		return false, 0, err
 	}
-	if exists == 0 {
+	if exists == false {
 		return false, 0, nil
 	}
 
-	// Get the remaining TTL of the ban
-	ttl, err := RedisStore.TTL(context.Background(), banKey).Result()
+	// Use TTL to get the remaining TTL of the ban
+	cmd = RedisStore.B().Ttl().Key(banKey).Build()
+
+	// Execute the command and get the result as a string map
+	ttl, err := RedisStore.Do(ctx, cmd).AsInt64()
 	if err != nil {
 		return true, 0, err
 	}
 
-	return true, ttl, nil
+	// Check if the TTL indicates the key does not exist or has no expiration
+	if ttl == -2 {
+		return false, 0, nil // Key does not exist
+	} else if ttl == -1 {
+		return true, 0, nil // Key exists but no expiration is set
+	}
+
+	// Convert the TTL from seconds to time.Duration
+	duration := time.Duration(ttl) * time.Second
+
+	return true, duration, nil
 }

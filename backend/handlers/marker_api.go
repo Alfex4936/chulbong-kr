@@ -30,7 +30,7 @@ var (
 // RegisterMarkerRoutes sets up the routes for markers handling within the application.
 func RegisterMarkerRoutes(api fiber.Router) {
 	// Marker routes
-	// api.Get("/markers2", handlers.GetAllMarkersHandler)
+	// api.Get("/markers2", getAllMarkersHandler)
 	// api.Get("/markers2", handlers.GetAllMarkersProtoHandler)
 	api.Get("/markers", getAllMarkersLocalHandler)
 	api.Get("/markers/new", getAllNewMarkersHandler)
@@ -50,7 +50,7 @@ func RegisterMarkerRoutes(api fiber.Router) {
 	api.Get("/markers/location-check", isInSouthKoreaHandler)
 	api.Get("/markers/weather", getWeatherByWGS84Handler)
 
-	api.Get("/markers/save-offline", saveOfflineMap2Handler)
+	api.Get("/markers/save-offline", middlewares.AuthMiddleware, saveOfflineMap2Handler)
 
 	api.Post("/markers/upload", middlewares.AdminOnly, uploadMarkerPhotoToS3Handler)
 
@@ -141,7 +141,7 @@ func getAllMarkersHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	go services.SetCacheEntry(services.ALL_MARKERS_KEY, markers, 30*time.Minute)
+	go services.SetCacheEntry(services.ALL_MARKERS_KEY, markers, 180*time.Minute)
 
 	return c.JSON(markers)
 }

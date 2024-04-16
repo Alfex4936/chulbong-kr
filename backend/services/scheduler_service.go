@@ -112,10 +112,12 @@ func CronProcessClickEventsBatch(interval time.Duration) {
 		// Default to every 10 minutes if the interval is oddly long or unspecified
 		spec = "*/10 * * * *"
 	}
+	// spec = "*/1 * * * *"
 
 	_, err := c.Schedule(spec, func() {
-		fmt.Println("Processing batch job...")
-		ProcessClickEventsBatch()
+		IncrementMarkerClicks(clickEventBuffer)
+		// 처리 후 버퍼 초기화
+		// clickEventBuffer.Clear()
 	})
 	if err != nil {
 		fmt.Printf("Error setting up cron job: %v\n", err)

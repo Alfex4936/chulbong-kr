@@ -33,7 +33,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/pprof"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/swagger"
-	"github.com/redis/go-redis/v9"
+	"github.com/redis/rueidis"
 	"go.uber.org/zap"
 
 	// "github.com/gofiber/storage/redis/v3"
@@ -287,32 +287,50 @@ func setUpExternalConnections() {
 	}
 
 	// Initialize redis
-	rdb := redis.NewClient(&redis.Options{
-		Addr:       os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT"),
-		Username:   os.Getenv("REDIS_USERNAME"),
-		Password:   os.Getenv("REDIS_PASSWORD"),
-		DB:         0,
-		PoolSize:   10 * runtime.GOMAXPROCS(0),
-		MaxRetries: 5,
-		TLSConfig:  &tls.Config{InsecureSkipVerify: true},
-	})
+	rdb, err := rueidis.NewClient(rueidis.ClientOption{
+		InitAddress:  []string{os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")},
+		Username:     os.Getenv("REDIS_USERNAME"),
+		Password:     os.Getenv("REDIS_PASSWORD"),
+		DisableCache: true, // dragonfly doesn't support CACHING command
+		// SelectDB:    0,
 
-	// Ping the server to check connection
-	err := rdb.Ping(context.Background()).Err()
+		// PoolSize:    10 * runtime.GOMAXPROCS(0),
+		// MaxRetries:  5,
+		PipelineMultiplex: 2, // Default is typically sufficient
+		BlockingPoolSize:  5,
+		TLSConfig:         &tls.Config{InsecureSkipVerify: true},
+	})
 	if err != nil {
 		log.Fatalf("Error connecting to Redis: %v", err)
 	}
 
+	ctx := context.Background()
+	// Build the Ping command
+	pingCmd := rdb.B().Ping().Build()
+
+	// Execute the Ping command
+	err = rdb.Do(ctx, pingCmd).Error()
+	if err != nil {
+		log.Fatalf("Error pinging to Redis: %v", err)
+	}
+
 	if os.Getenv("DEPLOYMENT") == "production" {
 		// Flush the Redis database to clear all keys
-		if err := rdb.FlushDB(context.Background()).Err(); err != nil {
-			log.Fatalf("Error flushing the Redis database: %v", err)
-		} else {
-			log.Println("Redis database flushed successfully.")
+		err := rdb.Do(ctx, rdb.B().Flushall().Build()).Error()
+		if err != nil {
+			log.Fatalf("Error executing FLUSHALL SYNC: %v", err)
 		}
 	}
 
 	services.RedisStore = rdb
+
+	// geminiClient, err := genai.NewClient(context.Background(), option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// services.Gemini = geminiClient
+
+	// log.Println(services.ChatGemini())
 
 	// Message Broker
 	// connection, err := amqp.Dial(os.Getenv("LAVINMQ_HOST"))

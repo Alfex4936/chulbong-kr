@@ -94,15 +94,17 @@ func FindRankedMarkersInCurrentArea(lat, long float64, distance, limit int) ([]d
 	}
 
 	// Fetch scores for all markers in one Redis call
-	scores, err := RedisStore.ZMScore(context.Background(), "marker_clicks", markerIDs...).Result()
+	RedisStore.Do(context.Background(), RedisStore.B().Zmscore().Key("marker_clicks").Member(markerIDs...).Build())
+
+	scores, err := RedisStore.Do(context.Background(), RedisStore.B().Zmscore().Key("marker_clicks").Member(markerIDs...).Build()).AsZScores()
 	if err != nil {
 		return nil, err
 	}
 
 	rankedMarkers := make([]dto.MarkerWithDistance, 0, len(scores))
-	for i, score := range scores {
-		if score > float64(MIN_CLICK_RANK) {
-			nearbyMarkers[i].Distance = score // Repurpose Distance to store score
+	for i, zscore := range scores {
+		if zscore.Score > float64(MIN_CLICK_RANK) {
+			nearbyMarkers[i].Distance = zscore.Score // Repurpose Distance to store score
 			rankedMarkers = append(rankedMarkers, nearbyMarkers[i])
 		}
 	}

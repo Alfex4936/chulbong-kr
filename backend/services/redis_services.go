@@ -2,15 +2,17 @@ package services
 
 import (
 	"context"
+	"errors"
+	"strconv"
 	"time"
 
 	"github.com/goccy/go-json"
-	"github.com/redis/go-redis/v9"
+	"github.com/redis/rueidis"
 	// redis "github.com/gofiber/storage/redis/v3"
 )
 
 var (
-	RedisStore *redis.Client
+	RedisStore rueidis.Client
 )
 
 const (
@@ -27,98 +29,114 @@ func SetCacheEntry[T any](key string, value T, expiration time.Duration) error {
 		return err
 	}
 
-	pipe := RedisStore.TxPipeline()
 	ctx := context.Background()
 
-	pipe.Set(ctx, key, jsonValue, expiration)
-	pipe.Expire(ctx, key, expiration)
+	// Build the SET command
+	setCmd := RedisStore.B().Set().
+		Key(key).
+		Value(rueidis.BinaryString(jsonValue)).
+		Nx().
+		Ex(expiration).
+		Build() // No need to Pin unless reusing
 
-	_, err = pipe.Exec(ctx)
-
-	if err != nil {
+	// Execute the SET command
+	if err := RedisStore.Do(ctx, setCmd).Error(); err != nil {
 		return err
 	}
 
+	// Since we are not reusing the command, no need to pin or unpin
 	return nil
 }
 
-// GetCacheEntry retrieves a cache entry by its key and unmarshals it into
+// GetCacheEntry retrieves a cache entry by its key and unmarshals it into the provided type.
 func GetCacheEntry[T any](key string) (T, error) {
 	var result T
 
-	// Execute the Get command
-	cmd := RedisStore.Get(context.Background(), key)
-	jsonValue, err := cmd.Result()
+	ctx := context.Background()
+
+	// Build the GET command using the client's command builder
+	getCmd := RedisStore.B().Get().Key(key).Build()
+
+	// Execute the GET command
+	resp, err := RedisStore.Do(ctx, getCmd).ToString()
 
 	// Handle potential errors
-	if err == redis.Nil {
-		// Key does not exist
-		return result, nil // or errors.New("key does not exist")
-	} else if err != nil {
+	if err != nil {
+		if err == rueidis.ErrNoSlot {
+			// Key does not exist
+			return result, errors.New("key does not exist")
+		}
 		return result, err
 	}
 
-	// Unmarshal JSON into
-	if len(jsonValue) > 0 {
-		err = json.Unmarshal([]byte(jsonValue), &result)
+	// Unmarshal JSON into the type provided if data was found
+	if resp != "" {
+		err = json.Unmarshal([]byte(resp), &result)
 		if err != nil {
 			return result, err
 		}
-		return result, nil
 	}
 
-	// Return an empty result if no data found
 	return result, nil
 }
 
-// ResetCache invalidates cache entries
+// ResetCache invalidates cache entries by deleting the specified key
 func ResetCache(key string) error {
-	// Delete the metadata key
-	pipe := RedisStore.TxPipeline()
 	ctx := context.Background()
 
-	pipe.Del(ctx, key)
+	// Build and execute the DEL command using the client
+	delCmd := RedisStore.B().Del().Key(key).Build()
 
-	_, err := pipe.Exec(ctx)
-
-	if err != nil {
+	// Execute the DELETE command
+	if err := RedisStore.Do(ctx, delCmd).Error(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// ResetAllCache invalidates cache entries
+// ResetAllCache invalidates cache entries by deleting all keys matching a given pattern.
 func ResetAllCache(pattern string) error {
-	// Delete the metadata key
-	pipe := RedisStore.TxPipeline()
 	ctx := context.Background()
 
-	// Use SCAN to find all keys matching the pattern
-	var cursor uint64
-	var err error
+	var cursor uint64 = 0
 	for {
-		var keys []string
-		keys, cursor, err = RedisStore.Scan(ctx, cursor, pattern, 10).Result()
+		// Build the SCAN command with the current cursor
+		scanCmd := RedisStore.B().Scan().Cursor(cursor).Match(pattern).Count(10).Build()
+
+		// Execute the SCAN command to find keys matching the pattern
+		resp, err := RedisStore.Do(ctx, scanCmd).ToArray()
 		if err != nil {
 			return err
 		}
 
-		// Delete the keys found in this scan iteration
-		for _, key := range keys {
-			pipe.Del(ctx, key)
+		// First element is the new cursor, subsequent elements are the keys
+		if len(resp) > 0 {
+			newCursorStr := resp[0].String()
+			newCursor, err := strconv.ParseUint(newCursorStr, 10, 64)
+			if err != nil {
+				return err // handle parsing error
+			}
+			cursor = newCursor
+
+			keys := make([]string, 0, len(resp)-1)
+			for _, msg := range resp[1:] {
+				keys = append(keys, msg.String())
+			}
+
+			// Delete keys using individual DEL commands
+			for _, key := range keys {
+				delCmd := RedisStore.B().Del().Key(key).Build()
+				if err := RedisStore.Do(ctx, delCmd).Error(); err != nil {
+					return err
+				}
+			}
 		}
 
 		// If the cursor returned by SCAN is 0, we've iterated through all the keys
 		if cursor == 0 {
 			break
 		}
-	}
-
-	// Execute the delete commands in the pipeline
-	_, err = pipe.Exec(ctx)
-	if err != nil {
-		return err
 	}
 
 	return nil
