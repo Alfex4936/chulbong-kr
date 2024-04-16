@@ -32,9 +32,11 @@ const config = {
       colors: {
         black: "#1d1d1d",
         "black-light": "#222",
+        "black-light-2": "#2a2a2a",
         grey: "#f0f0f0",
         "grey-light": "#f9f9fb",
         "grey-dark": "#bebebe",
+        "grey-dark-1": "#666",
         "grey-blue": "#cbd5e1",
         red: "#ff8a8a",
         white: "#fff",

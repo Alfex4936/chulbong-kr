@@ -3,12 +3,17 @@
 import useAllMarkerData from "@/hooks/query/useAllMarkerData";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
 import useMapStore from "@/store/useMapStore";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import MapLoading from "./MapLoading";
+import useMapStatusStore from "@/store/useMapStatusStore";
 
 const MapClient = () => {
+  const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
+
   const { map, setMap, setClusterer } = useMapStore();
   const { isOpen } = useBodyToggleStore();
+
   const [mapLoading, setMapLoading] = useState(true);
 
   const { data: markers } = useAllMarkerData();
@@ -16,53 +21,89 @@ const MapClient = () => {
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (map) return;
+    if (!markers) return;
 
-    window.kakao.maps.load(() => {
-      const options = {
-        center: new window.kakao.maps.LatLng(37.566535, 126.9779692),
-        level: 3,
-        maxLevel: 12,
-      };
+    const nlat = lat || 37.566535;
+    const nlng = lng || 126.9779692;
+    const nlevel = level || 3;
 
-      const map = new window.kakao.maps.Map(mapRef.current, options);
+    console.log(lat, lng, level);
+    const options = {
+      center: new window.kakao.maps.LatLng(lat, lng),
+      level: level,
+      maxLevel: 12,
+    };
 
-      const imageSize = new window.kakao.maps.Size(39, 39);
-      const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+    const newMap = new window.kakao.maps.Map(mapRef.current, options);
 
-      const activeMarkerImg = new window.kakao.maps.MarkerImage(
-        "/activeMarker.svg",
-        imageSize,
-        imageOption
-      );
+    const handleDrag = () => {
+      // const level = map.getLevel();
+      const latlng = newMap.getCenter();
+      // const query = `lat=${latlng.getLat()}&lng=${latlng.getLng()}&lv=${level}`;
+      // router.push(`${pathname}?${query}`);
+      setPosition(latlng.getLat(), latlng.getLng());
+    };
 
-      const clusterer = new window.kakao.maps.MarkerClusterer({
-        map: map,
-        averageCenter: true,
-        minLevel: 6,
-      });
+    const handleZoom = () => {
+      const level = newMap.getLevel();
+      // const latlng = map.getCenter();
+      // const query = `lat=${latlng.getLat()}&lng=${latlng.getLng()}&lv=${level}`;
 
-      const newMarkers = markers?.map((marker) => {
-        const newMarker = new window.kakao.maps.Marker({
-          position: new window.kakao.maps.LatLng(
-            marker.latitude,
-            marker.longitude
-          ),
-          image: activeMarkerImg,
-          title: marker.markerId,
-          zIndex: 4,
-        });
+      // router.push(`${pathname}?${query}`);
+      setLevel(level);
+    };
 
-        return newMarker;
-      });
+    window.kakao.maps.event.addListener(newMap, "dragend", handleDrag);
+    window.kakao.maps.event.addListener(newMap, "zoom_changed", handleZoom);
 
-      clusterer.addMarkers(newMarkers);
+    const imageSize = new window.kakao.maps.Size(39, 39);
+    const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
-      setMapLoading(false);
-      setMap(map);
-      setClusterer(clusterer);
+    const activeMarkerImg = new window.kakao.maps.MarkerImage(
+      "/activeMarker.svg",
+      imageSize,
+      imageOption
+    );
+
+    const clusterer = new window.kakao.maps.MarkerClusterer({
+      map: map,
+      averageCenter: true,
+      minLevel: 6,
     });
-  }, []);
+
+    const newMarkers = markers?.map((marker) => {
+      const newMarker = new window.kakao.maps.Marker({
+        position: new window.kakao.maps.LatLng(
+          marker.latitude,
+          marker.longitude
+        ),
+        image: activeMarkerImg,
+        title: marker.markerId,
+        zIndex: 4,
+      });
+
+      return newMarker;
+    });
+
+    clusterer.addMarkers(newMarkers);
+
+    setMapLoading(false);
+    setMap(newMap);
+    setClusterer(clusterer);
+
+    return () => {
+      window.kakao.maps.event.removeListener(newMap, "dragend", handleDrag);
+      window.kakao.maps.event.removeListener(
+        newMap,
+        "zoom_changed",
+        handleZoom
+      );
+    };
+  }, [markers]);
+
+  // useEffect(() => {
+  //   if (!map) return;
+  // }, []);
 
   useEffect(() => {
     if (!map) return;

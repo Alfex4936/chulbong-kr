@@ -31,17 +31,18 @@ const RootLayout = ({
 }>) => {
   return (
     <html lang="ko">
+      <head>
+        <script
+          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=dfdebaf84d7dda475fb8448c7d43c528&libraries=clusterer,services`}
+        />
+      </head>
       <body
         className={`${nanum.className} flex text-grey mo:flex-col-reverse mo:h-screen mo:bg-neutral-800`}
       >
-        <Script
-          strategy="beforeInteractive"
-          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=dfdebaf84d7dda475fb8448c7d43c528&libraries=clusterer,services&autoload=false`}
-        />
         <RQProvider>
           <Navigation />
           {children}
-          {/* <Map /> */}
+          <Map />
         </RQProvider>
       </body>
     </html>

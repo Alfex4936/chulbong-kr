@@ -1,19 +1,15 @@
 "use client";
 
-import GrowBox from "@/components/atom/GrowBox";
-import { LocationIcon } from "@/components/icons/LocationIcons";
+import MarkerListItem from "@/components/atom/MarkerListItem";
 import SearchIcon from "@/components/icons/SearchIcon";
 import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useSearchLocationData from "@/hooks/query/useSearchLocationData";
 import { useEffect, useState } from "react";
-import useMapStore from "@/store/useMapStore";
 
 const SearchInput = () => {
   const [query, setQuery] = useState("");
   const searchInput = useInput("");
-
-  const { map } = useMapStore();
 
   const { data, isError } = useSearchLocationData(query);
 
@@ -22,12 +18,6 @@ const SearchInput = () => {
 
     return () => clearTimeout(handler);
   }, [searchInput.value]);
-
-  const moveLocation = (x: number, y: number) => {
-    const moveLatLon = new window.kakao.maps.LatLng(y, x);
-
-    map?.setCenter(moveLatLon);
-  };
 
   return (
     <div className="relative mx-auto mb-4">
@@ -48,26 +38,13 @@ const SearchInput = () => {
           {data?.documents.length === 0 && <div>검색 결과가 없습니다.</div>}
           {data?.documents.map((document) => {
             return (
-              <button
+              <MarkerListItem
                 key={document.id}
-                className="flex w-full items-center p-1 px-2 rounded-sm mb-2 hover:bg-zinc-700"
-                onClick={() =>
-                  moveLocation(Number(document.x), Number(document.y))
-                }
-              >
-                <div className="w-3/4">
-                  <div className="truncate text-left mr-2">
-                    {document.place_name}
-                  </div>
-                  <div className="truncate text-left text-xs text-grey-dark">
-                    {document.address_name}
-                  </div>
-                </div>
-                <GrowBox />
-                <div>
-                  <LocationIcon selected={false} size={18} />
-                </div>
-              </button>
+                title={document.place_name}
+                subTitle={document.address_name}
+                lat={Number(document.y)}
+                lng={Number(document.x)}
+              />
             );
           })}
         </div>
