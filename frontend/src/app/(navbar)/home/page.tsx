@@ -1,11 +1,11 @@
 import BlackSideBody from "@/components/atom/BlackSideBody";
 import Heading from "@/components/atom/Heading";
-import NoticeSlide from "./_components/NoticeSlide";
-import SearchInput from "./_components/SearchInput";
 import { Separator } from "@/components/ui/separator";
+import NoticeSlide from "./_components/NoticeSlide";
 import Ranking from "./_components/Ranking";
+import SearchInput from "./_components/SearchInput";
 
-const Home = () => {
+const Home = async () => {
   return (
     <BlackSideBody toggle>
       <Heading title="대한민국 철봉 지도" />

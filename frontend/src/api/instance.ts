@@ -22,7 +22,9 @@ const baseInterceptors = (instance: AxiosInstance) => {
 };
 
 const base = () => {
-  const instance = axios.create();
+  const instance = axios.create({
+    // baseURL: "/api/v1",
+  });
 
   baseInterceptors(instance);
 

@@ -16,9 +16,16 @@ const BlackSideBody = ({ children, toggle }: Props) => {
         isOpen
           ? "max-w-[410px] mo:min-w-80 min-w-[410px] w-screen"
           : "max-w-[410px] web:w-0 mo:min-w-[320px] mo:w-screen"
-      } bg-gradient-to-r from-black to-black-light shadow-lg px-9 mo:h-[100%] mo:m-auto z-10 web:duration-150`} // web:duration-150
+      } bg-gradient-to-r from-black to-black-light shadow-lg h-screen
+      mo:h-[100%] mo:m-auto z-10 web:duration-150`} // web:duration-150
     >
-      <div className={`${isOpen ? "web:block" : "web:hidden"}`}>{children}</div>
+      <div
+        className={`${
+          isOpen ? "web:block" : "web:hidden"
+        } px-9 pb-9 h-full overflow-auto scrollbar-thin`}
+      >
+        {children}
+      </div>
       {toggle && (
         <button
           className="absolute -right-9 top-1/2 -translate-y-1/2 
