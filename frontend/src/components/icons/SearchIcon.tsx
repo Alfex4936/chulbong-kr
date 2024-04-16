@@ -1,4 +1,4 @@
-type Props = { size?: number; color?: "black" | "white" };
+type Props = { size?: number; color?: "black" | "white" | "grey" };
 
 const SearchIcon = ({ size = 24, color = "white" }: Props) => {
   return (
@@ -11,7 +11,13 @@ const SearchIcon = ({ size = 24, color = "white" }: Props) => {
     >
       <path
         d="M18.8735 18.2292L23.604 22.9167"
-        stroke={color === "black" ? "#222222" : "#F0F0F0"}
+        stroke={
+          color === "black"
+            ? "#222222"
+            : color === "white"
+            ? "#F0F0F0"
+            : "#bebebe"
+        }
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"

@@ -7,8 +7,8 @@ const Home = () => {
   return (
     <BlackSideBody toggle>
       <Heading title="대한민국 철봉 지도" />
-      <NoticeSlide />
       <SearchInput />
+      <NoticeSlide />
     </BlackSideBody>
   );
 };
