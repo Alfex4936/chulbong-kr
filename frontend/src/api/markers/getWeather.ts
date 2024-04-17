@@ -1,6 +1,6 @@
 import instance from "../instance";
 
-interface WeatherRes {
+export interface WeatherRes {
   temperature: string;
   desc: string;
   humidity: string;
