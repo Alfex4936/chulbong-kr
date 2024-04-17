@@ -1,36 +1,64 @@
+"use client";
+
 import BookmarkIcon from "@/components/icons/BookmarkIcon";
-import IconButton from "./_components/IconButton";
-import ShareIcon from "@/components/icons/ShareIcon";
-import DislikeIcon from "@/components/icons/DislikeIcon";
 import DeleteIcon from "@/components/icons/DeleteIcon";
-import { Separator } from "@/components/ui/separator";
+import DislikeIcon from "@/components/icons/DislikeIcon";
 import RoadViewIcon from "@/components/icons/RoadViewIcon";
-import Link from "next/link";
+import ShareIcon from "@/components/icons/ShareIcon";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
+import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
+import ReviewList from "./_components/ReviewList";
+import useMarkerData from "@/hooks/query/marker/useMarkerData";
+import useWeatherData from "@/hooks/query/marker/useWeatherData";
+import formatDate from "@/utils/formatDate";
+import { Skeleton } from "@/components/ui/skeleton";
+// TODO: 기구 데이터 연동
+
+// https://local.k-pullup.com:5173/pullup/5329
 
 interface Props {
   markerId: number;
 }
 
 const PullupClient = ({ markerId }: Props) => {
+  const { data: marker, isError } = useMarkerData(markerId);
+
+  const { data: weather, isLoading: weatherLoading } = useWeatherData(
+    marker?.latitude as number,
+    marker?.longitude as number,
+    !!marker
+  );
+
+  if (isError) return <div>X</div>;
+  if (!marker) return;
+
   return (
     <div>
       {/* 이미지 배경 */}
       <div
         className="relative w-full h-64 bg-cover bg-center"
         style={{
-          backgroundImage: "url('/metaimg.webp')",
+          backgroundImage: marker.photos
+            ? `url(${marker.photos[0].photoUrl})`
+            : "url('/metaimg.webp')",
         }}
       >
-        <div className="absolute top-1 left-1 flex  items-center py-1 px-2 rounded-sm z-20 bg-black-light-2">
-          <img
-            className="mr-2"
-            src="https://t1.daumcdn.net/localimg/localimages/07/2018/pc/weather/ico_weather20.png"
-            alt=""
-          />
-          <span className="text-lg font-bold">15.9℃</span>
-        </div>
+        {weatherLoading ? (
+          <Skeleton className="absolute top-1 left-1 w-28 h-12 bg-black-light-2" />
+        ) : (
+          <div className="absolute top-1 left-1 flex  items-center py-1 px-2 rounded-sm z-20 bg-black-light-2">
+            <img
+              className="mr-2"
+              src={weather?.iconImage}
+              alt={weather?.desc}
+            />
+            <span className="text-lg font-bold">{weather?.temperature}℃</span>
+          </div>
+        )}
+
         <IconButton right={10} top={10} icon={<BookmarkIcon />} />
         <IconButton right={10} top={50} icon={<ShareIcon />} />
         <IconButton right={10} top={90} icon={<DislikeIcon />} />
@@ -57,9 +85,11 @@ const PullupClient = ({ markerId }: Props) => {
         </div>
         {/* 정보 */}
         <div className="mt-4">
-          <div className="truncate flex items-center mb-[2px]">
+          <div className="flex items-center mb-[2px]">
             <span className="mr-1">
-              <h1 className="text-xl">서울 종로구</h1>
+              <h1 className="whitespace-normal overflow-visible break-words w-3/4 truncate text-xl">
+                {marker.address || "제공되는 주소가 없습니다."}
+              </h1>
             </span>
             <button>
               <RoadViewIcon />
@@ -67,15 +97,15 @@ const PullupClient = ({ markerId }: Props) => {
           </div>
 
           <div className="text-xs text-gray-400 mb-5">
-            <span>...등록</span>
-            <span>(...업데이트)</span>
+            <span>{formatDate(marker.createdAt)}</span>
+            <span>({formatDate(marker.updatedAt)}업데이트)</span>
             <span className="mx-1">|</span>
             <Link href={"/pullup/3000"} className="underline">
               정보 수정 제안
             </Link>
           </div>
 
-          <h2 className="">작성된 설명이 없습니다.</h2>
+          <h2>{marker.description || "작성된 설명이 없습니다."}</h2>
         </div>
 
         <Separator className="my-3 bg-grey-dark" />
@@ -90,9 +120,11 @@ const PullupClient = ({ markerId }: Props) => {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="photo">
-            <ImageList />
+            <ImageList photos={marker.photos} />
           </TabsContent>
-          <TabsContent value="review">Change your password here.</TabsContent>
+          <TabsContent value="review">
+            <ReviewList markerId={marker.markerId} />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
