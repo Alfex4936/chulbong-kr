@@ -42,7 +42,7 @@ const RootLayout = ({
         <RQProvider>
           <Navigation />
           {children}
-          <Map />
+          {/* <Map /> */}
         </RQProvider>
       </body>
     </html>
