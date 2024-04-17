@@ -1,6 +1,10 @@
-type Props = { size?: number; color?: "black" | "white" };
+type Props = { size?: number; color?: "black" | "white"; isActive?: boolean };
 
-const BookmarkIcond = ({ size = 24, color = "white" }: Props) => {
+const BookmarkIcon = ({
+  size = 24,
+  color = "white",
+  isActive = false,
+}: Props) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -15,9 +19,10 @@ const BookmarkIcond = ({ size = 24, color = "white" }: Props) => {
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+        fill={isActive ? (color === "black" ? "#222222" : "#F0F0F0") : "none"}
       />
     </svg>
   );
 };
 
-export default BookmarkIcond;
+export default BookmarkIcon;

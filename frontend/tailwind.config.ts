@@ -41,6 +41,10 @@ const config = {
         red: "#ff8a8a",
         white: "#fff",
         "slate-dark": "rgba(100, 116, 139, 0.4)",
+        "black-tp-dark": "rgba(0, 0, 0, 0.6)",
+        "black-tp-light": "rgba(0, 0, 0, 0.4)",
+        "white-tp-light": "rgba(255, 255, 255, 0.4)",
+        "white-tp-dark": "rgba(255, 255, 255, 0.6)",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -82,6 +86,7 @@ const config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        full: "50%",
       },
       boxShadow: {
         "black-1":
