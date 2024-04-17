@@ -111,7 +111,7 @@
 
 .overlay::after {
   position: absolute;
-  top: 95%;
+  top: 100%;
   left: 50%;
 
   transform: translateX(-50%);
@@ -122,9 +122,9 @@
   width: 0;
   height: 0;
 
-  border-left: 17px solid transparent;
-  border-right: 17px solid transparent;
-  border-top: 34px solid #222;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 24px solid #222;
   border-bottom: 0;
 }
 
@@ -232,6 +232,8 @@
 }
 
 #overlay-image {
+  display: none;
+
   width: 100px;
   height: 100px;
 
@@ -260,10 +262,9 @@
   background-size: 200% 100%;
   animation: skeleton-loading 1.5s infinite linear;
 }
-
 .skeleton-overlay::after {
   position: absolute;
-  top: 95%;
+  top: 100%;
   left: 50%;
 
   transform: translateX(-50%);
@@ -273,11 +274,28 @@
   width: 0;
   height: 0;
 
-  border-left: 17px solid transparent;
-  border-right: 17px solid transparent;
-  border-top: 34px solid rgba(255, 255, 255, 0.8);
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 24px solid rgba(255, 255, 255, 0.8);
   border-bottom: 0;
 
+  animation: skeleton-loading 1.5s infinite linear;
+}
+
+.on-loading {
+  width: 100px;
+  height: 100px;
+
+  border-radius: 5px;
+
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+
+  background-size: 200% 100%;
   animation: skeleton-loading 1.5s infinite linear;
 }
 

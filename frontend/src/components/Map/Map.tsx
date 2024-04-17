@@ -7,6 +7,7 @@ import useMapStore from "@/store/useMapStore";
 import { useEffect, useRef, useState } from "react";
 import MapLoading from "./MapLoading";
 import getWeather from "@/api/markers/getWeather";
+import getMarker from "@/api/markers/getMarker";
 
 const Map = () => {
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
@@ -64,64 +65,7 @@ const Map = () => {
 
     const content = document.createElement("div");
     // TODO: 커스텀 오버레이 스타일링
-    const infoBox = `
-    <div id="overlay-top">
-      <div id="overlay-weather">
-        <div>
-          <img id="overlay-weather-icon" />
-        </div>
-        <div id="overlay-weather-temp"></div>
-      </div>
-      <button id="overlay-close">닫기</button>
-    </div>
-    <div id="overlay-mid">
-      <div id="overlay-info">
-        <div id="overlay-title"></div>
-        <div id="overlay-link">
-          <a>상세보기</a>
-          <a>정보 수정 제안</a>
-        </div>
-        <div class="empty-grow"></div>
-        <div id="overlay-action">
-          <button>
-            <div>
-              <img src="/bookmark-02.svg" alt="bookmark"/>
-            </div>
-            <div>
-              저장
-            </div>
-          </button>
-          <button>
-            <div>
-              <img src="/roadview.svg" alt="roadview"/>
-            </div>
-            <div>
-              거리뷰
-            </div>
-          </button>
-          <button>
-            <div>
-              <img src="/share-08.svg" alt="share"/>
-            </div>
-            <div>
-              거리뷰
-            </div>
-          </button>
-        </div>
-      </div>
-      <div id="overlay-image-container">
-        <img id="overlay-image"/>
-      </div>
-    </div>
-    `;
 
-    content.className = "overlay";
-    content.innerHTML = infoBox;
-
-    const overlay = new window.kakao.maps.CustomOverlay({
-      content: content,
-      zIndex: 5,
-    });
     const skeletonOverlay = new window.kakao.maps.CustomOverlay({
       content: skeletoncontent,
       zIndex: 5,
@@ -139,6 +83,66 @@ const Map = () => {
       });
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
+        content.innerHTML = "";
+        const infoBox = `
+        <div id="overlay-top">
+          <div id="overlay-weather">
+            <div>
+              <img id="overlay-weather-icon" />
+            </div>
+            <div id="overlay-weather-temp"></div>
+          </div>
+          <button id="overlay-close">닫기</button>
+        </div>
+        <div id="overlay-mid">
+          <div id="overlay-info">
+            <div id="overlay-title"></div>
+            <div id="overlay-link">
+              <a>상세보기</a>
+              <a>정보 수정 제안</a>
+            </div>
+            <div class="empty-grow"></div>
+            <div id="overlay-action">
+              <button>
+                <div>
+                  <img src="/bookmark-02.svg" alt="bookmark"/>
+                </div>
+                <div>
+                  저장
+                </div>
+              </button>
+              <button>
+                <div>
+                  <img src="/roadview.svg" alt="roadview"/>
+                </div>
+                <div>
+                  거리뷰
+                </div>
+              </button>
+              <button>
+                <div>
+                  <img src="/share-08.svg" alt="share"/>
+                </div>
+                <div>
+                  거리뷰
+                </div>
+              </button>
+            </div>
+          </div>
+          <div id="overlay-image-container">
+            <img id="overlay-image" />
+          </div>
+        </div>
+        `;
+
+        content.className = "overlay";
+        content.innerHTML = infoBox;
+
+        const overlay = new window.kakao.maps.CustomOverlay({
+          content: content,
+          zIndex: 5,
+        });
+
         const latlng = new window.kakao.maps.LatLng(
           marker.latitude,
           marker.longitude
@@ -151,10 +155,11 @@ const Map = () => {
           marker.latitude,
           marker.longitude
         );
+        const { description, address, favorited, photos } = await getMarker(
+          marker.markerId
+        );
 
         skeletonOverlay.setMap(null);
-
-        console.log(iconImage, temperature);
 
         overlay.setMap(newMap);
         overlay.setPosition(latlng);
@@ -169,6 +174,27 @@ const Map = () => {
           "overlay-weather-temp"
         ) as HTMLDivElement;
         weatherTempBox.innerHTML = `${temperature}℃`;
+
+        // 오버레이 주소 정보
+        const addressBox = document.getElementById(
+          "overlay-title"
+        ) as HTMLDivElement;
+        addressBox.innerHTML = description || "작성된 설명이 없습니다.";
+
+        // 오버레이 이미지 정보
+        const imageContainer = document.getElementById(
+          "overlay-image-container"
+        ) as HTMLDivElement;
+        imageContainer.classList.add("on-loading");
+        const imageBox = document.getElementById(
+          "overlay-image"
+        ) as HTMLImageElement;
+        imageBox.src = photos ? photos[0].photoUrl : "/metaimg.webp";
+        imageBox.onload = () => {
+          imageBox.style.display = "block";
+          imageContainer.classList.remove("on-loading");
+        };
+
         // 오버레이 닫기 이벤트 등록
         const closeBtnBox = document.getElementById(
           "overlay-close"
@@ -176,17 +202,6 @@ const Map = () => {
         closeBtnBox.onclick = () => {
           overlay.setMap(null);
         };
-        // 오버레이 주소 정보
-        const addressBox = document.getElementById(
-          "overlay-title"
-        ) as HTMLDivElement;
-        addressBox.innerHTML =
-          marker.address || "제공되는 주소 정보가 없습니다.";
-        // 오버레이 이미지 정보
-        const imageBox = document.getElementById(
-          "overlay-image"
-        ) as HTMLImageElement;
-        imageBox.src = "/metaimg.webp";
       });
 
       return newMarker;
