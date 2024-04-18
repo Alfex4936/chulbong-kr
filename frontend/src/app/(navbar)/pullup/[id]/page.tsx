@@ -1,6 +1,6 @@
 import { type CommentsRes } from "@/api/comments/getComments";
 import instance from "@/api/instance";
-import { type WeatherRes } from "@/api/markers/getWeather";
+import { type FacilitiesRes } from "@/api/markers/getFacilities";
 import BlackSideBody from "@/components/atom/BlackSideBody";
 import { type Marker } from "@/types/Marker.types";
 import {
@@ -37,10 +37,10 @@ const getComments = async (
   return res.data;
 };
 
-const getWeather = async (lat: number, lng: number): Promise<WeatherRes> => {
-  const res = await instance.get(
-    `/api/v1/markers/weather?latitude=${lat}&longitude=${lng}`
-  );
+const getFacilities = async (markerId: number): Promise<FacilitiesRes[]> => {
+  const res = await instance.get(`/api/v1/markers/${markerId}/facilities`, {
+    withCredentials: true,
+  });
 
   return res.data;
 };
@@ -71,6 +71,13 @@ const Pullup = async ({ params }: Props) => {
     queryKey: ["marker", Number(id)],
     queryFn: () => {
       return getMarker(Number(id));
+    },
+  });
+
+  await queryClient.prefetchQuery({
+    queryKey: ["facilities", Number(id)],
+    queryFn: () => {
+      return getFacilities(Number(id));
     },
   });
 

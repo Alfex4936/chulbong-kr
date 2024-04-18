@@ -6,15 +6,16 @@ import DislikeIcon from "@/components/icons/DislikeIcon";
 import RoadViewIcon from "@/components/icons/RoadViewIcon";
 import ShareIcon from "@/components/icons/ShareIcon";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import useMarkerData from "@/hooks/query/marker/useMarkerData";
+import useWeatherData from "@/hooks/query/marker/useWeatherData";
+import formatDate from "@/utils/formatDate";
 import Link from "next/link";
 import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
-import useMarkerData from "@/hooks/query/marker/useMarkerData";
-import useWeatherData from "@/hooks/query/marker/useWeatherData";
-import formatDate from "@/utils/formatDate";
-import { Skeleton } from "@/components/ui/skeleton";
+import useFacilitiesData from "@/hooks/query/marker/useFacilitiesData";
 // TODO: 기구 데이터 연동
 
 // https://local.k-pullup.com:5173/pullup/5329
@@ -25,6 +26,7 @@ interface Props {
 
 const PullupClient = ({ markerId }: Props) => {
   const { data: marker, isError } = useMarkerData(markerId);
+  const { data: facilities } = useFacilitiesData(markerId);
 
   const { data: weather, isLoading: weatherLoading } = useWeatherData(
     marker?.latitude as number,
