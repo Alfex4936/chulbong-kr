@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Alfex4936/tzf"
@@ -118,6 +119,25 @@ func main() {
 	setUpMiddlewares(app)
 
 	// API
+	websocketConfig := websocket.Config{
+		// Set the handshake timeout to a reasonable duration to prevent slowloris attacks.
+		HandshakeTimeout: 5 * time.Second,
+
+		Origins: []string{"https://test.k-pullup.com", "https://www.k-pullup.com"},
+
+		EnableCompression: true,
+
+		RecoverHandler: func(c *websocket.Conn) {
+			// Custom recover logic. By default, it logs the error and stack trace.
+			if r := recover(); r != nil {
+				fmt.Fprintf(os.Stderr, "WebSocket panic: %v\n", r)
+				debug.PrintStack()
+				c.WriteMessage(websocket.CloseMessage, []byte{})
+				c.Close()
+			}
+		},
+	}
+
 	app.Get("/ws/:markerID", func(c *fiber.Ctx) error {
 		// Extract markerID from the parameter
 		markerID := c.Params("markerID")
@@ -145,26 +165,9 @@ func main() {
 		markerID := c.Params("markerID")
 		reqID := c.Query("request-id")
 
-		// Now, the connection is already upgraded to WebSocket, and you've passed the ban check.
+		// Now, the connection is already upgraded to WebSocket, and passed the ban check.
 		handlers.HandleChatRoomHandler(c, markerID, reqID)
-	}, websocket.Config{
-		// Set the handshake timeout to a reasonable duration to prevent slowloris attacks.
-		HandshakeTimeout: 5 * time.Second,
-
-		Origins: []string{"https://test.k-pullup.com", "https://www.k-pullup.com"},
-
-		EnableCompression: true,
-
-		RecoverHandler: func(c *websocket.Conn) {
-			// Custom recover logic. By default, it logs the error and stack trace.
-			if r := recover(); r != nil {
-				fmt.Fprintf(os.Stderr, "WebSocket panic: %v\n", r)
-				debug.PrintStack()
-				c.WriteMessage(websocket.CloseMessage, []byte{})
-				c.Close()
-			}
-		},
-	}))
+	}, websocketConfig))
 
 	// HTML
 	app.Get("/main", func(c *fiber.Ctx) error {
@@ -180,6 +183,7 @@ func main() {
 	handlers.RegisterCommentRoutes(api)
 	handlers.RegisterTossPaymentRoutes(api)
 	handlers.RegisterReportRoutes(api)
+	handlers.RegisterNotificationRoutes(api, websocketConfig)
 
 	// Cron jobs
 	services.RunAllCrons()
@@ -269,9 +273,13 @@ func setUpMiddlewares(app *fiber.App) {
 
 	// Enable CORS for all routes
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "http://localhost:5173,https://chulbong-kr.vercel.app,https://www.k-pullup.com", // List allowed origins
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",                                                   // Explicitly list allowed methods
-		AllowHeaders: "*",                                                                             // TODO: Allow specific headers
+		// AllowOrigins: "http://localhost:5173,https://chulbong-kr.vercel.app,https://www.k-pullup.com", // List allowed origins
+		AllowOriginsFunc: func(origin string) bool {
+			// Check if the origin is a subdomain of k-pullup.com
+			return strings.HasSuffix(origin, ".k-pullup.com") || origin == "https://www.k-pullup.com" || origin == "https://chulbong-kr.vercel.app" || origin == "http://localhost:5173"
+		},
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS", // Explicitly list allowed methods
+		AllowHeaders: "*",                           // TODO: Allow specific headers
 		// ExposeHeaders:    "Accept",
 		AllowCredentials: true,
 	}))

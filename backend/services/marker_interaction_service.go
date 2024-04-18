@@ -86,6 +86,19 @@ func AddFavorite(userID, markerID int) error {
 		return fmt.Errorf("failed to retrieve marker owner: %w", err)
 	}
 
+	// if ownerUserID != userID {
+	// 	userIDstr := strconv.Itoa(ownerUserID)
+	// 	updateMsg := fmt.Sprintf("누군가 %d 마커에 좋아요를 남겼습니다!", markerID)
+	// 	metadata := notification.NotificationLikeMetadata{
+	// 		MarkerID: markerID,
+	// 		UserId:   ownerUserID,
+	// 		LikerId:  userID,
+	// 	}
+
+	// 	rawMetadata, _ := json.Marshal(metadata)
+	// 	PostNotification(userIDstr, "Like", "sys", updateMsg, rawMetadata)
+	// }
+
 	// TODO: update when frontend updates
 	// key := fmt.Sprintf("%d-%d", ownerUserID, markerID)
 	// PublishLikeEvent(key)

@@ -128,6 +128,19 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 		if err != nil {
 			log.Printf("Failed to update address for marker %d: %v", markerID, err)
 		}
+
+		// userIDstr := strconv.Itoa(userID)
+		// updateMsg := fmt.Sprintf("새로운 철봉이 [ %s ]에 등록되었습니다!", address)
+		// metadata := notification.NotificationMarkerMetadata{
+		// 	MarkerID:  markerID,
+		// 	Latitude:  latitude,
+		// 	Longitude: longitude,
+		// 	Address:   address,
+		// }
+
+		// rawMetadata, _ := json.Marshal(metadata)
+		// PostNotification(userIDstr, "NewMarker", "k-pullup!", updateMsg, rawMetadata)
+
 		// TODO: update when frontend updates
 		// if address != "" {
 		// 	updateMsg := fmt.Sprintf("새로운 철봉이 등록되었습니다! %s", address)

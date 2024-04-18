@@ -410,11 +410,11 @@ func getUserMarkersHandler(c *fiber.Ctx) error {
 	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
 
 	// Prepare the response
-	response := fiber.Map{
-		"markers":      markersWithPhotos,
-		"currentPage":  page,
-		"totalPages":   totalPages,
-		"totalMarkers": total,
+	response := dto.UserMarkers{
+		MarkersWithPhotos: markersWithPhotos,
+		CurrentPage:       page,
+		TotalPages:        totalPages,
+		TotalMarkers:      total,
 	}
 
 	// Cache the response for future requests

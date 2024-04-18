@@ -1,28 +1,25 @@
 package notification
 
-// Notification is the base struct for all notifications.
-// It includes a Type field to indicate the specific type of notification.
-type Notification struct {
-	Type string `json:"type"`
+import "github.com/goccy/go-json"
+
+type NotificationRedis struct {
+	NotificationId   int64           `json:"notificationId" db:"NotificationId"`
+	UserId           string          `json:"userId" db:"UserId"`
+	NotificationType string          `json:"type" db:"NotificationType"`
+	Title            string          `json:"title" db:"Title"`
+	Message          string          `json:"message" db:"Message"`
+	Metadata         json.RawMessage `json:"metadata" db:"Metadata"`
 }
 
-// BroadcastNotification represents a notification for all
-type BroadcastNotification struct {
-	Notification        // Embedding Notification struct to inherit the Type field.
-	Notice       string `json:"notice"`
+type NotificationMarkerMetadata struct {
+	MarkerID  int64   `json:"markerID"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Address   string  `json:"address"`
 }
 
-// LikeNotification represents a notification for a like event.
-type LikeNotification struct {
-	Notification     // Embedding Notification struct to inherit the Type field.
-	UserID       int `json:"userId"`
-	MarkerID     int `json:"markerId"`
-}
-
-// CommentNotification represents a notification for a comment event.
-type CommentNotification struct {
-	Notification        // Embedding Notification struct to inherit the Type field.
-	UserID       int    `json:"userId"`
-	MarkerID     int    `json:"markerId"`
-	Comment      string `json:"comment"`
+type NotificationLikeMetadata struct {
+	MarkerID int `json:"markerID"`
+	UserId   int `json:"userId"`
+	LikerId  int `json:"likerId"`
 }

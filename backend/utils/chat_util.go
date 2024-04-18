@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -79,9 +79,9 @@ var names = []string{
 func GenerateKoreanNickname() string {
 
 	// Select a random
-	adjective := adjectives[rand.Intn(len(adjectives))]
+	adjective := adjectives[rand.IntN(len(adjectives))]
 
-	name := names[rand.Intn(len(names))]
+	name := names[rand.IntN(len(names))]
 
 	// Generate a unique identifier
 	uid := uuid.New().String()
@@ -126,8 +126,8 @@ func anonymizeIP(c *fiber.Ctx) string {
 }
 
 func CreateAnonymousID(c *fiber.Ctx) string {
-	adjective := adjectives[rand.Intn(len(adjectives))]
-	name := names[rand.Intn(len(names))]
+	adjective := adjectives[rand.IntN(len(adjectives))]
+	name := names[rand.IntN(len(names))]
 
 	return fmt.Sprintf("%s%s#%s", adjective, name, anonymizeIP(c)) // Combine nickname and IP
 }

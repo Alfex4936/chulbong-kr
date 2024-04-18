@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"strconv"
 	"strings"
 	"time"
@@ -220,7 +220,7 @@ func ResetAndRandomizeClickRanking() {
 		markers[i], markers[j] = markers[j], markers[i]
 	})
 
-	numMarkers := rand.Intn(6) + 4 // 4 ~ 9
+	numMarkers := rand.IntN(6) + 4 // 4 ~ 9
 
 	selectedMarkers := markers[:numMarkers]
 
@@ -233,7 +233,7 @@ func ResetAndRandomizeClickRanking() {
 	// Prepare the ZADD command
 	zaddCmd := RedisStore.B().Zadd().Key("marker_clicks").ScoreMember()
 	for _, marker := range selectedMarkers {
-		score := float64(10 + rand.Intn(6)) // Random score between 10 and 15
+		score := float64(10 + rand.IntN(6)) // Random score between 10 and 15
 		zaddCmd = zaddCmd.ScoreMember(score, fmt.Sprintf("%d", marker.MarkerID))
 	}
 	if err := RedisStore.Do(ctx, zaddCmd.Build()).Error(); err != nil {
