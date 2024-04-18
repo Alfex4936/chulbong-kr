@@ -17,7 +17,9 @@ const RootLayout = ({
 }>) => {
   return (
     <html lang="ko">
-      <body className={inter.className}>
+      <body
+        className={`${inter.className} bg-black-gradient-2 h-screen w-screen text-grey`}
+      >
         <RQProvider>{children}</RQProvider>
       </body>
     </html>
