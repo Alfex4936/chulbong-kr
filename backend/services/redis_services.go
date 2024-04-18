@@ -37,7 +37,7 @@ func SetCacheEntry[T any](key string, value T, expiration time.Duration) error {
 		Value(rueidis.BinaryString(jsonValue)).
 		Nx().
 		Ex(expiration).
-		Build() // No need to Pin unless reusing
+		Build()
 
 	// Execute the SET command
 	if err := RedisStore.Do(ctx, setCmd).Error(); err != nil {

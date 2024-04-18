@@ -515,14 +515,11 @@ func getFacilitiesHandler(c *fiber.Ctx) error {
 	var facilities []models.Facility
 	cacheKey := fmt.Sprintf("facilities:%d", markerID)
 	cachedFacilities, cacheErr := services.GetCacheEntry[[]models.Facility](cacheKey)
-	if cacheErr != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to access cache"})
-	}
-
-	if cachedFacilities != nil {
+	if cacheErr == nil && cachedFacilities != nil {
 		c.Append("X-Cache", "hit")
 		// Cache hit, return cached facilities
 		return c.JSON(cachedFacilities)
+
 	}
 
 	facilities, err = services.GetFacilitiesByMarkerID(markerID)

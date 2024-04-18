@@ -12,6 +12,7 @@ import (
 
 	"github.com/axiomhq/hyperloglog"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
+	"github.com/redis/rueidis"
 	"github.com/zeebo/xxh3"
 
 	"chulbong-kr/database"
@@ -159,6 +160,7 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 	markerIDs := make([]interface{}, len(markerScores))
 	for i, markerScore := range markerScores {
 		markerIDs[i] = markerScore.Member // Directly use string ID to avoid unnecessary conversions.
+		log.Printf("🤣 Marker id: %s and score: %f", markerScore.Member, markerScore.Score)
 	}
 
 	// Query to retrieve markers by a set of IDs in a single SQL call.
@@ -190,8 +192,6 @@ func RemoveMarkerClick(markerID int) error {
 	member := fmt.Sprintf("%d", markerID)
 
 	// Remove the marker from the "marker_clicks" sorted set
-	RedisStore.Do(ctx, RedisStore.B().Zrem().Key("marker_clicks").Member(member).Build())
-
 	err := RedisStore.Do(ctx, RedisStore.B().Zrem().Key("marker_clicks").Member(member).Build()).Error()
 	if err != nil {
 		log.Printf("Error removing marker click: %v", err)
@@ -224,21 +224,30 @@ func ResetAndRandomizeClickRanking() {
 
 	selectedMarkers := markers[:numMarkers]
 
-	ctx := context.Background()
+	// atomic
+	RedisStore.Dedicated(func(c rueidis.DedicatedClient) error {
+		// Start a transaction
+		ctx := context.Background()
+		c.Do(ctx, c.B().Multi().Build())
 
-	// Reset the "marker_clicks" sorted set in Redis
-	RedisStore.Do(ctx, RedisStore.B().Del().Key("marker_clicks").Build())
+		// Delete the existing "marker_clicks" sorted set
+		c.Do(ctx, c.B().Del().Key("marker_clicks").Build())
 
-	// Re-populate "marker_clicks" with the selected markers
-	// Prepare the ZADD command
-	zaddCmd := RedisStore.B().Zadd().Key("marker_clicks").ScoreMember()
-	for _, marker := range selectedMarkers {
-		score := float64(10 + rand.IntN(6)) // Random score between 10 and 15
-		zaddCmd = zaddCmd.ScoreMember(score, fmt.Sprintf("%d", marker.MarkerID))
-	}
-	if err := RedisStore.Do(ctx, zaddCmd.Build()).Error(); err != nil {
-		log.Printf("Error adding markers to sorted set: %v", err)
-	}
+		// Re-populate "marker_clicks" with the selected markers
+		zaddCmd := c.B().Zadd().Key("marker_clicks").ScoreMember()
+		for _, marker := range selectedMarkers {
+			score := float64(10 + rand.IntN(6)) // Random score between 10 and 15
+			zaddCmd = zaddCmd.ScoreMember(score, fmt.Sprintf("%d", marker.MarkerID))
+		}
+		c.Do(ctx, zaddCmd.Build())
+
+		// Execute the transaction
+		if err := c.Do(ctx, c.B().Exec().Build()).Error(); err != nil {
+			log.Printf("Transaction failed: %v", err)
+			return err
+		}
+		return nil
+	})
 
 	log.Printf("%d markers were randomly selected and added to Redis ranking.", numMarkers)
 }

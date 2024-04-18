@@ -93,21 +93,35 @@ func FindRankedMarkersInCurrentArea(lat, long float64, distance, limit int) ([]d
 		markerIDs[i] = strconv.Itoa(marker.MarkerID)
 	}
 
-	// Fetch scores for all markers in one Redis call
-	RedisStore.Do(context.Background(), RedisStore.B().Zmscore().Key("marker_clicks").Member(markerIDs...).Build())
+	ctx := context.Background()
+	floatMin := float64(MIN_CLICK_RANK)
 
-	scores, err := RedisStore.Do(context.Background(), RedisStore.B().Zmscore().Key("marker_clicks").Member(markerIDs...).Build()).AsZScores()
-	if err != nil {
-		return nil, err
-	}
-
-	rankedMarkers := make([]dto.MarkerWithDistance, 0, len(scores))
-	for i, zscore := range scores {
-		if zscore.Score > float64(MIN_CLICK_RANK) {
-			nearbyMarkers[i].Distance = zscore.Score // Repurpose Distance to store score
+	result, _ := RedisStore.Do(ctx, RedisStore.B().Zmscore().Key("marker_clicks").Member(markerIDs...).Build()).AsFloatSlice()
+	rankedMarkers := make([]dto.MarkerWithDistance, 0, len(result))
+	for i, score := range result {
+		if score > floatMin { // Include markers with score > minScore
+			nearbyMarkers[i].Distance = score
 			rankedMarkers = append(rankedMarkers, nearbyMarkers[i])
 		}
 	}
+
+	// rankedMarkers := make([]dto.MarkerWithDistance, 0)
+	// for i, marker := range nearbyMarkers {
+	// 	// Build the command to fetch the score for a single member
+	// 	scoreCmd := RedisStore.B().Zscore().Key("marker_clicks").Member(markerIDs[i]).Build()
+	// 	result := RedisStore.Do(ctx, scoreCmd)
+
+	// 	// Try to parse the score from the result
+	// 	score, err := result.AsFloat64()
+	// 	if err != nil {
+	// 		continue
+	// 	}
+
+	// 	if score > floatMin { // Include markers with score > minScore
+	// 		marker.Distance = score
+	// 		rankedMarkers = append(rankedMarkers, marker)
+	// 	}
+	// }
 
 	if len(rankedMarkers) == 0 {
 		return nil, nil // Return nil to signify no ranked markers

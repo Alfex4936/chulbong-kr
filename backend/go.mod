@@ -31,6 +31,7 @@ require (
 	github.com/alphadose/haxmap v1.3.1
 	github.com/axiomhq/hyperloglog v0.0.0-20240319100328-84253e514e02
 	github.com/go-pdf/fpdf v0.9.0
+	github.com/gofiber/contrib/fgprof v1.0.0
 	github.com/google/generative-ai-go v0.10.0
 	github.com/puzpuzpuz/xsync/v3 v3.1.0
 	github.com/redis/rueidis v1.0.34
@@ -66,6 +67,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
 	github.com/fasthttp/websocket v1.5.8 // indirect
+	github.com/felixge/fgprof v0.9.4 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/flosch/pongo2/v6 v6.0.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
@@ -78,6 +80,7 @@ require (
 	github.com/gofiber/utils v1.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/pprof v0.0.0-20240416155748-26353dc0451f // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.3 // indirect
