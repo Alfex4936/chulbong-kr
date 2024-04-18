@@ -6,7 +6,6 @@ import (
 	"chulbong-kr/services"
 	"chulbong-kr/utils"
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -176,6 +175,7 @@ func logoutHandler(c *fiber.Ctx) error {
 // @Router		/auth/send-verification-email [post]
 func sendVerificationEmailHandler(c *fiber.Ctx) error {
 	userEmail := c.FormValue("email")
+	userEmail = strings.ToLower(userEmail)
 	_, err := services.GetUserByEmail(userEmail)
 	if err == nil {
 		// If GetUserByEmail does not return an error, it means the email is already in use
@@ -202,15 +202,22 @@ func sendVerificationEmailHandler(c *fiber.Ctx) error {
 
 	// Use a goroutine to send the email without blocking
 	go func(email string) {
+		if strings.HasSuffix(email, "@naver.com") { // endsWith
+			exist, _ := services.VerifyNaverEmail(email)
+			if !exist {
+				log.Printf("No such email: %s\n", email)
+				return
+			}
+		}
 		token, err := services.GenerateAndSaveSignUpToken(email)
 		if err != nil {
-			fmt.Printf("Failed to generate token: %v\n", err)
+			log.Printf("Failed to generate token: %v\n", err)
 			return
 		}
 
 		err = services.SendVerificationEmail(email, token)
 		if err != nil {
-			fmt.Printf("Failed to send verification email: %v\n", err)
+			log.Printf("Failed to send verification email: %v\n", err)
 			return
 		}
 	}(userEmail)

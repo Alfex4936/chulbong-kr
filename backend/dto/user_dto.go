@@ -31,3 +31,10 @@ type UserData struct {
 	UserID   int
 	Username string
 }
+
+type UserMarkers struct {
+	MarkersWithPhotos []MarkerSimpleWithDescrption `json:"markers"`
+	CurrentPage       int                          `json:"currentPage"`
+	TotalPages        int                          `json:"totalPages"`
+	TotalMarkers      int                          `json:"totalMarkers"`
+}

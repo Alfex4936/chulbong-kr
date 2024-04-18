@@ -158,6 +158,20 @@ func CronOrphanedPhotosCleanup() {
 	}
 }
 
+func CronNotificationCleanup() {
+	c := GetCronService()
+	// Schedules the cleanup job to run daily at midnight.
+	_, err := c.Schedule("@daily", func() {
+		if err := cleanUpViewedNotifications(); err != nil {
+			fmt.Printf("Error cleaning up viewed notifcations: %v\n", err)
+		}
+	})
+	if err != nil {
+		fmt.Printf("Error scheduling the notification cleanup job: %v\n", err)
+		return
+	}
+}
+
 // CronCleanUpOldDirs periodically checks and removes directories older than maxAge.
 func CronCleanUpOldDirs() {
 	c := GetCronService()
@@ -167,8 +181,6 @@ func CronCleanUpOldDirs() {
 	_, err := c.Schedule("*/10 * * * *", func() { // every 10 minutes
 		if err := cleanTempDir(tempDir, maxAge); err != nil {
 			fmt.Printf("Error cleaning up orphaned photos: %v\n", err)
-		} else {
-			fmt.Println("Orphaned photos cleanup executed successfully")
 		}
 	})
 	if err != nil {
@@ -263,6 +275,20 @@ func deleteOrphanedPhotos() error {
 			// Log the error but do not stop the process for other photos.
 			fmt.Printf("failed to delete photo URL %s from S3: %v\n", photoURL, err)
 		}
+	}
+
+	return nil
+}
+
+func cleanUpViewedNotifications() error {
+	// how long to retain viewed notifications
+	retentionDays := 7
+	query := `DELETE FROM Notifications WHERE Viewed = TRUE AND UpdatedAt < NOW() - INTERVAL ? DAY`
+	_, err := database.DB.Exec(query, retentionDays)
+	if err != nil {
+		return err
+	} else {
+		fmt.Println("Viewed notifications cleanup executed successfully")
 	}
 
 	return nil

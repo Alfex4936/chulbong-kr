@@ -8,6 +8,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -16,7 +20,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var TOKEN_DURATION time.Duration
+var (
+	TOKEN_DURATION         time.Duration
+	NAVER_EMAIL_VERIFY_URL = os.Getenv("NAVER_EMAIL_VERIFY_URL")
+)
 
 // GetUserById retrieves a user by their email address
 func GetUserById(userID int) (*models.User, error) {
@@ -358,6 +365,43 @@ func GetUserFromContext(c *fiber.Ctx) (*dto.UserData, error) {
 		UserID:   userID,
 		Username: username,
 	}, nil
+}
+
+// VerifyNaverEmail can check naver email existence before sending
+func VerifyNaverEmail(naverAddress string) (bool, error) {
+	naverAddress = strings.Split(naverAddress, "@naver.com")[0]
+	reqURL := fmt.Sprintf("%s=%s", NAVER_EMAIL_VERIFY_URL, naverAddress)
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return false, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	// Read the body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("Failed to read the body: %v", err)
+	}
+
+	// Convert body bytes to a string
+	bodyString := string(bodyBytes)
+
+	// Check if the body is non-empty and ends with 'N'
+	if len(bodyString) > 0 && bodyString[len(bodyString)-1] == 'N' {
+		return true, nil
+	} else {
+		return false, nil
+	}
 }
 
 // private
