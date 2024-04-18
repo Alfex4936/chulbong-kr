@@ -97,6 +97,8 @@ func AdminOnly(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Access denied"})
 	}
 
+	c.Locals("isAdmin", true)
+
 	// Proceed to the next handler if the user is an admin
 	return c.Next()
 }

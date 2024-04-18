@@ -99,7 +99,7 @@ func getCurrentAreaMarkerRankingHandler(c *fiber.Ctx) error {
 
 	markers, err := services.FindRankedMarkersInCurrentArea(lat, long, currentAreaDistance, limit)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve markers"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve markers " + err.Error()})
 	}
 
 	if markers == nil {

@@ -20,6 +20,7 @@ import (
 
 	"github.com/Alfex4936/tzf"
 	"github.com/goccy/go-json"
+	"github.com/gofiber/contrib/fgprof"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
@@ -32,6 +33,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/monitor"
 	"github.com/gofiber/fiber/v2/middleware/pprof"
+
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/swagger"
 	"github.com/redis/rueidis"
@@ -231,6 +233,7 @@ func setUpMiddlewares(app *fiber.App) {
 	}))
 
 	app.Use(pprof.New())
+	app.Use(fgprof.New())
 
 	app.Use(compress.New(compress.Config{
 		// Next: func(c *fiber.Ctx) bool {
@@ -296,17 +299,17 @@ func setUpExternalConnections() {
 
 	// Initialize redis
 	rdb, err := rueidis.NewClient(rueidis.ClientOption{
-		InitAddress:  []string{os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")},
-		Username:     os.Getenv("REDIS_USERNAME"),
-		Password:     os.Getenv("REDIS_PASSWORD"),
-		DisableCache: true, // dragonfly doesn't support CACHING command
-		// SelectDB:    0,
-
+		InitAddress:       []string{os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")},
+		Username:          os.Getenv("REDIS_USERNAME"),
+		Password:          os.Getenv("REDIS_PASSWORD"),
+		DisableCache:      true, // dragonfly doesn't support CACHING command
+		SelectDB:          0,
+		ForceSingleClient: true,
 		// PoolSize:    10 * runtime.GOMAXPROCS(0),
 		// MaxRetries:  5,
-		PipelineMultiplex: 2, // Default is typically sufficient
-		BlockingPoolSize:  5,
-		TLSConfig:         &tls.Config{InsecureSkipVerify: true},
+		// PipelineMultiplex: 2, // Default is typically sufficient
+		// BlockingPoolSize:  5,
+		TLSConfig: &tls.Config{InsecureSkipVerify: true},
 	})
 	if err != nil {
 		log.Fatalf("Error connecting to Redis: %v", err)
@@ -321,6 +324,9 @@ func setUpExternalConnections() {
 	if err != nil {
 		log.Fatalf("Error pinging to Redis: %v", err)
 	}
+
+	// Start the Redis health check routine
+	go redisHealthCheck(rdb)
 
 	if os.Getenv("DEPLOYMENT") == "production" {
 		// Flush the Redis database to clear all keys
@@ -391,4 +397,44 @@ func countAPIs(app *fiber.App) int {
 		}
 	}
 	return numAPIs
+}
+
+func redisHealthCheck(rdb rueidis.Client) {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+
+	for t := range ticker.C {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := rdb.Do(ctx, rdb.B().Ping().Build()).Error()
+		cancel()
+
+		if err != nil {
+			log.Printf("Redis ping failed at %v: %v", t, err)
+			// Attempt to reconnect
+			reconnectRedis(rdb)
+		} else {
+			log.Printf("Redis ping success at %v", t)
+		}
+	}
+}
+func reconnectRedis(rdb rueidis.Client) {
+	for i := 0; i < 3; i++ { // Try reconnecting 3 times
+		time.Sleep(time.Duration(i+1) * time.Second) // Exponential back-off strategy
+		rdb.Close()
+		rdb, err := rueidis.NewClient(rueidis.ClientOption{
+			InitAddress:  []string{os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")},
+			Username:     os.Getenv("REDIS_USERNAME"),
+			Password:     os.Getenv("REDIS_PASSWORD"),
+			DisableCache: true,
+			TLSConfig:    &tls.Config{InsecureSkipVerify: true},
+		})
+		if err == nil {
+			services.RedisStore = rdb
+			log.Println("Reconnected to Redis successfully")
+			return
+		}
+		log.Printf("Failed to reconnect to Redis: %v", err)
+	}
+
+	log.Fatal("Failed to reconnect to Redis after several attempts")
 }
