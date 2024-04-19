@@ -45,7 +45,7 @@ const Mypage = async () => {
 
   return (
     <BlackSideBody toggle>
-      <Heading title="마이 페이지" />
+      <Heading title="내 정보" />
       <HydrationBoundary state={dehydrateState}>
         <MypageClient />
       </HydrationBoundary>
