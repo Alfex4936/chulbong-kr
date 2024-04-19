@@ -52,7 +52,9 @@ const ReviewList = ({ markerId }: Props) => {
 
   if (isError) return <div>잠시 후 다시 시도해 주세요!</div>;
 
-  if (isLoading) return <Skeleton className="w-full h-12 rounded-sm bg-black-light-2"/>;
+  if (isLoading) {
+    return <Skeleton className="w-full h-12 rounded-sm bg-black-light-2" />;
+  }
 
   return (
     <div>

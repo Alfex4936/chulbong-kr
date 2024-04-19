@@ -9,6 +9,7 @@ import {
   dehydrate,
 } from "@tanstack/react-query";
 import PullupClient from "./pullupClient";
+import { cookies } from "next/headers";
 
 type Params = {
   id: string;
@@ -31,16 +32,16 @@ const getComments = async (
   pageParam: number
 ): Promise<CommentsRes> => {
   const res = await instance.get(
-    `/api/v1/comments/${id}/comments?page=${pageParam}`
+    `${process.env.NEXT_PUBLIC_BASE_URL}/comments/${id}/comments?page=${pageParam}`
   );
 
   return res.data;
 };
 
 const getFacilities = async (markerId: number): Promise<FacilitiesRes[]> => {
-  const res = await instance.get(`/api/v1/markers/${markerId}/facilities`, {
-    withCredentials: true,
-  });
+  const res = await instance.get(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/markers/${markerId}/facilities`
+  );
 
   return res.data;
 };
