@@ -33,14 +33,21 @@ const Navigation = () => {
         <div className="mo:flex mo:w-1/2 mo:justify-around">
           <IconButton
             text="홈"
-            selected={pathname === "/home"}
-            icon={<HomeIcon size={25} selected={pathname === "/home"} />}
+            selected={pathname.startsWith("/home")}
+            icon={
+              <HomeIcon size={25} selected={pathname.startsWith("/home")} />
+            }
             onClick={() => pushRouter("/home")}
           />
           <IconButton
             text="채팅"
-            selected={pathname === "/chat"}
-            icon={<ChatBubbleIcon size={25} selected={pathname === "/chat"} />}
+            selected={pathname.startsWith("/chat")}
+            icon={
+              <ChatBubbleIcon
+                size={25}
+                selected={pathname.startsWith("/chat")}
+              />
+            }
             onClick={() => pushRouter("/chat")}
           />
         </div>
@@ -52,17 +59,23 @@ const Navigation = () => {
         <div className="mo:flex mo:w-1/2 mo:justify-around">
           <IconButton
             text="공지"
-            selected={pathname === "/notice"}
+            selected={pathname.startsWith("/notice")}
             icon={
-              <NotificationIcon size={25} selected={pathname === "/notice"} />
+              <NotificationIcon
+                size={25}
+                selected={pathname.startsWith("/notice")}
+              />
             }
             onClick={() => pushRouter("/notice")}
           />
           <IconButton
             text="내 정보"
-            selected={pathname === "/mypage"}
+            selected={pathname.startsWith("/mypage")}
             icon={
-              <UserCircleIcon size={25} selected={pathname === "/mypage"} />
+              <UserCircleIcon
+                size={25}
+                selected={pathname.startsWith("/mypage")}
+              />
             }
             onClick={() => pushRouter("/mypage")}
           />

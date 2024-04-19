@@ -1,10 +1,15 @@
 "use client";
 
+import { Separator } from "@/components/ui/separator";
+import useLogout from "@/hooks/mutation/auth/useLogout";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import Unauthenticated from "./_component/Unauthenticated";
-import useLogout from "@/hooks/mutation/auth/useLogout";
+import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
+import { useRouter } from "next/navigation";
 
 const MypageClient = () => {
+  const router = useRouter();
+
   const { data: myInfo, isError } = useMyinfoData();
   const { mutate: logout } = useLogout();
 
@@ -13,16 +18,40 @@ const MypageClient = () => {
   if (!myInfo || isError) return <Unauthenticated />;
   return (
     <div>
-      <div>{myInfo?.username}</div>
-      <div>{myInfo?.email}</div>
+      <div className="mb-4">
+        <div>
+          <span className="text-lg font-bold mo:text-base">
+            {myInfo?.username}
+          </span>
+          님
+        </div>
+        <div className="text-sm">안녕하세요.</div>
+      </div>
 
-      <button
-        onClick={() => {
-          logout();
-        }}
-      >
-        로그아웃
-      </button>
+      <div className="flex items-center justify-center bg-black-light-2 rounded-md p-1 text-center h-10 mb-6 mo:text-sm">
+        <button
+          className="h-full w-1/2 rounded-md hover:bg-black"
+          onClick={() => router.push("/mypage/user")}
+        >
+          내 정보 관리
+        </button>
+        <Separator orientation="vertical" className="mx-2 bg-grey-dark-1 h-5" />
+        <button className="h-full w-1/2 rounded-md hover:bg-black">설정</button>
+      </div>
+
+      <EmojiHoverButton emoji="⭐" text="저장한 장소" subText="북마크 위치" />
+      <EmojiHoverButton
+        emoji="🚩"
+        text="등록한 장소"
+        subText="내가 등록한 위치"
+      />
+      <EmojiHoverButton
+        emoji="🖐️"
+        text="로그아웃"
+        subText="다음에 만나요!"
+        onClick={() => logout()}
+      />
+      {/* <EmojiHoverButton emoji="🔖📁✏️🚩🗺️⭐❗🖐️✖️🪄🔑" text="저장한 장소" /> */}
     </div>
   );
 };

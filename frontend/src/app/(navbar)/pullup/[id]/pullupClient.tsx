@@ -19,6 +19,7 @@ import { useMemo } from "react";
 import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
+// TODO: 모바일 text 사이즈 적용하기
 
 // https://local.k-pullup.com:5173/pullup/5329
 
@@ -84,7 +85,7 @@ const PullupClient = ({ markerId }: Props) => {
               <span>철봉</span>
               <span>{facilitiesData.철봉}개</span>
             </div>
-            <Separator className="my-2 bg-grey-dark" />
+            <Separator className="my-2 bg-grey-dark-1" />
             <div className="flex justify-between">
               <span>평행봉</span>
               <span>{facilitiesData.평행봉}개</span>
@@ -116,7 +117,7 @@ const PullupClient = ({ markerId }: Props) => {
           <h2>{marker.description || "작성된 설명이 없습니다."}</h2>
         </div>
 
-        <Separator className="my-3 bg-grey-dark" />
+        <Separator className="my-3 bg-grey-dark-1" />
 
         <Tabs defaultValue="photo" className="w-full">
           <TabsList className="w-full">
