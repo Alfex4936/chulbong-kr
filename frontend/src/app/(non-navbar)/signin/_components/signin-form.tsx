@@ -39,7 +39,6 @@ const SigninForm = () => {
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     login(values);
-    router.push("/home");
   };
 
   return (
