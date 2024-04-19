@@ -1,5 +1,6 @@
 "use client";
 
+import { FacilitiesRes } from "@/api/markers/getFacilities";
 import BookmarkIcon from "@/components/icons/BookmarkIcon";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import DislikeIcon from "@/components/icons/DislikeIcon";
@@ -8,15 +9,16 @@ import ShareIcon from "@/components/icons/ShareIcon";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import useFacilitiesData from "@/hooks/query/marker/useFacilitiesData";
 import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import useWeatherData from "@/hooks/query/marker/useWeatherData";
 import formatDate from "@/utils/formatDate";
+import formatFacilities from "@/utils/formatFacilities";
 import Link from "next/link";
+import { useMemo } from "react";
 import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
-import useFacilitiesData from "@/hooks/query/marker/useFacilitiesData";
-// TODO: 기구 데이터 연동
 
 // https://local.k-pullup.com:5173/pullup/5329
 
@@ -33,6 +35,10 @@ const PullupClient = ({ markerId }: Props) => {
     marker?.longitude as number,
     !!marker
   );
+
+  const facilitiesData = useMemo(() => {
+    return formatFacilities(facilities as FacilitiesRes[]);
+  }, [facilities]);
 
   if (isError) return <div>X</div>;
   if (!marker) return;
@@ -75,13 +81,13 @@ const PullupClient = ({ markerId }: Props) => {
                         h-full shadow-md w-2/3 py-4 px-10 rounded-sm mo:text-sm mo:px-5 mo:py-2"
           >
             <div className="flex justify-between">
-              <span>평행봉</span>
-              <span>3개</span>
+              <span>철봉</span>
+              <span>{facilitiesData.철봉}개</span>
             </div>
             <Separator className="my-2 bg-grey-dark" />
             <div className="flex justify-between">
               <span>평행봉</span>
-              <span>3개</span>
+              <span>{facilitiesData.평행봉}개</span>
             </div>
           </div>
         </div>

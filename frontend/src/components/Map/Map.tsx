@@ -64,7 +64,6 @@ const Map = () => {
     skeletoncontent.className = "skeleton-overlay";
 
     const content = document.createElement("div");
-    // TODO: 커스텀 오버레이 스타일링
 
     const skeletonOverlay = new window.kakao.maps.CustomOverlay({
       content: skeletoncontent,
