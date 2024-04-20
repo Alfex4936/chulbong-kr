@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"strconv"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -105,35 +104,24 @@ func ResetAllCache(pattern string) error {
 		scanCmd := RedisStore.B().Scan().Cursor(cursor).Match(pattern).Count(10).Build()
 
 		// Execute the SCAN command to find keys matching the pattern
-		resp, err := RedisStore.Do(ctx, scanCmd).ToArray()
+		scanEntry, err := RedisStore.Do(ctx, scanCmd).AsScanEntry()
 		if err != nil {
 			return err
 		}
 
-		// First element is the new cursor, subsequent elements are the keys
-		if len(resp) > 0 {
-			newCursorStr := resp[0].String()
-			newCursor, err := strconv.ParseUint(newCursorStr, 10, 64)
-			if err != nil {
-				return err // handle parsing error
-			}
-			cursor = newCursor
+		// Use the ScanEntry for cursor and keys directly
+		cursor = scanEntry.Cursor
+		keys := scanEntry.Elements
 
-			keys := make([]string, 0, len(resp)-1)
-			for _, msg := range resp[1:] {
-				keys = append(keys, msg.String())
-			}
-
-			// Delete keys using individual DEL commands
-			for _, key := range keys {
-				delCmd := RedisStore.B().Del().Key(key).Build()
-				if err := RedisStore.Do(ctx, delCmd).Error(); err != nil {
-					return err
-				}
+		// Delete keys using individual DEL commands
+		for _, key := range keys {
+			delCmd := RedisStore.B().Del().Key(key).Build()
+			if err := RedisStore.Do(ctx, delCmd).Error(); err != nil {
+				return err
 			}
 		}
 
-		// If the cursor returned by SCAN is 0, we've iterated through all the keys
+		// If the cursor returned by SCAN is 0, iterated through all the keys
 		if cursor == 0 {
 			break
 		}
