@@ -4,6 +4,7 @@ import RQProvider from "@/components/provider/RQProvider";
 import type { Metadata } from "next";
 import { Nanum_Gothic } from "next/font/google";
 import Script from "next/script";
+import { ThemeProvider } from "@/components/provider/theme-provider";
 import "../globals.css";
 // TODO: APP키 환경변수 적용
 
@@ -37,13 +38,20 @@ const RootLayout = ({
         />
       </head>
       <body
-        className={`${nanum.className} flex text-grey mo:flex-col-reverse mo:h-screen mo:bg-neutral-800`}
+        className={`${nanum.className} flex text-black dark:text-grey mo:flex-col-reverse mo:h-screen mo:bg-neutral-800`}
       >
-        <RQProvider>
-          <Navigation />
-          {children}
-          {/* <Map /> */}
-        </RQProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <RQProvider>
+            <Navigation />
+            {children}
+            {/* <Map /> */}
+          </RQProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

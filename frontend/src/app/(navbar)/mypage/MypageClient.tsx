@@ -6,6 +6,7 @@ import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import Unauthenticated from "./_component/Unauthenticated";
 import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
 import { useRouter } from "next/navigation";
+import ModeToggle from "@/components/common/ModeToggle";
 
 const MypageClient = () => {
   const router = useRouter();
@@ -53,6 +54,7 @@ const MypageClient = () => {
           center
         />
       </div>
+      <ModeToggle />
       {/* <EmojiHoverButton emoji="🔖📁✏️🚩🗺️⭐❗🖐️✖️🪄🔑" text="저장한 장소" /> */}
     </div>
   );
