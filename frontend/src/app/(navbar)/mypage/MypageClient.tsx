@@ -13,12 +13,10 @@ const MypageClient = () => {
   const { data: myInfo, isError } = useMyinfoData();
   const { mutate: logout } = useLogout();
 
-  // console.log(myInfo);
-
   if (!myInfo || isError) return <Unauthenticated />;
   return (
     <div>
-      <div className="mb-4">
+      <div className="mb-6">
         <div>
           <span className="text-lg font-bold mo:text-base">
             {myInfo?.username}
@@ -45,12 +43,16 @@ const MypageClient = () => {
         text="등록한 장소"
         subText="내가 등록한 위치"
       />
-      <EmojiHoverButton
-        emoji="🖐️"
-        text="로그아웃"
-        subText="다음에 만나요!"
-        onClick={() => logout()}
-      />
+
+      <div className="mt-10 mx-auto w-1/2">
+        <EmojiHoverButton
+          // emoji="🖐️"
+          text="로그아웃"
+          // subText="다음에 만나요!"
+          onClick={() => logout()}
+          center
+        />
+      </div>
       {/* <EmojiHoverButton emoji="🔖📁✏️🚩🗺️⭐❗🖐️✖️🪄🔑" text="저장한 장소" /> */}
     </div>
   );

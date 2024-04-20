@@ -24,26 +24,26 @@ const myInfo = async (cookie: string): Promise<MyInfo> => {
 };
 
 const User = async () => {
-  // const cookieStore = cookies();
-  // const decodeCookie = decodeURIComponent(cookieStore.toString());
-  // const queryClient = new QueryClient();
+  const cookieStore = cookies();
+  const decodeCookie = decodeURIComponent(cookieStore.toString());
+  const queryClient = new QueryClient();
 
-  // await queryClient.prefetchQuery({
-  //   queryKey: ["user", "me"],
-  //   queryFn: () => {
-  //     return myInfo(decodeCookie);
-  //   },
-  // });
+  await queryClient.prefetchQuery({
+    queryKey: ["user", "me"],
+    queryFn: () => {
+      return myInfo(decodeCookie);
+    },
+  });
 
-  // const dehydrateState = dehydrate(queryClient);
+  const dehydrateState = dehydrate(queryClient);
 
   return (
     <BlackSideBody toggle bodyClass="p-0 mo:px-0 mo:pb-0">
       <PrevHeader url="/mypage" text="내 정보" />
 
-      {/* <HydrationBoundary state={dehydrateState}> */}
+      <HydrationBoundary state={dehydrateState}>
         <UserClient />
-      {/* </HydrationBoundary> */}
+      </HydrationBoundary>
     </BlackSideBody>
   );
 };
