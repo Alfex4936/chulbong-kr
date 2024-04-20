@@ -31,6 +31,7 @@ const config = {
       },
       colors: {
         black: "#1d1d1d",
+        "black-dark": "#111",
         "black-light": "#222",
         "black-light-2": "#2a2a2a",
         grey: "#f0f0f0",

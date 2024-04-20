@@ -12,44 +12,30 @@ import useInput from "@/hooks/common/useInput";
 import useUpdateUserName from "@/hooks/mutation/user/useUpdateUserName";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import { useState } from "react";
-// import {
-//   Dialog,
-//   DialogContent,
-//   DialogDescription,
-//   DialogFooter,
-//   DialogHeader,
-//   DialogTitle,
-//   DialogTrigger,
-// } from "@/components/ui/dialog";
-// import { Label } from "@/components/ui/label";
+import ChangePassword from "./ChangePassword";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 // TODO: 에러 토스트 팝업 연결
 
 interface Props {
   text: string;
   subText: string;
   buttonText?: string;
-  onClick?: VoidFunction;
 }
 
-const InfoList = ({ text, subText, buttonText, onClick }: Props) => {
+const InfoList = ({ text, subText, buttonText }: Props) => {
   return (
     <div className="flex text-[13px] py-1">
       <span className="w-16">{text}</span>
       <span className="">{subText}</span>
       <GrowBox />
-      {buttonText && (
-        <button
-          className="p-1 rounded-full hover:bg-white-tp-light"
-          onClick={onClick}
-        >
-          <EditIcon size={12} />
-        </button>
-      )}
+      {buttonText && <ChangePassword />}
     </div>
   );
 };
 
 const UserClient = () => {
+  const router = useRouter();
   const {
     mutate: updateName,
     isPending: isNameUpdate,
@@ -81,7 +67,7 @@ const UserClient = () => {
                 />
                 <div className="flex">
                   <Button
-                    className="border-grey border bg-transparent hover:bg-white-tp-light hover:border-transparent mr-2"
+                    className="border-grey border bg-transparent dark:text-grey hover:bg-white-tp-light hover:border-transparent mr-2"
                     size={"sm"}
                     onClick={() => {
                       updateName(value);
@@ -91,7 +77,7 @@ const UserClient = () => {
                     변경
                   </Button>
                   <Button
-                    className="border-grey border bg-transparent hover:bg-white-tp-light hover:border-transparent"
+                    className="border-grey border bg-transparent dark:text-grey hover:bg-white-tp-light hover:border-transparent"
                     size={"sm"}
                     onClick={() => setNameInput(false)}
                   >
@@ -138,37 +124,6 @@ const UserClient = () => {
       <div className="w-[90%] mx-auto">
         <EmojiHoverButton emoji="❗" text="탈퇴하기" subText="다음에 만나요!" />
       </div>
-
-      {/* <Dialog>
-        <DialogTrigger asChild>
-          <Button variant="outline">Edit Profile</Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit profile</DialogTitle>
-            <DialogDescription>
-              Make changes to your profile here. Click save when you're done.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <Input id="name" value="Pedro Duarte" className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="username" className="text-right">
-                Username
-              </Label>
-              <Input id="username" value="@peduarte" className="col-span-3" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="submit">Save changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog> */}
     </div>
   );
 };

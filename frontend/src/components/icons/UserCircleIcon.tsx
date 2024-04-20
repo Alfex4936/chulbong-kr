@@ -12,7 +12,7 @@ const UserCircleIcon = ({ selected, size = 35 }: Props) => {
       <path
         d="M19.9999 36.6667C29.2047 36.6667 36.6666 29.2048 36.6666 20C36.6666 10.7953 29.2047 3.33337 19.9999 3.33337C10.7952 3.33337 3.33325 10.7953 3.33325 20C3.33325 29.2048 10.7952 36.6667 19.9999 36.6667Z"
         stroke={"#F0F0F0"}
-        fill={selected ? "#F0F0F0" : "#222222"}
+        fill={selected ? "#F0F0F0" : "transparent"}
         strokeWidth="2"
       />
       <path
