@@ -7,12 +7,17 @@ import Unauthenticated from "./_component/Unauthenticated";
 import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
 import { useRouter } from "next/navigation";
 import ModeToggle from "@/components/common/ModeToggle";
+import { useEffect } from "react";
 
 const MypageClient = () => {
   const router = useRouter();
 
   const { data: myInfo, isError } = useMyinfoData();
   const { mutate: logout } = useLogout();
+
+  useEffect(() => {
+    router.prefetch("/mypage/user");
+  }, [router]);
 
   if (!myInfo || isError) return <Unauthenticated />;
   return (

@@ -9,10 +9,18 @@ import NotificationIcon from "@/components/icons/NotificationIcon";
 import UserCircleIcon from "@/components/icons/UserCircleIcon";
 import { usePathname, useRouter } from "next/navigation";
 import MapButton from "../common/MapButton";
+import { useEffect } from "react";
 
 const Navigation = () => {
   const pathname = usePathname();
   const router = useRouter();
+
+  useEffect(() => {
+    router.prefetch("/home");
+    router.prefetch("/chat");
+    router.prefetch("/notice");
+    router.prefetch("/mypage");
+  }, [router]);
 
   const pushRouter = (url: string) => {
     router.push(url);
