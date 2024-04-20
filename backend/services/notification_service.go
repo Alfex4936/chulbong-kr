@@ -13,8 +13,10 @@ import (
 	"github.com/redis/rueidis"
 )
 
-type Notification = models.Notification
-type NotificationRedis = notification.NotificationRedis
+type (
+	Notification      = models.Notification
+	NotificationRedis = notification.NotificationRedis
+)
 
 // PostNotification posts a new notification into the database
 func PostNotification(userId, notificationType, title, message string, metadata json.RawMessage) error {

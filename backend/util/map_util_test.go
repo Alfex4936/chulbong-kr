@@ -1,4 +1,4 @@
-package utils
+package util
 
 // Go convention to keep test files alongside the files they're testing, typically in the same package.
 

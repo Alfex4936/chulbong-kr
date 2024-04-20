@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -31,7 +30,7 @@ var (
 	retryQueue = make(chan RemovalTask, 100)
 
 	// Context for managing the lifecycle of the background retry goroutine
-	retryCtx, cancelRetryCtx = context.WithCancel(context.Background())
+	retryCtx, _ = context.WithCancel(context.Background())
 )
 
 var WsRoomManager *RoomConnectionManager = NewRoomConnectionManager()
@@ -42,13 +41,13 @@ type ChulbongConn struct {
 	Send         chan []byte
 	InActiveChan chan struct{}
 	LastSeen     int64
-	mu           *sync.Mutex
+	// mu           sync.Mutex
 }
 type RoomConnectionManager struct {
 	// connections       *haxmap.Map[string, []*ChulbongConn] // roomid and users
 	connections       *xsync.MapOf[string, []*ChulbongConn] // roomid and users
 	processedMessages *csmap.CsMap[string, struct{}]        // uid (struct{} does not occupy any space)
-	mu                *sync.Mutex
+	// mu                sync.Mutex
 }
 
 func CustomXXH3Hasher(s string) uintptr {
@@ -68,7 +67,6 @@ func NewRoomConnectionManager() *RoomConnectionManager {
 			csmap.WithShardCount[string, struct{}](64),
 			csmap.WithCustomHasher[string, struct{}](hasher),
 		),
-		mu: &sync.Mutex{},
 	}
 
 	// manager.connections.SetHasher(CustomXXH3Hasher)

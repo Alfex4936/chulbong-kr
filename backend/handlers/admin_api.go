@@ -36,7 +36,7 @@ func listUnreferencedS3ObjectsHandler(c *fiber.Ctx) error {
 
 	if killSwitch == "y" {
 		for _, unreferencedURL := range unreferenced {
-			services.DeleteDataFromS3(unreferencedURL)
+			_ = services.DeleteDataFromS3(unreferencedURL)
 		}
 	}
 

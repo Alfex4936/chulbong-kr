@@ -4,7 +4,7 @@ import (
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"context"
 	"database/sql"
 	"fmt"
@@ -153,8 +153,8 @@ func UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*models.Us
 		}
 	}
 
-	setParts := []string{}
-	args := []interface{}{}
+	var setParts []string
+	var args []any
 
 	if updateReq.Username != nil {
 		setParts = append(setParts, "Username = ?")
@@ -330,7 +330,7 @@ func GeneratePasswordResetToken(email string) (string, error) {
 		return "", err // User not found or db error
 	}
 
-	token, err := utils.GenerateOpaqueToken()
+	token, err := util.GenerateOpaqueToken()
 	if err != nil {
 		return "", err
 	}
@@ -429,7 +429,7 @@ func insertUserWithRetry(tx *sqlx.Tx, signUpReq *dto.SignUpRequest, hashedPasswo
 			username, signUpReq.Email, hashedPassword, signUpReq.Provider, signUpReq.ProviderID)
 		if err != nil {
 			if strings.Contains(err.Error(), "Duplicate entry") && strings.Contains(err.Error(), "for key 'idx_users_username'") {
-				username = fmt.Sprintf("%s-%s", username, utils.GenerateRandomString(5))
+				username = fmt.Sprintf("%s-%s", username, util.GenerateRandomString(5))
 				continue
 			}
 			return 0, fmt.Errorf("error registering user: %w", err)

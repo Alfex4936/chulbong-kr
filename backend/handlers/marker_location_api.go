@@ -3,7 +3,7 @@ package handlers
 import (
 	"chulbong-kr/dto"
 	"chulbong-kr/services"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -153,7 +153,7 @@ func convertWGS84ToWCONGNAMULHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
 	}
 
-	result := utils.ConvertWGS84ToWCONGNAMUL(lat, long)
+	result := util.ConvertWGS84ToWCONGNAMUL(lat, long)
 
 	return c.JSON(result)
 }
@@ -172,7 +172,7 @@ func isInSouthKoreaHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
 	}
 
-	result := utils.IsInSouthKoreaPrecisely(lat, long)
+	result := util.IsInSouthKoreaPrecisely(lat, long)
 
 	return c.JSON(fiber.Map{"result": result})
 }

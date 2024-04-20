@@ -4,7 +4,7 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -31,7 +31,7 @@ func postCommentHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	containsBadWord, _ := utils.CheckForBadWords(req.CommentText)
+	containsBadWord, _ := util.CheckForBadWords(req.CommentText)
 	if containsBadWord {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment contains inappropriate content."})
 	}

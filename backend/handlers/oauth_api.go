@@ -3,7 +3,7 @@ package handlers
 import (
 	"chulbong-kr/dto"
 	"chulbong-kr/services"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"fmt"
 	"os"
 
@@ -15,7 +15,7 @@ import (
 func getGoogleAuthHandler(conf *oauth2.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Generate a state string for CSRF protection
-		state := utils.GenerateState()
+		state := util.GenerateState()
 		c.Cookie(&fiber.Cookie{
 			Name:  "oauthstate",
 			Value: state,
@@ -70,7 +70,7 @@ func getGoogleCallbackHandler(conf *oauth2.Config) fiber.Handler {
 		clientAddr := fmt.Sprintf("%s/%s=%s", os.Getenv("CLIENT_ADRR"), os.Getenv("CLIENT_REDIRECT_ENDPOINT"), loginToken)
 
 		// Setting the token in a secure cookie
-		cookie := utils.GenerateLoginCookie(loginToken)
+		cookie := util.GenerateLoginCookie(loginToken)
 		c.Cookie(&cookie)
 		return c.Redirect(clientAddr)
 	}

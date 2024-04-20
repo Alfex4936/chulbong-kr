@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -27,7 +26,6 @@ func (manager *RoomConnectionManager) SaveConnection(markerID, clientId string, 
 		UserID:       clientId,
 		Send:         make(chan []byte, 256), // Buffered channel
 		InActiveChan: make(chan struct{}, 10),
-		mu:           &sync.Mutex{},
 	}
 	newConn.UpdateLastSeen()
 
@@ -246,6 +244,9 @@ func (manager *RoomConnectionManager) RemoveWsFromRoom(markerID, clientId string
 		// Find and remove the specified connection from the slice.
 		for i, c := range conns {
 			if c.UserID == clientId {
+				close(c.Send)
+				close(c.InActiveChan)
+
 				conns = append(conns[:i], conns[i+1:]...)
 				break
 			}
@@ -389,7 +390,7 @@ func (manager *RoomConnectionManager) GetBanDetails(markerID, userID string) (ba
 	if err != nil {
 		return false, 0, err
 	}
-	if exists == false {
+	if !exists {
 		return false, 0, nil
 	}
 

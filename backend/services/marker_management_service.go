@@ -114,6 +114,11 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 				errMsg = fmt.Sprintf("No address found for marker %d after %d attempts", markerID, maxRetries)
 			}
 
+			water, _ := FetchRegionWaterInfo(latitude, longitude)
+			if water {
+				errMsg = fmt.Sprintf("The marker (%d) might be above on water", markerID)
+			}
+
 			url := fmt.Sprintf("%sd=%d&la=%f&lo=%f", CLIENT_ADDR, markerID, markerDto.Latitude, markerDto.Longitude)
 
 			logFailureStmt := "INSERT INTO MarkerAddressFailures (MarkerID, ErrorMessage, URL) VALUES (?, ?, ?)"

@@ -1,7 +1,7 @@
 package benchmark
 
 import (
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"testing"
 
 	"github.com/Alfex4936/tzf"
@@ -123,7 +123,7 @@ func BenchmarkGeoIsInSouthKorea(b *testing.B) {
 	for _, coord := range coordinates {
 		b.Run(coord.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = utils.IsInSouthKorea(coord.lat, coord.lng)
+				_ = util.IsInSouthKorea(coord.lat, coord.lng)
 			}
 		})
 	}

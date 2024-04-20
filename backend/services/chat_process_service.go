@@ -25,7 +25,10 @@ func ProcessMessageFromSubscription(msg []byte) {
 	markAsProcessed(broadcastMsg.UID) // Mark the message as processed locally
 
 	// then broadcast
-	WsRoomManager.BroadcastMessageToRoom(broadcastMsg.RoomID, broadcastMsg.Message, broadcastMsg.UserNickname, broadcastMsg.UserID)
+	if err := WsRoomManager.BroadcastMessageToRoom(broadcastMsg.RoomID, broadcastMsg.Message, broadcastMsg.UserNickname, broadcastMsg.UserID); err != nil {
+		log.Printf("Error broadcasting message: %v", err)
+		return
+	}
 }
 
 // Clean every hour
