@@ -1,8 +1,28 @@
+"use client";
+
 import BlackLightBox from "@/components/atom/BlackLightBox";
 import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
 import GrowBox from "@/components/atom/GrowBox";
+import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import EditIcon from "@/components/icons/EditIcon";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import useInput from "@/hooks/common/useInput";
+import useUpdateUserName from "@/hooks/mutation/user/useUpdateUserName";
+import useMyinfoData from "@/hooks/query/user/useMyinfoData";
+import { useState } from "react";
+// import {
+//   Dialog,
+//   DialogContent,
+//   DialogDescription,
+//   DialogFooter,
+//   DialogHeader,
+//   DialogTitle,
+//   DialogTrigger,
+// } from "@/components/ui/dialog";
+// import { Label } from "@/components/ui/label";
+// TODO: 에러 토스트 팝업 연결
 
 interface Props {
   text: string;
@@ -18,7 +38,10 @@ const InfoList = ({ text, subText, buttonText, onClick }: Props) => {
       <span className="">{subText}</span>
       <GrowBox />
       {buttonText && (
-        <button className="p-1 rounded-full hover:bg-white-tp-light">
+        <button
+          className="p-1 rounded-full hover:bg-white-tp-light"
+          onClick={onClick}
+        >
           <EditIcon size={12} />
         </button>
       )}
@@ -27,17 +50,74 @@ const InfoList = ({ text, subText, buttonText, onClick }: Props) => {
 };
 
 const UserClient = () => {
+  const {
+    mutate: updateName,
+    isPending: isNameUpdate,
+    isError: updateNameError,
+    error,
+  } = useUpdateUserName();
+  const { data: myInfo, isError } = useMyinfoData();
+
+  const { value, handleChange } = useInput(myInfo?.username as string);
+
+  const [nameInput, setNameInput] = useState(false);
+
+  if (updateNameError) console.log(error);
+
+  if (isError) return <div>존재하지 않는 유저입니다.</div>;
   return (
     <div>
       <div className="mb-4 mt-5">
         <BlackLightBox center>
           <div className="flex justify-center items-center text-xl mb-2">
-            <span className="mr-2">이용훈</span>
-            <button className="p-1 rounded-full hover:bg-white-tp-light">
-              <EditIcon size={15} />
-            </button>
+            {nameInput ? (
+              <div>
+                <Input
+                  type="text"
+                  className="border-grey mb-2"
+                  value={value}
+                  onChange={handleChange}
+                  maxLength={8}
+                />
+                <div className="flex">
+                  <Button
+                    className="border-grey border bg-transparent hover:bg-white-tp-light hover:border-transparent mr-2"
+                    size={"sm"}
+                    onClick={() => {
+                      updateName(value);
+                      setNameInput(false);
+                    }}
+                  >
+                    변경
+                  </Button>
+                  <Button
+                    className="border-grey border bg-transparent hover:bg-white-tp-light hover:border-transparent"
+                    size={"sm"}
+                    onClick={() => setNameInput(false)}
+                  >
+                    취소
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {isNameUpdate ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <>
+                    <span className="mr-2">{myInfo?.username}</span>
+                    <button
+                      className="p-1 rounded-full hover:bg-white-tp-light"
+                      onClick={() => setNameInput(true)}
+                    >
+                      <EditIcon size={15} />
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </div>
-          <div className="text-sm text-grey-dark">yonghuni484@gmail.com</div>
+          <div className="text-sm text-grey-dark">{myInfo?.email}</div>
         </BlackLightBox>
       </div>
 
@@ -45,8 +125,8 @@ const UserClient = () => {
         <BlackLightBox>
           <div>개인 정보</div>
           <Separator className="mx-1 my-3 bg-grey-dark-1" />
-          <InfoList text="아이디" subText="yonghuni484@gmail.com" />
-          <InfoList text="이메일" subText="yonghuni484@gmail.com" />
+          <InfoList text="아이디" subText={myInfo?.email as string} />
+          <InfoList text="이메일" subText={myInfo?.email as string} />
           <InfoList
             text="비밀번호"
             subText="............"
@@ -58,6 +138,37 @@ const UserClient = () => {
       <div className="w-[90%] mx-auto">
         <EmojiHoverButton emoji="❗" text="탈퇴하기" subText="다음에 만나요!" />
       </div>
+
+      {/* <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="outline">Edit Profile</Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit profile</DialogTitle>
+            <DialogDescription>
+              Make changes to your profile here. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
+              <Input id="name" value="Pedro Duarte" className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="username" className="text-right">
+                Username
+              </Label>
+              <Input id="username" value="@peduarte" className="col-span-3" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit">Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog> */}
     </div>
   );
 };

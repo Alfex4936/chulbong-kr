@@ -7,6 +7,7 @@ import { useEffect, useRef } from "react";
 import formatDate from "@/utils/formatDate";
 import { Skeleton } from "@/components/ui/skeleton";
 // TODO: 유저 정보 삭제 연동
+// TODO: 리뷰 리스트 스타일 변경
 
 type Props = {
   markerId: number;
