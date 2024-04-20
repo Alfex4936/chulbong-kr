@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -24,14 +24,14 @@ func ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 		method := c.Method()
 		path := c.OriginalURL()
 
-		clientIP := utils.GetUserIP(c)
+		clientIP := util.GetUserIP(c)
 
 		userAgent := c.Get(fiber.HeaderUserAgent)
 		referer := c.Get(fiber.HeaderReferer)
 		queryParams := c.OriginalURL()[len(c.Path()):]
 
-		if duration.Seconds() > utils.DELAY_THRESHOLD {
-			go utils.SendSlackNotification(duration, statusCode, clientIP, method, path, userAgent, queryParams, referer) // Send notification in a non-blocking way
+		if duration.Seconds() > util.DELAY_THRESHOLD {
+			go util.SendSlackNotification(duration, statusCode, clientIP, method, path, userAgent, queryParams, referer) // Send notification in a non-blocking way
 		}
 
 		// Choose the log level and construct the log message

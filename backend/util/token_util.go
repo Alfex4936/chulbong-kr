@@ -1,7 +1,7 @@
-package utils
+package util
 
 import (
-	"chulbong-kr/configs"
+	"chulbong-kr/config"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -33,7 +33,7 @@ func GenerateRandomString(n int) string {
 
 func GenerateState() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
 }
 
@@ -48,7 +48,7 @@ func GenerateLoginCookie(value string) fiber.Cookie {
 		Path:     "/",                                // Scope of the cookie
 	}
 
-	if configs.IS_PRODUCTION == "production" {
+	if config.IS_PRODUCTION == "production" {
 		cookie.Domain = ".k-pullup.com" // Allow cookie to be shared across all subdomains
 	}
 	return cookie
@@ -65,7 +65,7 @@ func ClearLoginCookie() fiber.Cookie {
 		Path:     "/",                        // Scope of the cookie
 	}
 
-	if configs.IS_PRODUCTION == "production" {
+	if config.IS_PRODUCTION == "production" {
 		cookie.Domain = ".k-pullup.com" // Allow cookie to be shared across all subdomains
 	}
 	return cookie

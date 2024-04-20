@@ -3,7 +3,7 @@ package handlers
 import (
 	"bytes"
 	"chulbong-kr/services"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"log"
 	"strings"
 	"time"
@@ -33,7 +33,7 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 	// clientId := rand.Int()
 
 	// clientNickname := "user-" + uuid.New().String()
-	clientNickname := utils.GenerateKoreanNickname()
+	clientNickname := util.GenerateKoreanNickname()
 
 	// WsRoomManager = connections *haxmap.Map[string, []*websocket.Conn] // concurrent map
 	services.WsRoomManager.SaveConnection(markerID, clientId, c) // saves to local websocket conncetions
@@ -88,10 +88,10 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 		messageString := string(message) // Convert to string only when necessary
 
 		// First, remove URLs from the message
-		messageWithoutURLs := utils.RemoveURLs(messageString)
+		messageWithoutURLs := util.RemoveURLs(messageString)
 
 		// Then, replace bad words with asterisks in the message string
-		cleanMessage, err := utils.ReplaceBadWords(messageWithoutURLs)
+		cleanMessage, err := util.ReplaceBadWords(messageWithoutURLs)
 		if err != nil {
 			log.Printf("Error replacing bad words: %v", err)
 			continue

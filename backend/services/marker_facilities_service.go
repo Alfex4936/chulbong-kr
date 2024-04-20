@@ -13,7 +13,7 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/dto/kakao"
 	"chulbong-kr/models"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 )
 
 const (
@@ -23,11 +23,16 @@ const (
 	KAKAO_WEATHER      = "https://map.kakao.com/api/dapi/point/weather?inputCoordSystem=WCONGNAMUL&outputCoordSystem=WCONGNAMUL&version=2&service=map.daum.net"
 )
 
-var KAKAO_AK = os.Getenv("KAKAO_AK")
+var (
+	KAKAO_AK = os.Getenv("KAKAO_AK")
 
-var HTTPClient = &http.Client{
-	Timeout: 10 * time.Second, // Set a timeout to avoid hanging requests indefinitely
-}
+	HTTPClient = &http.Client{
+		Timeout: 10 * time.Second, // Set a timeout to avoid hanging requests indefinitely
+	}
+
+	IS_WATER_URL = os.Getenv("IS_WATER_API")
+	IS_WATER_KEY = os.Getenv("IS_WATER_API_KEY")
+)
 
 // GetFacilitiesByMarkerID retrieves facilities for a given marker ID.
 func GetFacilitiesByMarkerID(markerID int) ([]models.Facility, error) {
@@ -227,7 +232,7 @@ func FetchRegionFromAPI(latitude, longitude float64) (string, error) {
 
 // FetchWeatherFromAddress
 func FetchWeatherFromAddress(latitude, longitude float64) (*kakao.WeatherRequest, error) {
-	wcongnamul := utils.ConvertWGS84ToWCONGNAMUL(latitude, longitude)
+	wcongnamul := util.ConvertWGS84ToWCONGNAMUL(latitude, longitude)
 
 	reqURL := fmt.Sprintf("%s&x=%f&y=%f", KAKAO_WEATHER, wcongnamul.X, wcongnamul.Y)
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
@@ -266,4 +271,30 @@ func FetchWeatherFromAddress(latitude, longitude float64) (*kakao.WeatherRequest
 		Snowfall:    apiResp.WeatherInfos.Current.Snowfall,
 	}
 	return &weatherRequest, nil
+}
+
+// FetchRegionWaterInfo checks if latitude/longitude is in the water possibly.
+func FetchRegionWaterInfo(latitude, longitude float64) (bool, error) {
+	reqURL := fmt.Sprintf("%s?latitude=%f&longitude=%f&rapidapi-key=%s", IS_WATER_URL, latitude, longitude, IS_WATER_KEY)
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return false, fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var apiResp dto.WaterAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return false, fmt.Errorf("unmarshalling response: %w", err)
+	}
+
+	return apiResp.Water, nil
 }

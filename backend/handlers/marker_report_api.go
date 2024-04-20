@@ -4,7 +4,7 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"strconv"
 	"strings"
 
@@ -77,12 +77,12 @@ func createReportHandler(c *fiber.Ctx) error {
 	}
 
 	// Location Must Be Inside South Korea
-	if !utils.IsInSouthKoreaPrecisely(latitude, longitude) {
+	if !util.IsInSouthKoreaPrecisely(latitude, longitude) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations only allowed within South Korea."})
 	}
 
 	description := GetDescriptionFromForm(form)
-	if containsBadWord, _ := utils.CheckForBadWords(description); containsBadWord {
+	if containsBadWord, _ := util.CheckForBadWords(description); containsBadWord {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment contains inappropriate content."})
 	}
 

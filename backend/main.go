@@ -5,7 +5,7 @@ import (
 	"chulbong-kr/handlers"
 	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -196,7 +196,7 @@ func main() {
 	// Check if the DEPLOYMENT is not local
 	if os.Getenv("DEPLOYMENT") == "production" {
 		// Send Slack notification
-		go utils.SendDeploymentSuccessNotification(app.Config().AppName, "fly.io")
+		go util.SendDeploymentSuccessNotification(app.Config().AppName, "fly.io")
 
 		// Random ranking
 		go services.ResetAndRandomizeClickRanking()
@@ -217,7 +217,7 @@ func setUpMiddlewares(app *fiber.App) {
 	// Middlewares
 	app.Use(healthcheck.New(healthcheck.Config{
 		LivenessProbe: func(c *fiber.Ctx) bool {
-			log.Printf("---- %s", utils.CreateAnonymousID(c))
+			log.Printf("---- %s", util.CreateAnonymousID(c))
 			return true
 		},
 		LivenessEndpoint: "/",
@@ -255,7 +255,7 @@ func setUpMiddlewares(app *fiber.App) {
 		},
 
 		KeyGenerator: func(c *fiber.Ctx) string {
-			return utils.GetUserIP(c)
+			return util.GetUserIP(c)
 		},
 		Max:               60,
 		Expiration:        1 * time.Minute,
@@ -360,9 +360,9 @@ func setUpGlobals() {
 	if err != nil {
 		log.Fatalf("Failed to initialize timezone finder: %v", err)
 	}
-	utils.TimeZoneFinder = finder
+	util.TimeZoneFinder = finder
 
-	if err := utils.LoadBadWords("badwords.txt"); err != nil {
+	if err := util.LoadBadWords("badwords.txt"); err != nil {
 		log.Fatalf("Failed to load bad words: %v", err)
 	}
 
@@ -370,7 +370,7 @@ func setUpGlobals() {
 	setTokenExpirationTime()
 	services.AWS_REGION = os.Getenv("AWS_REGION")
 	services.S3_BUCKET_NAME = os.Getenv("AWS_BUCKET_NAME")
-	utils.LOGIN_TOKEN_COOKIE = os.Getenv("TOKEN_COOKIE")
+	util.LOGIN_TOKEN_COOKIE = os.Getenv("TOKEN_COOKIE")
 }
 
 func setTokenExpirationTime() {

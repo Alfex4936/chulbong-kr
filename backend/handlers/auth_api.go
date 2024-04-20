@@ -4,7 +4,7 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/middlewares"
 	"chulbong-kr/services"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"database/sql"
 	"log"
 	"os"
@@ -126,7 +126,7 @@ func loginHandler(c *fiber.Ctx) error {
 	response.Token = token
 
 	// Setting the token in a secure cookie
-	cookie := utils.GenerateLoginCookie(token)
+	cookie := util.GenerateLoginCookie(token)
 	c.Cookie(&cookie)
 
 	return c.JSON(response)
@@ -148,7 +148,7 @@ func logoutHandler(c *fiber.Ctx) error {
 	}
 
 	// Clear the authentication cookie
-	cookie := utils.ClearLoginCookie()
+	cookie := util.ClearLoginCookie()
 	c.Cookie(&cookie)
 
 	// Return a logout success response regardless of server-side token deletion status

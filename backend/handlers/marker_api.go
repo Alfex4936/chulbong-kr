@@ -6,7 +6,7 @@ import (
 	"chulbong-kr/models"
 	"chulbong-kr/protos"
 	"chulbong-kr/services"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"fmt"
 	"math"
 	"mime/multipart"
@@ -94,7 +94,7 @@ func createMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Location Must Be Inside South Korea
-	if !utils.IsInSouthKoreaPrecisely(latitude, longitude) {
+	if !util.IsInSouthKoreaPrecisely(latitude, longitude) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations are only allowed within South Korea."})
 	}
 
@@ -105,7 +105,7 @@ func createMarkerWithPhotosHandler(c *fiber.Ctx) error {
 
 	// Set default description if it's empty or not provided
 	description := GetDescriptionFromForm(form)
-	if containsBadWord, _ := utils.CheckForBadWords(description); containsBadWord {
+	if containsBadWord, _ := util.CheckForBadWords(description); containsBadWord {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment contains inappropriate content."})
 	}
 
@@ -147,6 +147,11 @@ func getAllMarkersHandler(c *fiber.Ctx) error {
 }
 
 func getAllMarkersLocalHandler(c *fiber.Ctx) error {
+	// Check the Referer header and redirect if it matches the specific URL pattern
+	// if !strings.HasSuffix(c.Get("Referer"), ".k-pullup.com") || c.Get("Referer") != "https://www.k-pullup.com/" {
+	// 	return c.Redirect("https://k-pullup.com", fiber.StatusFound) // Use HTTP 302 for standard redirection
+	// }
+
 	CacheMutex.RLock()
 	cached := MarkersLocalCache
 	CacheMutex.RUnlock()
@@ -173,8 +178,8 @@ func getAllMarkersLocalHandler(c *fiber.Ctx) error {
 
 	// Update cache
 	CacheMutex.Lock()
+	defer CacheMutex.Unlock()
 	MarkersLocalCache = markersJSON
-	CacheMutex.Unlock()
 
 	return c.Send(markersJSON)
 }
@@ -259,7 +264,7 @@ func getMarker(c *fiber.Ctx) error {
 	}
 
 	go services.BufferClickEvent(markerID)
-	go services.SaveUniqueVisitor(c.Params("markerId"), utils.GetUserIP(c))
+	go services.SaveUniqueVisitor(c.Params("markerId"), util.GetUserIP(c))
 	return c.JSON(marker)
 }
 

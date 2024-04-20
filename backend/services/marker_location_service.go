@@ -14,7 +14,7 @@ import (
 
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
@@ -199,7 +199,7 @@ func GeocodeAddress(address, apiKey string) (float64, float64, error) {
 }
 
 func SaveOfflineMap(lat, lng float64) (string, error) {
-	if !utils.IsInSouthKoreaPrecisely(lat, lng) {
+	if !util.IsInSouthKoreaPrecisely(lat, lng) {
 		return "", fmt.Errorf("only allowed in South Korea")
 	}
 
@@ -213,7 +213,7 @@ func SaveOfflineMap(lat, lng float64) (string, error) {
 	}
 
 	// 1. Convert them into WCONGNAMUL
-	mapWcon := utils.ConvertWGS84ToWCONGNAMUL(lat, lng)
+	mapWcon := util.ConvertWGS84ToWCONGNAMUL(lat, lng)
 
 	// 2. Get the static map image (base_map_blah.png)
 	// temporarily download from fmt.Sprintf("%s&MX=%f%MY=%f", KAKAO_STATIC, map_wcon.X, map_wcon.Y)
@@ -225,7 +225,7 @@ func SaveOfflineMap(lat, lng float64) (string, error) {
 
 	baseImageFile := fmt.Sprintf("base_map-%s.png", uuid.New().String())
 	baseImageFilePath := path.Join(tempDir, baseImageFile)
-	utils.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f", KAKAO_STATIC, mapWcon.X, mapWcon.Y), baseImageFilePath)
+	util.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f", KAKAO_STATIC, mapWcon.X, mapWcon.Y), baseImageFilePath)
 
 	// 3. Load all close markers nearby map lat/lng
 	// Predefine capacity for slices based on known limits to avoid multiple allocations
@@ -250,9 +250,9 @@ func SaveOfflineMap(lat, lng float64) (string, error) {
 		wg.Add(1)
 		go func(i int, marker dto.MarkerWithDistance) {
 			defer wg.Done()
-			markerWcon := utils.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
+			markerWcon := util.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
 			markerFile := path.Join(tempImagePath, fmt.Sprintf("marker-%d.png", i))
-			err := utils.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f&CX=%f&CY=%f", KAKAO_STATIC, mapWcon.X, mapWcon.Y, markerWcon.X, markerWcon.Y), markerFile)
+			err := util.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f&CX=%f&CY=%f", KAKAO_STATIC, mapWcon.X, mapWcon.Y, markerWcon.X, markerWcon.Y), markerFile)
 			if err != nil {
 				errors <- fmt.Errorf("failed to download marker %d: %w", i, err)
 				return
@@ -272,13 +272,13 @@ func SaveOfflineMap(lat, lng float64) (string, error) {
 	// there will be len(nearbyMarkers) + 1 (base map) png files. but doesn't matter if some missing
 
 	// 4. Overlay them
-	resultImagePath, err := utils.OverlayImages(baseImageFilePath, tempImagePath)
+	resultImagePath, err := util.OverlayImages(baseImageFilePath, tempImagePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to overlay images")
 	}
 
 	// 5. Make PDF
-	downloadPath, err := utils.GenerateMapPDF(resultImagePath, tempDir, address)
+	downloadPath, err := util.GenerateMapPDF(resultImagePath, tempDir, address)
 	if err != nil {
 		return "", fmt.Errorf("failed to make pdf file: " + err.Error())
 	}
@@ -294,7 +294,7 @@ func SaveOfflineMap(lat, lng float64) (string, error) {
 
 // SaveOfflineMap2 draws markers with go rather than download images
 func SaveOfflineMap2(lat, lng float64) (string, error) {
-	if !utils.IsInSouthKoreaPrecisely(lat, lng) {
+	if !util.IsInSouthKoreaPrecisely(lat, lng) {
 		return "", fmt.Errorf("only allowed in South Korea")
 	}
 
@@ -308,7 +308,7 @@ func SaveOfflineMap2(lat, lng float64) (string, error) {
 	}
 
 	// 1. Convert them into WCONGNAMUL
-	mapWcon := utils.ConvertWGS84ToWCONGNAMUL(lat, lng)
+	mapWcon := util.ConvertWGS84ToWCONGNAMUL(lat, lng)
 
 	// 2. Get the static map image (base_map_blah.png)
 	// temporarily download from fmt.Sprintf("%s&MX=%f%MY=%f", KAKAO_STATIC, map_wcon.X, map_wcon.Y)
@@ -320,7 +320,7 @@ func SaveOfflineMap2(lat, lng float64) (string, error) {
 
 	baseImageFile := fmt.Sprintf("base_map-%s.png", uuid.New().String())
 	baseImageFilePath := path.Join(tempDir, baseImageFile)
-	utils.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f", KAKAO_STATIC, mapWcon.X, mapWcon.Y), baseImageFilePath)
+	util.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f", KAKAO_STATIC, mapWcon.X, mapWcon.Y), baseImageFilePath)
 
 	// 3. Load all close markers nearby map lat/lng
 	// Predefine capacity for slices based on known limits to avoid multiple allocations
@@ -333,13 +333,13 @@ func SaveOfflineMap2(lat, lng float64) (string, error) {
 		return "", nil // Return nil to signify no markers in the area, reducing slice allocation
 	}
 
-	markers := make([]utils.WCONGNAMULCoord, len(nearbyMarkers))
+	markers := make([]util.WCONGNAMULCoord, len(nearbyMarkers))
 	for i, marker := range nearbyMarkers {
-		markers[i] = utils.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
+		markers[i] = util.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
 	}
 
 	// 4. Place them
-	resultImagePath, err := utils.PlaceMarkersOnImage(baseImageFilePath, markers, mapWcon.X, mapWcon.Y)
+	resultImagePath, err := util.PlaceMarkersOnImage(baseImageFilePath, markers, mapWcon.X, mapWcon.Y)
 	if err != nil {
 		return "", fmt.Errorf("failed to overlay images")
 	}
@@ -347,7 +347,7 @@ func SaveOfflineMap2(lat, lng float64) (string, error) {
 	os.Remove(baseImageFilePath) // Remove base image file
 
 	// 5. Make PDF
-	downloadPath, err := utils.GenerateMapPDF(resultImagePath, tempDir, address)
+	downloadPath, err := util.GenerateMapPDF(resultImagePath, tempDir, address)
 	if err != nil {
 		return "", fmt.Errorf("failed to make pdf file: " + err.Error())
 	}

@@ -2,7 +2,7 @@ package middlewares
 
 import (
 	"chulbong-kr/database"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 	"database/sql"
 	"time"
 
@@ -12,7 +12,7 @@ import (
 // AuthMiddleware checks for a valid opaque token in the Authorization header
 func AuthMiddleware(c *fiber.Ctx) error {
 	// check for the cookie
-	jwtCookie := c.Cookies(utils.LOGIN_TOKEN_COOKIE)
+	jwtCookie := c.Cookies(util.LOGIN_TOKEN_COOKIE)
 	if jwtCookie == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
 	}
@@ -25,7 +25,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 
 	// Token is invalid or expired, delete the cookie
 	if err == sql.ErrNoRows || time.Now().After(expiresAt) {
-		cookie := utils.ClearLoginCookie()
+		cookie := util.ClearLoginCookie()
 		c.Cookie(&cookie)
 		if err == sql.ErrNoRows {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
@@ -42,7 +42,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	var role string
 	err = database.DB.QueryRow(userQuery, userID).Scan(&username, &email, &role)
 	if err != nil {
-		cookie := utils.ClearLoginCookie()
+		cookie := util.ClearLoginCookie()
 		c.Cookie(&cookie)
 		if err == sql.ErrNoRows {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "User not found"})
@@ -63,7 +63,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 // AdminOnly checks admin permission
 func AdminOnly(c *fiber.Ctx) error {
 	// Check for the cookie
-	jwtCookie := c.Cookies(utils.LOGIN_TOKEN_COOKIE)
+	jwtCookie := c.Cookies(util.LOGIN_TOKEN_COOKIE)
 	if jwtCookie == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization token provided"})
 	}
@@ -106,7 +106,7 @@ func AdminOnly(c *fiber.Ctx) error {
 // AuthSoftMiddleware checks for a valid opaque token in the Authorization header (no error returns)
 func AuthSoftMiddleware(c *fiber.Ctx) error {
 	// check for the cookie
-	jwtCookie := c.Cookies(utils.LOGIN_TOKEN_COOKIE)
+	jwtCookie := c.Cookies(util.LOGIN_TOKEN_COOKIE)
 	if jwtCookie == "" {
 		return c.Next()
 	}

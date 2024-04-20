@@ -2,14 +2,14 @@ package services
 
 import (
 	"chulbong-kr/database"
-	"chulbong-kr/utils"
+	"chulbong-kr/util"
 
 	"time"
 )
 
 // GenerateAndSaveToken generates a new token for a user and saves it in the database.
 func GenerateAndSaveToken(userID int) (string, error) {
-	token, err := utils.GenerateOpaqueToken() // a secure, random token.
+	token, err := util.GenerateOpaqueToken() // a secure, random token.
 	if err != nil {
 		return "", err
 	}

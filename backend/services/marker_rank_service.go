@@ -7,10 +7,10 @@ import (
 	"log"
 	"math/rand/v2"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
+	"github.com/jmoiron/sqlx"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
 	"github.com/redis/rueidis"
 	"github.com/zeebo/xxh3"
@@ -157,14 +157,14 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 	}
 
 	// Collect all marker IDs from the sorted set result for a batch database query.
-	markerIDs := make([]interface{}, len(markerScores))
+	markerIDs := make([]string, len(markerScores))
 	for i, markerScore := range markerScores {
 		markerIDs[i] = markerScore.Member // Directly use string ID to avoid unnecessary conversions.
-		log.Printf("🤣 Marker id: %s and score: %f", markerScore.Member, markerScore.Score)
+		// log.Printf("🤣 Marker id: %s and score: %f", markerScore.Member, markerScore.Score)
 	}
 
-	// Query to retrieve markers by a set of IDs in a single SQL call.
-	var markerQuery = `
+	// Prepare an SQL query using IN clause with sqlx.In
+	query, args, err := sqlx.In(`
     SELECT 
         MarkerID, 
         ST_X(Location) AS Latitude,
@@ -172,11 +172,18 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
         Address
     FROM 
         Markers
-    WHERE MarkerID IN (?` + strings.Repeat(",?", len(markerIDs)-1) + `)
-    ORDER BY FIELD(MarkerID, ?` + strings.Repeat(",?", len(markerIDs)-1) + `)`
+    WHERE MarkerID IN (?)
+    ORDER BY FIELD(MarkerID, ?)`, markerIDs, markerIDs)
+	if err != nil {
+		log.Printf("Error preparing query: %v", err)
+		return nil
+	}
+
+	// sqlx.In returns queries with the `?` bindvar, must rebind it for our specific database.
+	query = database.DB.Rebind(query)
 
 	markerRanks := make([]dto.MarkerSimpleWithAddr, 0, len(markerIDs))
-	err = database.DB.Select(&markerRanks, markerQuery, append(markerIDs, markerIDs...)...) // Duplicating markerIDs for both IN and ORDER BY.
+	err = database.DB.Select(&markerRanks, query, args...) // args here includes markerIDs for both IN and ORDER BY clauses.
 	if err != nil {
 		log.Printf("Error retrieving markers from DB: %v", err)
 		return nil
@@ -189,7 +196,7 @@ func RemoveMarkerClick(markerID int) error {
 	ctx := context.Background()
 
 	// Convert markerID to string because Redis sorted set members are strings
-	member := fmt.Sprintf("%d", markerID)
+	member := strconv.Itoa(markerID)
 
 	// Remove the marker from the "marker_clicks" sorted set
 	err := RedisStore.Do(ctx, RedisStore.B().Zrem().Key("marker_clicks").Member(member).Build()).Error()
@@ -237,7 +244,7 @@ func ResetAndRandomizeClickRanking() {
 		zaddCmd := c.B().Zadd().Key("marker_clicks").ScoreMember()
 		for _, marker := range selectedMarkers {
 			score := float64(10 + rand.IntN(6)) // Random score between 10 and 15
-			zaddCmd = zaddCmd.ScoreMember(score, fmt.Sprintf("%d", marker.MarkerID))
+			zaddCmd = zaddCmd.ScoreMember(score, strconv.Itoa(marker.MarkerID))
 		}
 		c.Do(ctx, zaddCmd.Build())
 

@@ -85,3 +85,9 @@ type MarkerGroup struct {
 	CentralMarker MarkerSimple         // 중심 마커
 	NearbyMarkers []MarkerWithDistance // 중심 마커 주변의 마커들
 }
+
+type WaterAPIResponse struct {
+	Water     bool    `json:"water"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+}
