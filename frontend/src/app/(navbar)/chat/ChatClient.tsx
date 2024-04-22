@@ -6,6 +6,7 @@ import useInput from "@/hooks/common/useInput";
 import useChatIdStore from "@/store/useChatIdStore";
 import getRegion from "@/utils/getRegion";
 import { Fragment, useEffect, useRef, useState } from "react";
+// TODO: input fontSize 16px 이상 https://velog.io/@jungsu/iOSSafari-input-%EC%9D%98-focus-%ED%99%95%EB%8C%80-%EB%B0%A9%EC%A7%80%ED%95%98%EA%B8%B0
 
 export interface ChatMessage {
   uid: string;
@@ -150,7 +151,7 @@ const ChatClient = () => {
 
   return (
     <div className="flex flex-col h-[calc(100%-96px)]">
-      <div>{roomTitle}</div>
+      <div className="text-center text-sm text-grey-dark">{roomTitle}</div>
       <div
         className="grow w-full flex flex-col justify-between px-3"
         ref={chatBox}
@@ -203,7 +204,7 @@ const ChatClient = () => {
           })}
         </div>
       </div>
-      <div className="flex items-center justify-center w-full h-14">
+      <div className="flex items-center justify-center w-full h-14 px-3">
         <Input
           type="text"
           ref={inputRef}
@@ -213,7 +214,7 @@ const ChatClient = () => {
           value={chatValue.value}
           onChange={chatValue.handleChange}
           onKeyDown={handleKeyPress}
-          className="bg-black-light-2"
+          className="bg-black-light-2 text-base"
         />
       </div>
     </div>

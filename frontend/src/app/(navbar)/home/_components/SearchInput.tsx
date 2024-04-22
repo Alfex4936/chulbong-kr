@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useSearchLocationData from "@/hooks/query/useSearchLocationData";
 import { useEffect, useState } from "react";
+// TODO: input fontSize 16px 이상 https://velog.io/@jungsu/iOSSafari-input-%EC%9D%98-focus-%ED%99%95%EB%8C%80-%EB%B0%A9%EC%A7%80%ED%95%98%EA%B8%B0
 
 const SearchInput = () => {
   const [query, setQuery] = useState("");
@@ -29,7 +30,7 @@ const SearchInput = () => {
           placeholder="장소, 위치를 입력하세요"
           value={searchInput.value}
           onChange={searchInput.handleChange}
-          className="rounded-sm border border-solid border-grey placeholder:text-grey-dark pl-8"
+          className="rounded-sm border border-solid border-grey placeholder:text-grey-dark pl-8 text-base"
         />
       </div>
       {searchInput.value.length > 0 && (
