@@ -1,10 +1,15 @@
+import resetPassword from "@/api/auth/resetPassword";
 import { useMutation } from "@tanstack/react-query";
-import resetPassword from "../../../api/auth/resetPassword";
+import { useRouter } from "next/navigation";
+import logout from "@/api/auth/logout";
 
-const useResetPassword = (token: string, password: string) => {
+const useResetPassword = () => {
+  const router = useRouter();
   return useMutation({
-    mutationFn: () => {
-      return resetPassword(token, password);
+    mutationFn: resetPassword,
+    onSuccess: async () => {
+      await logout();
+      router.push("/signin");
     },
   });
 };
