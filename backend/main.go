@@ -75,7 +75,7 @@ func main() {
 		Prefork:       false, // Enable prefork mode for high-concurrency
 		CaseSensitive: true,
 		StrictRouting: true,
-		ServerHeader:  "",
+		ServerHeader:  "NGINX",
 		BodyLimit:     30 * 1024 * 1024, // limit to 30 MB
 		IdleTimeout:   120 * time.Second,
 		ReadTimeout:   10 * time.Second,
@@ -417,6 +417,7 @@ func redisHealthCheck(rdb rueidis.Client) {
 		}
 	}
 }
+
 func reconnectRedis(rdb rueidis.Client) {
 	for i := 0; i < 3; i++ { // Try reconnecting 3 times
 		time.Sleep(time.Duration(i+1) * time.Second) // Exponential back-off strategy

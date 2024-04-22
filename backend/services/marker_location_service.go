@@ -49,31 +49,22 @@ SELECT EXISTS (
 func FindClosestNMarkersWithinDistance(lat, long float64, distance, pageSize, offset int) ([]dto.MarkerWithDistance, int, error) {
 	point := fmt.Sprintf("POINT(%f %f)", lat, long)
 
-	// Query to find markers within N meters and calculate total
+	// Using a single query to fetch all markers within the distance
 	query := `
 SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude, Description, ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance, Address
 FROM Markers
 WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
-ORDER BY distance ASC
-LIMIT ? OFFSET ?`
+ORDER BY distance ASC`
 
-	var markers []dto.MarkerWithDistance
-	err := database.DB.Select(&markers, query, point, point, distance, pageSize, offset)
+	var allMarkers []dto.MarkerWithDistance
+	err := database.DB.Select(&allMarkers, query, point, point, distance)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error checking for nearby markers: %w", err)
 	}
 
-	// Query to get total count of markers within distance
-	countQuery := `
-SELECT COUNT(*)
-FROM Markers
-WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?`
-
-	var total int
-	err = database.DB.Get(&total, countQuery, point, distance)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error getting total markers count: %w", err)
-	}
+	// Implementing pagination in application logic
+	markers := paginateMarkers(allMarkers, pageSize, offset)
+	total := len(allMarkers)
 
 	return markers, total, nil
 }
@@ -104,24 +95,6 @@ func FindRankedMarkersInCurrentArea(lat, long float64, distance, limit int) ([]d
 			rankedMarkers = append(rankedMarkers, nearbyMarkers[i])
 		}
 	}
-
-	// rankedMarkers := make([]dto.MarkerWithDistance, 0)
-	// for i, marker := range nearbyMarkers {
-	// 	// Build the command to fetch the score for a single member
-	// 	scoreCmd := RedisStore.B().Zscore().Key("marker_clicks").Member(markerIDs[i]).Build()
-	// 	result := RedisStore.Do(ctx, scoreCmd)
-
-	// 	// Try to parse the score from the result
-	// 	score, err := result.AsFloat64()
-	// 	if err != nil {
-	// 		continue
-	// 	}
-
-	// 	if score > floatMin { // Include markers with score > minScore
-	// 		marker.Distance = score
-	// 		rankedMarkers = append(rankedMarkers, marker)
-	// 	}
-	// }
 
 	if len(rankedMarkers) == 0 {
 		return nil, nil // Return nil to signify no ranked markers
@@ -353,4 +326,21 @@ func SaveOfflineMap2(lat, lng float64) (string, error) {
 	}
 
 	return downloadPath, nil
+}
+
+// Simple pagination helper function
+func paginateMarkers(markers []dto.MarkerWithDistance, pageSize, offset int) []dto.MarkerWithDistance {
+	if offset >= len(markers) {
+		// Calculate the starting index of the last possible page
+		lastPageOffset := len(markers) - pageSize
+		if lastPageOffset < 0 {
+			lastPageOffset = 0
+		}
+		return markers[lastPageOffset:]
+	}
+	end := offset + pageSize
+	if end > len(markers) {
+		end = len(markers)
+	}
+	return markers[offset:end]
 }

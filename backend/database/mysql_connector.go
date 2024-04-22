@@ -11,6 +11,11 @@ import (
 // DB is a global variable to hold the connection to the database.
 var DB *sqlx.DB
 
+// type DBer interface {
+// 	Query(query string, args ...interface{}) (*sqlx.Rows, error)
+// 	Exec(query string, args ...interface{}) (sql.Result, error)
+// }
+
 func Connect() error {
 	var err error
 

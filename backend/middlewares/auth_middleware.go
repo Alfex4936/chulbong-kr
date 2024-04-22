@@ -18,6 +18,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	}
 	token := jwtCookie
 
+	// ExpiresAt > CURRENT_TIMESTAMP doesn't work well
 	query := `SELECT UserID, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?`
 	var userID int
 	var expiresAt time.Time
@@ -37,9 +38,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 
 	// Fetch UserID and Username based on Email
 	userQuery := `SELECT Username, Email, Role FROM Users WHERE UserID = ?`
-	var username string
-	var email string
-	var role string
+	var username, email, role string
 	err = database.DB.QueryRow(userQuery, userID).Scan(&username, &email, &role)
 	if err != nil {
 		cookie := util.ClearLoginCookie()

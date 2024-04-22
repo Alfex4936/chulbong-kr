@@ -129,7 +129,6 @@ type WCONGNAMULCoord struct {
 // ConvertWGS84ToWCONGNAMUL converts coordinates from WGS84 to WCONGNAMUL.
 func ConvertWGS84ToWCONGNAMUL(lat, long float64) WCONGNAMULCoord {
 	x, y := transformWGS84ToKoreaTM(aWGS84, flatteningFactor, dx, dy, k0, lat0, lon0, lat, long)
-	// x, y := transformWGS84ToKoreaTM(aWGS84, flatteningFactor, dx, dy, k0, lat0, lon0, lat, long)
 	x = math.Round(x * scaleFactor)
 	y = math.Round(y * scaleFactor)
 	return WCONGNAMULCoord{X: x, Y: y}
@@ -137,7 +136,7 @@ func ConvertWGS84ToWCONGNAMUL(lat, long float64) WCONGNAMULCoord {
 
 // transformWGS84ToKoreaTM optimizes the coordinate conversion calculation.
 func transformWGS84ToKoreaTM(d, e, h, f, c, l, m, lat, lon float64) (float64, float64) {
-	A := math.Pi / 180
+	const A = math.Pi / 180 // Degree to radian conversion factor
 	latRad := lat * A
 	lonRad := lon * A
 	lRad := l * A
@@ -184,4 +183,61 @@ func transformWGS84ToKoreaTM(d, e, h, f, c, l, m, lat, lon float64) (float64, fl
 	x := f + D*o + D*D*D*z + D*D*D*D*D*w + D*D*D*D*D*D*D*u
 
 	return x, y
+}
+
+// ConvertWGS84ToWCONGNAMUL converts coordinates from WGS84 to WCONGNAMUL.
+func ConvertWGS84ToWCONGNAMUL2(lat, long float64) WCONGNAMULCoord {
+	x, y := transformWGS84ToKoreaTM2(aWGS84, flatteningFactor, dy, k0, lat0, lon0, lat, long)
+	x = math.Round(x * scaleFactor)
+	y = math.Round(y * scaleFactor)
+	return WCONGNAMULCoord{X: x, Y: y}
+}
+
+// transformWGS84ToKoreaTM converts coordinates from WGS84 to the Korea TM coordinate system.
+func transformWGS84ToKoreaTM2(d, e, f, c, l, m, lat, lon float64) (float64, float64) {
+	const A = math.Pi / 180 // Degree to radian conversion factor
+	latRad := lat * A
+	lonRad := lon * A
+	lRad := l * A
+	mRad := m * A
+
+	// Precompute as much as possible that doesn't depend on dynamic input (lat, lon)
+	w := math.Max(1/e, e)
+	z := d * (w - 1) / w
+	z = (d - z) / (d + z)
+
+	// Compute coefficients used in series expansions
+	coefficients := precomputeCoefficients(d, z)
+
+	// Delta longitude (in radians)
+	D := lonRad - mRad
+
+	// Compute northing, easting
+	northing := computeNorthing(latRad, coefficients, c)
+	easting := f + computeEasting(lonRad, lRad, coefficients, c, D)
+
+	return easting, northing
+}
+
+func precomputeCoefficients(d, z float64) []float64 {
+	// Precompute coefficients for series expansions based on z
+	E := d * (1 - z + 5*(z*z-z*z*z)/4 + 81*(z*z*z*z-z*z*z*z*z)/64)
+	I := 3 * d * (z - z*z + 7*(z*z*z-z*z*z*z)/8 + 55*z*z*z*z*z/64) / 2
+	J := 15 * d * (z*z - z*z*z + 3*(z*z*z*z-z*z*z*z*z)/4) / 16
+	L := 35 * d * (z*z*z - z*z*z*z + 11*z*z*z*z*z/16) / 48
+	M := 315 * d * (z*z*z*z - z*z*z*z*z) / 512
+	return []float64{E, I, J, L, M}
+}
+
+func computeNorthing(latRad float64, coeffs []float64, c float64) float64 {
+	E, I, J, L, M := coeffs[0], coeffs[1], coeffs[2], coeffs[3], coeffs[4]
+	// Using series expansion to compute northing
+	return E*latRad - I*math.Sin(2*latRad) + J*math.Sin(4*latRad) - L*math.Sin(6*latRad) + M*math.Sin(8*latRad)*c
+}
+
+func computeEasting(lonRad, lRad float64, coeffs []float64, c, D float64) float64 {
+	E, I, J, L, M := coeffs[0], coeffs[1], coeffs[2], coeffs[3], coeffs[4]
+	// Compute partial easting from series expansion terms
+	u := E*lRad - I*math.Sin(2*lRad) + J*math.Sin(4*lRad) - L*math.Sin(6*lRad) + M*math.Sin(8*lRad)
+	return u*c + D*D*D*math.Cos(lonRad)*c
 }

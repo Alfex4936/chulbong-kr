@@ -395,44 +395,41 @@ func UpdateMarkerDescriptionOnly(markerID int, description string) error {
 	return nil
 }
 
-// DeleteMarker deletes a marker and its associated photos from the database and S3.
 func DeleteMarker(userID, markerID int, userRole string) error {
+	// Precheck user authorization and fetch photo URLs before transaction
+	var ownerID int
+	var photoURLs []string
+	const checkOwnerQuery = `SELECT UserID FROM Markers WHERE MarkerID = ?`
+	const selectPhotosQuery = `SELECT PhotoURL FROM Photos WHERE MarkerID = ?`
+
+	err := database.DB.Get(&ownerID, checkOwnerQuery, markerID)
+	if err != nil {
+		return fmt.Errorf("checking marker ownership: %w", err)
+	}
+
+	if userRole != "admin" && ownerID != userID {
+		return fmt.Errorf("user %d is not authorized to delete marker %d", userID, markerID)
+	}
+
+	err = database.DB.Select(&photoURLs, selectPhotosQuery, markerID)
+	if err != nil {
+		return fmt.Errorf("fetching photos: %w", err)
+	}
+
 	// Start a transaction
 	tx, err := database.DB.Beginx()
 	if err != nil {
 		return fmt.Errorf("starting transaction: %w", err)
 	}
 
-	// Check if the marker belongs to the user
-	var ownerID int
-	const checkOwnerQuery = `SELECT UserID FROM Markers WHERE MarkerID = ?`
-	err = tx.Get(&ownerID, checkOwnerQuery, markerID)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("checking marker ownership: %w", err)
-	}
-	if userRole != "admin" && ownerID != userID {
-		tx.Rollback()
-		return fmt.Errorf("user %d is not authorized to delete marker %d", userID, markerID)
-	}
-
-	// fetch photo URLs associated with the marker
-	var photoURLs []string
-	const selectPhotosQuery = `SELECT PhotoURL FROM Photos WHERE MarkerID = ?`
-	err = tx.Select(&photoURLs, selectPhotosQuery, markerID)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("fetching photos: %w", err)
-	}
-
-	// Delete associated photos from the database
+	// Delete photos from database
 	const deletePhotosQuery = `DELETE FROM Photos WHERE MarkerID = ?`
 	if _, err := tx.Exec(deletePhotosQuery, markerID); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("deleting photos: %w", err)
 	}
 
-	// Now delete the marker
+	// Delete the marker
 	const deleteMarkerQuery = `DELETE FROM Markers WHERE MarkerID = ?`
 	if _, err := tx.Exec(deleteMarkerQuery, markerID); err != nil {
 		tx.Rollback()
@@ -444,12 +441,10 @@ func DeleteMarker(userID, markerID int, userRole string) error {
 		return fmt.Errorf("committing transaction: %w", err)
 	}
 
-	// After successfully deleting from the database, delete photos from S3 in a goroutine
+	// Delete photos from S3 in a goroutine
 	go func(photoURLs []string) {
 		for _, photoURL := range photoURLs {
-			// Attempt to delete the photo from S3
 			if err := DeleteDataFromS3(photoURL); err != nil {
-				// Log the error or handle it according to your application's requirements
 				log.Printf("Failed to delete photo from S3: %s, error: %v", photoURL, err)
 			}
 		}

@@ -13,7 +13,7 @@ import (
 //
 // @Summary		Find close markers
 // @Description	This endpoint retrieves markers that are close to a specified location within a given distance.
-// @Description	It requires latitude, longitude, distance, and the number of markers (N) to return.
+// @Description	It requires latitude, longitude, distance, and the markers to return.
 // @Description	If no markers are found within the specified distance, it returns a "No markers found" message.
 // @Description	Returns a list of markers that meet the criteria. (maximum 10km distance allowed)
 // @ID			find-close-markers
@@ -23,7 +23,7 @@ import (
 // @Param		latitude	query	number	true	"Latitude of the location (float)"
 // @Param		longitude	query	number	true	"Longitude of the location (float)"
 // @Param		distance	query	int		true	"Search radius distance (meters)"
-// @Param		N			query	int		true	"Number of markers to return"
+// @Param		N			query	int		true	"Page size"
 // @Param		page			query	int		true	"Page Index number"
 // @Security	ApiKeyAuth
 // @Success	200	{object}	map[string]interface{}	"Markers found successfully (with distance) in pages"
@@ -46,23 +46,31 @@ func findCloseMarkersHandler(c *fiber.Ctx) error {
 		params.Page = 1
 	}
 
-	pageSize := 4 // Define page size
-	offset := (params.Page - 1) * pageSize
+	if params.PageSize < 1 {
+		params.PageSize = 4
+	}
+
+	offset := (params.Page - 1) * params.PageSize
 
 	// Find nearby markers within the specified distance and page
-	markers, total, err := services.FindClosestNMarkersWithinDistance(params.Latitude, params.Longitude, params.Distance, pageSize, offset)
+	markers, total, err := services.FindClosestNMarkersWithinDistance(params.Latitude, params.Longitude, params.Distance, params.PageSize, offset)
+
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// if len(markers) == 0 {
-	// 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "No markers found within the specified distance"})
-	// }
-
 	// Calculate total pages
-	totalPages := total / pageSize
-	if total%pageSize != 0 {
+	totalPages := total / params.PageSize
+	if total%params.PageSize != 0 {
 		totalPages++
+	}
+
+	// Adjust the current page if the calculated offset exceeds the number of markers
+	if params.Page > totalPages {
+		params.Page = totalPages
+	}
+	if params.Page < 1 {
+		params.Page = 1 // Ensure page is set to 1 if totalPages calculates to 0 (i.e., no markers found)
 	}
 
 	// Return the found markers along with pagination info

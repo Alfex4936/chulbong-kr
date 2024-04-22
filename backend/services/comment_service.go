@@ -109,7 +109,6 @@ func LoadCommentsForMarker(markerID, pageSize, offset int) ([]dto.CommentWithUse
 		return nil, 0, fmt.Errorf("error loading comments for marker %d: %w", markerID, err)
 	}
 
-	// Query to get total count of markers within distance
 	countQuery := `
 SELECT COUNT(*)
 FROM Comments C
