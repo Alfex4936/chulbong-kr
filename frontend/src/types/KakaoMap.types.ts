@@ -14,10 +14,11 @@ export interface KaKaoMapMouseEvent {
 }
 
 export interface KakaoMap {
-  getCenter: VoidFunction;
+  getCenter: () => LatLngFunctions;
   setLevel: (level: number) => void;
   setCenter: (pos: Pos) => LatLngFunctions;
   getLevel: () => number;
+  relayout: VoidFunction;
 }
 
 export interface KakaoMarker {

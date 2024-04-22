@@ -11,15 +11,11 @@ const setFacilities = async (markerId: number, facilities: Facilities[]) => {
     facilities,
   };
 
-  try {
-    const res = await instance.post(`/api/v1/markers/facilities`, body, {
-      withCredentials: true,
-    });
+  const res = await instance.post(`/api/v1/markers/facilities`, body, {
+    withCredentials: true,
+  });
 
-    return res.data;
-  } catch (error) {
-    throw error;
-  }
+  return res.data;
 };
 
 export default setFacilities;

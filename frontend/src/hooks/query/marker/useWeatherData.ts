@@ -1,18 +1,13 @@
+import getWeather from "@/api/markers/getWeather";
 import { useQuery } from "@tanstack/react-query";
-import getWeather from "../../../api/markers/getWeather";
 
-const useWeatherData = (
-  lat: number,
-  lng: number,
-  start: boolean,
-  id: number
-) => {
+const useWeatherData = (lat: number, lng: number, start: boolean) => {
   return useQuery({
-    queryKey: ["marker", "weather", id],
-    queryFn: async () => {
+    queryKey: ["weather", lat, lng],
+    queryFn: () => {
       return getWeather(lat, lng);
     },
-    retry: false,
+
     enabled: start,
   });
 };
