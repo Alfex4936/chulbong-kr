@@ -7,24 +7,11 @@ import HomeIcon from "@/components/icons/HomeIcon";
 import NotificationIcon from "@/components/icons/NotificationIcon";
 // import SettingIcon from "@/components/icons/SettingIcon";
 import UserCircleIcon from "@/components/icons/UserCircleIcon";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import MapButton from "../common/MapButton";
-import { useEffect } from "react";
 
 const Navigation = () => {
   const pathname = usePathname();
-  const router = useRouter();
-
-  useEffect(() => {
-    router.prefetch("/home");
-    router.prefetch("/chat");
-    router.prefetch("/notice");
-    router.prefetch("/mypage");
-  }, [router]);
-
-  const pushRouter = (url: string) => {
-    router.push(url);
-  };
 
   return (
     <div
@@ -41,22 +28,20 @@ const Navigation = () => {
         <div className="mo:flex mo:w-1/2 mo:justify-around">
           <IconButton
             text="홈"
-            selected={pathname.startsWith("/home")}
+            url="/home"
             icon={
               <HomeIcon size={25} selected={pathname.startsWith("/home")} />
             }
-            onClick={() => pushRouter("/home")}
           />
           <IconButton
             text="채팅"
-            selected={pathname.startsWith("/chat")}
+            url="/chat"
             icon={
               <ChatBubbleIcon
                 size={25}
                 selected={pathname.startsWith("/chat")}
               />
             }
-            onClick={() => pushRouter("/chat")}
           />
         </div>
 
@@ -67,25 +52,23 @@ const Navigation = () => {
         <div className="mo:flex mo:w-1/2 mo:justify-around">
           <IconButton
             text="공지"
-            selected={pathname.startsWith("/notice")}
+            url="/notice"
             icon={
               <NotificationIcon
                 size={25}
                 selected={pathname.startsWith("/notice")}
               />
             }
-            onClick={() => pushRouter("/notice")}
           />
           <IconButton
             text="내 정보"
-            selected={pathname.startsWith("/mypage")}
+            url="/mypage"
             icon={
               <UserCircleIcon
                 size={25}
                 selected={pathname.startsWith("/mypage")}
               />
             }
-            onClick={() => pushRouter("/mypage")}
           />
         </div>
 

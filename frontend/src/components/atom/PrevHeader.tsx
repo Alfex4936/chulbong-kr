@@ -1,7 +1,5 @@
-"use client";
-
+import Link from "next/link";
 import { ArrowLeftIcon } from "../icons/ArrowIcons";
-import { useRouter } from "next/navigation";
 
 type Props = {
   url: string;
@@ -9,15 +7,14 @@ type Props = {
 };
 
 const PrevHeader = ({ url, text }: Props) => {
-  const router = useRouter();
   return (
     <div className="flex items-center h-14">
-      <button
+      <Link
+        href={url}
         className="flex justify-center items-center w-10 h-10 mr-2"
-        onClick={() => router.push(url)}
       >
         <ArrowLeftIcon />
-      </button>
+      </Link>
       {text && <span>{text}</span>}
     </div>
   );

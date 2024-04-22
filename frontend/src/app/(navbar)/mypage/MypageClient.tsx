@@ -1,23 +1,17 @@
 "use client";
 
+import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
+import ModeToggle from "@/components/common/ModeToggle";
 import { Separator } from "@/components/ui/separator";
 import useLogout from "@/hooks/mutation/auth/useLogout";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
+import Link from "next/link";
 import Unauthenticated from "./_component/Unauthenticated";
-import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
-import { useRouter } from "next/navigation";
-import ModeToggle from "@/components/common/ModeToggle";
-import { useEffect } from "react";
 
 const MypageClient = () => {
-  const router = useRouter();
 
   const { data: myInfo, isError } = useMyinfoData();
   const { mutate: logout } = useLogout();
-
-  useEffect(() => {
-    router.prefetch("/mypage/user");
-  }, [router]);
 
   if (!myInfo || isError) return <Unauthenticated />;
   return (
@@ -33,12 +27,12 @@ const MypageClient = () => {
       </div>
 
       <div className="flex items-center justify-center bg-black-light-2 rounded-md p-1 text-center h-10 mb-6 mo:text-sm">
-        <button
-          className="h-full w-1/2 rounded-md hover:bg-black"
-          onClick={() => router.push("/mypage/user")}
+        <Link
+          href={"/mypage/user"}
+          className="flex items-center justify-center h-full w-1/2 rounded-md hover:bg-black"
         >
           내 정보 관리
-        </button>
+        </Link>
         <Separator orientation="vertical" className="mx-2 bg-grey-dark-1 h-5" />
         <button className="h-full w-1/2 rounded-md hover:bg-black">설정</button>
       </div>
