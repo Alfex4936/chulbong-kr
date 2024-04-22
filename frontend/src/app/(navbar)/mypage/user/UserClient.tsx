@@ -13,9 +13,8 @@ import useUpdateUserName from "@/hooks/mutation/user/useUpdateUserName";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import { useState } from "react";
 import ChangePassword from "./ChangePassword";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 // TODO: 에러 토스트 팝업 연결
+// TODO: 탈퇴하기 연동
 
 interface Props {
   text: string;
@@ -35,7 +34,6 @@ const InfoList = ({ text, subText, buttonText }: Props) => {
 };
 
 const UserClient = () => {
-  const router = useRouter();
   const {
     mutate: updateName,
     isPending: isNameUpdate,

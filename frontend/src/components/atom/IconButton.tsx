@@ -1,16 +1,16 @@
-import { ComponentProps } from "react";
+import Link from "next/link";
 
-interface Props extends ComponentProps<"button"> {
+interface Props {
   icon: React.ReactNode;
-  selected: boolean;
   text?: string;
+  url: string;
 }
 
-const IconButton = ({ icon, selected, text, ...props }: Props) => {
+const IconButton = ({ icon, text, url }: Props) => {
   return (
-    <button
+    <Link
+      href={url}
       className="flex justify-center items-center web:mb-3 mo:w-full"
-      {...props}
     >
       <div className="flex flex-col justify-center items-center w-12 h-16 cursor-pointer rounded-sm mo:w-[44px] mo:h-[50px]">
         <div className="ml-[1px]">{icon}</div>
@@ -22,7 +22,7 @@ const IconButton = ({ icon, selected, text, ...props }: Props) => {
           </div>
         )}
       </div>
-    </button>
+    </Link>
   );
 };
 

@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { Nanum_Gothic } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "@/components/provider/theme-provider";
+import ChatIdProvider from "@/components/provider/ChatIdProvider";
 import "../globals.css";
 // TODO: APP키 환경변수 적용
 
@@ -47,9 +48,11 @@ const RootLayout = ({
           disableTransitionOnChange
         >
           <RQProvider>
-            <Navigation />
-            {children}
-            {/* <Map /> */}
+            <ChatIdProvider>
+              <Navigation />
+              {children}
+              {/* <Map /> */}
+            </ChatIdProvider>
           </RQProvider>
         </ThemeProvider>
       </body>
