@@ -1,11 +1,10 @@
 import Navigation from "@/components/layout/Navigation";
-import Map from "@/components/map/Map";
+import MapWrapper from "@/components/map/MapWrapper";
+import ChatIdProvider from "@/components/provider/ChatIdProvider";
 import RQProvider from "@/components/provider/RQProvider";
+import { ThemeProvider } from "@/components/provider/theme-provider";
 import type { Metadata } from "next";
 import { Nanum_Gothic } from "next/font/google";
-import Script from "next/script";
-import { ThemeProvider } from "@/components/provider/theme-provider";
-import ChatIdProvider from "@/components/provider/ChatIdProvider";
 import "../globals.css";
 // TODO: APP키 환경변수 적용
 
@@ -33,11 +32,6 @@ const RootLayout = ({
 }>) => {
   return (
     <html lang="ko">
-      <head>
-        <script
-          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=dfdebaf84d7dda475fb8448c7d43c528&libraries=clusterer,services`}
-        />
-      </head>
       <body
         className={`${nanum.className} flex text-black dark:text-grey mo:flex-col-reverse mo:h-screen mo:bg-neutral-800`}
       >
@@ -51,7 +45,7 @@ const RootLayout = ({
             <ChatIdProvider>
               <Navigation />
               {children}
-              {/* <Map /> */}
+              <MapWrapper />
             </ChatIdProvider>
           </RQProvider>
         </ThemeProvider>
