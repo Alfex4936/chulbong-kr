@@ -27,7 +27,7 @@ type QueryParams struct {
 	Latitude  float64 `query:"latitude"`
 	Longitude float64 `query:"longitude"`
 	Distance  int     `query:"distance"`
-	N         int     `query:"n"`
+	PageSize  int     `query:"n"`
 	Page      int     `query:"page"`
 }
 

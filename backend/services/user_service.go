@@ -4,6 +4,7 @@ import (
 	"chulbong-kr/database"
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
+	"chulbong-kr/repository"
 	"chulbong-kr/util"
 	"context"
 	"database/sql"
@@ -23,25 +24,18 @@ import (
 var (
 	TOKEN_DURATION         time.Duration
 	NAVER_EMAIL_VERIFY_URL = os.Getenv("NAVER_EMAIL_VERIFY_URL")
+
+	userRepo = repository.NewUserRepository()
 )
 
 // GetUserById retrieves a user by their email address
 func GetUserById(userID int) (*models.User, error) {
-	var user models.User
-
-	// Define the query to select the user
-	query := `SELECT UserID, Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?`
-
-	// Execute the query
-	err := database.DB.Get(&user, query, userID)
+	user, err := userRepo.GetUserById(userID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("no user found with userID %d", userID)
-		}
-		return nil, fmt.Errorf("error fetching user by userID: %w", err)
+		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // GetUserByEmail retrieves a user by their email address
