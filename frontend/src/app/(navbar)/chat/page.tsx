@@ -1,5 +1,4 @@
 import BlackSideBody from "@/components/atom/BlackSideBody";
-import Heading from "@/components/atom/Heading";
 import ChatClient from "./ChatClient";
 
 interface Query {
@@ -17,9 +16,7 @@ export const generateMetadata = () => {
   };
 };
 
-const Chat = ({ searchParams }: Props) => {
-  const { ci } = searchParams;
-
+const Chat = () => {
   return (
     <BlackSideBody toggle bodyClass="p-0 mo:p-0">
       <ChatClient />
