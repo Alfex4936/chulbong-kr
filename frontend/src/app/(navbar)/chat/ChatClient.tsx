@@ -44,6 +44,7 @@ const ChatClient = () => {
   const [connectionMsg, setConnectionMsg] = useState("");
 
   const [roomTitle, setRoomTitle] = useState("");
+  const [roomSubTitle, setRoomSubTitle] = useState("");
 
   const [isChatError, setIsChatError] = useState(false);
 
@@ -56,8 +57,10 @@ const ChatClient = () => {
     const code = getRegion(address?.depth1 as string).getCode();
     if (!address || isError || code === "") {
       setConnectionMsg("채팅 서비스를 지원하지 않는 지역입니다!");
+      ws.current?.close();
       return;
     }
+    ws.current?.close();
 
     ws.current = new WebSocket(
       `wss://api.k-pullup.com/ws/${code}?request-id=${cidState.cid}`
@@ -74,12 +77,13 @@ const ChatClient = () => {
       const data: ChatMessage = JSON.parse(event.data);
       if (data.userNickname === "chulbong-kr") {
         const titleArr = data.message.split(" ");
+        setRoomTitle(titleArr[0]);
+        setRoomSubTitle(`${titleArr[1]} ${titleArr[2]} ${titleArr[3]}`);
 
-        titleArr[0] = getRegion(data.roomID).getTitle();
-        console.log(titleArr);
-        console.log(data.message);
+        // titleArr[0] = getRegion(data.roomID).getTitle();
+        // console.log(titleArr);
 
-        setRoomTitle(titleArr.join(" "));
+        // setRoomTitle(titleArr.join(" "));
       }
 
       setMessages((prevMessages) => [
@@ -103,7 +107,7 @@ const ChatClient = () => {
     };
 
     ws.current.onclose = () => {
-      setIsChatError(true);
+      // setIsChatError(true);
       console.log("연결 종료");
     };
 
@@ -157,7 +161,7 @@ const ChatClient = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <Heading title={`서울 채팅방`} subTitle="1명 접속 중" />
+      <Heading title={roomTitle} subTitle={roomSubTitle} />
       <div className="text-center text-sm text-grey-dark">{roomTitle}</div>
       <div
         className="grow w-full flex flex-col justify-between px-3"
