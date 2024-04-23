@@ -77,6 +77,7 @@ const ChatClient = () => {
 
         titleArr[0] = getRegion(data.roomID).getTitle();
         console.log(titleArr);
+        console.log(data.message);
 
         setRoomTitle(titleArr.join(" "));
       }
@@ -109,7 +110,7 @@ const ChatClient = () => {
     return () => {
       ws.current?.close();
     };
-  }, [address]);
+  }, [address?.depth1]);
 
   useEffect(() => {
     if (!ws) return;
@@ -155,7 +156,7 @@ const ChatClient = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100%-96px)]">
+    <div className="flex flex-col h-full">
       <Heading title={`서울 채팅방`} subTitle="1명 접속 중" />
       <div className="text-center text-sm text-grey-dark">{roomTitle}</div>
       <div

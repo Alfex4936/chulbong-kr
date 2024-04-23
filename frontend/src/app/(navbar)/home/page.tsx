@@ -12,7 +12,7 @@ const Home = async () => {
       <SearchInput />
       <NoticeSlide />
       <Separator className="my-8 bg-grey-dark-1" />
-      {/* <Ranking /> */}
+      <Ranking />
     </BlackSideBody>
   );
 };
