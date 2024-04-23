@@ -15,7 +15,7 @@ const Navigation = () => {
 
   return (
     <div
-      className="w-16 h-screen bg-black-light shadow-xl p-4 z-20 mo:w-screen mo:h-14 mo:flex 
+      className="w-16 h-screen bg-black-light shadow-xl p-4 z-20 mo:w-screen mo:h-14 mo:fixed mo:bottom-0 mo:flex 
                 mo:items-center mo:pl-0 mo:pr-0 mo:border-t mo:border-solid"
     >
       <div

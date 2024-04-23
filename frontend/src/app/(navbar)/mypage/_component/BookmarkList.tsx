@@ -1,37 +1,25 @@
+import GrowBox from "@/components/atom/GrowBox";
+import BookmarkIcon from "@/components/icons/BookmarkIcon";
+import { LocationIcon } from "@/components/icons/LocationIcons";
+import useDeleteFavorite from "@/hooks/mutation/favorites/useDeleteFavorite";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
-import { ComponentProps, useCallback } from "react";
-import { LocationIcon } from "../icons/LocationIcons";
-import GrowBox from "./GrowBox";
+import { useCallback } from "react";
 
-interface Props extends ComponentProps<"button"> {
-  styleType?: "ranking" | "normal";
+type Props = {
   title: string;
-  subTitle?: string;
-  ranking?: number;
+  subTitle: string;
   lat?: number;
   lng?: number;
-  markerId?: number;
-  icon?: string | React.ReactNode;
-  iconClickFn?: VoidFunction;
-}
+  markerId: number;
+};
 
-const MarkerListItem = ({
-  styleType = "normal",
-  title,
-  subTitle,
-  ranking,
-  lat,
-  lng,
-  markerId,
-  icon,
-  iconClickFn,
-  ...props
-}: Props) => {
+const BookmarkList = ({ title, subTitle, lat, lng, markerId }: Props) => {
   const { open } = useMobileMapOpenStore();
   const { setPosition } = useMapStatusStore();
   const { map, markers } = useMapStore();
+  const { mutate: deleteBookmark } = useDeleteFavorite(markerId);
 
   const moveLocation = useCallback(() => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
@@ -70,51 +58,28 @@ const MarkerListItem = ({
   };
 
   return (
-    <button
-      className={`flex w-full items-center ${
-        styleType === "ranking" ? "p-4" : "p-4"
-      } rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
-      onClick={filterClickMarker}
-      {...props}
+    <li
+      className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
     >
-      {styleType === "ranking" && (
-        <div className="mr-4">
-          {ranking}
-          <span className="text-xs text-grey-dark">등</span>
-        </div>
-      )}
-
-      {icon && (
-        <div
-          className="flex items-center justify-center mr-4 h-8 w-8 rounded-full"
-          onClick={(e) => {
-            if (!iconClickFn) return;
-            e.stopPropagation();
-            iconClickFn();
-          }}
-        >
-          {icon}
-        </div>
-      )}
+      <button
+        className="flex items-center justify-center mr-4 h-8 w-8 rounded-full"
+        onClick={() => deleteBookmark()}
+      >
+        <BookmarkIcon size={20} isActive />
+      </button>
 
       <div className="w-3/4">
-        <div
-          className={`truncate text-left mr-2 ${
-            styleType === "ranking" ? "text-sm" : "text-base"
-          }`}
-        >
-          {title}
-        </div>
+        <div className={`truncate text-left mr-2`}>{title}</div>
         <div className="truncate text-left text-xs text-grey-dark">
           {subTitle}
         </div>
       </div>
       <GrowBox />
-      <div>
+      <button onClick={filterClickMarker}>
         <LocationIcon selected={false} size={18} />
-      </div>
-    </button>
+      </button>
+    </li>
   );
 };
 
-export default MarkerListItem;
+export default BookmarkList;

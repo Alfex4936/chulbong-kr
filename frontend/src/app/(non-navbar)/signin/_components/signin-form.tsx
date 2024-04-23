@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+// 유효하지 않은 회원 에러 메시지
 
 const formSchema = z.object({
   email: z.string().email({
