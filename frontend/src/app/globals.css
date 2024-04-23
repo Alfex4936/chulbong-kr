@@ -109,6 +109,14 @@
   box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
 }
 
+@media (max-width: 540px) {
+  .overlay {
+    width: 240px;
+
+    margin-left: -127px;
+  }
+}
+
 .overlay::after {
   position: absolute;
   top: 100%;
@@ -171,6 +179,14 @@
   height: 100px;
 }
 
+@media (max-width: 540px) {
+  #overlay-mid {
+    flex-direction: column-reverse;
+
+    height: auto;
+  }
+}
+
 #overlay-info {
   /* border: 1px solid aqua; */
   display: flex;
@@ -180,6 +196,16 @@
   height: 100%;
 
   margin-right: 20px;
+}
+
+@media (max-width: 540px) {
+  #overlay-info {
+    margin-right: 0;
+    text-align: center;
+
+    margin-top: 1rem;
+    padding-inline: 1rem;
+  }
 }
 
 #overlay-info * {
@@ -212,6 +238,12 @@
   justify-content: space-between;
 
   width: 80%;
+}
+
+@media (max-width: 540px) {
+  #overlay-action {
+    margin: auto;
+  }
 }
 
 #overlay-action > button {
@@ -262,6 +294,7 @@
   background-size: 200% 100%;
   animation: skeleton-loading 1.5s infinite linear;
 }
+
 .skeleton-overlay::after {
   position: absolute;
   top: 100%;
@@ -280,6 +313,18 @@
   border-bottom: 0;
 
   animation: skeleton-loading 1.5s infinite linear;
+}
+
+@media (max-width: 540px) {
+  .skeleton-overlay {
+    left: 0;
+    bottom: 74px;
+
+    margin-left: -127px;
+
+    width: 240px;
+    height: 300px;
+  }
 }
 
 .on-loading {
