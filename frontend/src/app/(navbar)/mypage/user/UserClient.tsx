@@ -13,6 +13,7 @@ import useUpdateUserName from "@/hooks/mutation/user/useUpdateUserName";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import { useState } from "react";
 import ChangePassword from "./ChangePassword";
+import DeleteUserAlert from "./DeleteUserAlert";
 // TODO: 에러 토스트 팝업 연결
 // TODO: 탈퇴하기 연동
 
@@ -119,9 +120,7 @@ const UserClient = () => {
         </BlackLightBox>
       </div>
 
-      <div className="w-[90%] mx-auto">
-        <EmojiHoverButton emoji="❗" text="탈퇴하기" subText="다음에 만나요!" />
-      </div>
+      <DeleteUserAlert />
     </div>
   );
 };
