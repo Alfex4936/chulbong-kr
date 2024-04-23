@@ -77,7 +77,7 @@ const RootLayout = ({
             <ChatIdProvider>
               <Navigation />
               {children}
-              {/* <MapWrapper /> */}
+              <MapWrapper />
             </ChatIdProvider>
           </RQProvider>
         </ThemeProvider>
