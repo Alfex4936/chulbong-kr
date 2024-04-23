@@ -18,7 +18,7 @@ const Tabs = ({ title, tabs, children }: Props) => {
   }, [tabs[0]]);
 
   return (
-    <>
+    <div className="relative">
       <div className="flex mb-3">
         <div className="text-xl mr-1">{title}</div>
         <div className="flex items-end">
@@ -41,7 +41,7 @@ const Tabs = ({ title, tabs, children }: Props) => {
         </div>
       </div>
       {children}
-    </>
+    </div>
   );
 };
 
