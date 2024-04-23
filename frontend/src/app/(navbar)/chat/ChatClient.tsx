@@ -67,6 +67,7 @@ const ChatClient = () => {
     );
 
     ws.current.onopen = () => {
+      setMessages([]);
       setConnection(true);
       setConnectionMsg(
         "비속어 사용에 주의해주세요. 이후 서비스 사용이 제한될 수 있습니다!"
@@ -79,10 +80,12 @@ const ChatClient = () => {
         const titleArr = data.message.split(" ");
 
         titleArr[0] = getRegion(data.roomID).getTitle();
-        console.log("arr", titleArr);
-        console.log("msg", data.message);
 
-        setRoomTitle(titleArr.join(" "));
+        console.log("arr", titleArr[1]);
+        console.log(`${titleArr[1]} ${titleArr[1]} ${titleArr[3]}`);
+
+        setRoomSubTitle(`${titleArr[1]} ${titleArr[1]} ${titleArr[3]}`);
+        setRoomTitle(titleArr[0]);
       }
 
       setMessages((prevMessages) => [
