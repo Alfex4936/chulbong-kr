@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useSearchLocationData from "@/hooks/query/useSearchLocationData";
 import { useEffect, useState } from "react";
-// TODO: input fontSize 16px 이상 https://velog.io/@jungsu/iOSSafari-input-%EC%9D%98-focus-%ED%99%95%EB%8C%80-%EB%B0%A9%EC%A7%80%ED%95%98%EA%B8%B0
 
 const SearchInput = () => {
   const [query, setQuery] = useState("");

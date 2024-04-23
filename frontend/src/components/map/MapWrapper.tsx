@@ -11,7 +11,7 @@ const MapWrapper = () => {
   return (
     <>
       <Script
-        src="//dapi.kakao.com/v2/maps/sdk.js?appkey=dfdebaf84d7dda475fb8448c7d43c528&libraries=clusterer,services&autoload=false"
+        src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_APP_KEY}&libraries=clusterer,services&autoload=false`}
         onLoad={() => {
           window.kakao.maps.load(() => {
             setLoaded(true);

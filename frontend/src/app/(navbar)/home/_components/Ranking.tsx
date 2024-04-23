@@ -6,6 +6,7 @@ import {
   dehydrate,
 } from "@tanstack/react-query";
 import RankingResult from "./RankingResult";
+// TODO: 배포 사이트 서버사이드 프리페치 안됨
 
 const Ranking = async () => {
   const queryClient = new QueryClient();
