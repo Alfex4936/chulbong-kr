@@ -1,8 +1,9 @@
+import useMapStatusStore from "@/store/useMapStatusStore";
+import useMapStore from "@/store/useMapStore";
+import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import { ComponentProps, useCallback } from "react";
 import { LocationIcon } from "../icons/LocationIcons";
 import GrowBox from "./GrowBox";
-import useMapStore from "@/store/useMapStore";
-import useMapStatusStore from "@/store/useMapStatusStore";
 
 interface Props extends ComponentProps<"button"> {
   styleType?: "ranking" | "normal";
@@ -11,6 +12,7 @@ interface Props extends ComponentProps<"button"> {
   ranking?: number;
   lat?: number;
   lng?: number;
+  markerId: number;
 }
 
 const MarkerListItem = ({
@@ -20,24 +22,55 @@ const MarkerListItem = ({
   ranking,
   lat,
   lng,
+  markerId,
   ...props
 }: Props) => {
+  const { open } = useMobileMapOpenStore();
   const { setPosition } = useMapStatusStore();
-  const { map } = useMapStore();
+  const { map, markers } = useMapStore();
 
   const moveLocation = useCallback(() => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
 
     setPosition(lat as number, lng as number);
     map?.setCenter(moveLatLon);
+    open();
   }, [lat, lng, map]);
+
+  const filterClickMarker = () => {
+    if (!markers) return;
+    const imageSize = new window.kakao.maps.Size(39, 39);
+    const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+    const selectedMarkerImg = new window.kakao.maps.MarkerImage(
+      "/selectedMarker.svg",
+      imageSize,
+      imageOption
+    );
+
+    const activeMarkerImg = new window.kakao.maps.MarkerImage(
+      "/activeMarker.svg",
+      imageSize,
+      imageOption
+    );
+
+    markers.forEach((marker) => {
+      if (Number(marker.getTitle()) === markerId) {
+        marker.setImage(selectedMarkerImg);
+      } else {
+        marker.setImage(activeMarkerImg);
+      }
+    });
+
+    moveLocation();
+  };
 
   return (
     <button
       className={`flex w-full items-center ${
         styleType === "ranking" ? "p-4" : "p-1"
       } rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
-      onClick={moveLocation}
+      onClick={filterClickMarker}
       {...props}
     >
       {styleType === "ranking" && (
