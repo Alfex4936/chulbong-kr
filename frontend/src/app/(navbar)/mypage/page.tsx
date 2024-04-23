@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 import { cookies } from "next/headers";
 import MypageClient from "./MypageClient";
+// TODO: 내정보 캐싱 확인
 
 const myInfo = async (cookie: string): Promise<MyInfo> => {
   const res = await instance.get(
@@ -33,6 +34,8 @@ const Mypage = async () => {
   const cookieStore = cookies();
   const decodeCookie = decodeURIComponent(cookieStore.toString());
   const queryClient = new QueryClient();
+
+  await queryClient.invalidateQueries({ queryKey: ["user", "me"] });
 
   await queryClient.prefetchQuery({
     queryKey: ["user", "me"],
