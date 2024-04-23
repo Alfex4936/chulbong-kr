@@ -47,7 +47,7 @@ func HandleChatRoomHandler(c *websocket.Conn, markerID, reqID string) {
 
 	defer func() {
 		// On disconnect, remove the client from the room
-		services.WsRoomManager.RemoveWsFromRoom(markerID, clientId, c)
+		services.WsRoomManager.RemoveWsFromRoom(markerID, clientId)
 		// services.RemoveConnectionFromRedis(markerID, reqID)
 
 		// Broadcast leave message

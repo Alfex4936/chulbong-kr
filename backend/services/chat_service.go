@@ -33,7 +33,7 @@ var (
 	retryCtx, _ = context.WithCancel(context.Background())
 )
 
-var WsRoomManager *RoomConnectionManager = NewRoomConnectionManager()
+var WsRoomManager = NewRoomConnectionManager()
 
 type ChulbongConn struct {
 	Socket       *websocket.Conn
@@ -185,7 +185,7 @@ func (manager *RoomConnectionManager) BroadcastMessage(message []byte, userId, r
 		return
 	}
 
-	manager.connections.Range(func(key string, conns []*ChulbongConn) bool {
+	manager.connections.Range(func(_ string, conns []*ChulbongConn) bool {
 		// Iterate over the connections and send the message
 		for _, conn := range conns {
 			select {

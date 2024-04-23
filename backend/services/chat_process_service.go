@@ -10,6 +10,7 @@ import (
 	"github.com/goccy/go-json"
 )
 
+// ProcessMessageFromSubscription processes a message from a Redis subscription
 func ProcessMessageFromSubscription(msg []byte) {
 	var broadcastMsg dto.BroadcastMessage
 	err := json.Unmarshal(msg, &broadcastMsg)

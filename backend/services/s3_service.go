@@ -14,8 +14,10 @@ import (
 	"github.com/google/uuid"
 )
 
-var AWS_REGION string
-var S3_BUCKET_NAME string
+var (
+	AwsRegion    string
+	S3BucketName string
+)
 
 func UploadFileToS3(folder string, file *multipart.FileHeader) (string, error) {
 	// Open the uploaded file
@@ -27,7 +29,7 @@ func UploadFileToS3(folder string, file *multipart.FileHeader) (string, error) {
 
 	// Load the AWS credentials
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(AWS_REGION),
+		config.WithRegion(AwsRegion),
 	)
 	if err != nil {
 		return "", fmt.Errorf("could not load AWS credentials: %w", err)
@@ -48,7 +50,7 @@ func UploadFileToS3(folder string, file *multipart.FileHeader) (string, error) {
 
 	// Upload the file to S3
 	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: &S3_BUCKET_NAME,
+		Bucket: &S3BucketName,
 		Key:    &key,
 		Body:   fileData,
 	})
@@ -57,7 +59,7 @@ func UploadFileToS3(folder string, file *multipart.FileHeader) (string, error) {
 	}
 
 	// Construct the file URL
-	fileURL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", S3_BUCKET_NAME, key)
+	fileURL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", S3BucketName, key)
 
 	return fileURL, nil
 }
@@ -78,7 +80,7 @@ func DeleteDataFromS3(dataURL string) error {
 		key = strings.TrimPrefix(parsedURL.Path, "/")
 	} else {
 		// It's not a valid URL, treat it as a key
-		bucketName = S3_BUCKET_NAME
+		bucketName = S3BucketName
 		key = dataURL
 	}
 
@@ -88,7 +90,7 @@ func DeleteDataFromS3(dataURL string) error {
 
 	// Load the AWS credentials
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(AWS_REGION),
+		config.WithRegion(AwsRegion),
 	)
 	if err != nil {
 		return fmt.Errorf("could not load AWS credentials: %w", err)
@@ -144,7 +146,7 @@ func FetchAllPhotoURLsFromDB() ([]string, error) {
 func ListAllObjectsInS3() ([]string, error) {
 	// Load the AWS credentials
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(AWS_REGION),
+		config.WithRegion(AwsRegion),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error loading AWS config: %w", err)
@@ -152,7 +154,7 @@ func ListAllObjectsInS3() ([]string, error) {
 
 	s3Client := s3.NewFromConfig(cfg)
 	input := &s3.ListObjectsV2Input{
-		Bucket: &S3_BUCKET_NAME,
+		Bucket: &S3BucketName,
 	}
 
 	var s3Keys []string

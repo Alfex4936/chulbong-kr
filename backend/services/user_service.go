@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	TOKEN_DURATION         time.Duration
-	NAVER_EMAIL_VERIFY_URL = os.Getenv("NAVER_EMAIL_VERIFY_URL")
+	TokenDuration       time.Duration
+	NaverEmailVerifyURL = os.Getenv("NAVER_EMAIL_VERIFY_URL")
 
 	userRepo = repository.NewUserRepository()
 )
@@ -364,7 +364,7 @@ func GetUserFromContext(c *fiber.Ctx) (*dto.UserData, error) {
 // VerifyNaverEmail can check naver email existence before sending
 func VerifyNaverEmail(naverAddress string) (bool, error) {
 	naverAddress = strings.Split(naverAddress, "@naver.com")[0]
-	reqURL := fmt.Sprintf("%s=%s", NAVER_EMAIL_VERIFY_URL, naverAddress)
+	reqURL := fmt.Sprintf("%s=%s", NaverEmailVerifyURL, naverAddress)
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
 		return false, fmt.Errorf("creating request: %w", err)
@@ -393,9 +393,9 @@ func VerifyNaverEmail(naverAddress string) (bool, error) {
 	// Check if the body is non-empty and ends with 'N'
 	if len(bodyString) > 0 && bodyString[len(bodyString)-1] == 'N' {
 		return true, nil
-	} else {
-		return false, nil
 	}
+
+	return false, nil
 }
 
 // private

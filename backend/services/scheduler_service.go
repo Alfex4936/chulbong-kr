@@ -19,7 +19,7 @@ func RunAllCrons() {
 	CronResetClickRanking()
 	CronOrphanedPhotosCleanup()
 	CronCleanUpOldDirs()
-	CronProcessClickEventsBatch(RANK_UPDATE_TIME)
+	CronProcessClickEventsBatch(RankUpdateTime)
 }
 
 // CronService holds a reference to a cron scheduler and its related setup.
@@ -115,7 +115,7 @@ func CronProcessClickEventsBatch(interval time.Duration) {
 	// spec = "*/1 * * * *"
 
 	_, err := c.Schedule(spec, func() {
-		IncrementMarkerClicks(clickEventBuffer)
+		IncrementMarkerClicks(ClickEventBuffer)
 		// 처리 후 버퍼 초기화
 		// clickEventBuffer.Clear()
 	})
