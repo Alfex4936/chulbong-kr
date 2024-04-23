@@ -8,8 +8,10 @@ import { useEffect, useRef, useState } from "react";
 import MapLoading from "./MapLoading";
 import getWeather from "@/api/markers/getWeather";
 import getMarker from "@/api/markers/getMarker";
+import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 
 const Map = () => {
+  const { isOpen: isMobileMapOpen } = useMobileMapOpenStore();
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
 
   const { map, setMap, setClusterer } = useMapStore();
@@ -234,10 +236,10 @@ const Map = () => {
     }, 200);
 
     return () => clearTimeout(resizeTime);
-  }, [isOpen, mapLoading, map]);
+  }, [isOpen, mapLoading, map, isMobileMapOpen]);
 
   return (
-    <div className="relative w-full mo:hidden">
+    <div className="relative w-full h-screen">
       {mapLoading && <MapLoading />}
       <div
         id="map"

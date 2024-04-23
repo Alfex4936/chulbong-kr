@@ -5,9 +5,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import useAreaMarkerRankingData from "@/hooks/query/useAreaMarkerRankingData";
 import useMarkerRankingData from "@/hooks/query/useMarkerRankingData";
 import useMapStatusStore from "@/store/useMapStatusStore";
+import useMapStore from "@/store/useMapStore";
 import useTabStore from "@/store/useTabStore";
+import getAddress, { type AddressInfo } from "@/utils/getAddress";
+import { useEffect, useState } from "react";
 
 const RankingResult = () => {
+  const { map } = useMapStore();
   const { lat, lng } = useMapStatusStore();
   const { curTab } = useTabStore();
 
@@ -19,6 +23,17 @@ const RankingResult = () => {
     refetch: areaRankingRefetch,
     isFetching: isAreaFetching,
   } = useAreaMarkerRankingData(lat, lng, curTab === "주변");
+
+  const [address, setAddress] = useState("");
+
+  useEffect(() => {
+    if (!map) return;
+    const fetch = async () => {
+      const res: AddressInfo = (await getAddress(lat, lng)) as AddressInfo;
+      setAddress(res.address_name);
+    };
+    fetch();
+  }, [lat, lng, map]);
 
   if (curTab === "주변") {
     if (areaLoading || isAreaFetching) {
@@ -61,6 +76,9 @@ const RankingResult = () => {
         >
           새로고침
         </button>
+        <div className="text-sm text-grey-dark text-center mt-3 mb-1">
+          {address} 주변 랭킹
+        </div>
         {areaRanking?.map((marker, index) => {
           return (
             <MarkerListItem
