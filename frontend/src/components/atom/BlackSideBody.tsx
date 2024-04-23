@@ -28,7 +28,7 @@ const BlackSideBody = ({
             ? "max-w-[410px] mo:min-w-80 min-w-[410px] w-screen"
             : "max-w-[410px] web:w-0 mo:min-w-[320px] mo:w-screen"
         } bg-gradient-to-r from-black to-black-light shadow-lg h-screen
-        mo:h-[calc(100%-56px)] mo:m-auto z-10 web:duration-150`,
+        mo:h-[calc(100%-56px)] mo:m-auto mo:mb-14 z-10 web:duration-150`,
         containerClass
       )} // web:duration-150
     >

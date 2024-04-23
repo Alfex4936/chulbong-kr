@@ -7,8 +7,10 @@ import useLogout from "@/hooks/mutation/auth/useLogout";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import Link from "next/link";
 import Unauthenticated from "./_component/Unauthenticated";
+import { useRouter } from "next/navigation";
 
 const MypageClient = () => {
+  const router = useRouter();
 
   const { data: myInfo, isError } = useMyinfoData();
   const { mutate: logout } = useLogout();
@@ -37,11 +39,17 @@ const MypageClient = () => {
         <button className="h-full w-1/2 rounded-md hover:bg-black">설정</button>
       </div>
 
-      <EmojiHoverButton emoji="⭐" text="저장한 장소" subText="북마크 위치" />
+      <EmojiHoverButton
+        emoji="⭐"
+        text="저장한 장소"
+        subText="북마크 위치"
+        onClick={() => router.push("/mypage/bookmark")}
+      />
       <EmojiHoverButton
         emoji="🚩"
         text="등록한 장소"
         subText="내가 등록한 위치"
+        onClick={() => router.push("/mypage/mylocate")}
       />
 
       <div className="mt-10 mx-auto w-1/2">
