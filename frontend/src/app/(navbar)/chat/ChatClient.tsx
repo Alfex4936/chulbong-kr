@@ -76,11 +76,15 @@ const ChatClient = () => {
     ws.current.onmessage = async (event) => {
       const data: ChatMessage = JSON.parse(event.data);
       if (data.userNickname === "chulbong-kr") {
-        const titleArr = data.message.split(" ");
+        const titleArr = data.message.split(",");
 
         titleArr[0] = getRegion(data.roomID).getTitle();
         console.log(`arr: ${titleArr}`);
         console.log(`msg: ${data.message}`);
+
+        console.log(
+          `asd: ${(titleArr[0], titleArr[1], titleArr[2], titleArr[3])}`
+        );
 
         setRoomTitle(titleArr.join(" "));
       }
