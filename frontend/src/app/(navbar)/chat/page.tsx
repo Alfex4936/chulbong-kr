@@ -22,7 +22,6 @@ const Chat = ({ searchParams }: Props) => {
 
   return (
     <BlackSideBody toggle bodyClass="p-0 mo:p-0">
-      <Heading title={`${ci || "서울"} 채팅방`} subTitle="1명 접속 중" />
       <ChatClient />
     </BlackSideBody>
   );

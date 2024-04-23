@@ -1,5 +1,6 @@
 "use client";
 
+import Heading from "@/components/atom/Heading";
 import { Input } from "@/components/ui/input";
 import useAddressData from "@/hooks/common/useAddressData";
 import useInput from "@/hooks/common/useInput";
@@ -75,6 +76,7 @@ const ChatClient = () => {
         const titleArr = data.message.split(" ");
 
         titleArr[0] = getRegion(data.roomID).getTitle();
+        console.log(titleArr);
 
         setRoomTitle(titleArr.join(" "));
       }
@@ -143,14 +145,18 @@ const ChatClient = () => {
 
   if (isChatError) {
     return (
-      <div className="text-red text-center">
-        채팅을 불러오는데 실패하였습니다. <br /> 잠시 후 다시 시도해 주세요.
+      <div>
+        <Heading title={`서울 채팅방`} subTitle="1명 접속 중" />
+        <div className="text-red text-center">
+          채팅을 불러오는데 실패하였습니다. <br /> 잠시 후 다시 시도해 주세요.
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-[calc(100%-96px)]">
+      <Heading title={`서울 채팅방`} subTitle="1명 접속 중" />
       <div className="text-center text-sm text-grey-dark">{roomTitle}</div>
       <div
         className="grow w-full flex flex-col justify-between px-3"
