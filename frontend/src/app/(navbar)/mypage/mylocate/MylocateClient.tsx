@@ -77,7 +77,7 @@ const MylocateClient = () => {
       </ul>
 
       {hasNextPage && (
-        <div ref={boxRef} className="w-full h-12">
+        <div ref={boxRef} className="w-full h-12 px-4">
           <Skeleton className="w-full h-full rounded-sm bg-black-light-2" />
         </div>
       )}

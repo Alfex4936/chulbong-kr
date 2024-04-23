@@ -1,6 +1,12 @@
 import GrowBox from "@/components/atom/GrowBox";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import { LocationIcon } from "@/components/icons/LocationIcons";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import useDeleteMarker from "@/hooks/mutation/marker/useDeleteMarker";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
@@ -61,12 +67,18 @@ const MylocateList = ({ title, subTitle, lat, lng, markerId }: Props) => {
     <li
       className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
     >
-      <button
-        className="flex items-center justify-center mr-4 h-8 w-8 rounded-full"
-        onClick={() => deleteMarker()}
-      >
-        <DeleteIcon size={20} />
-      </button>
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger onClick={() => deleteMarker()}>
+            <div className="flex items-center justify-center mr-4 h-8 w-8 rounded-full">
+              <DeleteIcon size={20} />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>삭제</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <div className="w-3/4">
         <div className={`truncate text-left mr-2`}>{title}</div>
@@ -75,9 +87,19 @@ const MylocateList = ({ title, subTitle, lat, lng, markerId }: Props) => {
         </div>
       </div>
       <GrowBox />
-      <button onClick={filterClickMarker}>
-        <LocationIcon selected={false} size={18} />
-      </button>
+
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger onClick={filterClickMarker}>
+            <div>
+              <LocationIcon selected={false} size={18} />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>이동</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </li>
   );
 };
