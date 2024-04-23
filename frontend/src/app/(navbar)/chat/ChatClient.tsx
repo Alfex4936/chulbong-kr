@@ -77,13 +77,12 @@ const ChatClient = () => {
       const data: ChatMessage = JSON.parse(event.data);
       if (data.userNickname === "chulbong-kr") {
         const titleArr = data.message.split(" ");
-        setRoomTitle(titleArr[0]);
-        setRoomSubTitle(`${titleArr[1]} ${titleArr[2]} ${titleArr[3]}`);
 
-        // titleArr[0] = getRegion(data.roomID).getTitle();
-        // console.log(titleArr);
+        titleArr[0] = getRegion(data.roomID).getTitle();
+        console.log(`arr: ${titleArr}`);
+        console.log(`msg: ${data.message}`);
 
-        // setRoomTitle(titleArr.join(" "));
+        setRoomTitle(titleArr.join(" "));
       }
 
       setMessages((prevMessages) => [
@@ -162,7 +161,6 @@ const ChatClient = () => {
   return (
     <div className="flex flex-col h-full">
       <Heading title={roomTitle} subTitle={roomSubTitle} />
-      <div className="text-center text-sm text-grey-dark">{roomTitle}</div>
       <div
         className="grow w-full flex flex-col justify-between px-3"
         ref={chatBox}
