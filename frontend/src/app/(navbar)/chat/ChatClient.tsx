@@ -6,7 +6,7 @@ import useInput from "@/hooks/common/useInput";
 import useChatIdStore from "@/store/useChatIdStore";
 import getRegion from "@/utils/getRegion";
 import { Fragment, useEffect, useRef, useState } from "react";
-// TODO: input fontSize 16px 이상 https://velog.io/@jungsu/iOSSafari-input-%EC%9D%98-focus-%ED%99%95%EB%8C%80-%EB%B0%A9%EC%A7%80%ED%95%98%EA%B8%B0
+// TODO: 맵 옮길때마다 변하는거 방지
 
 export interface ChatMessage {
   uid: string;
