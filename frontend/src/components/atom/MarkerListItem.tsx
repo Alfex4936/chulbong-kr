@@ -12,7 +12,7 @@ interface Props extends ComponentProps<"button"> {
   ranking?: number;
   lat?: number;
   lng?: number;
-  markerId: number;
+  markerId?: number;
 }
 
 const MarkerListItem = ({
