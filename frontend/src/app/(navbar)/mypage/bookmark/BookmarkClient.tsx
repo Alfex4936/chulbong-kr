@@ -17,7 +17,7 @@ const BookmarkClient = () => {
             <BookmarkList
               key={bookmark.markerId}
               title={bookmark.address || "지원되지 않는 주소입니다."}
-              subTitle={bookmark.description || ""}
+              subTitle={bookmark.description || "작성된 설명이 없습니다."}
               lng={bookmark.longitude}
               lat={bookmark.latitude}
               markerId={bookmark.markerId}
