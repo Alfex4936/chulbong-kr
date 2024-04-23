@@ -14,7 +14,7 @@ func GenerateAndSaveToken(userID int) (string, error) {
 		return "", err
 	}
 
-	expiresAt := time.Now().Add(TOKEN_DURATION) // Use the global duration.
+	expiresAt := time.Now().Add(TokenDuration) // Use the global duration.
 	err = SaveOrUpdateOpaqueToken(userID, token, expiresAt)
 	if err != nil {
 		return "", err

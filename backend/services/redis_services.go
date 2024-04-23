@@ -98,7 +98,7 @@ func ResetCache(key string) error {
 func ResetAllCache(pattern string) error {
 	ctx := context.Background()
 
-	var cursor uint64 = 0
+	var cursor uint64
 	for {
 		// Build the SCAN command with the current cursor
 		scanCmd := RedisStore.B().Scan().Cursor(cursor).Match(pattern).Count(10).Build()

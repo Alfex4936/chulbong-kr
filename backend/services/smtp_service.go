@@ -191,8 +191,8 @@ func SendPasswordResetEmail(to, token string) error {
 	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: Password Reset for chulbong-kr\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", smtpUsername, to)
 
 	// Replace the {{RESET_LINK}} placeholder with the actual reset link
-	clientUrl := fmt.Sprintf("%s?token=%s&email=%s", frontendResetRouter, token, to)
-	htmlBody := strings.Replace(emailTemplateForReset, "{{RESET_LINK}}", clientUrl, -1)
+	clientURL := fmt.Sprintf("%s?token=%s&email=%s", frontendResetRouter, token, to)
+	htmlBody := strings.Replace(emailTemplateForReset, "{{RESET_LINK}}", clientURL, -1)
 
 	// Combine headers and HTML body into a single raw email message
 	message := []byte(headers + htmlBody)

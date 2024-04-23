@@ -24,14 +24,14 @@ const (
 )
 
 var (
-	KAKAO_AK = os.Getenv("KAKAO_AK")
+	KakaoAK = os.Getenv("KAKAO_AK")
 
 	HTTPClient = &http.Client{
 		Timeout: 10 * time.Second, // Set a timeout to avoid hanging requests indefinitely
 	}
 
-	IS_WATER_URL = os.Getenv("IS_WATER_API")
-	IS_WATER_KEY = os.Getenv("IS_WATER_API_KEY")
+	IsWaterURL = os.Getenv("IS_WATER_API")
+	IsWaterKEY = os.Getenv("IS_WATER_API_KEY")
 )
 
 // GetFacilitiesByMarkerID retrieves facilities for a given marker ID.
@@ -111,7 +111,7 @@ func FetchAddressFromAPI(latitude, longitude float64) (string, error) {
 		return "-1", fmt.Errorf("creating request: %w", err)
 	}
 
-	req.Header.Add("Authorization", "KakaoAK "+KAKAO_AK)
+	req.Header.Add("Authorization", "KakaoAK "+KakaoAK)
 	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return "-1", fmt.Errorf("executing request: %w", err)
@@ -151,7 +151,7 @@ func FetchXYFromAPI(address string) (float64, float64, error) {
 		return 0.0, 0.0, fmt.Errorf("creating request: %w", err)
 	}
 
-	req.Header.Add("Authorization", "KakaoAK "+KAKAO_AK)
+	req.Header.Add("Authorization", "KakaoAK "+KakaoAK)
 	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return 0.0, 0.0, fmt.Errorf("executing request: %w", err)
@@ -199,7 +199,7 @@ func FetchRegionFromAPI(latitude, longitude float64) (string, error) {
 		return "-1", fmt.Errorf("creating request: %w", err)
 	}
 
-	req.Header.Add("Authorization", "KakaoAK "+KAKAO_AK)
+	req.Header.Add("Authorization", "KakaoAK "+KakaoAK)
 	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return "-1", fmt.Errorf("executing request: %w", err)
@@ -275,7 +275,7 @@ func FetchWeatherFromAddress(latitude, longitude float64) (*kakao.WeatherRequest
 
 // FetchRegionWaterInfo checks if latitude/longitude is in the water possibly.
 func FetchRegionWaterInfo(latitude, longitude float64) (bool, error) {
-	reqURL := fmt.Sprintf("%s?latitude=%f&longitude=%f&rapidapi-key=%s", IS_WATER_URL, latitude, longitude, IS_WATER_KEY)
+	reqURL := fmt.Sprintf("%s?latitude=%f&longitude=%f&rapidapi-key=%s", IsWaterURL, latitude, longitude, IsWaterKEY)
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
 		return false, fmt.Errorf("creating request: %w", err)

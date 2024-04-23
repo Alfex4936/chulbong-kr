@@ -243,6 +243,7 @@ func setUpMiddlewares(app *fiber.App) {
 		Level: compress.LevelBestSpeed,
 	}))
 
+	// ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'"
 	app.Use(helmet.New(helmet.Config{XSSProtection: "1; mode=block"}))
 	app.Use(limiter.New(limiter.Config{
 		Next: func(c *fiber.Ctx) bool {
@@ -368,8 +369,8 @@ func setUpGlobals() {
 
 	// Initialize global variables
 	setTokenExpirationTime()
-	services.AWS_REGION = os.Getenv("AWS_REGION")
-	services.S3_BUCKET_NAME = os.Getenv("AWS_BUCKET_NAME")
+	services.AwsRegion = os.Getenv("AWS_REGION")
+	services.S3BucketName = os.Getenv("AWS_BUCKET_NAME")
 	util.LOGIN_TOKEN_COOKIE = os.Getenv("TOKEN_COOKIE")
 }
 
@@ -384,7 +385,7 @@ func setTokenExpirationTime() {
 	}
 
 	// Assign the converted duration to the global variable
-	services.TOKEN_DURATION = time.Duration(durationInt) * time.Hour
+	services.TokenDuration = time.Duration(durationInt) * time.Hour
 }
 
 // countAPIs counts the number of APIs in a Fiber app

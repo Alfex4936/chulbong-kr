@@ -62,7 +62,7 @@ func PostNotification(userId, notificationType, title, message string, metadata 
 }
 
 // GetNotifications retrieves notifications for a specific user (unviewed)
-func GetNotifications(userId string) ([]NotificationRedis, error) {
+func GetNotifications(userID string) ([]NotificationRedis, error) {
 	var notifications []Notification
 	const query = `(SELECT * FROM Notifications 
 		WHERE UserId = ? AND Viewed = FALSE 
@@ -71,7 +71,7 @@ func GetNotifications(userId string) ([]NotificationRedis, error) {
 		(SELECT * FROM Notifications 
 		WHERE NotificationType IN ('NewMarker', 'System', 'Other') AND Viewed = FALSE 
 		ORDER BY CreatedAt DESC)`
-	err := database.DB.Select(&notifications, query, userId)
+	err := database.DB.Select(&notifications, query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func GetNotifications(userId string) ([]NotificationRedis, error) {
 					results[idx] = mapToNotificationRedis(notif)
 				}
 			} else {
-				viewed, err := IsNotificationViewed(notif.NotificationId, userId)
+				viewed, err := IsNotificationViewed(notif.NotificationId, userID)
 				if err != nil {
 					errors <- err
 					return

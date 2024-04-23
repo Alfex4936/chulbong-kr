@@ -20,40 +20,44 @@ import (
 )
 
 // 클릭 이벤트를 저장할 임시 저장소
-var clickEventBuffer = csmap.Create(
-	csmap.WithShardCount[int, int](64),
-	csmap.WithCustomHasher[int, int](func(key int) uint64 {
-		// Convert int to a byte slice
-		bs := make([]byte, 8)
-		binary.LittleEndian.PutUint64(bs, uint64(key))
-		return xxh3.Hash(bs)
-	}),
+var (
+	ClickEventBuffer = csmap.Create(
+		csmap.WithShardCount[int, int](64),
+		csmap.WithCustomHasher[int, int](func(key int) uint64 {
+			// Convert int to a byte slice
+			bs := make([]byte, 8)
+			binary.LittleEndian.PutUint64(bs, uint64(key))
+			return xxh3.Hash(bs)
+		}),
+	)
+
+	SketchedLocations = csmap.Create(
+		csmap.WithShardCount[string, *hyperloglog.Sketch](64),
+		csmap.WithCustomHasher[string, *hyperloglog.Sketch](func(key string) uint64 {
+			return xxh3.HashString(key)
+		}),
+	)
 )
 
-var SketchedLocations = csmap.Create(
-	csmap.WithShardCount[string, *hyperloglog.Sketch](64),
-	csmap.WithCustomHasher[string, *hyperloglog.Sketch](func(key string) uint64 {
-		return xxh3.HashString(key)
-	}),
+const (
+	RankUpdateTime = 3 * time.Minute
+	MinClickRank   = 5
 )
-
-const RANK_UPDATE_TIME = 3 * time.Minute
-const MIN_CLICK_RANK = 5
 
 // 클릭 이벤트를 버퍼에 추가하는 함수
 func BufferClickEvent(markerID int) {
 	// 현재 클릭 수 조회
 	// 마커 ID가 존재하지 않으면 클릭 수를 1로 설정
-	clickEventBuffer.SetIfAbsent(markerID, 1)
+	ClickEventBuffer.SetIfAbsent(markerID, 1)
 
-	actual, ok := clickEventBuffer.Load(markerID)
+	actual, ok := ClickEventBuffer.Load(markerID)
 	if !ok {
 		return
 	}
 
 	// 마커 ID가 존재하면 클릭 수를 1 증가
 	newClicks := actual + 1
-	clickEventBuffer.Store(markerID, newClicks)
+	ClickEventBuffer.Store(markerID, newClicks)
 }
 
 func SaveUniqueVisitor(markerID string, uniqueUser string) {
@@ -99,13 +103,13 @@ func GetAllUniqueVisitorCounts() map[string]int {
 // 정해진 시간 간격마다 클릭 이벤트 배치 처리를 실행하는 함수
 func ProcessClickEventsBatch() {
 	// 일정 시간 간격으로 배치 처리 실행
-	ticker := time.NewTicker(RANK_UPDATE_TIME)
+	ticker := time.NewTicker(RankUpdateTime)
 	defer ticker.Stop() // 함수가 반환될 때 ticker를 정지
 
 	for range ticker.C {
-		IncrementMarkerClicks(clickEventBuffer)
+		IncrementMarkerClicks(ClickEventBuffer)
 		// 처리 후 버퍼 초기화
-		clickEventBuffer.Clear()
+		ClickEventBuffer.Clear()
 	}
 }
 
@@ -136,7 +140,7 @@ func GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr {
 	ctx := context.Background()
 
 	// Convert minClickRank to string and prepare for the ZRangeByScore command
-	minScore := strconv.Itoa(MIN_CLICK_RANK + 1) // "+1" to adjust for exclusive minimum
+	minScore := strconv.Itoa(MinClickRank + 1) // "+1" to adjust for exclusive minimum
 
 	// Use ZREVRANGEBYSCORE to get marker IDs in descending order based on score
 	markerScores, err := RedisStore.Do(ctx, RedisStore.B().Zrevrangebyscore().

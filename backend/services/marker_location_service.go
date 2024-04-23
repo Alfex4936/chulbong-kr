@@ -85,7 +85,7 @@ func FindRankedMarkersInCurrentArea(lat, long float64, distance, limit int) ([]d
 	}
 
 	ctx := context.Background()
-	floatMin := float64(MIN_CLICK_RANK)
+	floatMin := float64(MinClickRank)
 
 	result, _ := RedisStore.Do(ctx, RedisStore.B().Zmscore().Key("marker_clicks").Member(markerIDs...).Build()).AsFloatSlice()
 	rankedMarkers := make([]dto.MarkerWithDistance, 0, len(result))

@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	// cache to store encoded marker data
+	// MarkersLocalCache cache to store encoded marker data
 	MarkersLocalCache []byte // 400 kb is fine here
 	CacheMutex        sync.RWMutex
 )
@@ -76,11 +76,6 @@ func RegisterMarkerRoutes(api fiber.Router) {
 }
 
 func createMarkerWithPhotosHandler(c *fiber.Ctx) error {
-	// go services.ResetCache(services.ALL_MARKERS_KEY)
-	CacheMutex.Lock()
-	MarkersLocalCache = nil
-	CacheMutex.Unlock()
-
 	// Parse the multipart form
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -94,20 +89,51 @@ func createMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	}
 
 	// Location Must Be Inside South Korea
-	if !util.IsInSouthKoreaPrecisely(latitude, longitude) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations are only allowed within South Korea."})
-	}
+	// if !util.IsInSouthKoreaPrecisely(latitude, longitude) {
+	// 	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations are only allowed within South Korea."})
+	// }
+
+	errorChan := make(chan error)
+	defer close(errorChan)
+
+	go func() {
+		if inSKorea := util.IsInSouthKoreaPrecisely(latitude, longitude); !inSKorea {
+			errorChan <- fmt.Errorf("operation is only allowed within South Korea")
+		} else {
+			errorChan <- nil
+		}
+	}()
 
 	// Checking if there's a marker close to the latitude and longitude
-	if nearby, _ := services.IsMarkerNearby(latitude, longitude, 10); nearby {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "There is a marker already nearby."})
+	go func() {
+		if nearby, _ := services.IsMarkerNearby(latitude, longitude, 10); nearby {
+			errorChan <- fmt.Errorf("there is a marker already nearby")
+		} else {
+			errorChan <- nil
+		}
+	}()
+
+	description := GetDescriptionFromForm(form)
+
+	// Concurrent check for bad words
+	go func() {
+		if containsBadWord, _ := util.CheckForBadWords(description); containsBadWord {
+			errorChan <- fmt.Errorf("comment contains inappropriate content")
+		} else {
+			errorChan <- nil
+		}
+	}()
+
+	for i := 0; i < 3; i++ {
+		if err := <-errorChan; err != nil {
+			return c.Status(mapErrorToStatus(err.Error())).JSON(fiber.Map{"error": err.Error()})
+		}
 	}
 
-	// Set default description if it's empty or not provided
-	description := GetDescriptionFromForm(form)
-	if containsBadWord, _ := util.CheckForBadWords(description); containsBadWord {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment contains inappropriate content."})
-	}
+	// no errors
+	CacheMutex.Lock()
+	MarkersLocalCache = nil
+	CacheMutex.Unlock()
 
 	userId := c.Locals("userID").(int)
 
@@ -604,4 +630,15 @@ func GetMarkerIDFromForm(form *multipart.Form) string {
 		return descValues[0]
 	}
 	return ""
+}
+
+func mapErrorToStatus(errorMessage string) int {
+	switch errorMessage {
+	case "There is a marker already nearby.":
+		return fiber.StatusConflict
+	case "Comment contains inappropriate content.":
+		return fiber.StatusBadRequest
+	default:
+		return fiber.StatusInternalServerError
+	}
 }

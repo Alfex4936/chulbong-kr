@@ -24,8 +24,8 @@ func (manager *RoomConnectionManager) SaveConnection(markerID, clientId string, 
 	newConn := &ChulbongConn{
 		Socket:       conn,
 		UserID:       clientId,
-		Send:         make(chan []byte, 256), // Buffered channel
-		InActiveChan: make(chan struct{}, 10),
+		Send:         make(chan []byte, 10), // Buffered channel
+		InActiveChan: make(chan struct{}),
 	}
 	newConn.UpdateLastSeen()
 
@@ -233,7 +233,7 @@ func RemoveConnectionFromRedis(markerID, xRequestID string) {
 }
 
 // RemoveConnection removes a WebSocket connection associated with a id
-func (manager *RoomConnectionManager) RemoveWsFromRoom(markerID, clientId string, conn *websocket.Conn) {
+func (manager *RoomConnectionManager) RemoveWsFromRoom(markerID, clientId string) {
 	// manager.mu.Lock()         // Lock at the start of the method
 	// defer manager.mu.Unlock() // Unlock when the method returns
 
