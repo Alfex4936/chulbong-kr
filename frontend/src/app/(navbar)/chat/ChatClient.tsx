@@ -81,10 +81,11 @@ const ChatClient = () => {
 
         titleArr[0] = getRegion(data.roomID).getTitle();
 
-        console.log("arr", titleArr[1]);
-        console.log(`${titleArr[1]} ${titleArr[1]} ${titleArr[3]}`);
+        console.log("arr", titleArr);
+        console.log("a", titleArr[1]);
+        console.log("a", `${titleArr[1]} ${titleArr[1]} ${titleArr[3]}`);
 
-        setRoomSubTitle(`${titleArr[1]} ${titleArr[1]} ${titleArr[3]}`);
+        setRoomSubTitle(`${titleArr[1]} ${titleArr[2]} ${titleArr[3]}`);
         setRoomTitle(titleArr[0]);
       }
 
