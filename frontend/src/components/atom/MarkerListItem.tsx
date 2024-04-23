@@ -36,7 +36,7 @@ const MarkerListItem = ({
     <button
       className={`flex w-full items-center ${
         styleType === "ranking" ? "p-4" : "p-1"
-      } px-2 rounded-sm mb-2 hover:bg-zinc-700`}
+      } rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
       onClick={moveLocation}
       {...props}
     >
