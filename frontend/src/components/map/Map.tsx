@@ -14,7 +14,7 @@ const Map = () => {
   const { isOpen: isMobileMapOpen } = useMobileMapOpenStore();
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
 
-  const { map, setMap, setClusterer } = useMapStore();
+  const { map, setMap, setClusterer, setMarkers } = useMapStore();
   const { isOpen } = useBodyToggleStore();
 
   const { data: markers } = useAllMarkerData();
@@ -213,6 +213,7 @@ const Map = () => {
     setMapLoading(false);
     setMap(newMap);
     setClusterer(clusterer);
+    setMarkers(newMarkers);
 
     return () => {
       window.kakao.maps.event.removeListener(newMap, "dragend", handleDrag);

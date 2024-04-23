@@ -88,6 +88,7 @@ const RankingResult = () => {
               ranking={index + 1}
               lng={marker.longitude}
               lat={marker.latitude}
+              markerId={marker.markerId}
             />
           );
         })}
@@ -113,6 +114,7 @@ const RankingResult = () => {
             ranking={index + 1}
             lng={marker.longitude}
             lat={marker.latitude}
+            markerId={marker.markerId}
           />
         );
       })}

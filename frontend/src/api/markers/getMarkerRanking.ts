@@ -4,7 +4,7 @@ export interface RankingInfo {
   address: string;
   latitude: number;
   longitude: number;
-  makerId: number;
+  markerId: number;
 }
 
 const getMarkerRanking = async (): Promise<RankingInfo[]> => {
