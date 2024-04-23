@@ -21,9 +21,9 @@ const RQProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <QueryClientProvider client={client}>
       {children}
-      <ReactQueryDevtools
+      {/* <ReactQueryDevtools
         initialIsOpen={process.env.NEXT_PUBLIC_DEVELOP === "true"}
-      />
+      /> */}
     </QueryClientProvider>
   );
 };
