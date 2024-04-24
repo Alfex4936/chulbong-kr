@@ -9,8 +9,14 @@ import MapLoading from "./MapLoading";
 import getWeather from "@/api/markers/getWeather";
 import getMarker from "@/api/markers/getMarker";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
+import { useRouter } from "next/navigation";
+import deleteFavorite from "@/api/favorite/deleteFavorite";
+import setFavorite from "@/api/favorite/setFavorite";
+import { type Photo } from "@/types/Marker.types";
 
 const Map = () => {
+  const router = useRouter();
+
   const { isOpen: isMobileMapOpen } = useMobileMapOpenStore();
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
 
@@ -83,57 +89,59 @@ const Map = () => {
         zIndex: 4,
       });
 
+      let markerLoading = false;
+      let weatherLoading = false;
+
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
+        if (weatherLoading || markerLoading) return;
         content.innerHTML = "";
-        const infoBox = `
-        <div id="overlay-top">
-          <div id="overlay-weather">
-            <div>
-              <img id="overlay-weather-icon" />
+        const infoBox = /* HTML */ `
+          <div id="overlay-top">
+            <div id="overlay-weather">
+              <div>
+                <img id="overlay-weather-icon" />
+              </div>
+              <div id="overlay-weather-temp"></div>
             </div>
-            <div id="overlay-weather-temp"></div>
+            <button id="overlay-close">닫기</button>
           </div>
-          <button id="overlay-close">닫기</button>
-        </div>
-        <div id="overlay-mid">
-          <div id="overlay-info">
-            <div id="overlay-title"></div>
-            <div id="overlay-link">
-              <a>상세보기</a>
-              <a>정보 수정 제안</a>
+          <div id="overlay-mid">
+            <div id="overlay-info">
+              <div id="overlay-title"></div>
+              <div id="overlay-link">
+                <button id="item-detail-link">상세보기</button>
+                <button>정보 수정 제안</button>
+              </div>
+              <div class="empty-grow"></div>
+              <div id="overlay-action">
+                <button id="bookmark-button">
+                  <div>
+                    <img
+                      id="bookmark-button-img"
+                      src="/bookmark-02.svg"
+                      alt="bookmark"
+                    />
+                  </div>
+                  <div id="bookmark-text">북마크</div>
+                </button>
+                <button>
+                  <div>
+                    <img src="/roadview.svg" alt="roadview" />
+                  </div>
+                  <div>거리뷰</div>
+                </button>
+                <button>
+                  <div>
+                    <img src="/share-08.svg" alt="share" />
+                  </div>
+                  <div>공유</div>
+                </button>
+              </div>
             </div>
-            <div class="empty-grow"></div>
-            <div id="overlay-action">
-              <button>
-                <div>
-                  <img src="/bookmark-02.svg" alt="bookmark"/>
-                </div>
-                <div>
-                  저장
-                </div>
-              </button>
-              <button>
-                <div>
-                  <img src="/roadview.svg" alt="roadview"/>
-                </div>
-                <div>
-                  거리뷰
-                </div>
-              </button>
-              <button>
-                <div>
-                  <img src="/share-08.svg" alt="share"/>
-                </div>
-                <div>
-                  거리뷰
-                </div>
-              </button>
+            <div id="overlay-image-container">
+              <img id="overlay-image" />
             </div>
           </div>
-          <div id="overlay-image-container">
-            <img id="overlay-image" />
-          </div>
-        </div>
         `;
 
         content.className = "overlay";
@@ -152,13 +160,88 @@ const Map = () => {
         skeletonOverlay.setMap(newMap);
         skeletonOverlay.setPosition(latlng);
 
-        const { iconImage, temperature, desc } = await getWeather(
-          marker.latitude,
-          marker.longitude
-        );
-        const { description, address, favorited, photos } = await getMarker(
-          marker.markerId
-        );
+        // 마커 정보
+        let description: string = "";
+        let address: string = "";
+        let favorited: boolean = false;
+        let photos: Photo[] = [];
+        let markerError = false;
+        // 날씨 정보
+        let iconImage: string = "";
+        let temperature: string = "";
+        let desc: string = "";
+        let weatherError = false;
+        // 북마크 정보
+        let addBookmarkLoading = false;
+        let addBookmarkError = false;
+        let deleteBookmarkLoading = false;
+        let deleteBookmarkError = false;
+
+        const fetchMarker = async () => {
+          markerLoading = true;
+          try {
+            const res = await getMarker(marker.markerId);
+            description = res.description;
+            address = res.address as string;
+            favorited = res.favorited as boolean;
+            photos = res.photos as Photo[];
+          } catch (error) {
+            markerError = true;
+            content.innerHTML = /* HTML */ `
+              <div class="error-box">
+                <span>잘못된 위치입니다. 잠시 후 다시 시도해 주세요.</span>
+                <span><button id="error-close">닫기</button></span>
+              </div>
+            `;
+            const errorCloseBtn = document.getElementById("error-close");
+            errorCloseBtn?.addEventListener("click", () => {
+              overlay.setMap(null);
+            });
+          } finally {
+            markerLoading = false;
+          }
+        };
+
+        const fetchWeather = async () => {
+          weatherLoading = true;
+          try {
+            const res = await getWeather(marker.latitude, marker.longitude);
+            iconImage = res.iconImage;
+            temperature = res.temperature;
+            desc = res.desc;
+          } catch (error) {
+            weatherError = true;
+          } finally {
+            weatherLoading = false;
+          }
+        };
+
+        const addBookmark = async () => {
+          addBookmarkLoading = true;
+          try {
+            const res = await setFavorite(marker.markerId);
+            return res;
+          } catch (error) {
+            addBookmarkError = true;
+          } finally {
+            addBookmarkLoading = false;
+          }
+        };
+
+        const deleteBookmark = async () => {
+          deleteBookmarkLoading = true;
+          try {
+            const res = await deleteFavorite(marker.markerId);
+            return res;
+          } catch (error) {
+            deleteBookmarkError = true;
+          } finally {
+            deleteBookmarkLoading = false;
+          }
+        };
+
+        await fetchMarker();
+        await fetchWeather();
 
         skeletonOverlay.setMap(null);
 
@@ -190,11 +273,55 @@ const Map = () => {
         const imageBox = document.getElementById(
           "overlay-image"
         ) as HTMLImageElement;
-        imageBox.src = photos ? photos[0].photoUrl : "/metaimg.webp";
+        imageBox.src = photos ? photos[0]?.photoUrl : "/metaimg.webp";
         imageBox.onload = () => {
           imageBox.style.display = "block";
           imageContainer.classList.remove("on-loading");
         };
+
+        // 오버레이 상세보기 링크
+        const detailLink = document.getElementById(
+          "item-detail-link"
+        ) as HTMLAnchorElement;
+        detailLink.style.cursor = "pointer";
+        detailLink.addEventListener("click", () => {
+          router.push(`/pullup/${marker.markerId}`);
+        });
+
+        // 오버레이 북마크 버튼 이미지
+        const bookmarkBtnImg = document.getElementById(
+          "bookmark-button-img"
+        ) as HTMLImageElement;
+        bookmarkBtnImg.src = favorited
+          ? "/bookmark-03.svg"
+          : "/bookmark-02.svg";
+
+        // 오버레이 북마크 버튼 액션
+        const bookmarkBtn = document.getElementById(
+          "bookmark-button-img"
+        ) as HTMLButtonElement;
+        const bookmarkText = document.getElementById(
+          "bookmark-text"
+        ) as HTMLDivElement;
+        bookmarkBtn.addEventListener("click", async () => {
+          if (addBookmarkLoading || deleteBookmarkLoading) return;
+          bookmarkBtn.disabled = true;
+          if (favorited) {
+            bookmarkText.innerHTML = "취소중..";
+            await deleteBookmark();
+          } else if (!favorited) {
+            bookmarkText.innerHTML = "저장중..";
+            await addBookmark();
+          }
+          await fetchMarker();
+
+          bookmarkText.innerHTML = "북마크";
+          bookmarkBtnImg.src = favorited
+            ? "/bookmark-03.svg"
+            : "/bookmark-02.svg";
+
+          bookmarkBtn.disabled = false;
+        });
 
         // 오버레이 닫기 이벤트 등록
         const closeBtnBox = document.getElementById(
