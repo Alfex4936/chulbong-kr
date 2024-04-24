@@ -226,10 +226,10 @@
 
   margin-bottom: 0.5rem;
 }
-#overlay-link > a {
+#overlay-link > button {
   text-decoration: underline;
 }
-#overlay-link > a:first-of-type {
+#overlay-link > button:first-of-type {
   margin-right: 0.5rem;
 }
 
@@ -351,6 +351,22 @@
   100% {
     background-position: 200% 0;
   }
+}
+
+.error-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#error-close {
+  border-radius: 3px;
+
+  width: 50px;
+  height: 30px;
+}
+#error-close:hover {
+  background-color: #444;
 }
 
 @layer base {
