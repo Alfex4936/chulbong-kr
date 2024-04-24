@@ -186,6 +186,7 @@ func main() {
 	handlers.RegisterTossPaymentRoutes(api)
 	handlers.RegisterReportRoutes(api)
 	handlers.RegisterNotificationRoutes(api, websocketConfig)
+	handlers.RegisterSearchRoutes(api)
 
 	// Cron jobs
 	services.RunAllCrons()

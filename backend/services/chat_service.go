@@ -36,11 +36,11 @@ var (
 var WsRoomManager = NewRoomConnectionManager()
 
 type ChulbongConn struct {
-	Socket       *websocket.Conn
+	LastSeen     int64
 	UserID       string
+	Socket       *websocket.Conn
 	Send         chan []byte
 	InActiveChan chan struct{}
-	LastSeen     int64
 	// mu           sync.Mutex
 }
 type RoomConnectionManager struct {
@@ -74,7 +74,7 @@ func NewRoomConnectionManager() *RoomConnectionManager {
 	// manager.connections.SetHasher(CustomXXH3Hasher)
 	// Start the connection checker
 	manager.StartConnectionChecker()
-	manager.StartCleanUpProcessedMsg()
+	// manager.StartCleanUpProcessedMsg()
 
 	go processRetryQueue(retryCtx)
 	return manager
