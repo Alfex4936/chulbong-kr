@@ -5,6 +5,7 @@ const useMarkerRankingData = () => {
   return useQuery({
     queryKey: ["ranking", "top10"],
     queryFn: getMarkerRanking,
+    staleTime: 0,
   });
 };
 

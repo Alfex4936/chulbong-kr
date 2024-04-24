@@ -2,8 +2,8 @@
 
 import MarkerListItem from "@/components/atom/MarkerListItem";
 import { Skeleton } from "@/components/ui/skeleton";
-import useAreaMarkerRankingData from "@/hooks/query/useAreaMarkerRankingData";
-import useMarkerRankingData from "@/hooks/query/useMarkerRankingData";
+import useAreaMarkerRankingData from "@/hooks/query/marker/useAreaMarkerRankingData";
+import useMarkerRankingData from "@/hooks/query/marker/useMarkerRankingData";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useTabStore from "@/store/useTabStore";

@@ -8,6 +8,7 @@ const useAreaMarkerRankingData = (lat: number, lng: number, start: boolean) => {
       return getAriaMarkerRanking(lat, lng);
     },
 
+    staleTime: 0,
     enabled: start,
   });
 };
