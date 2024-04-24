@@ -1,7 +1,6 @@
 "use client";
 
 import BlackLightBox from "@/components/atom/BlackLightBox";
-import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
 import GrowBox from "@/components/atom/GrowBox";
 import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import EditIcon from "@/components/icons/EditIcon";
@@ -11,7 +10,8 @@ import { Separator } from "@/components/ui/separator";
 import useInput from "@/hooks/common/useInput";
 import useUpdateUserName from "@/hooks/mutation/user/useUpdateUserName";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import ChangePassword from "./ChangePassword";
 import DeleteUserAlert from "./DeleteUserAlert";
 // TODO: 에러 토스트 팝업 연결
@@ -35,6 +35,8 @@ const InfoList = ({ text, subText, buttonText }: Props) => {
 };
 
 const UserClient = () => {
+  const router = useRouter();
+
   const {
     mutate: updateName,
     isPending: isNameUpdate,
@@ -47,9 +49,12 @@ const UserClient = () => {
 
   const [nameInput, setNameInput] = useState(false);
 
+  useEffect(() => {
+    if (isError) router.push("/mypage");
+  }, [isError]);
+
   if (updateNameError) console.log(error);
 
-  if (isError) return <div>존재하지 않는 유저입니다.</div>;
   return (
     <div>
       <div className="mb-4 mt-5">

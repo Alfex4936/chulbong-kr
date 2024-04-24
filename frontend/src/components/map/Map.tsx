@@ -1,6 +1,6 @@
 "use client";
 
-import useAllMarkerData from "@/hooks/query/useAllMarkerData";
+import useAllMarkerData from "@/hooks/query/marker/useAllMarkerData";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
