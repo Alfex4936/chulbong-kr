@@ -11,3 +11,7 @@ badwords.txt
 *.py
 *.json
 dragonfly/
+zincsearch/markers.json
+zincsearch/Dockerfile.json
+zincsearch/fly.toml
+zincsearch/.dockerignore

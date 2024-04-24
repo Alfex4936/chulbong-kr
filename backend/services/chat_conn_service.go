@@ -157,7 +157,7 @@ func (manager *RoomConnectionManager) UpdateLastPing(markerID string, conn *webs
 }
 
 func (manager *RoomConnectionManager) StartConnectionChecker() {
-	ticker := time.NewTicker(60 * time.Minute)
+	ticker := time.NewTicker(30 * time.Minute)
 	go func() {
 		for range ticker.C {
 			manager.CheckConnections()

@@ -43,7 +43,7 @@ func updateUserHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userProfileKey := fmt.Sprintf("%s:%d:%s", services.USER_PROFILE_KEY, userData.UserID, userData.Username)
+	userProfileKey := fmt.Sprintf("%s:%d", services.USER_PROFILE_KEY, userData.UserID)
 	services.ResetCache(userProfileKey)
 
 	return c.JSON(user)
@@ -71,12 +71,13 @@ func profileHandler(c *fiber.Ctx) error {
 		return err // fiber err
 	}
 
-	userProfileKey := fmt.Sprintf("%s:%d:%s", services.USER_PROFILE_KEY, userData.UserID, userData.Username)
+	userProfileKey := fmt.Sprintf("%s:%d", services.USER_PROFILE_KEY, userData.UserID)
 
 	// Try to get the user profile from the cache first
 	cachedUser, cacheErr := services.GetCacheEntry[*models.User](userProfileKey)
 	if cacheErr == nil && cachedUser != nil {
 		// Cache hit, return the cached user
+		c.Append("X-Cache", "hit")
 		return c.JSON(cachedUser)
 	}
 
@@ -87,7 +88,7 @@ func profileHandler(c *fiber.Ctx) error {
 	}
 
 	// After fetching from the database
-	services.SetCacheEntry(userProfileKey, user, 10*time.Minute)
+	services.SetCacheEntry(userProfileKey, user, 15*time.Minute)
 
 	return c.JSON(user)
 }
