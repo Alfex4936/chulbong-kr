@@ -174,51 +174,33 @@ func (manager *RoomConnectionManager) CheckConnections() {
 	gracePeriod := 10 * time.Minute
 	now := time.Now()
 
-	// Temporary storage for IDs to delete and update
-	// toDelete := []string{}
-	toDelete := map[string][]*ChulbongConn{}
-	toUpdate := map[string][]*ChulbongConn{}
-
+	// It is safe to modify the map while iterating it
 	manager.connections.Range(func(id string, conns []*ChulbongConn) bool {
 		var activeConns []*ChulbongConn // Store active connections
-		var deadConns []*ChulbongConn   // Store dead connections
 
 		for _, conn := range conns {
 
-			if now.Sub(conn.GetLastSeen()) <= gracePeriod {
-				activeConns = append(activeConns, conn)
+			if now.Sub(conn.GetLastSeen()) > gracePeriod {
+				select {
+				case conn.InActiveChan <- struct{}{}:
+					// Message enqueued to be sent by writePump goroutine
+				default:
+					// Handle full send channel, e.g., by logging or closing the connection
+				}
 			} else {
-				deadConns = append(deadConns, conn)
+				activeConns = append(activeConns, conn)
 			}
 
 		}
 
 		// Decide whether to update or delete the marker based on active connections
 		if len(activeConns) > 0 {
-			toUpdate[id] = activeConns
+			manager.connections.Store(id, activeConns)
 		} else {
-			toDelete[id] = deadConns
+			manager.connections.Delete(id)
 		}
-
 		return true
 	})
-
-	// Apply updates and deletions
-	for id, conns := range toUpdate {
-		manager.connections.Store(id, conns)
-	}
-
-	for id, conns := range toDelete {
-		manager.connections.Delete(id)
-		for _, conn := range conns {
-			select {
-			case conn.InActiveChan <- struct{}{}:
-				// Message enqueued to be sent by writePump goroutine
-			default:
-				// Handle full send channel, e.g., by logging or closing the connection
-			}
-		}
-	}
 }
 
 func RemoveConnectionFromRedis(markerID, xRequestID string) {

@@ -32,6 +32,7 @@ var (
 
 	IsWaterURL = os.Getenv("IS_WATER_API")
 	IsWaterKEY = os.Getenv("IS_WATER_API_KEY")
+	CkURL      = os.Getenv("CK_URL")
 )
 
 // GetFacilitiesByMarkerID retrieves facilities for a given marker ID.
@@ -297,4 +298,53 @@ func FetchRegionWaterInfo(latitude, longitude float64) (bool, error) {
 	}
 
 	return apiResp.Water, nil
+}
+
+type DataItem struct {
+	Date          string  `json:"date"`
+	ChulbongCount int     `json:"chulbong_count"`
+	Longitude     float64 `json:"longitude"`
+	IsAble        int     `json:"is_able"`
+	ID            string  `json:"id"`
+	PyeongCount   int     `json:"pyeong_count"`
+	Latitude      float64 `json:"latitude"`
+}
+
+func FetchLatestMarkers(thresholdDateString string) ([]DataItem, error) {
+	req, err := http.NewRequest(http.MethodGet, CkURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var data []DataItem
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("unmarshalling response: %w", err)
+	}
+
+	var filteredData []DataItem
+	thresholdDate, err := time.Parse("2006-1-2", thresholdDateString)
+	if err != nil {
+		return nil, fmt.Errorf("parsing threshold date: %w", err)
+	}
+
+	for _, item := range data {
+		itemDate, err := time.Parse("2006-01-02", item.Date)
+		if err != nil {
+			return nil, fmt.Errorf("parsing date from data: %w", err)
+		}
+		if itemDate.Equal(thresholdDate) || itemDate.After(thresholdDate) {
+			filteredData = append(filteredData, item)
+		}
+	}
+	return filteredData, nil
 }

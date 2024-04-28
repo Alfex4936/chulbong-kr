@@ -7,6 +7,7 @@ import (
 	"chulbong-kr/protos"
 	"chulbong-kr/services"
 	"chulbong-kr/util"
+	"context"
 	"fmt"
 	"math"
 	"mime/multipart"
@@ -93,41 +94,60 @@ func createMarkerWithPhotosHandler(c *fiber.Ctx) error {
 	// 	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations are only allowed within South Korea."})
 	// }
 
-	errorChan := make(chan error)
-	defer close(errorChan)
+	var wg sync.WaitGroup
+	errorChan := make(chan *fiber.Error, 3) // Buffered channel based on number of goroutines
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // Ensure all paths cancel the context to prevent context leak
 
+	wg.Add(3) //three goroutines
+
+	// South Korea check goroutine
 	go func() {
+		defer wg.Done()
 		if inSKorea := util.IsInSouthKoreaPrecisely(latitude, longitude); !inSKorea {
-			errorChan <- fmt.Errorf("operation is only allowed within South Korea")
-		} else {
-			errorChan <- nil
+			select {
+			case errorChan <- fiber.NewError(fiber.StatusForbidden, "operation is only allowed within South Korea"):
+			case <-ctx.Done():
+			}
+			cancel() // Cancel other goroutines
 		}
 	}()
 
-	// Checking if there's a marker close to the latitude and longitude
+	// Marker proximity check goroutine
 	go func() {
+		defer wg.Done()
 		if nearby, _ := services.IsMarkerNearby(latitude, longitude, 10); nearby {
-			errorChan <- fmt.Errorf("there is a marker already nearby")
-		} else {
-			errorChan <- nil
+			select {
+			case errorChan <- fiber.NewError(fiber.StatusConflict, "there is a marker already nearby"):
+			case <-ctx.Done():
+			}
+			cancel() // Cancel other goroutines
 		}
 	}()
 
+	// Bad words check goroutine
 	description := GetDescriptionFromForm(form)
-
-	// Concurrent check for bad words
 	go func() {
+		defer wg.Done()
 		if containsBadWord, _ := util.CheckForBadWords(description); containsBadWord {
-			errorChan <- fmt.Errorf("comment contains inappropriate content")
-		} else {
-			errorChan <- nil
+			select {
+			case errorChan <- fiber.NewError(fiber.StatusBadRequest, "comment contains inappropriate content"):
+			case <-ctx.Done():
+			}
+			cancel() // Cancel other goroutines
 		}
 	}()
 
-	for i := 0; i < 3; i++ {
-		if err := <-errorChan; err != nil {
-			return c.Status(mapErrorToStatus(err.Error())).JSON(fiber.Map{"error": err.Error()})
-		}
+	// Wait for all goroutines to finish
+	go func() {
+		wg.Wait()
+		close(errorChan) // Close channel safely after all sends are done
+	}()
+
+	// Process errors as they come in
+	for err := range errorChan {
+		return c.Status(err.Code).JSON(fiber.Map{"error": err.Message})
+
 	}
 
 	// no errors
@@ -630,15 +650,4 @@ func GetMarkerIDFromForm(form *multipart.Form) string {
 		return descValues[0]
 	}
 	return ""
-}
-
-func mapErrorToStatus(errorMessage string) int {
-	switch errorMessage {
-	case "There is a marker already nearby.":
-		return fiber.StatusConflict
-	case "Comment contains inappropriate content.":
-		return fiber.StatusBadRequest
-	default:
-		return fiber.StatusInternalServerError
-	}
 }

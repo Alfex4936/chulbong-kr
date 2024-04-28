@@ -52,6 +52,7 @@ func ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 				zap.String("user_agent", userAgent),
 				zap.String("referer", referer),
 				zap.Duration("duration", duration),
+				// zap.String("error", err.Error()),
 				zap.Error(err), // Include the error if present
 			)
 
