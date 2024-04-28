@@ -214,6 +214,18 @@ func RemoveMarkerClick(markerID int) error {
 
 // Admin
 func ResetAndRandomizeClickRanking() {
+	ctx := context.Background()
+
+	// Check if the "marker_clicks" sorted set already has members
+	cardResp, err := RedisStore.Do(ctx, RedisStore.B().Zcard().Key("marker_clicks").Build()).AsInt64()
+	if err != nil {
+		return
+	}
+	if cardResp > 1 {
+		log.Println("marker_clicks already has members. Skipping reset and randomization.")
+		return
+	}
+
 	markers, err := GetAllMarkers()
 	if err != nil {
 		log.Printf("Error fetching markers: %v", err)
@@ -238,7 +250,6 @@ func ResetAndRandomizeClickRanking() {
 	// atomic
 	RedisStore.Dedicated(func(c rueidis.DedicatedClient) error {
 		// Start a transaction
-		ctx := context.Background()
 		c.Do(ctx, c.B().Multi().Build())
 
 		// Delete the existing "marker_clicks" sorted set

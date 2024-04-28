@@ -27,7 +27,7 @@ require (
 )
 
 require (
-	github.com/Alfex4936/tzf v1.0.5
+	github.com/Alfex4936/tzf v1.0.6
 	github.com/alphadose/haxmap v1.3.1
 	github.com/axiomhq/hyperloglog v0.0.0-20240319100328-84253e514e02
 	github.com/go-pdf/fpdf v0.9.0

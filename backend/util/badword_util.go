@@ -34,6 +34,7 @@ func CompileBadWordsPattern() error {
 
 func CheckForBadWords(input string) (bool, error) {
 	if badWordRegex == nil {
+		CompileBadWordsPattern()
 		return false, errors.New("bad words pattern not compiled")
 	}
 

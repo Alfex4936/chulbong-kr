@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// 1.0.5: 0.860s
+// 1.0.6: 0.481s
 func TestGetTimezoneName(t *testing.T) {
 	// Define test cases
 	var tests = []struct {

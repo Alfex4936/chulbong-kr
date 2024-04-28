@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"chulbong-kr/dto"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -38,15 +37,12 @@ func SearchMarkerAddress(term string) (dto.MarkerSearchResponse, error) {
 	if err != nil {
 		return apiResponse, err
 	}
-	log.Printf("📆 %s", string(jsonByte))
 
 	reqURL := fmt.Sprintf("%s/api/markers/_search", zincApi)
 	req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewBuffer(jsonByte))
 	if err != nil {
 		return apiResponse, fmt.Errorf("creating request: %w", err)
 	}
-
-	log.Printf(" 📆came")
 
 	req.SetBasicAuth(zincUser, zincPassword)
 	req.Header.Set("Content-Type", "application/json")
