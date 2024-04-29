@@ -5,9 +5,12 @@ import Script from "next/script";
 import { useState } from "react";
 import Map from "./Map";
 import MapLoading from "./MapLoading";
+import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
+import Roadview from "./Roadview";
 
 const MapWrapper = () => {
   const { isOpen } = useMobileMapOpenStore();
+  const { isOpen: isRoadview } = useRoadviewStatusStore();
 
   const [loaded, setLoaded] = useState(false);
 
@@ -32,6 +35,8 @@ const MapWrapper = () => {
         </div>
       )}
       {loaded && <Map />}
+
+      {loaded && isRoadview && <Roadview />}
     </div>
   );
 };
