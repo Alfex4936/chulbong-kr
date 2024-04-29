@@ -25,6 +25,7 @@ import {
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
 import { Button } from "../ui/button";
+import { useToast } from "../ui/use-toast";
 import MapLoading from "./MapLoading";
 
 const Map = () => {
@@ -34,6 +35,8 @@ const Map = () => {
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
   const { open: openRoadview, setPosition: setRoadview } =
     useRoadviewStatusStore();
+
+  const { toast } = useToast();
 
   const { map, setMap, setClusterer, setMarkers } = useMapStore();
   const { isOpen } = useBodyToggleStore();
@@ -101,6 +104,18 @@ const Map = () => {
         setRoadview(marker.latitude, marker.longitude);
       };
 
+      const copyTextToClipboard = async () => {
+        const url = `${process.env.NEXT_PUBLIC_URL}/pullup/${marker.markerId}`;
+        try {
+          await navigator.clipboard.writeText(url);
+          toast({
+            description: "링크 복사 완료",
+          });
+        } catch (err) {
+          alert("잠시 후 다시 시도해 주세요!");
+        }
+      };
+
       const newMarker = new window.kakao.maps.Marker({
         position: new window.kakao.maps.LatLng(
           marker.latitude,
@@ -152,7 +167,7 @@ const Map = () => {
                   </div>
                   <div>거리뷰</div>
                 </button>
-                <button>
+                <button id="share-button">
                   <div>
                     <img src="/share-08.svg" alt="share" />
                   </div>
@@ -355,6 +370,12 @@ const Map = () => {
           await changeRoadviewlocation();
           openRoadview();
         });
+
+        // 오버레이 공유 버튼
+        const shareButton = document.getElementById(
+          "share-button"
+        ) as HTMLButtonElement;
+        shareButton.addEventListener("click", copyTextToClipboard);
 
         // 오버레이 닫기 이벤트 등록
         const closeBtnBox = document.getElementById(
