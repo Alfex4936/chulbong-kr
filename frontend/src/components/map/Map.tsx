@@ -1,24 +1,39 @@
 "use client";
 
+import deleteFavorite from "@/api/favorite/deleteFavorite";
+import setFavorite from "@/api/favorite/setFavorite";
+import getMarker from "@/api/markers/getMarker";
+import getWeather from "@/api/markers/getWeather";
 import useAllMarkerData from "@/hooks/query/marker/useAllMarkerData";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
-import { useEffect, useRef, useState } from "react";
-import MapLoading from "./MapLoading";
-import getWeather from "@/api/markers/getWeather";
-import getMarker from "@/api/markers/getMarker";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
-import { useRouter } from "next/navigation";
-import deleteFavorite from "@/api/favorite/deleteFavorite";
-import setFavorite from "@/api/favorite/setFavorite";
+import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import { type Photo } from "@/types/Marker.types";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
+import { Button } from "../ui/button";
+import MapLoading from "./MapLoading";
 
 const Map = () => {
   const router = useRouter();
 
   const { isOpen: isMobileMapOpen } = useMobileMapOpenStore();
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
+  const { open: openRoadview, setPosition: setRoadview } =
+    useRoadviewStatusStore();
 
   const { map, setMap, setClusterer, setMarkers } = useMapStore();
   const { isOpen } = useBodyToggleStore();
@@ -27,7 +42,10 @@ const Map = () => {
 
   const [mapLoading, setMapLoading] = useState(true);
 
+  const [bookmarkError, setBookmarkError] = useState(false);
+
   const mapRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!markers) return;
@@ -79,6 +97,10 @@ const Map = () => {
     });
 
     const newMarkers = markers?.map((marker) => {
+      const changeRoadviewlocation = async () => {
+        setRoadview(marker.latitude, marker.longitude);
+      };
+
       const newMarker = new window.kakao.maps.Marker({
         position: new window.kakao.maps.LatLng(
           marker.latitude,
@@ -124,7 +146,7 @@ const Map = () => {
                   </div>
                   <div id="bookmark-text">북마크</div>
                 </button>
-                <button>
+                <button id="roadview-button">
                   <div>
                     <img src="/roadview.svg" alt="roadview" />
                   </div>
@@ -223,6 +245,7 @@ const Map = () => {
             return res;
           } catch (error) {
             addBookmarkError = true;
+            setBookmarkError(true);
           } finally {
             addBookmarkLoading = false;
           }
@@ -235,6 +258,7 @@ const Map = () => {
             return res;
           } catch (error) {
             deleteBookmarkError = true;
+            setBookmarkError(true);
           } finally {
             deleteBookmarkLoading = false;
           }
@@ -323,6 +347,15 @@ const Map = () => {
           bookmarkBtn.disabled = false;
         });
 
+        // 오보레이 로드뷰 버튼
+        const roadviewButton = document.getElementById(
+          "roadview-button"
+        ) as HTMLButtonElement;
+        roadviewButton.addEventListener("click", async () => {
+          await changeRoadviewlocation();
+          openRoadview();
+        });
+
         // 오버레이 닫기 이벤트 등록
         const closeBtnBox = document.getElementById(
           "overlay-close"
@@ -366,6 +399,12 @@ const Map = () => {
     return () => clearTimeout(resizeTime);
   }, [isOpen, mapLoading, map, isMobileMapOpen]);
 
+  useEffect(() => {
+    if (!modalRef) return;
+
+    if (bookmarkError) modalRef.current?.click();
+  }, [bookmarkError]);
+
   return (
     <div className="relative w-full h-screen">
       {mapLoading && <MapLoading />}
@@ -376,6 +415,29 @@ const Map = () => {
           mapLoading ? "hidden" : "block"
         }`}
       />
+      <AlertDialog>
+        <AlertDialogTrigger asChild className="hidden">
+          <Button variant="outline" ref={modalRef}>
+            Show Dialog
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>로그인 완료 시 이용 가능합니다.</AlertDialogTitle>
+            <AlertDialogDescription>
+              로그인 후 여러 위치를 관리해보세요!
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBookmarkError(false)}>
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.push("/signin")}>
+              로그인 하러가기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
