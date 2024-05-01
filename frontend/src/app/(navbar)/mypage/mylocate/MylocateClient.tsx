@@ -52,7 +52,7 @@ const MylocateClient = () => {
   return (
     <div>
       {mylocates?.pages[0].markers.length === 0 && (
-        <div>등록된 리뷰가 없습니다.</div>
+        <div className="text-center">등록된 장소가 없습니다.</div>
       )}
 
       <ul>

@@ -11,8 +11,10 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
+import { MOBILE_WIDTH } from "@/constants";
 import useDeleteFavorite from "@/hooks/mutation/favorites/useDeleteFavorite";
 import useSetFavorite from "@/hooks/mutation/favorites/useSetFavorite";
+import useDeleteMarker from "@/hooks/mutation/marker/useDeleteMarker";
 import useMarkerDislike from "@/hooks/mutation/marker/useMarkerDislike";
 import useUndoMarkerDislike from "@/hooks/mutation/marker/useUndoMarkerDislike";
 import useFacilitiesData from "@/hooks/query/marker/useFacilitiesData";
@@ -20,14 +22,20 @@ import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import useWeatherData from "@/hooks/query/marker/useWeatherData";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
+import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
+import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import formatDate from "@/utils/formatDate";
 import formatFacilities from "@/utils/formatFacilities";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
 
-// TODO: 모바일 text 사이즈 적용하기
+// TODO: 철봉 채팅 연결
+// TODO: 마커 리스트 클릭 상세페이지 연동
+// TODO: 정보 수정 연결 (정보 수정 제안 버튼 -> 같은 유저면 정보 수정으로)
+// TODO: 마커 생성
+// TODO: 맵 상세보기 시 모바일에서 맵 close
 
 // https://local.k-pullup.com:5173/pullup/5329
 
@@ -37,9 +45,14 @@ interface Props {
 
 const PullupClient = ({ markerId }: Props) => {
   const { toast } = useToast();
+  const { isOpen: isMobileMapOpen, open: openMobileMap } =
+    useMobileMapOpenStore();
 
-  const { markers, map } = useMapStore();
+  const { map, markers } = useMapStore();
   const { setPosition } = useMapStatusStore();
+
+  const { open: roadviewOpen, setPosition: setRoadview } =
+    useRoadviewStatusStore();
 
   const { data: marker, isError } = useMarkerData(markerId);
   const { data: facilities } = useFacilitiesData(markerId);
@@ -59,42 +72,46 @@ const PullupClient = ({ markerId }: Props) => {
     !!marker
   );
 
-  console.log(marker);
+  const { mutate: deleteMarker, isPending: deletePending } = useDeleteMarker({
+    id: markerId,
+    isRouting: true,
+  });
+
+  const [filterLoading, setFilterLoading] = useState(false);
+
+  // console.log(marker);
+
+  const changeRoadviewlocation = useCallback(async () => {
+    setRoadview(marker?.latitude as number, marker?.longitude as number);
+  }, [marker]);
 
   const facilitiesData = useMemo(() => {
     return formatFacilities(facilities as FacilitiesRes[]);
   }, [facilities]);
 
   useEffect(() => {
-    if (!markers || !map || !marker) return;
-
+    if (!marker || !map || !markers || filterLoading) return;
     const moveLocation = () => {
       const moveLatLon = new window.kakao.maps.LatLng(
         marker.latitude,
         marker.longitude
       );
-
-      setPosition(marker.latitude as number, marker.longitude as number);
+      setPosition(marker.latitude, marker.longitude);
       map.setCenter(moveLatLon);
     };
-
-    const filterClickMarker = () => {
-      if (!markers) return;
+    const filterClickMarker = async () => {
       const imageSize = new window.kakao.maps.Size(39, 39);
       const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
-
       const selectedMarkerImg = new window.kakao.maps.MarkerImage(
         "/selectedMarker.svg",
         imageSize,
         imageOption
       );
-
       const activeMarkerImg = new window.kakao.maps.MarkerImage(
         "/activeMarker.svg",
         imageSize,
         imageOption
       );
-
       markers.forEach((marker) => {
         if (Number(marker.getTitle()) === markerId) {
           marker.setImage(selectedMarkerImg);
@@ -102,12 +119,15 @@ const PullupClient = ({ markerId }: Props) => {
           marker.setImage(activeMarkerImg);
         }
       });
-
       moveLocation();
     };
 
-    filterClickMarker();
-  }, []);
+    const filter = async () => {
+      await filterClickMarker();
+      setFilterLoading(true);
+    };
+    filter();
+  }, [marker, map, markers, filterLoading]);
 
   const copyTextToClipboard = async () => {
     const url = `${process.env.NEXT_PUBLIC_URL}/pullup/${markerId}`;
@@ -181,7 +201,16 @@ const PullupClient = ({ markerId }: Props) => {
             else dislike();
           }}
         />
-        <IconButton right={10} top={130} icon={<DeleteIcon />} />
+        {marker.isChulbong && (
+          <IconButton
+            right={10}
+            top={130}
+            icon={deletePending ? <LoadingSpinner size="xs" /> : <DeleteIcon />}
+            onClick={() => deleteMarker()}
+            disabled={deletePending}
+          />
+        )}
+
         <div className="absolute top-0 left-0 w-full h-full bg-black-tp-dark z-10" />
       </div>
       {/* 기구 숫자 카드 */}
@@ -230,7 +259,15 @@ const PullupClient = ({ markerId }: Props) => {
                 {marker.address || "제공되는 주소가 없습니다."}
               </h1>
             </span>
-            <button>
+            <button
+              onClick={async () => {
+                if (window.innerWidth <= MOBILE_WIDTH) {
+                  openMobileMap();
+                }
+                await changeRoadviewlocation();
+                roadviewOpen();
+              }}
+            >
               <RoadViewIcon />
             </button>
           </div>

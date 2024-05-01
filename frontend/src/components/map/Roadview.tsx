@@ -2,9 +2,12 @@ import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import { type KakaoMap } from "@/types/KakaoMap.types";
 import { useEffect, useRef, useState } from "react";
 import MapWalker from "./MapWalker";
+import { useToast } from "../ui/use-toast";
 
 const Roadview = () => {
   const { lat, lng, close } = useRoadviewStatusStore();
+
+  const { toast } = useToast();
 
   const [mapHover, setMapHover] = useState(false);
   const [mapData, setMapData] = useState<KakaoMap | null>(null);
@@ -45,7 +48,12 @@ const Roadview = () => {
     const roadviewClient = new window.kakao.maps.RoadviewClient();
 
     roadviewClient.getNearestPanoId(mapCenter, 50, (panoId: number) => {
-      roadview.setPanoId(panoId, mapCenter);
+      if (panoId === null) {
+        toast({ description: "로드뷰를 지원하지 않는 주소입니다." });
+        close();
+      } else {
+        roadview.setPanoId(panoId, mapCenter);
+      }
     });
 
     let mapWalker: any = null;
@@ -103,11 +111,11 @@ const Roadview = () => {
     <div ref={mapWrapper}>
       <div
         ref={roadviewContainer}
-        className="absolute top-0 left-0 w-full h-full z-50"
+        className="absolute top-0 left-0 w-full h-full z-50 mo:h-[60%]"
       />
       <div
         ref={mapContainer}
-        className="absolute bottom-5 left-5 z-50 w-80 h-52 rounded-sm"
+        className="absolute bottom-5 left-5 z-50 w-80 h-52 rounded-sm mo:h-[calc(40%-56px)] mo:w-full mo:top-auto mo:bottom-14 mo:left-0"
         onMouseEnter={() => setMapHover(true)}
         onMouseLeave={() => setMapHover(false)}
       />
