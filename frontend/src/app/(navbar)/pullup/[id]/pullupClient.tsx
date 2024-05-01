@@ -1,6 +1,7 @@
 "use client";
 
 import { FacilitiesRes } from "@/api/markers/getFacilities";
+import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import BookmarkIcon from "@/components/icons/BookmarkIcon";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import DislikeIcon from "@/components/icons/DislikeIcon";
@@ -9,16 +10,23 @@ import ShareIcon from "@/components/icons/ShareIcon";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
+import useDeleteFavorite from "@/hooks/mutation/favorites/useDeleteFavorite";
+import useSetFavorite from "@/hooks/mutation/favorites/useSetFavorite";
+import useMarkerDislike from "@/hooks/mutation/marker/useMarkerDislike";
+import useUndoMarkerDislike from "@/hooks/mutation/marker/useUndoMarkerDislike";
 import useFacilitiesData from "@/hooks/query/marker/useFacilitiesData";
 import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import useWeatherData from "@/hooks/query/marker/useWeatherData";
+import useMapStatusStore from "@/store/useMapStatusStore";
+import useMapStore from "@/store/useMapStore";
 import formatDate from "@/utils/formatDate";
 import formatFacilities from "@/utils/formatFacilities";
-import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
+
 // TODO: 모바일 text 사이즈 적용하기
 
 // https://local.k-pullup.com:5173/pullup/5329
@@ -28,18 +36,90 @@ interface Props {
 }
 
 const PullupClient = ({ markerId }: Props) => {
+  const { toast } = useToast();
+
+  const { markers, map } = useMapStore();
+  const { setPosition } = useMapStatusStore();
+
   const { data: marker, isError } = useMarkerData(markerId);
   const { data: facilities } = useFacilitiesData(markerId);
 
+  const { mutate: dislike, isPending: dislikePending } =
+    useMarkerDislike(markerId);
+  const { mutate: undoDislike, isPending: undoDislikePending } =
+    useUndoMarkerDislike(markerId);
+
+  const { mutate: setFavorite, isPending: setFavoritePending } =
+    useSetFavorite(markerId);
+  const { mutate: deleteFavorite, isPending: deleteFavoritePending } =
+    useDeleteFavorite(markerId);
   const { data: weather, isLoading: weatherLoading } = useWeatherData(
     marker?.latitude as number,
     marker?.longitude as number,
     !!marker
   );
 
+  console.log(marker);
+
   const facilitiesData = useMemo(() => {
     return formatFacilities(facilities as FacilitiesRes[]);
   }, [facilities]);
+
+  useEffect(() => {
+    if (!markers || !map || !marker) return;
+
+    const moveLocation = () => {
+      const moveLatLon = new window.kakao.maps.LatLng(
+        marker.latitude,
+        marker.longitude
+      );
+
+      setPosition(marker.latitude as number, marker.longitude as number);
+      map.setCenter(moveLatLon);
+    };
+
+    const filterClickMarker = () => {
+      if (!markers) return;
+      const imageSize = new window.kakao.maps.Size(39, 39);
+      const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+      const selectedMarkerImg = new window.kakao.maps.MarkerImage(
+        "/selectedMarker.svg",
+        imageSize,
+        imageOption
+      );
+
+      const activeMarkerImg = new window.kakao.maps.MarkerImage(
+        "/activeMarker.svg",
+        imageSize,
+        imageOption
+      );
+
+      markers.forEach((marker) => {
+        if (Number(marker.getTitle()) === markerId) {
+          marker.setImage(selectedMarkerImg);
+        } else {
+          marker.setImage(activeMarkerImg);
+        }
+      });
+
+      moveLocation();
+    };
+
+    filterClickMarker();
+  }, []);
+
+  const copyTextToClipboard = async () => {
+    const url = `${process.env.NEXT_PUBLIC_URL}/pullup/${markerId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({
+        description: "링크 복사 완료",
+      });
+    } catch (err) {
+      alert("잠시 후 다시 시도해 주세요!");
+    }
+  };
 
   if (isError) return <div>X</div>;
   if (!marker) return;
@@ -68,9 +148,39 @@ const PullupClient = ({ markerId }: Props) => {
           </div>
         )}
 
-        <IconButton right={10} top={10} icon={<BookmarkIcon />} />
-        <IconButton right={10} top={50} icon={<ShareIcon />} />
-        <IconButton right={10} top={90} icon={<DislikeIcon />} />
+        <IconButton
+          right={10}
+          top={10}
+          icon={
+            setFavoritePending || deleteFavoritePending ? (
+              <LoadingSpinner size="xs" />
+            ) : (
+              <BookmarkIcon isActive={marker.favorited} />
+            )
+          }
+          onClick={() => {
+            if (marker.favorited) deleteFavorite();
+            else setFavorite();
+          }}
+          disabled={setFavoritePending || deleteFavoritePending}
+        />
+        <IconButton
+          right={10}
+          top={50}
+          icon={<ShareIcon />}
+          onClick={() => copyTextToClipboard()}
+        />
+        <IconButton
+          right={10}
+          top={90}
+          icon={<DislikeIcon isActive={marker.disliked || false} />}
+          numberState={marker.dislikeCount || 0}
+          disabled={dislikePending || undoDislikePending}
+          onClick={() => {
+            if (marker.disliked) undoDislike();
+            else dislike();
+          }}
+        />
         <IconButton right={10} top={130} icon={<DeleteIcon />} />
         <div className="absolute top-0 left-0 w-full h-full bg-black-tp-dark z-10" />
       </div>
@@ -83,20 +193,40 @@ const PullupClient = ({ markerId }: Props) => {
           >
             <div className="flex justify-between">
               <span>철봉</span>
-              <span>{facilitiesData.철봉}개</span>
+              <span
+                className={`${
+                  facilitiesData.철봉 === "개수 정보 없음"
+                    ? "text-[10px]"
+                    : "text-normal"
+                } flex items-center`}
+              >
+                {facilitiesData.철봉 === "개수 정보 없음"
+                  ? "개수 정보 없음"
+                  : `${facilitiesData.철봉}개`}
+              </span>
             </div>
             <Separator className="my-2 bg-grey-dark-1" />
             <div className="flex justify-between">
               <span>평행봉</span>
-              <span>{facilitiesData.평행봉}개</span>
+              <span
+                className={`${
+                  facilitiesData.평행봉 === "개수 정보 없음"
+                    ? "text-[10px]"
+                    : "text-normal"
+                } flex items-center`}
+              >
+                {facilitiesData.평행봉 === "개수 정보 없음"
+                  ? "개수 정보 없음"
+                  : `${facilitiesData.평행봉}개`}
+              </span>
             </div>
           </div>
         </div>
         {/* 정보 */}
         <div className="mt-4">
           <div className="flex items-center mb-[2px]">
-            <span className="mr-1">
-              <h1 className="whitespace-normal overflow-visible break-words w-3/4 truncate text-xl">
+            <span className="mr-1 w-3/4">
+              <h1 className="whitespace-normal overflow-visible break-words truncate text-xl">
                 {marker.address || "제공되는 주소가 없습니다."}
               </h1>
             </span>
@@ -109,12 +239,17 @@ const PullupClient = ({ markerId }: Props) => {
             <span>{formatDate(marker.createdAt)}</span>
             <span>({formatDate(marker.updatedAt)}업데이트)</span>
             <span className="mx-1">|</span>
-            <Link href={"/pullup/3000"} className="underline">
+            <button
+              className="underline"
+              onClick={() => toast({ description: "준비중입니다." })}
+            >
               정보 수정 제안
-            </Link>
+            </button>
           </div>
 
-          <h2>{marker.description || "작성된 설명이 없습니다."}</h2>
+          <h2 className="w-full break-words">
+            {marker.description || "작성된 설명이 없습니다."}
+          </h2>
         </div>
 
         <Separator className="my-3 bg-grey-dark-1" />

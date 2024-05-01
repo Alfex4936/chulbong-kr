@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { Nanum_Gothic } from "next/font/google";
 import Head from "next/head";
 import { Toaster } from "@/components/ui/toaster";
+import AlertLogin from "@/components/layout/AlertLogin";
 import "../globals.css";
 
 declare global {
@@ -79,7 +80,8 @@ const RootLayout = ({
               <Navigation />
               {children}
               <Toaster />
-              <MapWrapper />
+              {/* <MapWrapper /> */}
+              <AlertLogin />
             </ChatIdProvider>
           </RQProvider>
         </ThemeProvider>

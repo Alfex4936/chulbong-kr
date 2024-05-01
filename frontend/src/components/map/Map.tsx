@@ -6,6 +6,7 @@ import getMarker from "@/api/markers/getMarker";
 import getWeather from "@/api/markers/getWeather";
 import useAllMarkerData from "@/hooks/query/marker/useAllMarkerData";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
+import useLoginModalStateStore from "@/store/useLoginModalStateStore";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
@@ -13,23 +14,14 @@ import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import { type Photo } from "@/types/Marker.types";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../ui/alert-dialog";
-import { Button } from "../ui/button";
 import { useToast } from "../ui/use-toast";
 import MapLoading from "./MapLoading";
+import { isAxiosError } from "axios";
 
 const Map = () => {
   const router = useRouter();
+
+  const { open } = useLoginModalStateStore();
 
   const { isOpen: isMobileMapOpen } = useMobileMapOpenStore();
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
@@ -259,6 +251,13 @@ const Map = () => {
             const res = await setFavorite(marker.markerId);
             return res;
           } catch (error) {
+            if (isAxiosError(error)) {
+              if (error.response?.status === 401) open();
+            } else {
+              toast({
+                description: "잠시 후 다시 시도해 주세요",
+              });
+            }
             addBookmarkError = true;
             setBookmarkError(true);
           } finally {
@@ -420,12 +419,6 @@ const Map = () => {
     return () => clearTimeout(resizeTime);
   }, [isOpen, mapLoading, map, isMobileMapOpen]);
 
-  useEffect(() => {
-    if (!modalRef) return;
-
-    if (bookmarkError) modalRef.current?.click();
-  }, [bookmarkError]);
-
   return (
     <div className="relative w-full h-screen">
       {mapLoading && <MapLoading />}
@@ -436,29 +429,6 @@ const Map = () => {
           mapLoading ? "hidden" : "block"
         }`}
       />
-      <AlertDialog>
-        <AlertDialogTrigger asChild className="hidden">
-          <Button variant="outline" ref={modalRef}>
-            Show Dialog
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>로그인 완료 시 이용 가능합니다.</AlertDialogTitle>
-            <AlertDialogDescription>
-              로그인 후 여러 위치를 관리해보세요!
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setBookmarkError(false)}>
-              취소
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={() => router.push("/signin")}>
-              로그인 하러가기
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

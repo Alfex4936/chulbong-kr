@@ -1,19 +1,18 @@
-import setFavorite from "@/api/favorite/setFavorite";
+import markerDislike from "@/api/markers/markerDislike";
 import { useToast } from "@/components/ui/use-toast";
 import useLoginModalStateStore from "@/store/useLoginModalStateStore";
 import type { Marker } from "@/types/Marker.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 
-const useSetFavorite = (id: number) => {
+const useMarkerDislike = (id: number) => {
   const { open } = useLoginModalStateStore();
   const { toast } = useToast();
-
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: () => {
-      return setFavorite(id);
+      return markerDislike(id);
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["marker", id] });
@@ -23,17 +22,17 @@ const useSetFavorite = (id: number) => {
         id,
       ]) as Marker;
 
-      if (previousMarkerData.favCount) {
+      if (previousMarkerData.dislikeCount) {
         queryClient.setQueryData(["marker", id], {
           ...previousMarkerData,
-          favorited: true,
-          favCount: previousMarkerData.favCount + 1,
+          disliked: true,
+          dislikeCount: previousMarkerData.dislikeCount + 1,
         });
       } else {
         queryClient.setQueryData(["marker", id], {
           ...previousMarkerData,
-          favorited: true,
-          favCount: 1,
+          disliked: true,
+          dislikeCount: 1,
         });
       }
 
@@ -50,7 +49,6 @@ const useSetFavorite = (id: number) => {
       } else {
         toast({ description: "잠시 후 다시 시도해 주세요." });
       }
-      // open();
       if (context?.previousMarkerData) {
         queryClient.setQueryData(["marker", id], context.previousMarkerData);
       }
@@ -58,9 +56,8 @@ const useSetFavorite = (id: number) => {
 
     onSettled() {
       queryClient.invalidateQueries({ queryKey: ["marker", id] });
-      queryClient.invalidateQueries({ queryKey: ["marker", "bookmark"] });
     },
   });
 };
 
-export default useSetFavorite;
+export default useMarkerDislike;
