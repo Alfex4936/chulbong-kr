@@ -12,11 +12,11 @@ import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import { type Photo } from "@/types/Marker.types";
+import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../ui/use-toast";
 import MapLoading from "./MapLoading";
-import { isAxiosError } from "axios";
 
 const Map = () => {
   const router = useRouter();
@@ -40,10 +40,18 @@ const Map = () => {
   const [bookmarkError, setBookmarkError] = useState(false);
 
   const mapRef = useRef<HTMLDivElement>(null);
-  const modalRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!markers) return;
+
+    const imageSize = new window.kakao.maps.Size(39, 39);
+    const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+
+    const activeMarkerImg = new window.kakao.maps.MarkerImage(
+      "/activeMarker.svg",
+      imageSize,
+      imageOption
+    );
 
     const options = {
       center: new window.kakao.maps.LatLng(lat, lng),
@@ -65,15 +73,6 @@ const Map = () => {
 
     window.kakao.maps.event.addListener(newMap, "dragend", handleDrag);
     window.kakao.maps.event.addListener(newMap, "zoom_changed", handleZoom);
-
-    const imageSize = new window.kakao.maps.Size(39, 39);
-    const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
-
-    const activeMarkerImg = new window.kakao.maps.MarkerImage(
-      "/activeMarker.svg",
-      imageSize,
-      imageOption
-    );
 
     const clusterer = new window.kakao.maps.MarkerClusterer({
       map: newMap,

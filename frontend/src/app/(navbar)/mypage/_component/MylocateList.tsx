@@ -11,6 +11,7 @@ import useDeleteMarker from "@/hooks/mutation/marker/useDeleteMarker";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
+import Link from "next/link";
 import { useCallback } from "react";
 
 type Props = {
@@ -25,7 +26,7 @@ const MylocateList = ({ title, subTitle, lat, lng, markerId }: Props) => {
   const { open } = useMobileMapOpenStore();
   const { setPosition } = useMapStatusStore();
   const { map, markers } = useMapStore();
-  const { mutate: deleteMarker } = useDeleteMarker(markerId);
+  const { mutate: deleteMarker } = useDeleteMarker({ id: markerId });
 
   const moveLocation = useCallback(() => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
@@ -65,11 +66,16 @@ const MylocateList = ({ title, subTitle, lat, lng, markerId }: Props) => {
 
   return (
     <li
-      className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
+      className={`flex w-full items-center p-4 rounded-sm cursor-pointer mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
     >
       <TooltipProvider delayDuration={100}>
         <Tooltip>
-          <TooltipTrigger onClick={() => deleteMarker()}>
+          <TooltipTrigger
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteMarker();
+            }}
+          >
             <div className="flex items-center justify-center mr-4 h-8 w-8 rounded-full">
               <DeleteIcon size={20} />
             </div>
@@ -80,12 +86,12 @@ const MylocateList = ({ title, subTitle, lat, lng, markerId }: Props) => {
         </Tooltip>
       </TooltipProvider>
 
-      <div className="w-3/4">
-        <div className={`truncate text-left mr-2`}>{title}</div>
+      <Link href={`/pullup/${markerId}`} className="w-3/4">
+        <div className={`truncate text-left mr-2 hover:underline`}>{title}</div>
         <div className="truncate text-left text-xs text-grey-dark">
           {subTitle}
         </div>
-      </div>
+      </Link>
       <GrowBox />
 
       <TooltipProvider delayDuration={100}>
