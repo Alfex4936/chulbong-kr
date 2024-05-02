@@ -37,8 +37,12 @@
 - **커뮤니티 포럼**: 사용자들이 운동 팁, 턱걸이 바 추천 등을 공유할 수 있는 커뮤니티 공간.
 - **이벤트 및 챌린지**: 사용자들이 참여할 수 있는 운동 관련 이벤트 및 챌린지 개최.
 
+
 ### 기술 스택
+![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/f82e2295-ce31-4b48-af92-20a8471b7155)
+
+
 - **백엔드**: Go언어 Fiber v2, MySQL, AWS S3, LavinMQ (RabbitMQ), Redis, ZincSearch (ElasticSearch)
 - **프론트엔드**: React (TypeScript)
-- **개발 & 운영 효율성**: pprof, flamegraph, Uber's zap logger, Swagger OpenAPI
+- **개발 & 운영 효율성**: pprof, flamegraph, Uber's zap logger, Swagger OpenAPI, Prometheus+Grafana
 - **협업**: Slack (+ Slack API)
