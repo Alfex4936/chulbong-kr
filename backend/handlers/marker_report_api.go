@@ -82,7 +82,7 @@ func createReportHandler(c *fiber.Ctx) error {
 	}
 
 	description := GetDescriptionFromForm(form)
-	if containsBadWord, _ := util.CheckForBadWords(description); containsBadWord {
+	if containsBadWord, _ := util.CheckForBadWordsUsingTrie(description); containsBadWord {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment contains inappropriate content."})
 	}
 

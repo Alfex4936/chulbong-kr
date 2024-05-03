@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -13,11 +14,82 @@ import (
 	"chulbong-kr/dto"
 	"chulbong-kr/models"
 	"chulbong-kr/protos"
+	"chulbong-kr/util"
+
+	"github.com/gofiber/fiber/v2"
 )
 
-var CLIENT_ADDR = os.Getenv("CLIENT_ADDR")
+var (
+	CLIENT_ADDR = os.Getenv("CLIENT_ADDR")
+
+	// MarkersLocalCache cache to store encoded marker data
+	MarkersLocalCache []byte // 400 kb is fine here
+	CacheMutex        sync.RWMutex
+)
+
+func CheckMarkerValidity(latitude, longitude float64, description string) *fiber.Error {
+	var wg sync.WaitGroup
+	errorChan := make(chan *fiber.Error, 3) // Buffered channel based on number of goroutines
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // Ensure all paths cancel the context to prevent context leak
+
+	wg.Add(3) //three goroutines
+
+	// South Korea check goroutine
+	go func() {
+		defer wg.Done()
+		if inSKorea := util.IsInSouthKoreaPrecisely(latitude, longitude); !inSKorea {
+			select {
+			case errorChan <- fiber.NewError(fiber.StatusForbidden, "operation is only allowed within South Korea"):
+			case <-ctx.Done():
+			}
+			cancel() // Cancel other goroutines
+		}
+	}()
+
+	// Marker proximity check goroutine
+	go func() {
+		defer wg.Done()
+		if nearby, _ := IsMarkerNearby(latitude, longitude, 10); nearby {
+			select {
+			case errorChan <- fiber.NewError(fiber.StatusConflict, "there is a marker already nearby"):
+			case <-ctx.Done():
+			}
+			cancel() // Cancel other goroutines
+		}
+	}()
+
+	// Bad words check goroutine
+	go func() {
+		defer wg.Done()
+		if containsBadWord, _ := util.CheckForBadWordsUsingTrie(description); containsBadWord {
+			select {
+			case errorChan <- fiber.NewError(fiber.StatusBadRequest, "comment contains inappropriate content"):
+			case <-ctx.Done():
+			}
+			cancel() // Cancel other goroutines
+		}
+	}()
+
+	// Wait for all goroutines to finish
+	go func() {
+		wg.Wait()
+		close(errorChan) // Close channel safely after all sends are done
+	}()
+
+	// Process errors as they come in
+	for err := range errorChan {
+		return err
+	}
+
+	return nil
+}
 
 func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
+	CacheMutex.Lock()
+	MarkersLocalCache = nil
+	CacheMutex.Unlock()
+
 	// Begin a transaction for database operations
 	tx, err := database.DB.Beginx()
 	if err != nil {
@@ -88,8 +160,8 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 				time.Sleep(retryDelay) // Wait before retrying
 			}
 
-			address, err = FetchAddressFromAPI(latitude, longitude)
-			if err == nil && address != "-1" {
+			address, err = FetchAddressFromMap(latitude, longitude)
+			if err == nil && address != "" {
 				break // Success, exit the retry loop
 			}
 
@@ -153,6 +225,8 @@ func CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *mult
 		// }
 
 	}(markerID, markerDto.Latitude, markerDto.Longitude)
+
+	go ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
 
 	// Construct and return the response
 	return &dto.MarkerResponse{
