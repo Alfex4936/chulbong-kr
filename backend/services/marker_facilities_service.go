@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -21,6 +22,7 @@ const (
 	KAKAO_COORD2ADDR   = "https://dapi.kakao.com/v2/local/geo/coord2address.json"
 	KAKAO_COORD2REGION = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
 	KAKAO_WEATHER      = "https://map.kakao.com/api/dapi/point/weather?inputCoordSystem=WCONGNAMUL&outputCoordSystem=WCONGNAMUL&version=2&service=map.daum.net"
+	KAKAO_ADDRESS      = "https://map.kakao.com/etc/areaAddressInfo.json?output=JSON&inputCoordSystem=WCONGNAMUL&outputCoordSystem=WCONGNAMUL"
 )
 
 var (
@@ -66,7 +68,13 @@ func SetMarkerFacilities(markerID int, facilities []dto.FacilityQuantity) error 
 	}
 
 	// Commit the transaction
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+
+	ResetCache(fmt.Sprintf("facilities:%d", markerID))
+
+	return nil
 }
 
 // UpdateMarkersAddresses fetches all markers, updates their addresses using an external API, and returns the updated list.
@@ -142,6 +150,49 @@ func FetchAddressFromAPI(latitude, longitude float64) (string, error) {
 	}
 
 	return "", nil // Address data is empty but no error occurred
+}
+
+// FetchAddressFromMap queries the external API to get the address for a given latitude and longitude. (KakaoMap)
+func FetchAddressFromMap(latitude, longitude float64) (string, error) {
+	wcongnamul := util.ConvertWGS84ToWCONGNAMUL(latitude, longitude)
+
+	reqURL := fmt.Sprintf("%s&x=%f&y=%f", KAKAO_ADDRESS, wcongnamul.X, wcongnamul.Y)
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var apiResp kakao.KakaoMarkerData
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return "", fmt.Errorf("unmarshalling response: %w", err)
+	}
+
+	// Decide which address to return based on the presence of Old and New
+	if apiResp.New != nil && *apiResp.New.Name != "" {
+		address := *apiResp.New.Name
+		if apiResp.New.Building != nil && *apiResp.New.Building != "" {
+			address += " " + *apiResp.New.Building
+		}
+		return address, nil
+	} else if apiResp.Old != nil && *apiResp.Old.Name != "" {
+		address := *apiResp.Old.Name
+		if apiResp.Old.Building != nil && *apiResp.Old.Building != "" {
+			address += " " + *apiResp.Old.Building
+		}
+		return address, nil
+	}
+
+	return "", fmt.Errorf("no valid address found")
 }
 
 // FetchXYFromAPI queries the external API to get the latitude and longitude for a given address.
@@ -300,17 +351,36 @@ func FetchRegionWaterInfo(latitude, longitude float64) (bool, error) {
 	return apiResp.Water, nil
 }
 
-type DataItem struct {
-	Date          string  `json:"date"`
-	ChulbongCount int     `json:"chulbong_count"`
-	Longitude     float64 `json:"longitude"`
-	IsAble        int     `json:"is_able"`
-	ID            string  `json:"id"`
-	PyeongCount   int     `json:"pyeong_count"`
-	Latitude      float64 `json:"latitude"`
+type CustomString string
+
+func (cs *CustomString) UnmarshalJSON(data []byte) error {
+	var asFloat float64
+	if err := json.Unmarshal(data, &asFloat); err == nil {
+		*cs = CustomString(fmt.Sprintf("%f", asFloat))
+		return nil
+	}
+
+	var asString string
+	if err := json.Unmarshal(data, &asString); err == nil {
+		*cs = CustomString(asString)
+		return nil
+	}
+
+	return errors.New("value must be a float or string")
 }
 
-func FetchLatestMarkers(thresholdDateString string) ([]DataItem, error) {
+type DataItem struct {
+	Date          string       `json:"date"`
+	ChulbongCount int          `json:"chulbong_count"`
+	Longitude     CustomString `json:"longitude"`
+	IsAble        int          `json:"is_able"`
+	ID            string       `json:"id"`
+	PyeongCount   int          `json:"pyeong_count"`
+	Latitude      CustomString `json:"latitude"`
+	Address       string       `json:"address,omitempty"`
+}
+
+func FetchLatestMarkers(thresholdDate time.Time) ([]DataItem, error) {
 	req, err := http.NewRequest(http.MethodGet, CkURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
@@ -332,16 +402,12 @@ func FetchLatestMarkers(thresholdDateString string) ([]DataItem, error) {
 	}
 
 	var filteredData []DataItem
-	thresholdDate, err := time.Parse("2006-1-2", thresholdDateString)
-	if err != nil {
-		return nil, fmt.Errorf("parsing threshold date: %w", err)
-	}
-
 	for _, item := range data {
 		itemDate, err := time.Parse("2006-01-02", item.Date)
 		if err != nil {
-			return nil, fmt.Errorf("parsing date from data: %w", err)
+			continue
 		}
+
 		if itemDate.Equal(thresholdDate) || itemDate.After(thresholdDate) {
 			filteredData = append(filteredData, item)
 		}

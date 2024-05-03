@@ -2,15 +2,20 @@ package util
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
+
+	"github.com/rrethy/ahocorasick"
 )
 
 var (
 	badWordsList []string
 	badWordRegex *regexp.Regexp
+	matcher      *ahocorasick.Matcher
 )
 
 func CompileBadWordsPattern() error {
@@ -39,6 +44,64 @@ func CheckForBadWords(input string) (bool, error) {
 	}
 
 	return badWordRegex.MatchString(input), nil
+}
+
+// USE CheckForBadWords
+func CheckForBadWordsWithGo(input string) (bool, error) {
+	for _, word := range badWordsList {
+		if word == "" {
+			continue
+		}
+
+		// Check if the bad word is a substring of the input
+		if strings.Contains(input, word) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// USE CheckForBadWords
+func CheckForBadWordsWithGoRoutine(input string) (bool, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // Ensures context is canceled once we return.
+
+	resultChan := make(chan bool)
+	var wg sync.WaitGroup
+
+	for _, word := range badWordsList {
+		wg.Add(1)
+		go func(w string) {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return // Early exit on context cancellation.
+			default:
+				if w == "" {
+					return // Skip empty words.
+				}
+				if strings.Contains(input, w) {
+					resultChan <- true
+					cancel() // Found a bad word, signal to cancel other goroutines.
+				}
+			}
+		}(word)
+	}
+
+	// Close the resultChan once all goroutines have finished.
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// Process results.
+	for result := range resultChan {
+		if result {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func ReplaceBadWords(input string) (string, error) {
@@ -107,6 +170,19 @@ func LoadBadWords(filePath string) error {
 	// Optimize memory usage by shrinking the slice to the actual number of words.
 	badWordsList = append([]string{}, badWordsList...)
 
-	go CompileBadWordsPattern() // Compile in a goroutine if it's safe to do asynchronously.
+	// go CompileBadWordsPattern() // Compile in a goroutine if it's safe to do asynchronously.
+
+	// Compile the list of bad words into a trie (Aho-corasick Double-Array Trie)
+	matcher = ahocorasick.CompileStrings(badWordsList)
 	return nil
+}
+
+// CheckForBadWordsUsingTrie checks if the input contains any bad words using Aho-Corasick trie
+func CheckForBadWordsUsingTrie(input string) (bool, error) {
+	if matcher == nil {
+		matcher = ahocorasick.CompileStrings(badWordsList)
+		return false, os.ErrNotExist
+	}
+	matches := matcher.FindAllString(input)
+	return len(matches) > 0, nil
 }

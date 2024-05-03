@@ -72,6 +72,8 @@ func SaveUser(signUpReq *dto.SignUpRequest) (*models.User, error) {
 		}
 	}()
 
+	// /(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}/
+	// at least one digit (?=.*\d), one lowercase letter (?=.*[a-z]), and one uppercase letter (?=.*[A-Z]), all within a string of at least 8 characters.
 	hashedPassword, err := hashPassword(signUpReq.Password)
 	if err != nil {
 		return nil, err

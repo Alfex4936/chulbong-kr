@@ -159,7 +159,7 @@ func (manager *RoomConnectionManager) BroadcastMessageToRoom(roomID, message, us
 			case conn.Send <- msgJSON:
 				// Message enqueued to be sent by writePump goroutine
 			default:
-				// Handle full send channel, e.g., by logging or closing the connection
+				// full send channel
 				return fmt.Errorf("send channel for connection in room %s is full", roomID)
 			}
 		}

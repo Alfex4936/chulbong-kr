@@ -16,7 +16,7 @@ import (
 func RunAllCrons() {
 	CronCleanUpToken()
 	CronCleanUpPasswordTokens()
-	CronResetClickRanking()
+	// CronResetClickRanking()
 	CronOrphanedPhotosCleanup()
 	CronCleanUpOldDirs()
 	CronProcessClickEventsBatch(RankUpdateTime)

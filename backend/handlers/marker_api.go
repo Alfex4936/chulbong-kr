@@ -7,25 +7,17 @@ import (
 	"chulbong-kr/protos"
 	"chulbong-kr/services"
 	"chulbong-kr/util"
-	"context"
 	"fmt"
 	"math"
 	"mime/multipart"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/goccy/go-json"
 
 	"github.com/gofiber/fiber/v2"
 	"google.golang.org/protobuf/proto"
-)
-
-var (
-	// MarkersLocalCache cache to store encoded marker data
-	MarkersLocalCache []byte // 400 kb is fine here
-	CacheMutex        sync.RWMutex
 )
 
 // RegisterMarkerRoutes sets up the routes for markers handling within the application.
@@ -89,72 +81,14 @@ func createMarkerWithPhotosHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to parse latitude/longitude"})
 	}
 
-	// Location Must Be Inside South Korea
-	// if !util.IsInSouthKoreaPrecisely(latitude, longitude) {
-	// 	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations are only allowed within South Korea."})
-	// }
-
-	var wg sync.WaitGroup
-	errorChan := make(chan *fiber.Error, 3) // Buffered channel based on number of goroutines
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // Ensure all paths cancel the context to prevent context leak
-
-	wg.Add(3) //three goroutines
-
-	// South Korea check goroutine
-	go func() {
-		defer wg.Done()
-		if inSKorea := util.IsInSouthKoreaPrecisely(latitude, longitude); !inSKorea {
-			select {
-			case errorChan <- fiber.NewError(fiber.StatusForbidden, "operation is only allowed within South Korea"):
-			case <-ctx.Done():
-			}
-			cancel() // Cancel other goroutines
-		}
-	}()
-
-	// Marker proximity check goroutine
-	go func() {
-		defer wg.Done()
-		if nearby, _ := services.IsMarkerNearby(latitude, longitude, 10); nearby {
-			select {
-			case errorChan <- fiber.NewError(fiber.StatusConflict, "there is a marker already nearby"):
-			case <-ctx.Done():
-			}
-			cancel() // Cancel other goroutines
-		}
-	}()
-
-	// Bad words check goroutine
 	description := GetDescriptionFromForm(form)
-	go func() {
-		defer wg.Done()
-		if containsBadWord, _ := util.CheckForBadWords(description); containsBadWord {
-			select {
-			case errorChan <- fiber.NewError(fiber.StatusBadRequest, "comment contains inappropriate content"):
-			case <-ctx.Done():
-			}
-			cancel() // Cancel other goroutines
-		}
-	}()
 
-	// Wait for all goroutines to finish
-	go func() {
-		wg.Wait()
-		close(errorChan) // Close channel safely after all sends are done
-	}()
-
-	// Process errors as they come in
-	for err := range errorChan {
-		return c.Status(err.Code).JSON(fiber.Map{"error": err.Message})
-
+	// check first
+	if fErr := services.CheckMarkerValidity(latitude, longitude, description); fErr != nil {
+		return c.Status(fErr.Code).JSON(fiber.Map{"error": fErr.Message})
 	}
 
 	// no errors
-	CacheMutex.Lock()
-	MarkersLocalCache = nil
-	CacheMutex.Unlock()
-
 	userId := c.Locals("userID").(int)
 
 	marker, err := services.CreateMarkerWithPhotos(&dto.MarkerRequest{
@@ -168,8 +102,6 @@ func createMarkerWithPhotosHandler(c *fiber.Ctx) error {
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal error happened, try again later"})
 	}
-
-	go services.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userId))
 
 	return c.Status(fiber.StatusCreated).JSON(marker)
 }
@@ -198,9 +130,9 @@ func getAllMarkersLocalHandler(c *fiber.Ctx) error {
 	// 	return c.Redirect("https://k-pullup.com", fiber.StatusFound) // Use HTTP 302 for standard redirection
 	// }
 
-	CacheMutex.RLock()
-	cached := MarkersLocalCache
-	CacheMutex.RUnlock()
+	services.CacheMutex.RLock()
+	cached := services.MarkersLocalCache
+	services.CacheMutex.RUnlock()
 
 	c.Set("Content-type", "application/json")
 
@@ -223,9 +155,9 @@ func getAllMarkersLocalHandler(c *fiber.Ctx) error {
 	}
 
 	// Update cache
-	CacheMutex.Lock()
-	defer CacheMutex.Unlock()
-	MarkersLocalCache = markersJSON
+	services.CacheMutex.Lock()
+	services.MarkersLocalCache = markersJSON
+	services.CacheMutex.Unlock()
 
 	return c.Send(markersJSON)
 }
@@ -348,9 +280,9 @@ func deleteMarkerHandler(c *fiber.Ctx) error {
 	go services.RemoveMarkerClick(markerID)
 	// go services.ResetCache(services.ALL_MARKERS_KEY)
 
-	CacheMutex.Lock()
-	MarkersLocalCache = nil
-	CacheMutex.Unlock()
+	services.CacheMutex.Lock()
+	services.MarkersLocalCache = nil
+	services.CacheMutex.Unlock()
 
 	go services.ResetCache(fmt.Sprintf("facilities:%d", markerID))
 	go services.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
@@ -593,8 +525,6 @@ func setMarkerFacilitiesHandler(c *fiber.Ctx) error {
 	if err := services.SetMarkerFacilities(req.MarkerID, req.Facilities); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to set facilities for marker"})
 	}
-
-	services.ResetCache(fmt.Sprintf("facilities:%d", req.MarkerID))
 
 	return c.SendStatus(fiber.StatusOK)
 }

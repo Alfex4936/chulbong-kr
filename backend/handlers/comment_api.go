@@ -31,7 +31,7 @@ func postCommentHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	containsBadWord, _ := util.CheckForBadWords(req.CommentText)
+	containsBadWord, _ := util.CheckForBadWordsUsingTrie(req.CommentText)
 	if containsBadWord {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment contains inappropriate content."})
 	}

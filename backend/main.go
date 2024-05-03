@@ -402,7 +402,7 @@ func countAPIs(app *fiber.App) int {
 }
 
 func redisHealthCheck(rdb rueidis.Client) {
-	ticker := time.NewTicker(10 * time.Minute)
+	ticker := time.NewTicker(30 * time.Minute)
 	defer ticker.Stop()
 
 	for t := range ticker.C {
