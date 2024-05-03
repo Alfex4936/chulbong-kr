@@ -3,6 +3,7 @@
 import { FacilitiesRes } from "@/api/markers/getFacilities";
 import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import BookmarkIcon from "@/components/icons/BookmarkIcon";
+import ChatBubbleIcon from "@/components/icons/ChatBubbleIcon";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import DislikeIcon from "@/components/icons/DislikeIcon";
 import RoadViewIcon from "@/components/icons/RoadViewIcon";
@@ -26,12 +27,13 @@ import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import formatDate from "@/utils/formatDate";
 import formatFacilities from "@/utils/formatFacilities";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
 
-// TODO: 철봉 채팅 연결
+// TODO: 철봉 채팅 연결 -- 
 // TODO: 마커 리스트 클릭 상세페이지 연동
 // TODO: 정보 수정 연결 (정보 수정 제안 버튼 -> 같은 유저면 정보 수정으로)
 // TODO: 마커 생성
@@ -44,9 +46,10 @@ interface Props {
 }
 
 const PullupClient = ({ markerId }: Props) => {
+  const router = useRouter();
+
   const { toast } = useToast();
-  const { isOpen: isMobileMapOpen, open: openMobileMap } =
-    useMobileMapOpenStore();
+  const { open: openMobileMap } = useMobileMapOpenStore();
 
   const { map, markers } = useMapStore();
   const { setPosition } = useMapStatusStore();
@@ -201,10 +204,16 @@ const PullupClient = ({ markerId }: Props) => {
             else dislike();
           }}
         />
+        <IconButton
+          right={10}
+          top={130}
+          icon={<ChatBubbleIcon size={24} selected={false} />}
+          onClick={() => router.push(`/pullup/${markerId}/chat`)}
+        />
         {marker.isChulbong && (
           <IconButton
             right={10}
-            top={130}
+            top={170}
             icon={deletePending ? <LoadingSpinner size="xs" /> : <DeleteIcon />}
             onClick={() => deleteMarker()}
             disabled={deletePending}

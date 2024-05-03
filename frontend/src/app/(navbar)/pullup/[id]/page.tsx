@@ -9,7 +9,6 @@ import {
   dehydrate,
 } from "@tanstack/react-query";
 import PullupClient from "./pullupClient";
-import { cookies } from "next/headers";
 
 type Params = {
   id: string;
@@ -53,7 +52,7 @@ export const generateMetadata = async ({ params }: Props) => {
     const { address, description, favCount } = await getMarker(Number(id));
 
     return {
-      title: `철봉 | ${address}`,
+      title: `${address} | 철봉`,
       description: `즐거운 맨몸운동 생활 - ${description} - ${address} - 좋아요 : ${favCount}`,
     };
   } catch (error) {
