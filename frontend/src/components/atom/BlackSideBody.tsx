@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "../icons/ArrowIcons";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
+// TODO: 모바일 스크롤 멈춤 오류 해결하기
 
 type Props = {
   children: React.ReactNode;

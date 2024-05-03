@@ -2,12 +2,10 @@
 
 import Heading from "@/components/atom/Heading";
 import { Input } from "@/components/ui/input";
-import useAddressData from "@/hooks/common/useAddressData";
 import useInput from "@/hooks/common/useInput";
 import useChatIdStore from "@/store/useChatIdStore";
-import getRegion from "@/utils/getRegion";
 import { Fragment, useEffect, useRef, useState } from "react";
-// TODO: 처음 도매인 주소 입력으로 들어올 시 연결 안됨
+// TODO: 채팅 개발 배포 서버에서 확인 필요
 
 export interface ChatMessage {
   uid: string;
@@ -27,12 +25,14 @@ export interface Chatdata {
   userid: string;
 }
 
-const ChatClient = () => {
+interface Props {
+  markerId: number;
+}
+
+const PullupChatClient = ({ markerId }: Props) => {
   const cidState = useChatIdStore();
 
   const chatValue = useInput("");
-
-  const { address, isError } = useAddressData();
 
   const ws = useRef<WebSocket | null>(null);
   const chatBox = useRef<HTMLDivElement>(null);
@@ -49,21 +49,10 @@ const ChatClient = () => {
   const [isChatError, setIsChatError] = useState(false);
 
   useEffect(() => {
-    if (!inputRef.current) return;
-    inputRef.current.focus();
-  }, [inputRef]);
-
-  useEffect(() => {
-    const code = getRegion(address?.depth1 as string).getCode();
-    if (!address || isError || code === "") {
-      setConnectionMsg("채팅 서비스를 지원하지 않는 지역입니다!");
-      ws.current?.close();
-      return;
-    }
     ws.current?.close();
 
     ws.current = new WebSocket(
-      `wss://api.k-pullup.com/ws/${code}?request-id=${cidState.cid}`
+      `wss://api.k-pullup.com/ws/${markerId}?request-id=${cidState.cid}`
     );
 
     ws.current.onopen = () => {
@@ -77,12 +66,8 @@ const ChatClient = () => {
     ws.current.onmessage = async (event) => {
       const data: ChatMessage = JSON.parse(event.data);
       if (data.userNickname === "chulbong-kr") {
-        const titleArr = data.message.split(" ");
-
-        titleArr[0] = getRegion(data.roomID).getTitle();
-
-        setRoomSubTitle(`${titleArr[1]} ${titleArr[2]} ${titleArr[3]}`);
-        setRoomTitle(titleArr[0]);
+        setRoomTitle(data.message);
+        console.log(data.message);
       }
 
       setMessages((prevMessages) => [
@@ -112,7 +97,7 @@ const ChatClient = () => {
     return () => {
       ws.current?.close();
     };
-  }, [address?.depth1]);
+  }, []);
 
   useEffect(() => {
     if (!ws) return;
@@ -229,4 +214,4 @@ const ChatClient = () => {
   );
 };
 
-export default ChatClient;
+export default PullupChatClient;

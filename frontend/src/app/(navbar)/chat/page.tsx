@@ -1,14 +1,6 @@
 import BlackSideBody from "@/components/atom/BlackSideBody";
 import ChatClient from "./ChatClient";
 
-interface Query {
-  ci: number;
-}
-
-interface Props {
-  searchParams: Query;
-}
-
 export const generateMetadata = () => {
   return {
     title: "대한민국 철봉 지도 | 채팅",
