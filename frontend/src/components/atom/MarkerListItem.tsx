@@ -1,6 +1,7 @@
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
+import { useRouter } from "next/navigation";
 import { ComponentProps, useCallback } from "react";
 import { LocationIcon } from "../icons/LocationIcons";
 import GrowBox from "./GrowBox";
@@ -29,6 +30,8 @@ const MarkerListItem = ({
   iconClickFn,
   ...props
 }: Props) => {
+  const router = useRouter();
+
   const { open } = useMobileMapOpenStore();
   const { setPosition } = useMapStatusStore();
   const { map, markers } = useMapStore();
@@ -67,6 +70,7 @@ const MarkerListItem = ({
     });
 
     moveLocation();
+    router.push(`pullup/${markerId}`);
   };
 
   return (

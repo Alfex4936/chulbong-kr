@@ -33,8 +33,9 @@ import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
 
-// TODO: 철봉 채팅 연결 -- 
-// TODO: 마커 리스트 클릭 상세페이지 연동
+// TODO: 철봉 채팅 연결 --
+// TODO: 마커 상세보기 새로고침 선택
+// TODO: 마커 리스트 클릭 상세페이지 연동 --
 // TODO: 정보 수정 연결 (정보 수정 제안 버튼 -> 같은 유저면 정보 수정으로)
 // TODO: 마커 생성
 // TODO: 맵 상세보기 시 모바일에서 맵 close
@@ -92,45 +93,46 @@ const PullupClient = ({ markerId }: Props) => {
     return formatFacilities(facilities as FacilitiesRes[]);
   }, [facilities]);
 
-  useEffect(() => {
-    if (!marker || !map || !markers || filterLoading) return;
-    const moveLocation = () => {
-      const moveLatLon = new window.kakao.maps.LatLng(
-        marker.latitude,
-        marker.longitude
-      );
-      setPosition(marker.latitude, marker.longitude);
-      map.setCenter(moveLatLon);
-    };
-    const filterClickMarker = async () => {
-      const imageSize = new window.kakao.maps.Size(39, 39);
-      const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
-      const selectedMarkerImg = new window.kakao.maps.MarkerImage(
-        "/selectedMarker.svg",
-        imageSize,
-        imageOption
-      );
-      const activeMarkerImg = new window.kakao.maps.MarkerImage(
-        "/activeMarker.svg",
-        imageSize,
-        imageOption
-      );
-      markers.forEach((marker) => {
-        if (Number(marker.getTitle()) === markerId) {
-          marker.setImage(selectedMarkerImg);
-        } else {
-          marker.setImage(activeMarkerImg);
-        }
-      });
-      moveLocation();
-    };
+  // useEffect(() => {
+  //   if (!marker || !map || !markers || !markerId || filterLoading) return;
+  //   const moveLocation = async () => {
+  //     const moveLatLon = new window.kakao.maps.LatLng(
+  //       marker.latitude,
+  //       marker.longitude
+  //     );
+  //     setPosition(marker.latitude, marker.longitude);
+  //     map.setCenter(moveLatLon);
+  //   };
+  //   const filterClickMarker = async () => {
+  //     const imageSize = new window.kakao.maps.Size(39, 39);
+  //     const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+  //     const selectedMarkerImg = new window.kakao.maps.MarkerImage(
+  //       "/selectedMarker.svg",
+  //       imageSize,
+  //       imageOption
+  //     );
+  //     const activeMarkerImg = new window.kakao.maps.MarkerImage(
+  //       "/activeMarker.svg",
+  //       imageSize,
+  //       imageOption
+  //     );
+  //     markers.forEach((marker) => {
+  //       if (Number(marker.getTitle()) === markerId) {
+  //         marker.setImage(selectedMarkerImg);
+  //       } else {
+  //         marker.setImage(activeMarkerImg);
+  //       }
+  //     });
+  //     await moveLocation();
+  //   };
 
-    const filter = async () => {
-      await filterClickMarker();
-      setFilterLoading(true);
-    };
-    filter();
-  }, [marker, map, markers, filterLoading]);
+  //   const filter = async () => {
+  //     if (filterLoading) return;
+  //     await filterClickMarker();
+  //     setFilterLoading(true);
+  //   };
+  //   filter();
+  // }, [marker, map, markers, markerId]);
 
   const copyTextToClipboard = async () => {
     const url = `${process.env.NEXT_PUBLIC_URL}/pullup/${markerId}`;
