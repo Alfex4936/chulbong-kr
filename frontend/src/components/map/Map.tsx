@@ -13,13 +13,21 @@ import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import { type Photo } from "@/types/Marker.types";
 import { isAxiosError } from "axios";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../ui/use-toast";
 import MapLoading from "./MapLoading";
 
 const Map = () => {
+  const pathname = usePathname();
   const router = useRouter();
+
+  // TODO
+  // const path1 = pathname.split("/")[1];
+  // const path2 = pathname.split("/")[2];
+
+  // console.log(path1);
+  // console.log(path2);
 
   const { open } = useLoginModalStateStore();
 
