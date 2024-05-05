@@ -7,7 +7,12 @@ import useInput from "@/hooks/common/useInput";
 import useSearchLocationData from "@/hooks/query/useSearchLocationData";
 import { useEffect, useState } from "react";
 
-const SearchInput = () => {
+interface Props {
+  mini?: boolean;
+  searchToggle?: boolean;
+}
+
+const SearchInput = ({ mini = false, searchToggle = false }: Props) => {
   const [query, setQuery] = useState("");
   const searchInput = useInput("");
 
@@ -39,11 +44,14 @@ const SearchInput = () => {
           {data?.documents.map((document) => {
             return (
               <MarkerListItem
+                mini={mini}
                 key={document.id}
                 title={document.place_name}
                 subTitle={document.address_name}
                 lat={Number(document.y)}
                 lng={Number(document.x)}
+                reset={searchInput.resetValue}
+                searchToggle={searchToggle}
               />
             );
           })}

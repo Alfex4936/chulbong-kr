@@ -45,7 +45,7 @@ const Navigation = () => {
           />
         </div>
 
-        <div className="left-1/2 -translate-y-1/2 web:hidden">
+        <div className="left-1/2 -translate-y-1/3 web:hidden">
           <MapButton selected />
         </div>
 

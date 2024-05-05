@@ -42,7 +42,7 @@ import ReviewList from "./_components/ReviewList";
 // TODO: 마커 리스트 클릭 상세페이지 연동 --
 // TODO: 정보 수정 연결 (정보 수정 제안 버튼 -> 같은 유저면 정보 수정으로)
 // TODO: 마커 생성
-// TODO: 맵 상세보기 시 모바일에서 맵 close
+// TODO: 맵 상세보기 시 모바일에서 맵 close -- 
 
 // https://local.k-pullup.com:5173/pullup/5329
 
