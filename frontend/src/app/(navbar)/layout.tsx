@@ -80,7 +80,7 @@ const RootLayout = ({
               <Navigation />
               {children}
               <Toaster />
-              <MapWrapper />
+              {/* <MapWrapper /> */}
               <AlertLogin />
             </ChatIdProvider>
           </RQProvider>

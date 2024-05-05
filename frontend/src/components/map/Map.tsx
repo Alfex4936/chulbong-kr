@@ -11,9 +11,10 @@ import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
+import useSelectedMarkerStore from "@/store/useSelectedMarkerStore";
 import { type Photo } from "@/types/Marker.types";
 import { isAxiosError } from "axios";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../ui/use-toast";
 import MapLoading from "./MapLoading";
@@ -22,14 +23,11 @@ const Map = () => {
   const pathname = usePathname();
   const router = useRouter();
 
-  // TODO
-  // const path1 = pathname.split("/")[1];
-  // const path2 = pathname.split("/")[2];
-
-  // console.log(path1);
-  // console.log(path2);
+  const path1 = pathname.split("/")[1];
 
   const { open } = useLoginModalStateStore();
+
+  const { marker: selectedMarker } = useSelectedMarkerStore();
 
   const { isOpen: isMobileMapOpen } = useMobileMapOpenStore();
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
@@ -38,7 +36,13 @@ const Map = () => {
 
   const { toast } = useToast();
 
-  const { map, setMap, setClusterer, setMarkers } = useMapStore();
+  const {
+    map,
+    setMap,
+    setClusterer,
+    setMarkers,
+    markers: mapMarkers,
+  } = useMapStore();
   const { isOpen } = useBodyToggleStore();
 
   const { data: markers } = useAllMarkerData();
@@ -413,18 +417,59 @@ const Map = () => {
   }, [markers]);
 
   useEffect(() => {
-    if (!map) return;
-    const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+    if (!map || !mapMarkers) return;
 
-    map.relayout();
+    let resizeTime: NodeJS.Timeout;
 
-    const resizeTime = setTimeout(() => {
-      map.setCenter(moveLatLon);
+    if (path1 === "pullup") {
+      if (!selectedMarker) return;
+
+      const filterClickMarker = () => {
+        const imageSize = new window.kakao.maps.Size(39, 39);
+        const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+        const selectedMarkerImg = new window.kakao.maps.MarkerImage(
+          "/selectedMarker.svg",
+          imageSize,
+          imageOption
+        );
+        const activeMarkerImg = new window.kakao.maps.MarkerImage(
+          "/activeMarker.svg",
+          imageSize,
+          imageOption
+        );
+        mapMarkers.forEach((marker) => {
+          if (Number(marker.getTitle()) === selectedMarker.markerId) {
+            marker.setImage(selectedMarkerImg);
+          } else {
+            marker.setImage(activeMarkerImg);
+          }
+        });
+      };
+
+      const moveLatLon = new window.kakao.maps.LatLng(
+        selectedMarker.lat,
+        selectedMarker.lng
+      );
+
       map.relayout();
-    }, 200);
 
+      resizeTime = setTimeout(() => {
+        map.setCenter(moveLatLon);
+        map.relayout();
+        filterClickMarker();
+      }, 200);
+    } else {
+      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+
+      map.relayout();
+
+      resizeTime = setTimeout(() => {
+        map.setCenter(moveLatLon);
+        map.relayout();
+      }, 200);
+    }
     return () => clearTimeout(resizeTime);
-  }, [isOpen, mapLoading, map, isMobileMapOpen]);
+  }, [isOpen, mapLoading, map, isMobileMapOpen, path1]);
 
   return (
     <div className="relative w-full h-screen">

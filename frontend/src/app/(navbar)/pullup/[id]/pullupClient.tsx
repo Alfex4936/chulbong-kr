@@ -6,25 +6,29 @@ import BookmarkIcon from "@/components/icons/BookmarkIcon";
 import ChatBubbleIcon from "@/components/icons/ChatBubbleIcon";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import DislikeIcon from "@/components/icons/DislikeIcon";
+import EditIcon from "@/components/icons/EditIcon";
 import RoadViewIcon from "@/components/icons/RoadViewIcon";
 import ShareIcon from "@/components/icons/ShareIcon";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { MOBILE_WIDTH } from "@/constants";
+import useInput from "@/hooks/common/useInput";
 import useDeleteFavorite from "@/hooks/mutation/favorites/useDeleteFavorite";
 import useSetFavorite from "@/hooks/mutation/favorites/useSetFavorite";
 import useDeleteMarker from "@/hooks/mutation/marker/useDeleteMarker";
 import useMarkerDislike from "@/hooks/mutation/marker/useMarkerDislike";
 import useUndoMarkerDislike from "@/hooks/mutation/marker/useUndoMarkerDislike";
+import useUpdateDescription from "@/hooks/mutation/marker/useUpdateDescription";
 import useFacilitiesData from "@/hooks/query/marker/useFacilitiesData";
 import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import useWeatherData from "@/hooks/query/marker/useWeatherData";
-import useMapStatusStore from "@/store/useMapStatusStore";
-import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
+import useSelectedMarkerStore from "@/store/useSelectedMarkerStore";
 import formatDate from "@/utils/formatDate";
 import formatFacilities from "@/utils/formatFacilities";
 import { useRouter } from "next/navigation";
@@ -34,7 +38,7 @@ import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
 
 // TODO: 철봉 채팅 연결 --
-// TODO: 마커 상세보기 새로고침 선택
+// TODO: 마커 상세보기 새로고침 선택 --
 // TODO: 마커 리스트 클릭 상세페이지 연동 --
 // TODO: 정보 수정 연결 (정보 수정 제안 버튼 -> 같은 유저면 정보 수정으로)
 // TODO: 마커 생성
@@ -51,9 +55,7 @@ const PullupClient = ({ markerId }: Props) => {
 
   const { toast } = useToast();
   const { open: openMobileMap } = useMobileMapOpenStore();
-
-  const { map, markers } = useMapStore();
-  const { setPosition } = useMapStatusStore();
+  const { setMarker } = useSelectedMarkerStore();
 
   const { open: roadviewOpen, setPosition: setRoadview } =
     useRoadviewStatusStore();
@@ -81,9 +83,13 @@ const PullupClient = ({ markerId }: Props) => {
     isRouting: true,
   });
 
-  const [filterLoading, setFilterLoading] = useState(false);
+  const [isEditDesc, setIsEditDesc] = useState(false);
+  const updateDescInput = useInput(marker?.description || "");
 
-  // console.log(marker);
+  const { mutate: updateDesc } = useUpdateDescription(
+    updateDescInput.value,
+    markerId
+  );
 
   const changeRoadviewlocation = useCallback(async () => {
     setRoadview(marker?.latitude as number, marker?.longitude as number);
@@ -93,46 +99,18 @@ const PullupClient = ({ markerId }: Props) => {
     return formatFacilities(facilities as FacilitiesRes[]);
   }, [facilities]);
 
-  // useEffect(() => {
-  //   if (!marker || !map || !markers || !markerId || filterLoading) return;
-  //   const moveLocation = async () => {
-  //     const moveLatLon = new window.kakao.maps.LatLng(
-  //       marker.latitude,
-  //       marker.longitude
-  //     );
-  //     setPosition(marker.latitude, marker.longitude);
-  //     map.setCenter(moveLatLon);
-  //   };
-  //   const filterClickMarker = async () => {
-  //     const imageSize = new window.kakao.maps.Size(39, 39);
-  //     const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
-  //     const selectedMarkerImg = new window.kakao.maps.MarkerImage(
-  //       "/selectedMarker.svg",
-  //       imageSize,
-  //       imageOption
-  //     );
-  //     const activeMarkerImg = new window.kakao.maps.MarkerImage(
-  //       "/activeMarker.svg",
-  //       imageSize,
-  //       imageOption
-  //     );
-  //     markers.forEach((marker) => {
-  //       if (Number(marker.getTitle()) === markerId) {
-  //         marker.setImage(selectedMarkerImg);
-  //       } else {
-  //         marker.setImage(activeMarkerImg);
-  //       }
-  //     });
-  //     await moveLocation();
-  //   };
+  useEffect(() => {
+    if (!marker) return;
+    setMarker({
+      markerId: markerId,
+      lat: marker.latitude,
+      lng: marker.longitude,
+    });
 
-  //   const filter = async () => {
-  //     if (filterLoading) return;
-  //     await filterClickMarker();
-  //     setFilterLoading(true);
-  //   };
-  //   filter();
-  // }, [marker, map, markers, markerId]);
+    return () => {
+      setMarker(null);
+    };
+  }, [marker]);
 
   const copyTextToClipboard = async () => {
     const url = `${process.env.NEXT_PUBLIC_URL}/pullup/${markerId}`;
@@ -295,8 +273,45 @@ const PullupClient = ({ markerId }: Props) => {
             </button>
           </div>
 
-          <h2 className="w-full break-words">
-            {marker.description || "작성된 설명이 없습니다."}
+          <h2 className="flex items-center">
+            {isEditDesc ? (
+              <div className="w-full">
+                <div className="mb-2">
+                  <Input
+                    value={updateDescInput.value}
+                    onChange={updateDescInput.handleChange}
+                  />
+                </div>
+                <div className="flex">
+                  <Button
+                    className="border-grey border bg-transparent dark:text-grey hover:bg-white-tp-light hover:border-transparent mr-2"
+                    size={"sm"}
+                    onClick={() => {
+                      updateDesc();
+                      setIsEditDesc(false);
+                    }}
+                  >
+                    수정
+                  </Button>
+                  <Button
+                    className="border-grey border bg-transparent dark:text-grey hover:bg-white-tp-light hover:border-transparent"
+                    size={"sm"}
+                    onClick={() => setIsEditDesc(false)}
+                  >
+                    취소
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <span className="mr-4 w-5/6 break-words">
+                {marker.description || "작성된 설명이 없습니다."}
+              </span>
+            )}
+            {marker.isChulbong && !isEditDesc && (
+              <button onClick={() => setIsEditDesc(true)}>
+                <EditIcon size={15} />
+              </button>
+            )}
           </h2>
         </div>
 
