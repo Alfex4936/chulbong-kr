@@ -20,7 +20,8 @@ export interface KakaoMap {
   getLevel: () => number;
   relayout: VoidFunction;
   addOverlayMapTypeId: (data: any) => void;
-  getProjection: ()=> any;
+  getProjection: () => any;
+  setDraggable: (draggable: boolean) => void;
 }
 
 export interface KakaoMarker {

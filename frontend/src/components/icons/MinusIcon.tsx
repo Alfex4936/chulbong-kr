@@ -6,6 +6,7 @@ const MinusIcon = ({ size = 24, color = "white" }: Props) => {
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
+      viewBox="0 0 24 24"
       stroke={color === "black" ? "#222222" : "#F0F0F0"}
       fill="none"
     >

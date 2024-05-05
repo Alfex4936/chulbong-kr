@@ -1,5 +1,7 @@
+import { MOBILE_WIDTH } from "@/constants";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
+import useMiniMapStatusStore from "@/store/useMiniMapStatusStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import { useRouter } from "next/navigation";
 import { ComponentProps, useCallback } from "react";
@@ -15,6 +17,9 @@ interface Props extends ComponentProps<"button"> {
   lng?: number;
   markerId?: number;
   icon?: string | React.ReactNode;
+  mini?: boolean;
+  searchToggle?: boolean;
+  reset?: VoidFunction;
   iconClickFn?: VoidFunction;
 }
 
@@ -27,6 +32,9 @@ const MarkerListItem = ({
   lng,
   markerId,
   icon,
+  mini = false,
+  searchToggle,
+  reset,
   iconClickFn,
   ...props
 }: Props) => {
@@ -36,16 +44,26 @@ const MarkerListItem = ({
   const { setPosition } = useMapStatusStore();
   const { map, markers } = useMapStore();
 
-  const moveLocation = useCallback(() => {
-    const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+  const { close: mobileMapClose } = useMobileMapOpenStore();
 
-    setPosition(lat as number, lng as number);
-    map?.setCenter(moveLatLon);
-    open();
-  }, [lat, lng, map]);
+  const { map: miniMap } = useMiniMapStatusStore();
+
+  const moveLocation = useCallback(() => {
+    if (mini) {
+      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+      miniMap?.setCenter(moveLatLon);
+    } else {
+      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+
+      setPosition(lat as number, lng as number);
+      map?.setCenter(moveLatLon);
+      open();
+    }
+  }, [lat, lng, map, mini]);
 
   const filterClickMarker = () => {
     if (!markers) return;
+
     const imageSize = new window.kakao.maps.Size(39, 39);
     const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
@@ -71,6 +89,10 @@ const MarkerListItem = ({
 
     moveLocation();
     router.push(`pullup/${markerId}`);
+
+    if (window.innerWidth <= MOBILE_WIDTH) {
+      mobileMapClose();
+    }
   };
 
   return (
@@ -78,7 +100,17 @@ const MarkerListItem = ({
       className={`flex w-full items-center ${
         styleType === "ranking" ? "p-4" : "p-4"
       } rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
-      onClick={filterClickMarker}
+      onClick={() => {
+        if (searchToggle) {
+          if (!reset) return;
+          reset();
+        }
+        if (mini) {
+          moveLocation();
+        } else {
+          filterClickMarker();
+        }
+      }}
       {...props}
     >
       {styleType === "ranking" && (

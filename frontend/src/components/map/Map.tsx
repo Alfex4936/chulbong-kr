@@ -4,6 +4,7 @@ import deleteFavorite from "@/api/favorite/deleteFavorite";
 import setFavorite from "@/api/favorite/setFavorite";
 import getMarker from "@/api/markers/getMarker";
 import getWeather from "@/api/markers/getWeather";
+import { MOBILE_WIDTH } from "@/constants";
 import useAllMarkerData from "@/hooks/query/marker/useAllMarkerData";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
 import useLoginModalStateStore from "@/store/useLoginModalStateStore";
@@ -28,6 +29,8 @@ const Map = () => {
   const { open } = useLoginModalStateStore();
 
   const { marker: selectedMarker } = useSelectedMarkerStore();
+
+  const { close: mobileMapClose } = useMobileMapOpenStore();
 
   const { isOpen: isMobileMapOpen } = useMobileMapOpenStore();
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
@@ -334,6 +337,9 @@ const Map = () => {
         ) as HTMLAnchorElement;
         detailLink.style.cursor = "pointer";
         detailLink.addEventListener("click", () => {
+          if (window.innerWidth <= MOBILE_WIDTH) {
+            mobileMapClose();
+          }
           router.push(`/pullup/${marker.markerId}`);
         });
 
