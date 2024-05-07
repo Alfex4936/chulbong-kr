@@ -138,6 +138,15 @@ const Map = () => {
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
         if (weatherLoading || markerLoading) return;
+
+        const latlng = new window.kakao.maps.LatLng(
+          marker.latitude,
+          marker.longitude
+        );
+
+        skeletonOverlay.setMap(newMap);
+        skeletonOverlay.setPosition(latlng);
+
         content.innerHTML = "";
         const infoBox = /* HTML */ `
           <div id="overlay-top">
@@ -196,14 +205,6 @@ const Map = () => {
           zIndex: 5,
         });
         setOverlay(overlay);
-
-        const latlng = new window.kakao.maps.LatLng(
-          marker.latitude,
-          marker.longitude
-        );
-
-        skeletonOverlay.setMap(newMap);
-        skeletonOverlay.setPosition(latlng);
 
         // 마커 정보
         let description: string = "";
@@ -508,7 +509,25 @@ const Map = () => {
       }, 200);
     }
     return () => clearTimeout(resizeTime);
-  }, [isOpen, mapLoading, map, isMobileMapOpen, path1]);
+  }, [mapLoading, map, isMobileMapOpen, path1, selectedMarker]);
+
+  useEffect(() => {
+    if (!map) return;
+
+    const resizeTime = setTimeout(() => {
+      map.relayout();
+    }, 200);
+
+    return () => clearTimeout(resizeTime);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!map) return;
+    const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+
+    map.relayout();
+    map.setCenter(moveLatLon);
+  }, [map]);
 
   return (
     <div className="relative w-full h-screen">
