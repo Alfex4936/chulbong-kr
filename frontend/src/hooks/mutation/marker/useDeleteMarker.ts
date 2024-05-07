@@ -1,6 +1,7 @@
 import deleteMarker from "@/api/markers/deleteMarker";
 import { useToast } from "@/components/ui/use-toast";
 import useLoginModalStateStore from "@/store/useLoginModalStateStore";
+import useMapStore from "@/store/useMapStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
@@ -32,11 +33,27 @@ const useDeleteMarker = ({
   id: number;
   isRouting?: boolean;
 }) => {
-  const { open } = useLoginModalStateStore();
-  const { toast } = useToast();
   const router = useRouter();
 
+  const { open } = useLoginModalStateStore();
+  const { toast } = useToast();
+  const { clusterer, markers, setMarkers, overlay } = useMapStore();
+
   const queryClient = useQueryClient();
+
+  const filtering = async () => {
+    if (!markers || !clusterer) return;
+    const marker = markers.find((value) => Number(value.Gb) === id);
+
+    const newMarkers = markers.filter((value) => Number(value.Gb) !== id);
+
+    if (marker) {
+      marker.setMap(null);
+      clusterer.removeMarker(marker);
+      overlay.setMap(null);
+      setMarkers(newMarkers);
+    }
+  };
 
   return useMutation({
     mutationFn: () => {
@@ -78,7 +95,8 @@ const useDeleteMarker = ({
       }
     },
 
-    onSuccess: () => {
+    onSuccess: async () => {
+      await filtering();
       if (isRouting) router.replace("/home");
       toast({ description: "삭제가 완료됐습니다." });
     },

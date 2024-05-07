@@ -44,6 +44,7 @@ const Map = () => {
     setMap,
     setClusterer,
     setMarkers,
+    setOverlay,
     markers: mapMarkers,
   } = useMapStore();
   const { isOpen } = useBodyToggleStore();
@@ -194,6 +195,7 @@ const Map = () => {
           content: content,
           zIndex: 5,
         });
+        setOverlay(overlay);
 
         const latlng = new window.kakao.maps.LatLng(
           marker.latitude,
@@ -304,52 +306,67 @@ const Map = () => {
         const weatherIconBox = document.getElementById(
           "overlay-weather-icon"
         ) as HTMLImageElement;
-        weatherIconBox.src = `${iconImage}` || "";
-        weatherIconBox.alt = `${desc} || ""`;
+        if (weatherIconBox) {
+          weatherIconBox.src = `${iconImage}` || "";
+          weatherIconBox.alt = `${desc} || ""`;
+        }
+
         const weatherTempBox = document.getElementById(
           "overlay-weather-temp"
         ) as HTMLDivElement;
-        weatherTempBox.innerHTML = `${temperature}℃`;
+        if (weatherTempBox) {
+          weatherTempBox.innerHTML = `${temperature}℃`;
+        }
 
         // 오버레이 주소 정보
         const addressBox = document.getElementById(
           "overlay-title"
         ) as HTMLDivElement;
-        addressBox.innerHTML = description || "작성된 설명이 없습니다.";
+        if (addressBox) {
+          addressBox.innerHTML = description || "작성된 설명이 없습니다.";
+        }
 
         // 오버레이 이미지 정보
         const imageContainer = document.getElementById(
           "overlay-image-container"
         ) as HTMLDivElement;
-        imageContainer.classList.add("on-loading");
+        if (imageContainer) {
+          imageContainer.classList.add("on-loading");
+        }
         const imageBox = document.getElementById(
           "overlay-image"
         ) as HTMLImageElement;
-        imageBox.src = photos ? photos[0]?.photoUrl : "/metaimg.webp";
-        imageBox.onload = () => {
-          imageBox.style.display = "block";
-          imageContainer.classList.remove("on-loading");
-        };
+        if (imageBox) {
+          imageBox.src = photos ? photos[0]?.photoUrl : "/metaimg.webp";
+          imageBox.onload = () => {
+            imageBox.style.display = "block";
+            imageContainer.classList.remove("on-loading");
+          };
+        }
 
         // 오버레이 상세보기 링크
         const detailLink = document.getElementById(
           "item-detail-link"
         ) as HTMLAnchorElement;
-        detailLink.style.cursor = "pointer";
-        detailLink.addEventListener("click", () => {
-          if (window.innerWidth <= MOBILE_WIDTH) {
-            mobileMapClose();
-          }
-          router.push(`/pullup/${marker.markerId}`);
-        });
+        if (detailLink) {
+          detailLink.style.cursor = "pointer";
+          detailLink.addEventListener("click", () => {
+            if (window.innerWidth <= MOBILE_WIDTH) {
+              mobileMapClose();
+            }
+            router.push(`/pullup/${marker.markerId}`);
+          });
+        }
 
         // 오버레이 북마크 버튼 이미지
         const bookmarkBtnImg = document.getElementById(
           "bookmark-button-img"
         ) as HTMLImageElement;
-        bookmarkBtnImg.src = favorited
-          ? "/bookmark-03.svg"
-          : "/bookmark-02.svg";
+        if (bookmarkBtnImg) {
+          bookmarkBtnImg.src = favorited
+            ? "/bookmark-03.svg"
+            : "/bookmark-02.svg";
+        }
 
         // 오버레이 북마크 버튼 액션
         const bookmarkBtn = document.getElementById(
@@ -358,48 +375,64 @@ const Map = () => {
         const bookmarkText = document.getElementById(
           "bookmark-text"
         ) as HTMLDivElement;
-        bookmarkBtn.addEventListener("click", async () => {
-          if (addBookmarkLoading || deleteBookmarkLoading) return;
-          bookmarkBtn.disabled = true;
-          if (favorited) {
-            bookmarkText.innerHTML = "취소중..";
-            await deleteBookmark();
-          } else if (!favorited) {
-            bookmarkText.innerHTML = "저장중..";
-            await addBookmark();
-          }
-          await fetchMarker();
+        if (bookmarkBtn && bookmarkText) {
+          bookmarkBtn.addEventListener("click", async () => {
+            if (addBookmarkLoading || deleteBookmarkLoading) return;
+            bookmarkBtn.disabled = true;
+            if (favorited) {
+              bookmarkText.innerHTML = "취소중..";
+              await deleteBookmark();
+            } else if (!favorited) {
+              bookmarkText.innerHTML = "저장중..";
+              await addBookmark();
+            }
+            await fetchMarker();
 
-          bookmarkText.innerHTML = "북마크";
-          bookmarkBtnImg.src = favorited
-            ? "/bookmark-03.svg"
-            : "/bookmark-02.svg";
+            bookmarkText.innerHTML = "북마크";
+            bookmarkBtnImg.src = favorited
+              ? "/bookmark-03.svg"
+              : "/bookmark-02.svg";
 
-          bookmarkBtn.disabled = false;
-        });
+            bookmarkBtn.disabled = false;
+          });
+        }
 
         // 오보레이 로드뷰 버튼
         const roadviewButton = document.getElementById(
           "roadview-button"
         ) as HTMLButtonElement;
-        roadviewButton.addEventListener("click", async () => {
-          await changeRoadviewlocation();
-          openRoadview();
-        });
+        if (roadviewButton) {
+          roadviewButton.addEventListener("click", async () => {
+            await changeRoadviewlocation();
+            openRoadview();
+          });
+        }
 
         // 오버레이 공유 버튼
         const shareButton = document.getElementById(
           "share-button"
         ) as HTMLButtonElement;
-        shareButton.addEventListener("click", copyTextToClipboard);
+        if (shareButton) {
+          shareButton.addEventListener("click", copyTextToClipboard);
+        }
 
         // 오버레이 닫기 이벤트 등록
         const closeBtnBox = document.getElementById(
           "overlay-close"
         ) as HTMLButtonElement;
-        closeBtnBox.onclick = () => {
-          overlay.setMap(null);
-        };
+        if (closeBtnBox) {
+          closeBtnBox.onclick = () => {
+            overlay.setMap(null);
+          };
+        }
+
+        // 에러 오버레이 닫기
+        const errorCloseBtn = document.getElementById("error-close");
+        if (errorCloseBtn) {
+          errorCloseBtn.onclick = () => {
+            overlay.setMap(null);
+          };
+        }
       });
 
       return newMarker;
