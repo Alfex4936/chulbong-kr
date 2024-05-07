@@ -4,7 +4,6 @@ import GrowBox from "@/components/atom/GrowBox";
 import MinusIcon from "@/components/icons/MinusIcon";
 import PlusIcon from "@/components/icons/PlusIcon";
 import useUploadFormDataStore from "@/store/useUploadFormDataStore";
-import { useState } from "react";
 
 interface FacilityProps {
   name: string;
@@ -45,8 +44,6 @@ const Facilities = () => {
     increasePenghang,
     decreasePenghang,
   } = useUploadFormDataStore();
-  // const [chulbong, setChulbong] = useState(0);
-  // const [penghang, setPenghang] = useState(0);
 
   return (
     <div>
@@ -56,12 +53,10 @@ const Facilities = () => {
         increase={() => {
           if (facilities.철봉 === 99) return;
           increaseChulbong();
-          // setChulbong((prev) => prev + 1);
         }}
         decrease={() => {
           if (facilities.철봉 === 0) return;
           decreaseChulbong();
-          // setChulbong((prev) => prev - 1);
         }}
       />
       <FacilityList
@@ -70,11 +65,9 @@ const Facilities = () => {
         increase={() => {
           if (facilities.평행봉 === 99) return;
           increasePenghang();
-          // setPenghang((prev) => prev + 1);
         }}
         decrease={() => {
           if (facilities.평행봉 === 0) return;
-          // setPenghang((prev) => prev - 1);
           decreasePenghang();
         }}
       />

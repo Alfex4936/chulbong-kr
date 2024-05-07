@@ -18,8 +18,8 @@ const MapWrapper = () => {
 
   return (
     <div
-      className={`w-full h-screen mo:absolute mo:z-10 ${
-        isOpen ? "mo:block" : "mo:hidden"
+      className={`w-full h-screen mo:absolute ${
+        isOpen ? "mo:z-10" : "mo:-z-10"
       }`}
     >
       <Script

@@ -79,7 +79,7 @@ const MarkerDescription = () => {
       const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
       const activeMarkerImg = new window.kakao.maps.MarkerImage(
-        "/activeMarker.svg",
+        "/selectedMarker.svg",
         imageSize,
         imageOption
       );
@@ -419,6 +419,8 @@ const MarkerDescription = () => {
 
       await filterMarker(result.markerId);
       await moveLocation(latitude, longitude);
+
+      router.push(`/pullup/${result.markerId}`);
     } catch (error) {
       if (isAxiosError(error)) {
         if (error.response?.status === 401) {
