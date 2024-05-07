@@ -3,6 +3,7 @@
 import GrowBox from "@/components/atom/GrowBox";
 import MinusIcon from "@/components/icons/MinusIcon";
 import PlusIcon from "@/components/icons/PlusIcon";
+import useUploadFormDataStore from "@/store/useUploadFormDataStore";
 import { useState } from "react";
 
 interface FacilityProps {
@@ -37,33 +38,44 @@ const FacilityList = ({ count, name, decrease, increase }: FacilityProps) => {
 };
 
 const Facilities = () => {
-  const [chulbong, setChulbong] = useState(0);
-  const [penghang, setPenghang] = useState(0);
+  const {
+    facilities,
+    increaseChulbong,
+    decreaseChulbong,
+    increasePenghang,
+    decreasePenghang,
+  } = useUploadFormDataStore();
+  // const [chulbong, setChulbong] = useState(0);
+  // const [penghang, setPenghang] = useState(0);
 
   return (
     <div>
       <FacilityList
         name="철봉"
-        count={chulbong}
+        count={facilities.철봉}
         increase={() => {
-          if (chulbong === 99) return;
-          setChulbong((prev) => prev + 1);
+          if (facilities.철봉 === 99) return;
+          increaseChulbong();
+          // setChulbong((prev) => prev + 1);
         }}
         decrease={() => {
-          if (chulbong === 0) return;
-          setChulbong((prev) => prev - 1);
+          if (facilities.철봉 === 0) return;
+          decreaseChulbong();
+          // setChulbong((prev) => prev - 1);
         }}
       />
       <FacilityList
         name="평행봉"
-        count={penghang}
+        count={facilities.평행봉}
         increase={() => {
-          if (penghang === 99) return;
-          setPenghang((prev) => prev + 1);
+          if (facilities.평행봉 === 99) return;
+          increasePenghang();
+          // setPenghang((prev) => prev + 1);
         }}
         decrease={() => {
-          if (penghang === 0) return;
-          setPenghang((prev) => prev - 1);
+          if (facilities.평행봉 === 0) return;
+          // setPenghang((prev) => prev - 1);
+          decreasePenghang();
         }}
       />
     </div>

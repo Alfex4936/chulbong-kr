@@ -6,6 +6,8 @@ import useUploadFormDataStore, {
 } from "@/store/useUploadFormDataStore";
 import resizeFile from "@/utils/resizeFile";
 import { ChangeEvent, useRef, useState } from "react";
+import { FaCameraRetro } from "react-icons/fa";
+import { FaCamera } from "react-icons/fa6";
 import { v4 } from "uuid";
 
 const UploadImage = () => {
@@ -90,7 +92,7 @@ const UploadImage = () => {
             border: hover ? "2px dashed #444" : "1px dashed #444",
           }}
         >
-          {hover ? "d" : "a"}
+          {hover ? <FaCameraRetro /> : <FaCamera />}
         </div>
         <input
           type="file"

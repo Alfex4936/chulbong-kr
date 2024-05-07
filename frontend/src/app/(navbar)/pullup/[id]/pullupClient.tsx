@@ -36,13 +36,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
+import useMapStore from "@/store/useMapStore";
 
 // TODO: 철봉 채팅 연결 --
 // TODO: 마커 상세보기 새로고침 선택 --
 // TODO: 마커 리스트 클릭 상세페이지 연동 --
 // TODO: 정보 수정 연결 (정보 수정 제안 버튼 -> 같은 유저면 정보 수정으로)
 // TODO: 마커 생성
-// TODO: 맵 상세보기 시 모바일에서 맵 close -- 
+// TODO: 맵 상세보기 시 모바일에서 맵 close --
 
 // https://local.k-pullup.com:5173/pullup/5329
 
@@ -123,6 +124,20 @@ const PullupClient = ({ markerId }: Props) => {
       alert("잠시 후 다시 시도해 주세요!");
     }
   };
+
+  // const filtering = async (markerId: number) => {
+  //   if (!markers || !clusterer) return;
+  //   const marker = markers.find((value) => Number(value.Gb) === markerId);
+
+  //   const newMarkers = markers.filter((value) => Number(value.Gb) !== markerId);
+
+  //   if (marker) {
+  //     marker.setMap(null);
+  //     clusterer.removeMarker(marker);
+  //     overlay.setMap(null);
+  //     setMarkers(newMarkers);
+  //   }
+  // };
 
   if (isError) return <div>X</div>;
   if (!marker) return;
