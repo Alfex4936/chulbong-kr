@@ -31,8 +31,3 @@ type ReportsResponse struct {
 	TotalReports int                   `json:"totalReports"`
 	Markers      map[int]MarkerReports `json:"markers"`
 }
-
-// // Convert your latitude and longitude into a geom.Point for easier handling of geographic data.
-// func NewPoint(lat, lon float64) *geom.Point {
-// 	return geom.NewPoint(geom.XY).MustSetCoords(geom.Coord{X: lon, Y: lat})
-// }

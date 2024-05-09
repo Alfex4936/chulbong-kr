@@ -8,47 +8,76 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/rrethy/ahocorasick"
+	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
-var (
-	badWordsList []string
-	badWordRegex *regexp.Regexp
-	matcher      *ahocorasick.Matcher
-)
+type BadWordUtil struct {
+	BadWordsList []string
+	BadWordRegex *regexp.Regexp
+	Matcher      *ahocorasick.Matcher
+}
 
-func CompileBadWordsPattern() error {
+func NewBadWordUtil() *BadWordUtil {
+	return &BadWordUtil{}
+}
+
+func RegisterBadWordUtilLifecycle(lifecycle fx.Lifecycle, badWordUtil *BadWordUtil, logger *zap.Logger) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			filePath := os.Getenv("BAD_WORDS_FILE_PATH")
+			if filePath == "" {
+				filePath = "badwords.txt" // Provide a default path if not set
+			}
+			logger.Info("Loading bad words from file", zap.String("path", filePath))
+			if err := badWordUtil.LoadBadWords(filePath); err != nil {
+				logger.Error("Failed to load bad words", zap.Error(err))
+				return err
+			}
+			logger.Info("Bad words loaded successfully")
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			// Cleanup if necessary
+			return nil
+		},
+	})
+}
+
+func (b *BadWordUtil) CompileBadWordsPattern() error {
 	var pattern strings.Builder
 	pattern.WriteString(`(`)
-	for i, word := range badWordsList {
+	for i, word := range b.BadWordsList {
 		if word == "" {
 			continue
 		}
 		pattern.WriteString(regexp.QuoteMeta(word))
-		if i < len(badWordsList)-1 {
+		if i < len(b.BadWordsList)-1 {
 			pattern.WriteString(`|`)
 		}
 	}
 	pattern.WriteString(`)`)
 
 	var err error
-	badWordRegex, err = regexp.Compile(pattern.String())
+	b.BadWordRegex, err = regexp.Compile(pattern.String())
 	return err
 }
 
-func CheckForBadWords(input string) (bool, error) {
-	if badWordRegex == nil {
-		CompileBadWordsPattern()
+func (b *BadWordUtil) CheckForBadWords(input string) (bool, error) {
+	if b.BadWordRegex == nil {
+		b.CompileBadWordsPattern()
 		return false, errors.New("bad words pattern not compiled")
 	}
 
-	return badWordRegex.MatchString(input), nil
+	return b.BadWordRegex.MatchString(input), nil
 }
 
 // USE CheckForBadWords
-func CheckForBadWordsWithGo(input string) (bool, error) {
-	for _, word := range badWordsList {
+func (b *BadWordUtil) CheckForBadWordsWithGo(input string) (bool, error) {
+	for _, word := range b.BadWordsList {
 		if word == "" {
 			continue
 		}
@@ -62,14 +91,14 @@ func CheckForBadWordsWithGo(input string) (bool, error) {
 }
 
 // USE CheckForBadWords
-func CheckForBadWordsWithGoRoutine(input string) (bool, error) {
+func (b *BadWordUtil) CheckForBadWordsWithGoRoutine(input string) (bool, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel() // Ensures context is canceled once we return.
 
 	resultChan := make(chan bool)
 	var wg sync.WaitGroup
 
-	for _, word := range badWordsList {
+	for _, word := range b.BadWordsList {
 		wg.Add(1)
 		go func(w string) {
 			defer wg.Done()
@@ -104,16 +133,35 @@ func CheckForBadWordsWithGoRoutine(input string) (bool, error) {
 	return false, nil
 }
 
-func ReplaceBadWords(input string) (string, error) {
-	if badWordRegex == nil {
-		return input, errors.New("bad words pattern not compiled")
+func (b *BadWordUtil) ReplaceBadWords(input string) (string, error) {
+	if b.Matcher == nil {
+		b.Matcher = ahocorasick.CompileStrings(b.BadWordsList)
+		return input, errors.New("bad words matcher not initialized")
 	}
 
-	// Use ReplaceAllStringFunc to replace bad words with asterisks
-	return badWordRegex.ReplaceAllStringFunc(input, func(match string) string {
-		// Replace each character of the bad word with an asterisk
-		return strings.Repeat("*", len([]rune(match)))
-	}), nil
+	matches := b.Matcher.FindAllString(input)
+	if len(matches) == 0 {
+		return input, nil // No matches, return original input
+	}
+
+	runes := []rune(input)
+	replaced := make([]bool, len(runes))
+	runeIndices := computeRuneIndices(input) // Precompute indices
+
+	// Apply replacements for each match
+	for _, match := range matches {
+		matchStart := runeIndices[match.Index]
+		matchEnd := runeIndices[match.Index+len(match.Word)]
+
+		for i := matchStart; i < matchEnd; i++ {
+			if !replaced[i] {
+				runes[i] = '*'
+				replaced[i] = true
+			}
+		}
+	}
+
+	return string(runes), nil
 }
 
 func RemoveURLs(input string) string {
@@ -141,7 +189,7 @@ func RemoveURLs(input string) string {
 // }
 
 // LoadBadWords loads bad words from a file into memory with optimizations.
-func LoadBadWords(filePath string) error {
+func (b *BadWordUtil) LoadBadWords(filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
@@ -150,7 +198,7 @@ func LoadBadWords(filePath string) error {
 
 	// Estimate the number of words if known or use a high number.
 	const estimatedWords = 1000
-	badWordsList = make([]string, 0, estimatedWords)
+	b.BadWordsList = make([]string, 0, estimatedWords)
 
 	// Create a buffer and attach it to scanner.
 	scanner := bufio.NewScanner(file)
@@ -160,7 +208,7 @@ func LoadBadWords(filePath string) error {
 
 	for scanner.Scan() {
 		word := scanner.Text()
-		badWordsList = append(badWordsList, word)
+		b.BadWordsList = append(b.BadWordsList, word)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -168,21 +216,35 @@ func LoadBadWords(filePath string) error {
 	}
 
 	// Optimize memory usage by shrinking the slice to the actual number of words.
-	badWordsList = append([]string{}, badWordsList...)
+	b.BadWordsList = append([]string{}, b.BadWordsList...)
 
 	// go CompileBadWordsPattern() // Compile in a goroutine if it's safe to do asynchronously.
 
 	// Compile the list of bad words into a trie (Aho-corasick Double-Array Trie)
-	matcher = ahocorasick.CompileStrings(badWordsList)
+	b.Matcher = ahocorasick.CompileStrings(b.BadWordsList)
 	return nil
 }
 
 // CheckForBadWordsUsingTrie checks if the input contains any bad words using Aho-Corasick trie
-func CheckForBadWordsUsingTrie(input string) (bool, error) {
-	if matcher == nil {
-		matcher = ahocorasick.CompileStrings(badWordsList)
+func (b *BadWordUtil) CheckForBadWordsUsingTrie(input string) (bool, error) {
+	if b.Matcher == nil {
+		b.Matcher = ahocorasick.CompileStrings(b.BadWordsList)
 		return false, os.ErrNotExist
 	}
-	matches := matcher.FindAllString(input)
+	matches := b.Matcher.FindAllString(input)
 	return len(matches) > 0, nil
+}
+
+// Precompute rune indices for the whole string to avoid recalculating repeatedly
+func computeRuneIndices(input string) []int {
+	runeIndices := make([]int, len(input)+1)
+	runeCount := 0
+	for i := range input {
+		runeIndices[i] = runeCount
+		_, size := utf8.DecodeRuneInString(input[i:])
+		runeCount += 1
+		i += size - 1 // Adjust for the size of the current rune
+	}
+	runeIndices[len(input)] = runeCount // End of string index
+	return runeIndices
 }

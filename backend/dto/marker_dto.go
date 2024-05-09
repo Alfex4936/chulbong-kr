@@ -1,8 +1,9 @@
 package dto
 
 import (
-	"chulbong-kr/models"
 	"time"
+
+	"github.com/Alfex4936/chulbong-kr/model"
 )
 
 type MarkerRequest struct {
@@ -39,7 +40,7 @@ type MarkerWithDistance struct {
 }
 
 type MarkerWithDislike struct {
-	models.Marker
+	model.Marker
 	Username     string `db:"Username"`
 	DislikeCount int    `db:"DislikeCount"`
 }

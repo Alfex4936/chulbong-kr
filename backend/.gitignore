@@ -15,3 +15,4 @@ zincsearch/markers.json
 zincsearch/Dockerfile.json
 zincsearch/fly.toml
 zincsearch/.dockerignore
+badwords_test.txt

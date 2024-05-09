@@ -1,6 +1,6 @@
 package dto
 
-import "chulbong-kr/models"
+import "github.com/Alfex4936/chulbong-kr/model"
 
 type SignUpRequest struct {
 	Username   *string `json:"username,omitempty"` // Optional for traditional, used if provided for OAuth2
@@ -16,8 +16,8 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token string       `json:"token"`
-	User  *models.User `json:"user"`
+	Token string      `json:"token"`
+	User  *model.User `json:"user"`
 }
 
 type UpdateUserRequest struct {

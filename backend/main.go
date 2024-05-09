@@ -1,25 +1,35 @@
 package main
 
 import (
-	"chulbong-kr/database"
-	"chulbong-kr/handlers"
-	"chulbong-kr/middlewares"
-	"chulbong-kr/services"
-	"chulbong-kr/util"
 	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"runtime"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"time"
 
+	configfx "github.com/Alfex4936/chulbong-kr/configfx"
+	servicefx "github.com/Alfex4936/chulbong-kr/di"
+	"github.com/Alfex4936/chulbong-kr/handler"
+	"github.com/Alfex4936/chulbong-kr/middleware"
+	"github.com/Alfex4936/chulbong-kr/service"
+	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/Alfex4936/tzf"
+	"github.com/google/generative-ai-go/genai"
+	"google.golang.org/api/option"
+
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/goccy/go-json"
+	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv/autoload"
+	"github.com/redis/rueidis"
+
 	"github.com/gofiber/contrib/fgprof"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -33,49 +43,35 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/monitor"
 	"github.com/gofiber/fiber/v2/middleware/pprof"
-
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/swagger"
-	"github.com/redis/rueidis"
-	"go.uber.org/zap"
-
-	// "github.com/gofiber/storage/redis/v3"
-
 	"github.com/gofiber/template/django/v3"
-	"github.com/joho/godotenv"
-	_ "github.com/joho/godotenv/autoload"
 
-	// amqp "github.com/rabbitmq/amqp091-go"
+	amqp "github.com/rabbitmq/amqp091-go"
 
-	_ "chulbong-kr/docs"
+	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
-// @title			chulbong-kr API
-// @version		1.0
-// @description	Pullup bar locations with KakaoMap API
-// @contact.name	API Support
-// @contact.email	chulbong.kr@gmail.com
-// @license.name	MIT
-// @license.url	https://github.com/Alfex4936/chulbong-kr/blob/main/LICENSE
-// @host			localhost:9452
-// @BasePath		/api/v1/
-func main() {
-	if os.Getenv("DEPLOYMENT") != "production" {
-		godotenv.Overload()
-	}
-
-	// Increase GOMAXPROCS
-	runtime.GOMAXPROCS(runtime.NumCPU() * 2) // twice the number of CPUs
-
-	setUpExternalConnections()
-	setUpGlobals()
-
-	// Initialize Fiber app
+// Fiber app constructor
+func NewFiberApp(
+	logger *zap.Logger,
+	chatUtil *util.ChatUtil,
+	wsConfig websocket.Config,
+	markerHandler *handler.MarkerHandler,
+	userHandler *handler.UserHandler,
+	searchHandler *handler.SearchHandler,
+	adminHandler *handler.AdminHandler,
+	authHandler *handler.AuthHandler,
+	chatHandler *handler.ChatHandler,
+	commentHandler *handler.CommentHandler,
+	notificatinHandler *handler.NotificationHandler,
+	authMiddleware *middleware.AuthMiddleware,
+	zapMiddleware *middleware.LogMiddleware) *fiber.App {
 	app := fiber.New(fiber.Config{
-		Prefork:       false, // Enable prefork mode for high-concurrency
 		CaseSensitive: true,
 		StrictRouting: true,
-		ServerHeader:  "NGINX",
+		ServerHeader:  "nginx",
 		BodyLimit:     30 * 1024 * 1024, // limit to 30 MB
 		IdleTimeout:   120 * time.Second,
 		ReadTimeout:   10 * time.Second,
@@ -84,7 +80,7 @@ func main() {
 		JSONDecoder:   json.Unmarshal,
 		AppName:       "chulbong-kr",
 		Concurrency:   512 * 1024,
-		Views:         django.New("./views", ".django"),
+		Views:         django.New("./view", ".django"),
 		ErrorHandler: func(ctx *fiber.Ctx, err error) error {
 			// Initial status code defaults to 500
 			code := fiber.StatusInternalServerError
@@ -115,113 +111,19 @@ func main() {
 			return ctx.Status(code).JSON(errorResponse)
 		},
 	})
-	// app.Server().MaxConnsPerIP = 10
 
 	// Middlewares
-	setUpMiddlewares(app)
-
-	// API
-	websocketConfig := websocket.Config{
-		// Set the handshake timeout to a reasonable duration to prevent slowloris attacks.
-		HandshakeTimeout: 5 * time.Second,
-
-		Origins: []string{"https://test.k-pullup.com", "https://www.k-pullup.com"},
-
-		EnableCompression: true,
-
-		RecoverHandler: func(c *websocket.Conn) {
-			// Custom recover logic. By default, it logs the error and stack trace.
-			if r := recover(); r != nil {
-				fmt.Fprintf(os.Stderr, "WebSocket panic: %v\n", r)
-				debug.PrintStack()
-				c.WriteMessage(websocket.CloseMessage, []byte{})
-				c.Close()
-			}
-		},
-	}
-
-	app.Get("/ws/:markerID", func(c *fiber.Ctx) error {
-		// Extract markerID from the parameter
-		markerID := c.Params("markerID")
-		reqID := c.Query("request-id")
-
-		// Use GetBanDetails to check if the user is banned and get the remaining ban time
-		banned, remainingTime, err := services.WsRoomManager.GetBanDetails(markerID, reqID)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Internal server error"})
-		}
-		if banned {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error":         "User is banned",
-				"remainingTime": remainingTime.Seconds(), // Respond with remaining time in seconds
-			})
-		}
-
-		// Proceed with WebSocket upgrade if not banned
-		if websocket.IsWebSocketUpgrade(c) {
-			return c.Next()
-		}
-		return fiber.ErrUpgradeRequired
-	}, websocket.New(func(c *websocket.Conn) {
-		// Extract markerID from the parameter again if necessary
-		markerID := c.Params("markerID")
-		reqID := c.Query("request-id")
-
-		// Now, the connection is already upgraded to WebSocket, and passed the ban check.
-		handlers.HandleChatRoomHandler(c, markerID, reqID)
-	}, websocketConfig))
-
-	// HTML
-	app.Get("/main", func(c *fiber.Ctx) error {
-		return c.Render("login", fiber.Map{})
-	})
-
-	// Setup MY routes
-	api := app.Group("/api/v1")
-	handlers.RegisterAdminRoutes(api)
-	handlers.RegisterAuthRoutes(api)
-	handlers.RegisterUserRoutes(api)
-	handlers.RegisterMarkerRoutes(api)
-	handlers.RegisterCommentRoutes(api)
-	handlers.RegisterTossPaymentRoutes(api)
-	handlers.RegisterReportRoutes(api)
-	handlers.RegisterNotificationRoutes(api, websocketConfig)
-	handlers.RegisterSearchRoutes(api)
-
-	// Cron jobs
-	services.RunAllCrons()
-
-	// Server settings
-	serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))
-
-	// Check if the DEPLOYMENT is not local
-	if os.Getenv("DEPLOYMENT") == "production" {
-		// Send Slack notification
-		go util.SendDeploymentSuccessNotification(app.Config().AppName, "fly.io")
-
-		// Random ranking
-		go services.ResetAndRandomizeClickRanking()
-	} else {
-		log.Printf("There are %d APIs available in chulbong-kr", countAPIs(app))
-	}
-
-	// Start the Fiber app
-	if err := app.Listen(serverAddr); err != nil {
-		panic(err)
-	}
-}
-
-func setUpMiddlewares(app *fiber.App) {
-	logger, _ := zap.NewProduction()
-	app.Use(middlewares.ZapLogMiddleware(logger))
-
-	// Middlewares
+	app.Use(zapMiddleware.ZapLogMiddleware(logger))
 	app.Use(healthcheck.New(healthcheck.Config{
 		LivenessProbe: func(c *fiber.Ctx) bool {
-			log.Printf("---- %s", util.CreateAnonymousID(c))
+			log.Printf("---- %s", chatUtil.CreateAnonymousID(c))
 			return true
 		},
 		LivenessEndpoint: "/",
+	}))
+
+	app.Use(etag.New(etag.Config{
+		Weak: true,
 	}))
 
 	app.Use(encryptcookie.New(encryptcookie.Config{
@@ -229,12 +131,8 @@ func setUpMiddlewares(app *fiber.App) {
 		Except: []string{csrf.ConfigDefault.CookieName, "Etag"}, // exclude CSRF cookie
 	}))
 
-	app.Use(etag.New(etag.Config{
-		Weak: true,
-	}))
-
-	app.Use(pprof.New())
-	app.Use(fgprof.New())
+	app.Use("/debug/pprof", authMiddleware.CheckAdmin, pprof.New())
+	app.Use("/debug/fgprof", authMiddleware.CheckAdmin, fgprof.New())
 
 	app.Use(compress.New(compress.Config{
 		// Next: func(c *fiber.Ctx) bool {
@@ -257,7 +155,7 @@ func setUpMiddlewares(app *fiber.App) {
 		},
 
 		KeyGenerator: func(c *fiber.Ctx) string {
-			return util.GetUserIP(c)
+			return chatUtil.GetUserIP(c)
 		},
 		Max:               60,
 		Expiration:        1 * time.Minute,
@@ -270,9 +168,26 @@ func setUpMiddlewares(app *fiber.App) {
 		},
 		SkipFailedRequests: true,
 	}))
-	app.Get("/metrics", middlewares.AdminOnly, monitor.New(monitor.Config{
+
+	// loginLimiter := limiter.New(limiter.Config{
+	// 	KeyGenerator: func(c *fiber.Ctx) string {
+	// 		return chatUtil.GetUserIP(c)
+	// 	},
+	// 	Max:               5, // Stricter limit for login
+	// 	Expiration:        30 & time.Second,
+	// 	LimiterMiddleware: limiter.SlidingWindow{},
+	// 	LimitReached: func(c *fiber.Ctx) error {
+	// 		c.Set(fiber.HeaderContentType, fiber.MIMETextPlainCharsetUTF8)
+	// 		return c.Status(429).SendString("Too many login attempts, please try again later.")
+	// 	},
+	// 	SkipFailedRequests: false,
+	// })
+
+	// TODO: v3 not yet
+	app.Get("/metrics", authMiddleware.CheckAdmin, monitor.New(monitor.Config{
 		Title:   "chulbong-kr System Metrics",
 		Refresh: time.Second * 30,
+		Next:    nil,
 	}))
 	app.Use(requestid.New())
 
@@ -289,16 +204,59 @@ func setUpMiddlewares(app *fiber.App) {
 		AllowCredentials: true,
 	}))
 
-	// app.Use(logger.New())
-	app.Get("/swagger/*", middlewares.AdminOnly, swagger.HandlerDefault)
+	app.Get("/swagger/*", authMiddleware.CheckAdmin, swagger.HandlerDefault)
+
+	// Set up routes
+	api := app.Group("/api/v1")
+	handler.RegisterMarkerRoutes(api, markerHandler, authMiddleware)
+	handler.RegisterReportRoutes(api, markerHandler, authMiddleware)
+	handler.RegisterUserRoutes(api, userHandler, authMiddleware)
+	handler.RegisterSearchRoutes(api, searchHandler)
+	handler.RegisterAdminRoutes(api, adminHandler, authMiddleware)
+	handler.RegisterAuthRoutes(api, authHandler, authMiddleware)
+	handler.RegisterChatRoutes(app, wsConfig, chatHandler) // not /api/v1/
+	handler.RegisterCommentRoutes(api, commentHandler, authMiddleware)
+	handler.RegisterNotificationRoutes(app, wsConfig, notificatinHandler, authMiddleware) // not /api/v1/
+
+	return app
 }
 
-func setUpExternalConnections() {
-	// Initialize database connection
-	if err := database.Connect(); err != nil {
-		panic(err)
-	}
+// Provides a new logger instance.
+func NewLogger() (*zap.Logger, error) {
+	return zap.NewProduction()
+}
 
+func NewHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 10 * time.Second, // Set a timeout to avoid hanging requests indefinitely
+	}
+}
+
+func NewGeminiClient() (*genai.Client, error) {
+	return genai.NewClient(context.Background(), option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
+}
+
+func NewLavinMqClient() (*amqp.Connection, error) {
+	return amqp.Dial(os.Getenv("LAVINMQ_HOST"))
+}
+
+// NewDatabase sets up the database connection
+func NewDatabase() (*sqlx.DB, error) {
+	dbUsername := os.Getenv("DB_USERNAME")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", dbUsername, dbPassword, dbHost, dbPort, dbName)
+	db, err := sqlx.Connect("mysql", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to the database: %v", err)
+	}
+	return db, nil
+}
+
+func NewRedis(lifecycle fx.Lifecycle) (*service.RedisClient, error) {
 	// Initialize redis
 	rdb, err := rueidis.NewClient(rueidis.ClientOption{
 		InitAddress:       []string{os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")},
@@ -317,76 +275,164 @@ func setUpExternalConnections() {
 		log.Fatalf("Error connecting to Redis: %v", err)
 	}
 
-	ctx := context.Background()
-	// Build the Ping command
-	pingCmd := rdb.B().Ping().Build()
-
-	// Execute the Ping command
-	err = rdb.Do(ctx, pingCmd).Error()
-	if err != nil {
-		log.Fatalf("Error pinging to Redis: %v", err)
-	}
-
-	// Start the Redis health check routine
-	go redisHealthCheck(rdb)
-
 	if os.Getenv("DEPLOYMENT") == "production" {
 		// Flush the Redis database to clear all keys
-		err := rdb.Do(ctx, rdb.B().Flushall().Build()).Error()
+		err := rdb.Do(context.Background(), rdb.B().Flushall().Build()).Error()
 		if err != nil {
 			log.Fatalf("Error executing FLUSHALL SYNC: %v", err)
 		}
 	}
 
-	services.RedisStore = rdb
+	safeClient := &service.RedisClient{Client: rdb}
 
-	// geminiClient, err := genai.NewClient(context.Background(), option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// services.Gemini = geminiClient
+	// Register lifecycle hooks for Redis
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			go func() {
+				ticker := time.NewTicker(30 * time.Minute)
+				defer ticker.Stop()
 
-	// log.Println(services.ChatGemini())
+				for range ticker.C {
+					safeClient.Mu.RLock()
+					err := pingRedis(safeClient.Client)
+					safeClient.Mu.RUnlock()
 
-	// Message Broker
-	// connection, err := amqp.Dial(os.Getenv("LAVINMQ_HOST"))
-	// if err != nil {
-	// 	log.Panicf("Failed to connect to LavinMQ")
-	// }
-	// services.LavinMQClient = connection
+					if err != nil {
+						log.Println("Redis ping failed, attempting to reconnect...")
+						newClient, err := reconnectRedis()
+						if err != nil {
+							log.Fatalf("Failed to reconnect: %v", err)
+						}
+						safeClient.Reconnect(newClient)
+					}
+				}
+			}()
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			rdb.Close()
+			return nil
+		},
+	})
 
+	return safeClient, nil
 }
 
-func setUpGlobals() {
+func NewWsConfig() websocket.Config {
+	return websocket.Config{
+		// Set the handshake timeout to a reasonable duration to prevent slowloris attacks.
+		HandshakeTimeout: 5 * time.Second,
+
+		Origins: []string{"https://test.k-pullup.com", "https://www.k-pullup.com"},
+
+		EnableCompression: true,
+
+		RecoverHandler: func(c *websocket.Conn) {
+			// Custom recover logic. By default, it logs the error and stack trace.
+			if r := recover(); r != nil {
+				fmt.Fprintf(os.Stderr, "WebSocket panic: %v\n", r)
+				debug.PrintStack()
+				c.WriteMessage(websocket.CloseMessage, []byte{})
+				c.Close()
+			}
+		},
+	}
+}
+
+// Load timezone finder
+func NewTimeZoneFinder() (tzf.F, error) {
 	finder, err := tzf.NewDefaultFinder()
 	if err != nil {
-		log.Fatalf("Failed to initialize timezone finder: %v", err)
+		log.Fatalf("Error loading timezone finder: %v", err)
+		return &tzf.DefaultFinder{}, err
 	}
-	util.TimeZoneFinder = finder
-
-	if err := util.LoadBadWords("badwords.txt"); err != nil {
-		log.Fatalf("Failed to load bad words: %v", err)
-	}
-
-	// Initialize global variables
-	setTokenExpirationTime()
-	services.AwsRegion = os.Getenv("AWS_REGION")
-	services.S3BucketName = os.Getenv("AWS_BUCKET_NAME")
-	util.LOGIN_TOKEN_COOKIE = os.Getenv("TOKEN_COOKIE")
+	return finder, nil
 }
 
-func setTokenExpirationTime() {
-	// Get the token expiration interval from the environment variable
-	durationStr := os.Getenv("TOKEN_EXPIRATION_INTERVAL")
-
-	// Convert the duration from string to int
-	durationInt, err := strconv.Atoi(durationStr)
-	if err != nil {
-		log.Fatalf("Error converting TOKEN_EXPIRATION_INTERVAL to int: %v", err)
+// MAIN Fx
+func main() {
+	// Load environment variables from a .env file if not in production
+	if os.Getenv("DEPLOYMENT") != "production" {
+		godotenv.Overload()
 	}
 
-	// Assign the converted duration to the global variable
-	services.TokenDuration = time.Duration(durationInt) * time.Hour
+	// Set GOMAXPROCS to twice the number of logical CPUs
+	runtime.GOMAXPROCS(runtime.NumCPU() * 2)
+
+	// Create an Fx application with provided dependencies and lifecycle hooks
+
+	fx.New(
+		servicefx.FxMarkerModule,
+		servicefx.FxExternalModle,
+		servicefx.FxChatModule,
+		servicefx.FxUtilModule,
+		servicefx.FxUserModule,
+		servicefx.FxAPIModule,
+		servicefx.FxFacadeModule,
+
+		configfx.FxConfigModule,
+
+		fx.Provide(
+			NewHTTPClient,
+			NewLogger,
+			NewDatabase,
+			NewRedis,
+			NewWsConfig,
+			NewTimeZoneFinder,
+			// NewGeminiClient,
+			// NewLavinMqClient,
+
+			middleware.NewAuthMiddleware,
+			middleware.NewLogMiddleware,
+
+			NewFiberApp,
+		),
+		fx.Invoke(registerHooks, util.RegisterBadWordUtilLifecycle, service.RegisterSchedulerLifecycle),
+	).Run()
+}
+
+// registerHooks sets up lifecycle hooks for starting and stopping the Fiber server
+func registerHooks(lc fx.Lifecycle,
+	app *fiber.App, db *sqlx.DB, logger *zap.Logger,
+	rankService *service.MarkerRankService,
+	redisService *service.RedisService,
+	safeClient *service.RedisClient,
+) {
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))
+
+			logger.Info("💖 Starting Fiber v2 server...")
+			go func() {
+				if os.Getenv("DEPLOYMENT") == "production" {
+					// Send Slack notification
+					go util.SendDeploymentSuccessNotification(app.Config().AppName, "fly.io")
+					// Random ranking
+					go rankService.ResetAndRandomizeClickRanking()
+				} else {
+					log.Printf("There are %d APIs available in chulbong-kr", countAPIs(app))
+				}
+
+				if err := app.Listen(serverAddr); err != nil {
+					logger.Fatal("Failed to start Fiber v3", zap.Error(err))
+				}
+			}()
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			logger.Info("=== Shutting down Fiber v2 server...")
+			if err := db.Close(); err != nil {
+				logger.Error("Failed to close database connection", zap.Error(err))
+			}
+			safeClient.Mu.Lock()
+			defer safeClient.Mu.Unlock()
+			if safeClient.Client != nil {
+				safeClient.Client.Close()
+			}
+
+			return app.Shutdown()
+		},
+	})
 }
 
 // countAPIs counts the number of APIs in a Fiber app
@@ -401,30 +447,18 @@ func countAPIs(app *fiber.App) int {
 	return numAPIs
 }
 
-func redisHealthCheck(rdb rueidis.Client) {
-	ticker := time.NewTicker(30 * time.Minute)
-	defer ticker.Stop()
-
-	for t := range ticker.C {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		err := rdb.Do(ctx, rdb.B().Ping().Build()).Error()
-		cancel()
-
-		if err != nil {
-			log.Printf("Redis ping failed at %v: %v", t, err)
-			// Attempt to reconnect
-			reconnectRedis(rdb)
-		} else {
-			log.Printf("Redis ping success at %v", t)
-		}
-	}
+func pingRedis(rdb rueidis.Client) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return rdb.Do(ctx, rdb.B().Ping().Build()).Error()
 }
 
-func reconnectRedis(rdb rueidis.Client) {
-	for i := 0; i < 3; i++ { // Try reconnecting 3 times
-		time.Sleep(time.Duration(i+1) * time.Second) // Exponential back-off strategy
-		rdb.Close()
-		rdb, err := rueidis.NewClient(rueidis.ClientOption{
+func reconnectRedis() (rueidis.Client, error) {
+	var newRdb rueidis.Client
+	for i := 0; i < 3; i++ {
+		time.Sleep(time.Duration(i+1) * time.Second)
+		var err error
+		newRdb, err = rueidis.NewClient(rueidis.ClientOption{
 			InitAddress:  []string{os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")},
 			Username:     os.Getenv("REDIS_USERNAME"),
 			Password:     os.Getenv("REDIS_PASSWORD"),
@@ -432,12 +466,9 @@ func reconnectRedis(rdb rueidis.Client) {
 			TLSConfig:    &tls.Config{InsecureSkipVerify: true},
 		})
 		if err == nil {
-			services.RedisStore = rdb
-			log.Println("Reconnected to Redis successfully")
-			return
+			return newRdb, nil
 		}
-		log.Printf("Failed to reconnect to Redis: %v", err)
+		log.Printf("Attempt %d to reconnect failed with error: %v", i+1, err)
 	}
-
-	log.Fatal("Failed to reconnect to Redis after several attempts")
+	return nil, fmt.Errorf("failed to reconnect to Redis after several attempts")
 }
