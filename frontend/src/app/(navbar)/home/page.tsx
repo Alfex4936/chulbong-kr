@@ -9,7 +9,7 @@ import SearchInput from "./_components/SearchInput";
 
 const Home = async () => {
   return (
-    <BlackSideBody toggle>
+    <BlackSideBody toggle bodyClass="px-6">
       <Heading title="대한민국 철봉 지도" />
       <SearchInput />
       <NoticeSlide />

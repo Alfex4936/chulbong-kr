@@ -6,6 +6,7 @@ import useUploadFormDataStore from "@/store/useUploadFormDataStore";
 import type { KaKaoMapMouseEvent } from "@/types/KakaoMap.types";
 import getAddress, { type AddressInfo } from "@/utils/getAddress";
 import { useCallback, useEffect, useRef, useState } from "react";
+// 모바일 스크롤 멈춤 적용 안됨
 
 const MiniMap = () => {
   const { lat, lng, level } = useMapStatusStore();

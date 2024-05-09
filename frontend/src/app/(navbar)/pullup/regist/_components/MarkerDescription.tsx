@@ -1,6 +1,5 @@
 "use client";
 
-import logout from "@/api/auth/logout";
 import deleteFavorite from "@/api/favorite/deleteFavorite";
 import setFavorite from "@/api/favorite/setFavorite";
 import getMarker from "@/api/markers/getMarker";
@@ -36,7 +35,14 @@ const MarkerDescription = () => {
 
   const { mutateAsync: setFacilities } = useSetFacilities();
   const { mutateAsync: uploadMarker } = useUploadMarker();
-  const { clusterer, map } = useMapStore();
+  const {
+    clusterer,
+    map,
+    setMarkers,
+    markers,
+    setOverlay,
+    overlay: overlayState,
+  } = useMapStore();
   const { filterMarker, moveLocation } = useMapControl();
 
   const [loading, setLoading] = useState(false);
@@ -121,7 +127,17 @@ const MarkerDescription = () => {
       let weatherLoading = false;
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
+        if (document.getElementsByClassName("overlay")[0]) {
+          document.getElementsByClassName("overlay")[0].remove();
+        }
+
         if (weatherLoading || markerLoading) return;
+
+        const latlng = new window.kakao.maps.LatLng(latitude, longitude);
+
+        skeletonOverlay.setMap(map);
+        skeletonOverlay.setPosition(latlng);
+
         content.innerHTML = "";
         const infoBox = /* HTML */ `
           <div id="overlay-top">
@@ -179,11 +195,6 @@ const MarkerDescription = () => {
           content: content,
           zIndex: 5,
         });
-
-        const latlng = new window.kakao.maps.LatLng(latitude, longitude);
-
-        skeletonOverlay.setMap(map);
-        skeletonOverlay.setPosition(latlng);
 
         // 마커 정보
         let description: string = "";
@@ -281,6 +292,8 @@ const MarkerDescription = () => {
 
         overlay.setMap(map);
         overlay.setPosition(latlng);
+
+        setOverlay(overlay);
 
         // 오버레이 날씨 정보
         const weatherIconBox = document.getElementById(
@@ -415,7 +428,11 @@ const MarkerDescription = () => {
         }
       });
 
+      if (!markers) return;
+      const newMarkers = [...markers, newMarker];
       clusterer?.addMarker(newMarker);
+
+      setMarkers(newMarkers);
 
       await filterMarker(result.markerId);
       await moveLocation(latitude, longitude);
@@ -424,8 +441,6 @@ const MarkerDescription = () => {
     } catch (error) {
       if (isAxiosError(error)) {
         if (error.response?.status === 401) {
-          await logout();
-          setError("인증이 만료 되었습니다. 다시 로그인 해주세요!");
         } else if (error.response?.status === 409) {
           setError("주변에 이미 철봉이 있습니다!");
         } else if (error.response?.status === 403) {
@@ -445,6 +460,7 @@ const MarkerDescription = () => {
     <div>
       <div className="flex flex-col mb-5">
         <Input
+          className="text-base"
           type="text"
           id="description"
           placeholder="설명 입력"
@@ -473,7 +489,7 @@ const MarkerDescription = () => {
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? <LoadingSpinner size="sm" /> : "등록하기"}
+          {loading ? <LoadingSpinner size="xs" /> : "등록하기"}
         </Button>
         {loading && imageForm.length > 0 ? (
           <div

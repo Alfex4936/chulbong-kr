@@ -14,17 +14,15 @@ interface MapState {
   setOverlay: (overlay: any) => void;
 }
 
-const useMapStore = create(
-  devtools<MapState>((set) => ({
-    map: null,
-    clusterer: null,
-    markers: null,
-    overlay: null,
-    setMap: (map: KakaoMap) => set({ map }),
-    setClusterer: (clusterer: MarkerClusterer) => set({ clusterer }),
-    setMarkers: (markers: KakaoMarker[]) => set({ markers }),
-    setOverlay: (overlay: any) => set({ overlay }),
-  }))
-);
+const useMapStore = create<MapState>()((set) => ({
+  map: null,
+  clusterer: null,
+  markers: null,
+  overlay: null,
+  setMap: (map: KakaoMap) => set({ map }),
+  setClusterer: (clusterer: MarkerClusterer) => set({ clusterer }),
+  setMarkers: (markers: KakaoMarker[]) => set({ markers }),
+  setOverlay: (overlay: any) => set({ overlay }),
+}));
 
 export default useMapStore;

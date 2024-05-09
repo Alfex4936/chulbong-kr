@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useChatIdStore from "@/store/useChatIdStore";
 import { Fragment, useEffect, useRef, useState } from "react";
-// TODO: 채팅 개발 배포 서버에서 확인 필요
 
 export interface ChatMessage {
   uid: string;
