@@ -23,6 +23,15 @@ const myInfo = async (cookie: string): Promise<MyInfo> => {
 
   return res.data;
 };
+// const checkAdmin = async (cookie: string) => {
+//   const res = await instance.get(`${process.env.NEXT_PUBLIC_BASE_URL}/admin`, {
+//     headers: {
+//       Cookie: cookie || "",
+//     },
+//   });
+
+//   return res.data;
+// };
 
 export const generateMetadata = () => {
   return {
@@ -43,6 +52,12 @@ const Mypage = async () => {
       return myInfo(decodeCookie);
     },
   });
+  // await queryClient.prefetchQuery({
+  //   queryKey: ["admin", "check"],
+  //   queryFn: () => {
+  //     return checkAdmin(decodeCookie);
+  //   },
+  // });
 
   const dehydrateState = dehydrate(queryClient);
 

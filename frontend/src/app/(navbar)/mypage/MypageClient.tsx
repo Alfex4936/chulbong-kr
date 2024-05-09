@@ -6,14 +6,17 @@ import { Separator } from "@/components/ui/separator";
 import useLogout from "@/hooks/mutation/auth/useLogout";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import Link from "next/link";
-import Unauthenticated from "./_component/Unauthenticated";
 import { useRouter } from "next/navigation";
+import Unauthenticated from "./_component/Unauthenticated";
 
 const MypageClient = () => {
   const router = useRouter();
 
   const { data: myInfo, isError } = useMyinfoData();
+
   const { mutate: logout } = useLogout();
+
+  console.log(myInfo);
 
   if (!myInfo || isError) return <Unauthenticated />;
   return (
@@ -50,6 +53,12 @@ const MypageClient = () => {
         text="등록한 장소"
         subText="내가 등록한 위치"
         onClick={() => router.push("/mypage/mylocate")}
+      />
+      <EmojiHoverButton
+        emoji="🪄"
+        text="정보 수정 제안 목록"
+        subText="내가 수정 제안 한 위치"
+        onClick={() => router.push("/mypage/report")}
       />
 
       <div className="mt-10 mx-auto w-1/2">
