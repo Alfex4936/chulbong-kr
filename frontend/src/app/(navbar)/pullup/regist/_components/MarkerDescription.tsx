@@ -157,7 +157,7 @@ const MarkerDescription = () => {
               <div id="overlay-title"></div>
               <div id="overlay-link">
                 <button id="item-detail-link">상세보기</button>
-                <button>정보 수정 제안</button>
+                <button id="item-report">정보 수정 제안</button>
               </div>
               <div class="empty-grow"></div>
               <div id="overlay-action">
@@ -357,6 +357,20 @@ const MarkerDescription = () => {
               mobileMapClose();
             }
             router.push(`/pullup/${result.markerId}`);
+          });
+        }
+
+        // 오버레이 정보 수정 제안 요청
+        const reportLink = document.getElementById(
+          "item-report"
+        ) as HTMLAnchorElement;
+        if (reportLink) {
+          reportLink.style.cursor = "pointer";
+          reportLink.addEventListener("click", () => {
+            if (window.innerWidth <= MOBILE_WIDTH) {
+              mobileMapClose();
+            }
+            router.push(`/pullup/${result.markerId}/report`);
           });
         }
 
