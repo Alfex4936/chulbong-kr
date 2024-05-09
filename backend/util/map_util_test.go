@@ -162,11 +162,19 @@ func TestDistance(t *testing.T) {
 			long2:          127.061476,
 			expectedResult: 7, // Expecting the result to be close to 7 meters
 		},
+		{
+			name:           "Very close distance 4", // actual 45.015298479052085m distance
+			lat1:           37.267622323623456,
+			long1:          127.08362857620969,
+			lat2:           37.267885604618314,
+			long2:          127.0840150071249,
+			expectedResult: 45, // Expecting the result to be close to 45 meters
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := approximateDistance(tt.lat1, tt.long1, tt.lat2, tt.long2)
+			result := CalculateDistanceApproximately(tt.lat1, tt.long1, tt.lat2, tt.long2)
 
 			// Log the distance calculated for this test case
 			t.Logf("Calculated distance for %q: %v meters", tt.name, result)

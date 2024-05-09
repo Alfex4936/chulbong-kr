@@ -3,22 +3,27 @@ package dto
 import "time"
 
 type MarkerReportRequest struct {
-	MarkerID    int     `json:"markerId"`
-	UserID      int     `json:"userId"`
-	Latitude    float64 `json:"latitude"`
-	Longitude   float64 `json:"longitude"`
-	Description string  `json:"description"`
+	MarkerID     int     `json:"markerId"`
+	UserID       int     `json:"userId"`
+	Latitude     float64 `json:"latitude"`
+	Longitude    float64 `json:"longitude"`
+	NewLatitude  float64 `json:"newLatitude,omitempty"`
+	NewLongitude float64 `json:"newLongitude,omitempty"`
+	Description  string  `json:"description"`
 }
 
 type MarkerReportResponse struct {
-	ReportID       int       `json:"-" db:"ReportID"`
-	MarkerID       int       `json:"markerId" db:"MarkerID"`
-	UserID         *int      `json:"userId,omitempty" db:"UserID"` // Pointer to handle nullable UserID
-	Latitude       float64   `json:"latitude" db:"Latitude" `
-	Longitude      float64   `json:"longitude" db:"Longitude"`
-	Description    string    `json:"description" db:"Description"`
-	ReportImageURL string    `json:"reportImageUrl,omitempty" db:"ReportImageURL"`
-	CreatedAt      time.Time `json:"createdAt" db:"CreatedAt"`
+	ReportID     int       `json:"reportId" db:"ReportID"`
+	MarkerID     int       `json:"markerId" db:"MarkerID"`
+	UserID       *int      `json:"userId,omitempty" db:"UserID"` // Pointer to handle nullable UserID
+	Latitude     float64   `json:"latitude" db:"Latitude"`
+	Longitude    float64   `json:"longitude" db:"Longitude"`
+	NewLatitude  float64   `json:"newLatitude,omitempty"`
+	NewLongitude float64   `json:"newLongitude,omitempty"`
+	Description  string    `json:"description" db:"Description"`
+	PhotoURLs    []string  `json:"photoUrls,omitempty"` // Array to store multiple photo URLs
+	CreatedAt    time.Time `json:"createdAt" db:"CreatedAt"`
+	Status       string    `json:"status" db:"Status"`
 }
 
 // MarkerReports groups all reports for a specific marker.

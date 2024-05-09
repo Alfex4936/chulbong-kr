@@ -159,24 +159,18 @@ func (s *MarkerManageService) GetMarker(markerID int) (*model.MarkerWithPhotos, 
 		return nil, err
 	}
 
-	// Fetch all photos at once
-	const photoQuery = `SELECT * FROM Photos`
-	var allPhotos []model.Photo
-	err = s.DB.Select(&allPhotos, photoQuery)
+	// Fetch all photos for this marker by descending order of upload time
+	const photoQuery = `SELECT * FROM Photos WHERE MarkerID = ? ORDER BY UploadedAt DESC`
+	var photos []model.Photo
+	err = s.DB.Select(&photos, photoQuery, markerID)
 	if err != nil {
-		return nil, err
-	}
-
-	// Map photos to their markers
-	photoMap := make(map[int][]model.Photo) // markerID to photos
-	for _, photo := range allPhotos {
-		photoMap[photo.MarkerID] = append(photoMap[photo.MarkerID], photo)
+		return nil, fmt.Errorf("error fetching photos: %w", err)
 	}
 
 	// Assemble the final structure
 	markersWithPhotos := model.MarkerWithPhotos{
 		Marker:        markersWithUsernames.Marker,
-		Photos:        photoMap[markersWithUsernames.MarkerID],
+		Photos:        photos,
 		Username:      markersWithUsernames.Username,
 		DislikeCount:  markersWithUsernames.DislikeCount,
 		FavoriteCount: markersWithUsernames.FavoriteCount,

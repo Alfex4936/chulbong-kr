@@ -137,11 +137,13 @@ func (s *UserService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserReq
 // GetAllReportsByUser retrieves all reports submitted by a specific user from the database.
 func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportResponse, error) {
 	const query = `
-    SELECT ReportID, MarkerID, UserID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude,
-           Description, ReportImageURL, CreatedAt
-    FROM Reports
-    WHERE UserID = ?
-    ORDER BY CreatedAt DESC
+    SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
+    ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
+    r.Description, r.CreatedAt, r.Status, p.PhotoURL
+    FROM Reports r
+	WHERE UserID = ?
+    LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
+    ORDER BY r.CreatedAt DESC
     `
 	reports := make([]dto.MarkerReportResponse, 0)
 	if err := s.DB.Select(&reports, query, userID); err != nil {

@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"fmt"
+	"mime/multipart"
 	"strconv"
 	"strings"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/middleware"
+	"github.com/Alfex4936/chulbong-kr/util"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,6 +20,10 @@ func RegisterReportRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 		reportGroup.Get("/all", handler.HandleGetAllReports)
 		reportGroup.Get("/marker/:markerID", handler.HandleGetMarkerReports)
 		reportGroup.Post("", authMiddleware.VerifySoft, handler.HandleCreateReport)
+		reportGroup.Post("/approve/:reportID", authMiddleware.Verify, handler.HandleApproveReport)
+		reportGroup.Post("/deny/:reportID", authMiddleware.Verify, handler.HandleDenyReport)
+
+		reportGroup.Delete("", authMiddleware.Verify, handler.HandleDeleteReport)
 	}
 }
 
@@ -75,6 +82,21 @@ func (h *MarkerHandler) HandleCreateReport(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "failed to parse latitude and longitude"})
 	}
 
+	newLatitude, newLongitude, err := getNewLatLngFromForm(form)
+	const maxDistance = 30.0 // maximum distance in meters
+	const errorMargin = 1.0  // margin error in meters
+
+	if err != nil {
+		newLatitude = latitude
+		newLongitude = longitude // use original location if new location is not provided
+	} else {
+		// check if the updated location is in 30m distance from the original location
+		distance := util.CalculateDistanceApproximately(latitude, longitude, newLatitude, newLongitude)
+		if distance > maxDistance+errorMargin {
+			return c.Status(fiber.StatusNotAcceptable).JSON(fiber.Map{"error": "updated latitude and longitude are too far, try to add a new marker."})
+		}
+	}
+
 	// Location Must Be Inside South Korea
 	if !h.MarkerFacadeService.IsInSouthKoreaPrecisely(latitude, longitude) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Operations only allowed within South Korea."})
@@ -97,11 +119,13 @@ func (h *MarkerHandler) HandleCreateReport(c *fiber.Ctx) error {
 	userID, _ := c.Locals("userID").(int) // userID will be 0 if not logged in
 
 	err = h.MarkerFacadeService.CreateReport(&dto.MarkerReportRequest{
-		MarkerID:    markerID,
-		UserID:      userID,
-		Latitude:    latitude,
-		Longitude:   longitude,
-		Description: description,
+		MarkerID:     markerID,
+		UserID:       userID,
+		Latitude:     latitude,
+		Longitude:    longitude,
+		NewLatitude:  newLatitude,
+		NewLongitude: newLongitude,
+		Description:  description,
 	}, form)
 	if err != nil {
 		if strings.Contains(err.Error(), "an error during file") {
@@ -112,8 +136,75 @@ func (h *MarkerHandler) HandleCreateReport(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "check if a marker exists"})
 		}
 
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create report"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create report: " + err.Error()})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "report created successfully"})
+}
+
+// HandleApproveReport updates the status of a report to 'APPROVED'
+func (h *MarkerHandler) HandleApproveReport(c *fiber.Ctx) error {
+	reportID, err := strconv.Atoi(c.Params("reportID"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid report ID"})
+	}
+
+	userID, _ := c.Locals("userID").(int)
+
+	if err := h.MarkerFacadeService.ApproveReport(reportID, userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to approve report: " + err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+// HandleDenyReport updates the status of a report to 'DENIED'
+func (h *MarkerHandler) HandleDenyReport(c *fiber.Ctx) error {
+	reportID, err := strconv.Atoi(c.Params("reportID"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid report ID"})
+	}
+	userID, _ := c.Locals("userID").(int)
+
+	if err := h.MarkerFacadeService.DenyReport(reportID, userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to deny report"})
+	}
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func (h *MarkerHandler) HandleDeleteReport(c *fiber.Ctx) error {
+	reportID, err := strconv.Atoi(c.Query("reportID"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid report ID"})
+	}
+	markerID, err := strconv.Atoi(c.Query("markerID"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid report ID"})
+	}
+	userID, _ := c.Locals("userID").(int)
+
+	if err := h.MarkerFacadeService.DeleteReport(reportID, userID, markerID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to deny report"})
+	}
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func getNewLatLngFromForm(form *multipart.Form) (float64, float64, error) {
+	latStr, latOk := form.Value["newLatitude"]
+	longStr, longOk := form.Value["newLongitude"]
+	if !latOk || !longOk || len(latStr[0]) == 0 || len(longStr[0]) == 0 {
+		return 0, 0, fmt.Errorf("latitude and longitude are empty")
+	}
+
+	latitude, err := strconv.ParseFloat(latStr[0], 64)
+	if err != nil {
+		return -1, -1, fmt.Errorf("invalid latitude")
+	}
+
+	longitude, err := strconv.ParseFloat(longStr[0], 64)
+	if err != nil {
+		return -1, -1, fmt.Errorf("invalid longitude")
+	}
+
+	return latitude, longitude, nil
 }

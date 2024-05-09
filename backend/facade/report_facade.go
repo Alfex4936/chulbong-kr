@@ -1,6 +1,7 @@
 package facade
 
 import (
+	"fmt"
 	"mime/multipart"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
@@ -17,4 +18,17 @@ func (mfs *MarkerFacadeService) GetAllReportsBy(markerID int) ([]dto.MarkerRepor
 
 func (mfs *MarkerFacadeService) CreateReport(report *dto.MarkerReportRequest, form *multipart.Form) error {
 	return mfs.ReportService.CreateReport(report, form)
+}
+
+func (mfs *MarkerFacadeService) ApproveReport(reportID, userID int) error {
+	go mfs.LocationService.Redis.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
+	return mfs.ReportService.ApproveReport(reportID, userID)
+}
+
+func (mfs *MarkerFacadeService) DenyReport(reportID, userID int) error {
+	return mfs.ReportService.DenyReport(reportID, userID)
+}
+
+func (mfs *MarkerFacadeService) DeleteReport(reportID, userID, markerID int) error {
+	return mfs.ReportService.DeleteReport(reportID, userID, markerID)
 }
