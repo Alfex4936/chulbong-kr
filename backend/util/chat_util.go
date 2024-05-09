@@ -9,6 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
+type ChatUtil struct {
+}
+
+func NewChatUtil() *ChatUtil {
+	return &ChatUtil{}
+}
+
 var adjectives = []string{
 	"귀여운",     // Cute
 	"멋진",      // Cool
@@ -76,7 +83,7 @@ var names = []string{
 }
 
 // GenerateKoreanNickname generates random user nickname
-func GenerateKoreanNickname() string {
+func (c *ChatUtil) GenerateKoreanNickname() string {
 
 	// Select a random
 	adjective := adjectives[rand.IntN(len(adjectives))]
@@ -96,7 +103,7 @@ func GenerateKoreanNickname() string {
 	return fmt.Sprintf("%s %s [%s]", adjective, name, shortUID)
 }
 
-func GetUserIP(c *fiber.Ctx) string {
+func (cu *ChatUtil) GetUserIP(c *fiber.Ctx) string {
 	clientIP := c.Get("Fly-Client-IP")
 	if clientIP == "" {
 		clientIP = c.Get("Fly-Client-Ip")
@@ -116,8 +123,8 @@ func GetUserIP(c *fiber.Ctx) string {
 	return clientIP
 }
 
-func anonymizeIP(c *fiber.Ctx) string {
-	ip := GetUserIP(c)
+func (cu *ChatUtil) anonymizeIP(c *fiber.Ctx) string {
+	ip := cu.GetUserIP(c)
 	parts := strings.Split(ip, ".")
 	if len(parts) >= 2 {
 		return parts[0] + "." + parts[1] // Return only the first two segments
@@ -125,9 +132,9 @@ func anonymizeIP(c *fiber.Ctx) string {
 	return ip // Fallback in case of unexpected format
 }
 
-func CreateAnonymousID(c *fiber.Ctx) string {
+func (cu *ChatUtil) CreateAnonymousID(c *fiber.Ctx) string {
 	adjective := adjectives[rand.IntN(len(adjectives))]
 	name := names[rand.IntN(len(names))]
 
-	return fmt.Sprintf("%s%s#%s", adjective, name, anonymizeIP(c)) // Combine nickname and IP
+	return fmt.Sprintf("%s%s#%s", adjective, name, cu.anonymizeIP(c)) // Combine nickname and IP
 }

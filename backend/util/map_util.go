@@ -69,7 +69,15 @@ const (
 	scaleFactor float64 = 2.5
 )
 
-var TimeZoneFinder tzf.F
+type MapUtil struct {
+	TimeZoneFinder tzf.F
+}
+
+func NewMapUtil(finder tzf.F) *MapUtil {
+	return &MapUtil{
+		TimeZoneFinder: finder,
+	}
+}
 
 // Haversine formula
 func approximateDistance(lat1, long1, lat2, long2 float64) float64 {
@@ -114,9 +122,9 @@ func IsInSouthKorea(lat, long float64) bool {
 	return lat >= SouthKoreaMinLat && lat <= SouthKoreaMaxLat && long >= SouthKoreaMinLong && long <= SouthKoreaMaxLong
 }
 
-func IsInSouthKoreaPrecisely(lat, lng float64) bool {
+func (t *MapUtil) IsInSouthKoreaPrecisely(lat, lng float64) bool {
 	// Get timezone name for the coordinates
-	return TimeZoneFinder.GetTimezoneName(lng, lat) == KoreaTimeZone
+	return t.TimeZoneFinder.GetTimezoneName(lng, lat) == KoreaTimeZone
 }
 
 // CONVERT ----------------------------------------------------------------

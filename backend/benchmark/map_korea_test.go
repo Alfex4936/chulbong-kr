@@ -1,8 +1,9 @@
 package benchmark
 
 import (
-	"chulbong-kr/util"
 	"testing"
+
+	"github.com/Alfex4936/chulbong-kr/util"
 
 	"github.com/Alfex4936/tzf"
 )
