@@ -18,13 +18,15 @@ import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import useUploadFormDataStore from "@/store/useUploadFormDataStore";
 import { Photo } from "@/types/Marker.types";
+import { useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const MarkerDescription = () => {
   const descriptionValue = useInput("");
-  const [error, setError] = useState("");
+
+  const queryClient = useQueryClient();
 
   const router = useRouter();
 
@@ -47,6 +49,7 @@ const MarkerDescription = () => {
 
   const [loading, setLoading] = useState(false);
   const [bookmarkError, setBookmarkError] = useState(false);
+  const [error, setError] = useState("");
 
   const { imageForm, latitude, longitude, resetData, facilities } =
     useUploadFormDataStore();
@@ -269,6 +272,9 @@ const MarkerDescription = () => {
             setBookmarkError(true);
           } finally {
             addBookmarkLoading = false;
+            queryClient.invalidateQueries({
+              queryKey: ["marker", result.markerId],
+            });
           }
         };
 
@@ -282,6 +288,9 @@ const MarkerDescription = () => {
             setBookmarkError(true);
           } finally {
             deleteBookmarkLoading = false;
+            queryClient.invalidateQueries({
+              queryKey: ["marker", result.markerId],
+            });
           }
         };
 

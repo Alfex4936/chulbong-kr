@@ -14,6 +14,7 @@ import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import useSelectedMarkerStore from "@/store/useSelectedMarkerStore";
 import { type Photo } from "@/types/Marker.types";
+import { useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +24,8 @@ import MapLoading from "./MapLoading";
 const Map = () => {
   const pathname = usePathname();
   const router = useRouter();
+
+  const queryClient = useQueryClient();
 
   const path1 = pathname.split("/")[1];
 
@@ -282,6 +285,9 @@ const Map = () => {
             setBookmarkError(true);
           } finally {
             addBookmarkLoading = false;
+            queryClient.invalidateQueries({
+              queryKey: ["marker", marker.markerId],
+            });
           }
         };
 
@@ -295,6 +301,9 @@ const Map = () => {
             setBookmarkError(true);
           } finally {
             deleteBookmarkLoading = false;
+            queryClient.invalidateQueries({
+              queryKey: ["marker", marker.markerId],
+            });
           }
         };
 

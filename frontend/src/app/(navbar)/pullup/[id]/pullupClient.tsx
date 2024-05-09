@@ -120,20 +120,6 @@ const PullupClient = ({ markerId }: Props) => {
     }
   };
 
-  // const filtering = async (markerId: number) => {
-  //   if (!markers || !clusterer) return;
-  //   const marker = markers.find((value) => Number(value.Gb) === markerId);
-
-  //   const newMarkers = markers.filter((value) => Number(value.Gb) !== markerId);
-
-  //   if (marker) {
-  //     marker.setMap(null);
-  //     clusterer.removeMarker(marker);
-  //     overlay.setMap(null);
-  //     setMarkers(newMarkers);
-  //   }
-  // };
-
   if (isError) return <div>X</div>;
   if (!marker) return;
 
