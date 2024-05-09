@@ -4,6 +4,7 @@ import deleteFavorite from "@/api/favorite/deleteFavorite";
 import setFavorite from "@/api/favorite/setFavorite";
 import getMarker from "@/api/markers/getMarker";
 import getWeather from "@/api/markers/getWeather";
+import ErrorMessage from "@/components/atom/ErrorMessage";
 import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import useInput from "@/hooks/common/useInput";
 import useMapControl from "@/hooks/common/useMapControl";
 import useSetFacilities from "@/hooks/mutation/marker/useSetFacilities";
 import useUploadMarker from "@/hooks/mutation/marker/useUploadMarker";
+import useReportMarker from "@/hooks/mutation/report/useReportMarker";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
@@ -23,8 +25,13 @@ import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const MarkerDescription = () => {
-  const descriptionValue = useInput("");
+interface Props {
+  desc?: string;
+  markerId?: number;
+}
+
+const MarkerDescription = ({ desc, markerId }: Props) => {
+  const descriptionValue = useInput(desc ? desc : "");
 
   const queryClient = useQueryClient();
 
@@ -35,6 +42,12 @@ const MarkerDescription = () => {
   const { open: openRoadview, setPosition: setRoadview } =
     useRoadviewStatusStore();
 
+  const {
+    mutate: report,
+    error: reportError,
+    isError,
+    isPending: reportPending,
+  } = useReportMarker();
   const { mutateAsync: setFacilities } = useSetFacilities();
   const { mutateAsync: uploadMarker } = useUploadMarker();
   const {
@@ -51,6 +64,8 @@ const MarkerDescription = () => {
   const [bookmarkError, setBookmarkError] = useState(false);
   const [error, setError] = useState("");
 
+  const [errorMessage, setErrorMessage] = useState("");
+
   const { imageForm, latitude, longitude, resetData, facilities } =
     useUploadFormDataStore();
 
@@ -59,6 +74,43 @@ const MarkerDescription = () => {
   }, []);
 
   const handleSubmit = async () => {
+    if (desc && markerId) {
+      try {
+        const marker = await getMarker(markerId);
+        let data;
+        if (latitude !== 0 && longitude !== 0) {
+          data = {
+            markerId: markerId,
+            description: descriptionValue.value,
+            photos: imageForm.map((image) => image.file) as File[],
+            latitude: marker.latitude,
+            longitude: marker.longitude,
+            newLatitude: latitude,
+            newLongitude: longitude,
+          };
+        } else {
+          data = {
+            markerId: markerId,
+            description: descriptionValue.value,
+            photos: imageForm.map((image) => image.file) as File[],
+            latitude: marker.latitude,
+            longitude: marker.longitude,
+          };
+        }
+
+        if (imageForm.length <= 0) {
+          setErrorMessage("이미지를 1개 이상 등록해 주세요");
+          return;
+        }
+
+        report(data);
+      } catch (error) {
+        setErrorMessage("잠시 후 다시 시도해 주세요.");
+      }
+
+      return;
+    }
+
     const data = {
       description: descriptionValue.value,
       photos: imageForm.map((image) => image.file) as File[],
@@ -479,6 +531,14 @@ const MarkerDescription = () => {
     }
   };
 
+  useEffect(() => {
+    if (isAxiosError(reportError)) {
+      if (reportError.response?.status === 406) {
+        setErrorMessage("너무 가까운 위치 입니다.");
+      }
+    }
+  }, [isError]);
+
   return (
     <div>
       <div className="flex flex-col mb-5">
@@ -486,7 +546,7 @@ const MarkerDescription = () => {
           className="text-base"
           type="text"
           id="description"
-          placeholder="설명 입력"
+          placeholder={desc ? "" : "설명 입력"}
           maxLength={70}
           value={descriptionValue.value}
           onChange={(e) => {
@@ -512,7 +572,13 @@ const MarkerDescription = () => {
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? <LoadingSpinner size="xs" /> : "등록하기"}
+          {loading || reportPending ? (
+            <LoadingSpinner size="xs" />
+          ) : desc && markerId ? (
+            "제안 요청"
+          ) : (
+            "등록하기"
+          )}
         </Button>
         {loading && imageForm.length > 0 ? (
           <div
@@ -523,6 +589,7 @@ const MarkerDescription = () => {
           </div>
         ) : null}
       </div>
+      <ErrorMessage text={errorMessage} />
     </div>
   );
 };

@@ -2,11 +2,10 @@
 
 import useGetMyReports from "@/hooks/query/report/useGetMyReports";
 import { isAxiosError } from "axios";
+import MarkerReportList from "./_components/MarkerReportList";
 
 const ReportClient = () => {
   const { data: myReports, error, isError } = useGetMyReports();
-
-  console.log(myReports);
 
   if (isError) {
     if (isAxiosError(error)) {
@@ -21,7 +20,26 @@ const ReportClient = () => {
       return <div className="text-center">잠시 후 다시 시도해 주세요.</div>;
     }
   }
-  return <div>reportClient</div>;
+  // TODO: 이미지 개수 이상 오류
+  console.log(myReports);
+
+  return (
+    <div>
+      {/* {myReports?.map((report) => {
+        return (
+          <div key={report.latitude + report.longitude} className="mb-4">
+            <MarkerReportList
+              markerId={report.markerId}
+              lat={report.latitude}
+              lng={report.longitude}
+              desc={report.description}
+              img={report.reportImageUrl}
+            />
+          </div>
+        );
+      })} */}
+    </div>
+  );
 };
 
 export default ReportClient;
