@@ -161,6 +161,13 @@ func (s *SchedulerService) CronOrphanedPhotosCleanup() {
 		} else {
 			fmt.Println("Orphaned photos cleanup executed successfully")
 		}
+
+		if err := s.deleteOrphanedReportPhotos(); err != nil {
+			fmt.Printf("Error cleaning up orphaned report photos: %v\n", err)
+		} else {
+			fmt.Println("Orphaned report photos cleanup executed successfully")
+		}
+
 	})
 	if err != nil {
 		fmt.Printf("Error scheduling the orphaned photos cleanup job: %v\n", err)
@@ -186,7 +193,7 @@ func (s *SchedulerService) CronCleanUpOldDirs() {
 	tempDir := os.TempDir()
 	maxAge := 2 * time.Minute
 
-	_, err := s.Schedule("*/10 * * * *", func() { // every 10 minutes
+	_, err := s.Schedule("*/15 * * * *", func() { // every 15 minutes
 		if err := cleanTempDir(tempDir, maxAge); err != nil {
 			fmt.Printf("Error cleaning up orphaned photos: %v\n", err)
 		}
@@ -245,6 +252,64 @@ func (s *SchedulerService) deleteOrphanedPhotos() error {
 
 	// Prepare to delete photos from the database and S3.
 	deletePhotoQuery := "DELETE FROM Photos WHERE PhotoID = ?"
+	var photoIDsToDelete []int
+	var photoURLsToDelete []string
+
+	for rows.Next() {
+		var photoID int
+		var photoURL string
+		if err := rows.Scan(&photoID, &photoURL); err != nil {
+			return fmt.Errorf("scanning orphaned photos: %w", err)
+		}
+		photoIDsToDelete = append(photoIDsToDelete, photoID)
+		photoURLsToDelete = append(photoURLsToDelete, photoURL)
+	}
+
+	// Begin a transaction for batch deletion.
+	tx, err := s.DB.BeginTx(context.Background(), nil)
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+
+	// Delete orphaned photos from the database.
+	for _, photoID := range photoIDsToDelete {
+		if _, err := tx.Exec(deletePhotoQuery, photoID); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("deleting photo ID %d: %w", photoID, err)
+		}
+	}
+
+	// Commit the database transaction.
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
+	// Delete orphaned photos from S3.
+	for _, photoURL := range photoURLsToDelete {
+		if err := s.S3Service.DeleteDataFromS3(photoURL); err != nil {
+			// Log the error but do not stop the process for other photos.
+			fmt.Printf("failed to delete photo URL %s from S3: %v\n", photoURL, err)
+		}
+	}
+
+	return nil
+}
+
+func (s *SchedulerService) deleteOrphanedReportPhotos() error {
+	// Find photos with no corresponding marker.
+	orphanedPhotosQuery := `
+	SELECT PhotoID, PhotoURL FROM ReportPhotos
+	LEFT JOIN Reports ON ReportPhotos.ReportID = Reports.ReportID
+	WHERE Reports.ReportID IS NULL
+	`
+	rows, err := s.DB.Query(orphanedPhotosQuery)
+	if err != nil {
+		return fmt.Errorf("querying orphaned photos: %w", err)
+	}
+	defer rows.Close()
+
+	// Prepare to delete photos from the database and S3.
+	deletePhotoQuery := "DELETE FROM ReportPhotos WHERE PhotoID = ?"
 	var photoIDsToDelete []int
 	var photoURLsToDelete []string
 

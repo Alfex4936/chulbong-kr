@@ -80,7 +80,7 @@ func NewMapUtil(finder tzf.F) *MapUtil {
 }
 
 // Haversine formula
-func approximateDistance(lat1, long1, lat2, long2 float64) float64 {
+func CalculateDistanceApproximately(lat1, long1, lat2, long2 float64) float64 {
 	lat1Rad := lat1 * (math.Pi / 180)
 	lat2Rad := lat2 * (math.Pi / 180)
 	deltaLat := (lat2 - lat1) * (math.Pi / 180)
