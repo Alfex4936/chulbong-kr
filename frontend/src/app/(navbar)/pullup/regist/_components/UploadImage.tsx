@@ -75,7 +75,6 @@ const UploadImage = () => {
     replaceImages(filtered);
   };
 
-  // TODO: 사진기 아이콘
   return (
     <div className="flex flex-col justify-center mb-4">
       <div>

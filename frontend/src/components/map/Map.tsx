@@ -46,6 +46,7 @@ const Map = () => {
     setMarkers,
     setOverlay,
     markers: mapMarkers,
+    overlay: overlayState,
   } = useMapStore();
   const { isOpen } = useBodyToggleStore();
 
@@ -137,8 +138,11 @@ const Map = () => {
       let weatherLoading = false;
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
-        if (weatherLoading || markerLoading) return;
+        if (document.getElementsByClassName("overlay")[0]) {
+          document.getElementsByClassName("overlay")[0].remove();
+        }
 
+        if (weatherLoading || markerLoading) return;
         const latlng = new window.kakao.maps.LatLng(
           marker.latitude,
           marker.longitude
@@ -204,7 +208,6 @@ const Map = () => {
           content: content,
           zIndex: 5,
         });
-        setOverlay(overlay);
 
         // 마커 정보
         let description: string = "";
@@ -302,6 +305,8 @@ const Map = () => {
 
         overlay.setMap(newMap);
         overlay.setPosition(latlng);
+
+        setOverlay(overlay);
 
         // 오버레이 날씨 정보
         const weatherIconBox = document.getElementById(
@@ -445,7 +450,6 @@ const Map = () => {
     setMap(newMap);
     setClusterer(clusterer);
     setMarkers(newMarkers);
-
     return () => {
       window.kakao.maps.event.removeListener(newMap, "dragend", handleDrag);
       window.kakao.maps.event.removeListener(
@@ -530,7 +534,7 @@ const Map = () => {
   }, [map]);
 
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-dvh">
       {mapLoading && <MapLoading />}
       <div
         id="map"

@@ -37,7 +37,7 @@ const useDeleteMarker = ({
 
   const { open } = useLoginModalStateStore();
   const { toast } = useToast();
-  const { clusterer, markers, setMarkers, overlay } = useMapStore();
+  const { clusterer, markers, setMarkers, overlay, setOverlay } = useMapStore();
 
   const queryClient = useQueryClient();
 
@@ -52,6 +52,7 @@ const useDeleteMarker = ({
       clusterer.removeMarker(marker);
       overlay.setMap(null);
       setMarkers(newMarkers);
+      setOverlay(null);
     }
   };
 

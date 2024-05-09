@@ -18,7 +18,7 @@ const MapWrapper = () => {
 
   return (
     <div
-      className={`w-full h-screen mo:absolute ${
+      className={`w-full h-dvh mo:absolute ${
         isOpen ? "mo:z-10" : "mo:-z-10"
       }`}
     >
@@ -33,7 +33,7 @@ const MapWrapper = () => {
       />
 
       {!loaded && (
-        <div className="w-full h-screen">
+        <div className="w-full h-dvh">
           <MapLoading />
         </div>
       )}

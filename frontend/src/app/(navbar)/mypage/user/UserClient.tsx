@@ -15,7 +15,6 @@ import { useEffect, useState } from "react";
 import ChangePassword from "./ChangePassword";
 import DeleteUserAlert from "./DeleteUserAlert";
 // TODO: 에러 토스트 팝업 연결
-// TODO: 탈퇴하기 연동
 
 interface Props {
   text: string;
