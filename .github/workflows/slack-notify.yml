@@ -6,11 +6,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  checkout_code:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.set_output.outputs.sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Set SHA output
+        id: set_output
+        run: echo "::set-output name=sha::${{ github.sha }}"
+
   notifySlackFrontend:
     runs-on: ubuntu-latest
+    needs: checkout_code
+    if: ${{ github.event.action == 'frontend-changes' }}
     steps:
       - name: Notify Slack about Frontend Changes
-        if: ${{ github.event.action == 'frontend-changes' }}
         uses: 8398a7/action-slack@v3
         with:
           status: custom
@@ -25,7 +39,7 @@ jobs:
                 "color": "#f4e242",
                 "fields": [{
                     "title": "Commit",
-                    "value": "<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
+                    "value": "<https://github.com/${{ github.repository }}/commit/${{ needs.checkout_code.outputs.sha }}|${{ needs.checkout_code.outputs.sha }}>",
                     "short": true
                   },{
                     "title": "Author",
@@ -43,9 +57,10 @@ jobs:
 
   notifySlackBackend:
     runs-on: ubuntu-latest
+    needs: checkout_code
+    if: ${{ github.event.action == 'backend-changes' }}
     steps:
       - name: Notify Slack about Backend Changes
-        if: ${{ github.event.action == 'backend-changes' }}
         uses: 8398a7/action-slack@v3
         with:
           status: custom
@@ -60,7 +75,7 @@ jobs:
                 "color": "#42e2f4",
                 "fields": [{
                     "title": "Commit",
-                    "value": "<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
+                    "value": "<https://github.com/${{ github.repository }}/commit/${{ needs.checkout_code.outputs.sha }}|${{ needs.checkout_code.outputs.sha }}>",
                     "short": true
                   },{
                     "title": "Author",
