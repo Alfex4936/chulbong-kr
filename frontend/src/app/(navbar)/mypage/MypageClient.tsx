@@ -16,8 +16,6 @@ const MypageClient = () => {
 
   const { mutate: logout } = useLogout();
 
-  console.log(myInfo);
-
   if (!myInfo || isError) return <Unauthenticated />;
   return (
     <div>

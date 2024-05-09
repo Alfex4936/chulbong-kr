@@ -8,7 +8,13 @@ import getAddress, { type AddressInfo } from "@/utils/getAddress";
 import { useCallback, useEffect, useRef, useState } from "react";
 // 모바일 스크롤 멈춤 적용 안됨
 
-const MiniMap = () => {
+interface Props {
+  isMarker?: boolean;
+  latitude?: number;
+  longitude?: number;
+}
+
+const MiniMap = ({ isMarker = false, latitude, longitude }: Props) => {
   const { lat, lng, level } = useMapStatusStore();
   const { loaded, setMap, map } = useMiniMapStatusStore();
   const { setPosition: setFormPosition } = useUploadFormDataStore();
@@ -57,8 +63,11 @@ const MiniMap = () => {
       zIndex: 4,
     });
 
+    if (latitude && longitude) {
+      const markerPosition = new window.kakao.maps.LatLng(latitude, longitude);
+      marker.setPosition(markerPosition);
+    }
     marker.setMap(newMap);
-    marker.setVisible(false);
 
     window.kakao.maps.event.addListener(
       newMap,

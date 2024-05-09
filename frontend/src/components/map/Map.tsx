@@ -383,7 +383,9 @@ const Map = () => {
             if (window.innerWidth <= MOBILE_WIDTH) {
               mobileMapClose();
             }
-            router.push(`/pullup/${marker.markerId}/report`);
+            router.push(
+              `/pullup/${marker.markerId}/report`
+            );
           });
         }
 
