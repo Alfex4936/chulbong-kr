@@ -21,23 +21,24 @@ const ReportClient = () => {
     }
   }
   // TODO: 이미지 개수 이상 오류
-  console.log(myReports);
+  // console.log(myReports);
 
   return (
     <div>
-      {/* {myReports?.map((report) => {
+      {myReports?.map((report) => {
         return (
-          <div key={report.latitude + report.longitude} className="mb-4">
+          <div key={report.reportId} className="mb-4">
             <MarkerReportList
               markerId={report.markerId}
               lat={report.latitude}
               lng={report.longitude}
               desc={report.description}
-              img={report.reportImageUrl}
+              img={report.photoUrls}
+              status={report.status}
             />
           </div>
         );
-      })} */}
+      })}
     </div>
   );
 };
