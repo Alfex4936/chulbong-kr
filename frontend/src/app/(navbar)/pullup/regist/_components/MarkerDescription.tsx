@@ -28,9 +28,10 @@ import { useEffect, useState } from "react";
 interface Props {
   desc?: string;
   markerId?: number;
+  isReport?: boolean;
 }
 
-const MarkerDescription = ({ desc, markerId }: Props) => {
+const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
   const descriptionValue = useInput(desc ? desc : "");
 
   const queryClient = useQueryClient();
@@ -74,7 +75,7 @@ const MarkerDescription = ({ desc, markerId }: Props) => {
   }, []);
 
   const handleSubmit = async () => {
-    if (desc && markerId) {
+    if (isReport && markerId) {
       try {
         const marker = await getMarker(markerId);
         let data;
@@ -574,7 +575,7 @@ const MarkerDescription = ({ desc, markerId }: Props) => {
         >
           {loading || reportPending ? (
             <LoadingSpinner size="xs" />
-          ) : desc && markerId ? (
+          ) : markerId && isReport ? (
             "제안 요청"
           ) : (
             "등록하기"
