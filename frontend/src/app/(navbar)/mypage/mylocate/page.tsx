@@ -1,7 +1,6 @@
 import instance from "@/api/instance";
 import { type MyMarkerRes } from "@/api/user/mylocateMarker";
 import BlackSideBody from "@/components/atom/BlackSideBody";
-import Heading from "@/components/atom/Heading";
 import PrevHeader from "@/components/atom/PrevHeader";
 import {
   HydrationBoundary,
@@ -42,9 +41,8 @@ const Mylocate = async () => {
 
   return (
     <BlackSideBody toggle bodyClass="p-0 mo:px-0 mo:pb-0">
-      <PrevHeader url="/mypage" text="내 정보" />
+      <PrevHeader url="/mypage" text="등록한 장소" />
 
-      <Heading title="등록한 장소" />
       <HydrationBoundary state={dehydrateState}>
         <MylocateClient />
       </HydrationBoundary>

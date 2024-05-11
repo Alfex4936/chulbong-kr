@@ -384,7 +384,7 @@ const Map = () => {
               mobileMapClose();
             }
             router.push(
-              `/pullup/${marker.markerId}/report`
+              `/pullup/${marker.markerId}/reportlist`
             );
           });
         }

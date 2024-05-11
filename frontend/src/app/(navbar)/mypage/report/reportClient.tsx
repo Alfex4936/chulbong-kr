@@ -1,11 +1,25 @@
 "use client";
 
-import useGetMyReports from "@/hooks/query/report/useGetMyReports";
+import { type ReportsRes } from "@/api/report/getMyReports";
+import useReportsData from "@/hooks/query/report/useReportsData";
+import { QueryObserverRefetchErrorResult } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import MarkerReportList from "./_components/MarkerReportList";
 
-const ReportClient = () => {
-  const { data: myReports, error, isError } = useGetMyReports();
+interface Props {
+  type?: "me" | "formarker" | "all";
+  markerId?: number;
+}
+
+const ReportClient = ({ type = "me", markerId }: Props) => {
+  const {
+    data: myReports,
+    error,
+    isError,
+  } = useReportsData({ type, markerId }) as QueryObserverRefetchErrorResult<
+    ReportsRes[],
+    Error
+  >;
 
   if (isError) {
     if (isAxiosError(error)) {
@@ -21,7 +35,7 @@ const ReportClient = () => {
     }
   }
   // TODO: 이미지 개수 이상 오류
-  // console.log(myReports);
+  console.log(myReports);
 
   return (
     <div>

@@ -1,8 +1,15 @@
-type Props = { title: string; subTitle?: string };
+import { cn } from "@/utils/cn";
 
-const Heading = ({ title, subTitle }: Props) => {
+type Props = { title: string; subTitle?: string; className?: string };
+
+const Heading = ({ title, subTitle, className }: Props) => {
   return (
-    <div className="flex flex-col items-center justify-center font-medium text-2xl text-center h-24 mo:text-lg">
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center font-medium text-2xl text-center h-24 mo:text-lg",
+        className
+      )}
+    >
       <div>{title}</div>
       {subTitle && (
         <div className="text-sm text-grey-dark mo:text-xs">{subTitle}</div>
