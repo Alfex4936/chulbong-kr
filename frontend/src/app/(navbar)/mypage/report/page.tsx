@@ -1,10 +1,10 @@
 import instance from "@/api/instance";
 import BlackSideBody from "@/components/atom/BlackSideBody";
-import Heading from "@/components/atom/Heading";
+import PrevHeader from "@/components/atom/PrevHeader";
 import {
-    HydrationBoundary,
-    QueryClient,
-    dehydrate,
+  HydrationBoundary,
+  QueryClient,
+  dehydrate,
 } from "@tanstack/react-query";
 import { cookies } from "next/headers";
 import ReportClient from "./reportClient";
@@ -28,7 +28,7 @@ const ReportPage = async () => {
   const queryClient = new QueryClient();
 
   await queryClient.prefetchQuery({
-    queryKey: ["marker", "report"],
+    queryKey: ["marker", "report", "me"],
     queryFn: () => {
       return getMyReports(decodeCookie);
     },
@@ -36,11 +36,13 @@ const ReportPage = async () => {
 
   const dehydrateState = dehydrate(queryClient);
   return (
-    <BlackSideBody toggle>
-      <Heading title="정보 수정 제안 목록" />
-      <HydrationBoundary state={dehydrateState}>
-        <ReportClient />
-      </HydrationBoundary>
+    <BlackSideBody toggle bodyClass="relative p-0 mo:px-0 mo:pb-0">
+      <PrevHeader url={`/mypage`} text="정보 수정 제안 목록" />
+      <div className="px-4 pb-4 scrollbar-thin mo:pb-20">
+        <HydrationBoundary state={dehydrateState}>
+          <ReportClient />
+        </HydrationBoundary>
+      </div>
     </BlackSideBody>
   );
 };

@@ -263,7 +263,7 @@ const PullupClient = ({ markerId }: Props) => {
             <span className="mx-1">|</span>
             <button
               className="underline"
-              onClick={() => router.push(`/pullup/${markerId}/report`)}
+              onClick={() => router.push(`/pullup/${markerId}/reportlist`)}
             >
               정보 수정 제안
             </button>

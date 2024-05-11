@@ -423,7 +423,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
             if (window.innerWidth <= MOBILE_WIDTH) {
               mobileMapClose();
             }
-            router.push(`/pullup/${result.markerId}/report`);
+            router.push(`/pullup/${result.markerId}/reportlist`);
           });
         }
 
