@@ -54,6 +54,7 @@ const RportMarkerPage = async ({ params }: Props) => {
         <MarkerDescription
           desc={marker.description}
           markerId={Number(params.id)}
+          isReport={true}
         />
       </BlackSideBody>
     );

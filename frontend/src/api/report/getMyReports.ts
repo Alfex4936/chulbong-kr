@@ -1,6 +1,6 @@
 import instance from "../instance";
 
-interface ReportsRes {
+export interface ReportsRes {
   createdAt: Date;
   description: string;
   latitude: number;
