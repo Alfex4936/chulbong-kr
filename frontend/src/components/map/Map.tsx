@@ -20,6 +20,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../ui/use-toast";
 import MapLoading from "./MapLoading";
+// TODO: 상세페이지 북마크 클릭 시 커스텀 오버레이 query invalidate
 
 const Map = () => {
   const pathname = usePathname();
@@ -383,9 +384,7 @@ const Map = () => {
             if (window.innerWidth <= MOBILE_WIDTH) {
               mobileMapClose();
             }
-            router.push(
-              `/pullup/${marker.markerId}/reportlist`
-            );
+            router.push(`/pullup/${marker.markerId}/reportlist`);
           });
         }
 

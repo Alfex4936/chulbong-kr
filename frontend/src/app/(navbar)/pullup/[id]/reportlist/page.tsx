@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 import Link from "next/link";
 // TODO: 프리페치 안되는 문제 해결
+// TODO: 등록한 유저면 승인 or 거절
 
 const getMarkerReport = async (markerId: number) => {
   const res = await instance.get(
