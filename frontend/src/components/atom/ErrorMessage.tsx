@@ -1,9 +1,11 @@
-type Props = {
-  text: string;
-};
+import { cn } from "@/utils/cn";
 
-const ErrorMessage = ({ text }: Props) => {
-  return <div className="text-xs text-red">{text}</div>;
+interface Props {
+  text?: string;
+  className?: string;
+}
+const ErrorMessage = ({ text, className }: Props) => {
+  return <div className={cn("text-xs text-red", className)}>{text}</div>;
 };
 
 export default ErrorMessage;

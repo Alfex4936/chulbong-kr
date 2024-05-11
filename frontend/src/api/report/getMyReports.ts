@@ -5,8 +5,12 @@ export interface ReportsRes {
   description: string;
   latitude: number;
   longitude: number;
+  newLatitude: number;
+  newLongitude: number;
   markerId: number;
-  reportImageUrl: string;
+  reportId: number;
+  status: string;
+  photoUrls: string;
   userId: number;
 }
 

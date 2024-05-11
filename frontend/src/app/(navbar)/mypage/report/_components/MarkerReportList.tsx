@@ -7,6 +7,7 @@ import getAddress, { type AddressInfo } from "@/utils/getAddress";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import ChangePassword from "../../user/ChangePassword";
+import StatusBadge from "./StatusBadge";
 
 interface Props {
   markerId: number;
@@ -14,6 +15,7 @@ interface Props {
   lng: number;
   desc: string;
   img?: string | string[];
+  status: string;
 }
 
 interface InfoListProps {
@@ -33,7 +35,7 @@ const InfoList = ({ text, subText, buttonText }: InfoListProps) => {
   );
 };
 
-const MarkerReportList = ({ markerId, lat, lng, desc, img }: Props) => {
+const MarkerReportList = ({ markerId, lat, lng, desc, img, status }: Props) => {
   const { data: marker } = useMarkerData(markerId);
   const { map } = useMapStore();
   const [addr, setAddr] = useState("");
@@ -50,7 +52,8 @@ const MarkerReportList = ({ markerId, lat, lng, desc, img }: Props) => {
   }, [map]);
 
   return (
-    <BlackLightBox>
+    <BlackLightBox className="relative">
+      <StatusBadge status={status} className="absolute top-2 right-2" />
       <div>기존</div>
       <InfoList
         text="주소"
@@ -77,7 +80,8 @@ const MarkerReportList = ({ markerId, lat, lng, desc, img }: Props) => {
                     width={30}
                     height={30}
                     alt="마커 수정"
-                    className="w-10 h-10 object-contain"
+                    className="w-10 h-10 object-contain ml-2"
+                    key={img}
                   />
                 );
               })
