@@ -1,5 +1,7 @@
 # chulbong-:kr:
 
+![dotgraph](https://github.com/Alfex4936/chulbong-kr/assets/2356749/7b1e06ec-4478-4514-aa8f-9831481fd4d8)
+
 ## Technologies and Frameworks
 
 Below is the list of technologies and frameworks used in the Chulbong-KR backend:

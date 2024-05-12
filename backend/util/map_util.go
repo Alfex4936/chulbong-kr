@@ -61,12 +61,13 @@ const (
 	flatteningFactor float64 = 0.0033528106647474805
 
 	// Constants for Korea TM projection.
-	k0          float64 = 1      // Scale factor.
-	dx          float64 = 500000 // False Easting.
-	dy          float64 = 200000 // False Northing.
-	lat0        float64 = 38     // Latitude of origin.
-	lon0        float64 = 127    // Longitude of origin.
-	scaleFactor float64 = 2.5
+	k0               float64 = 1      // Scale factor.
+	dx               float64 = 500000 // False Easting.
+	dy               float64 = 200000 // False Northing.
+	lat0             float64 = 38     // Latitude of origin.
+	lon0             float64 = 127    // Longitude of origin.
+	radiansPerDegree float64 = math.Pi / 180
+	scaleFactor      float64 = 2.5
 )
 
 type MapUtil struct {
@@ -144,11 +145,10 @@ func ConvertWGS84ToWCONGNAMUL(lat, long float64) WCONGNAMULCoord {
 
 // transformWGS84ToKoreaTM optimizes the coordinate conversion calculation.
 func transformWGS84ToKoreaTM(d, e, h, f, c, l, m, lat, lon float64) (float64, float64) {
-	const A = math.Pi / 180 // Degree to radian conversion factor
-	latRad := lat * A
-	lonRad := lon * A
-	lRad := l * A
-	mRad := m * A
+	latRad := lat * radiansPerDegree
+	lonRad := lon * radiansPerDegree
+	lRad := l * radiansPerDegree
+	mRad := m * radiansPerDegree
 
 	w := 1 / e
 	if e > 1 {
@@ -193,59 +193,96 @@ func transformWGS84ToKoreaTM(d, e, h, f, c, l, m, lat, lon float64) (float64, fl
 	return x, y
 }
 
-// ConvertWGS84ToWCONGNAMUL converts coordinates from WGS84 to WCONGNAMUL.
-func ConvertWGS84ToWCONGNAMUL2(lat, long float64) WCONGNAMULCoord {
-	x, y := transformWGS84ToKoreaTM2(aWGS84, flatteningFactor, dy, k0, lat0, lon0, lat, long)
-	x = math.Round(x * scaleFactor)
-	y = math.Round(y * scaleFactor)
-	return WCONGNAMULCoord{X: x, Y: y}
+// ConvertWCONGToWGS84 translates WCONGNAMUL coordinates to WGS84.
+func ConvertWCONGToWGS84(x, y float64) (float64, float64) {
+	return transformKoreaTMToWGS84(aWGS84, flatteningFactor, dx, dy, k0, lat0, lon0, x/2.5, y/2.5)
 }
 
-// transformWGS84ToKoreaTM converts coordinates from WGS84 to the Korea TM coordinate system.
-func transformWGS84ToKoreaTM2(d, e, f, c, l, m, lat, lon float64) (float64, float64) {
-	const A = math.Pi / 180 // Degree to radian conversion factor
-	latRad := lat * A
-	lonRad := lon * A
-	lRad := l * A
-	mRad := m * A
+// transformKoreaTMToWGS84 transforms coordinates from Korea TM to WGS84.
+// a, f, falseEasting, falseNorthing, scaleFactor, latOrigin, lonOrigin
+func transformKoreaTMToWGS84(d, e, h, f, c, l, m, x, y float64) (float64, float64) {
+	u := e
+	if u > 1 {
+		u = 1 / u
+	}
+	w := math.Atan(1) / 45 // Conversion factor from degrees to radians
+	o := l * w
+	D := m * w
+	u = 1 / u
+	B := d * (u - 1) / u
+	z := (d*d - B*B) / (d * d)
+	u = (d*d - B*B) / (B * B)
+	B = (d - B) / (d + B)
 
-	// Precompute as much as possible that doesn't depend on dynamic input (lat, lon)
-	w := math.Max(1/e, e)
-	z := d * (w - 1) / w
-	z = (d - z) / (d + z)
+	G := d * (1 - B + 5*(B*B-B*B*B)/4 + 81*(B*B*B*B-B*B*B*B*B)/64)
+	E := 3 * d * (B - B*B + 7*(B*B*B-B*B*B*B)/8 + 55*B*B*B*B*B/64) / 2
+	I := 15 * d * (B*B - B*B*B + 3*(B*B*B*B-B*B*B*B*B)/4) / 16
+	J := 35 * d * (B*B*B - B*B*B*B + 11*B*B*B*B*B/16) / 48
+	L := 315 * d * (B*B*B*B - B*B*B*B*B) / 512
 
-	// Compute coefficients used in series expansions
-	coefficients := precomputeCoefficients(d, z)
+	o = G*o - E*math.Sin(2*o) + I*math.Sin(4*o) - J*math.Sin(6*o) + L*math.Sin(8*o)
+	o *= c
+	o = y + o - h
+	M := o / c
+	H := d * (1 - z) / math.Pow(math.Sqrt(1-z*math.Pow(math.Sin(0), 2)), 3)
+	o = M / H
+	for i := 0; i < 5; i++ {
+		B = G*o - E*math.Sin(2*o) + I*math.Sin(4*o) - J*math.Sin(6*o) + L*math.Sin(8*o)
+		H = d * (1 - z) / math.Pow(math.Sqrt(1-z*math.Pow(math.Sin(o), 2)), 3)
+		o += (M - B) / H
+	}
+	H = d * (1 - z) / math.Pow(math.Sqrt(1-z*math.Pow(math.Sin(o), 2)), 3)
+	G = d / math.Sqrt(1-z*math.Pow(math.Sin(o), 2))
+	B = math.Sin(o)
+	z = math.Cos(o)
+	E = B / z
+	u *= z * z
+	A := x - f
+	B = E / (2 * H * G * math.Pow(c, 2))
+	I = E * (5 + 3*E*E + u - 4*u*u - 9*E*E*u) / (24 * H * G * G * G * math.Pow(c, 4))
+	J = E * (61 + 90*E*E + 46*u + 45*E*E*E*E - 252*E*E*u - 3*u*u + 100*u*u*u - 66*E*E*u*u - 90*E*E*E*E*u + 88*u*u*u*u + 225*E*E*E*E*u*u + 84*E*E*u*u*u - 192*E*E*u*u*u*u) / (720 * H * G * G * G * G * G * math.Pow(c, 6))
+	H = E * (1385 + 3633*E*E + 4095*E*E*E*E + 1575*E*E*E*E*E*E) / (40320 * H * G * G * G * G * G * G * G * math.Pow(c, 8))
+	o = o - math.Pow(A, 2)*B + math.Pow(A, 4)*I - math.Pow(A, 6)*J + math.Pow(A, 8)*H
+	B = 1 / (G * z * c)
+	H = (1 + 2*E*E + u) / (6 * G * G * G * z * z * z * math.Pow(c, 3))
+	u = (5 + 6*u + 28*E*E - 3*u*u + 8*E*E*u + 24*E*E*E*E - 4*u*u*u + 4*E*E*u*u + 24*E*E*u*u*u) / (120 * G * G * G * G * G * z * z * z * z * z * math.Pow(c, 5))
+	z = (61 + 662*E*E + 1320*E*E*E*E + 720*E*E*E*E*E*E) / (5040 * G * G * G * G * G * G * G * z * z * z * z * z * z * z * math.Pow(c, 7))
+	A = A*B - math.Pow(A, 3)*H + math.Pow(A, 5)*u - math.Pow(A, 7)*z
+	D += A
 
-	// Delta longitude (in radians)
-	D := lonRad - mRad
-
-	// Compute northing, easting
-	northing := computeNorthing(latRad, coefficients, c)
-	easting := f + computeEasting(lonRad, lRad, coefficients, c, D)
-
-	return easting, northing
+	return o / w, D / w // LATITUDE, LONGITUDE
 }
 
-func precomputeCoefficients(d, z float64) []float64 {
-	// Precompute coefficients for series expansions based on z
-	E := d * (1 - z + 5*(z*z-z*z*z)/4 + 81*(z*z*z*z-z*z*z*z*z)/64)
-	I := 3 * d * (z - z*z + 7*(z*z*z-z*z*z*z)/8 + 55*z*z*z*z*z/64) / 2
-	J := 15 * d * (z*z - z*z*z + 3*(z*z*z*z-z*z*z*z*z)/4) / 16
-	L := 35 * d * (z*z*z - z*z*z*z + 11*z*z*z*z*z/16) / 48
-	M := 315 * d * (z*z*z*z - z*z*z*z*z) / 512
-	return []float64{E, I, J, L, M}
-}
+// OPtimized
+// transformKoreaTMToWGS84 transforms coordinates from Korea TM to WGS84.
+// a, f, falseEasting, falseNorthing, scaleFactor, latOrigin, lonOrigin
+func transformKoreaTMToWGS84_Optimize(d, e, h, f, c, l, m, x, y float64) (float64, float64) {
+	radiansPerDegree := math.Pi / 180
+	latOriginRad := l * radiansPerDegree
+	lonOriginRad := m * radiansPerDegree
 
-func computeNorthing(latRad float64, coeffs []float64, c float64) float64 {
-	E, I, J, L, M := coeffs[0], coeffs[1], coeffs[2], coeffs[3], coeffs[4]
-	// Using series expansion to compute northing
-	return E*latRad - I*math.Sin(2*latRad) + J*math.Sin(4*latRad) - L*math.Sin(6*latRad) + M*math.Sin(8*latRad)*c
-}
+	xAdjusted := x - f
+	yAdjusted := y - h
 
-func computeEasting(lonRad, lRad float64, coeffs []float64, c, D float64) float64 {
-	E, I, J, L, M := coeffs[0], coeffs[1], coeffs[2], coeffs[3], coeffs[4]
-	// Compute partial easting from series expansion terms
-	u := E*lRad - I*math.Sin(2*lRad) + J*math.Sin(4*lRad) - L*math.Sin(6*lRad) + M*math.Sin(8*lRad)
-	return u*c + D*D*D*math.Cos(lonRad)*c
+	e2 := e * (2 - e) // Squared eccentricity of the ellipsoid
+	n := d / math.Sqrt(1-e2*math.Sin(latOriginRad)*math.Sin(latOriginRad))
+
+	// Improved initial latitude calculation considering average latitude
+	avgLat := (latOriginRad + (latOriginRad + yAdjusted/(k0*n))) / 2
+	lat := avgLat + yAdjusted/(k0*n)
+
+	// Iterative refinement with enhanced initial condition
+	for i := 0; i < 5; i++ {
+		n = d / math.Sqrt(1-e2*math.Sin(lat)*math.Sin(lat))
+		latCorrection := (yAdjusted - (lat-latOriginRad)*k0*n) / (k0 * n)
+		if math.Abs(latCorrection) < 1e-12 { // Early exit if adjustments are minimal
+			break
+		}
+		lat += latCorrection
+	}
+
+	// Longitude calculation using refined latitude
+	lon := lonOriginRad + xAdjusted/(k0*n*math.Cos(lat))
+
+	return lat / radiansPerDegree, lon / radiansPerDegree
 }

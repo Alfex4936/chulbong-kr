@@ -126,6 +126,11 @@ func (h *MarkerHandler) HandleGetMarkersClosebyAdmin(c *fiber.Ctx) error {
 }
 
 func (h *MarkerHandler) HandleGetWeatherByWGS84(c *fiber.Ctx) error {
+	// Check the Referer header and redirect if it matches the specific URL pattern
+	// if !strings.HasSuffix(c.Get("Referer"), ".k-pullup.com") || c.Get("Referer") != "https://www.k-pullup.com/" {
+	// 	return c.Redirect("https://k-pullup.com", fiber.StatusFound) // Use HTTP 302 for standard redirection
+	// }
+
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")
 

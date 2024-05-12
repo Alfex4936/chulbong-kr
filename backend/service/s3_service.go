@@ -17,11 +17,13 @@ import (
 
 type S3Service struct {
 	Config *myconfig.S3Config
+	Redis  *RedisService
 }
 
-func NewS3Service(config *myconfig.S3Config) *S3Service {
+func NewS3Service(config *myconfig.S3Config, redis *RedisService) *S3Service {
 	return &S3Service{
 		Config: config,
+		Redis:  redis,
 	}
 }
 
@@ -49,10 +51,10 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader) (s
 	if err != nil {
 		return "", fmt.Errorf("failed to generate UUID: %w", err)
 	}
-
 	// Use the original file's extension but with a new UUID as the filename
-	fileExtension := filepath.Ext(file.Filename)
-	key := fmt.Sprintf("%s/%s%s", folder, uuid.String(), fileExtension)
+	fileExtension := strings.ToLower(filepath.Ext(file.Filename))
+	randomName := uuid.String()
+	key := fmt.Sprintf("%s/%s%s", folder, randomName, fileExtension)
 
 	// Upload the file to S3
 	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
@@ -93,6 +95,10 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 	if key == "" {
 		return fmt.Errorf("invalid key")
 	}
+
+	// if isImage(filepath.Ext(key)) {
+	// 	s.Redis.ResetCache("image:" + key)
+	// }
 
 	// Load the AWS credentials
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
@@ -169,4 +175,17 @@ func (s *S3Service) FindUnreferencedS3Objects(dbURLs []string, s3Keys []string) 
 	}
 
 	return unreferenced
+}
+
+// Helper function to determine if a file extension corresponds to an image
+func isImage(ext string) bool {
+	// Normalize the extension to lower case
+	ext = strings.ToLower(ext)
+	// List of supported image extensions
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp":
+		return true
+	default:
+		return false
+	}
 }

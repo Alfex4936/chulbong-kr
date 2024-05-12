@@ -19,11 +19,13 @@ func RegisterReportRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 	{
 		reportGroup.Get("/all", handler.HandleGetAllReports)
 		reportGroup.Get("/marker/:markerID", handler.HandleGetMarkerReports)
+
 		reportGroup.Post("", authMiddleware.VerifySoft, handler.HandleCreateReport)
 		reportGroup.Post("/approve/:reportID", authMiddleware.Verify, handler.HandleApproveReport)
 		reportGroup.Post("/deny/:reportID", authMiddleware.Verify, handler.HandleDenyReport)
 
 		reportGroup.Delete("", authMiddleware.Verify, handler.HandleDeleteReport)
+
 	}
 }
 
@@ -184,7 +186,7 @@ func (h *MarkerHandler) HandleDeleteReport(c *fiber.Ctx) error {
 	userID, _ := c.Locals("userID").(int)
 
 	if err := h.MarkerFacadeService.DeleteReport(reportID, userID, markerID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to deny report"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to remove report: " + err.Error()})
 	}
 	return c.SendStatus(fiber.StatusOK)
 }

@@ -104,6 +104,10 @@ func (c *ChatUtil) GenerateKoreanNickname() string {
 }
 
 func (cu *ChatUtil) GetUserIP(c *fiber.Ctx) string {
+	if c == nil {
+		return ""
+	}
+
 	clientIP := c.Get("Fly-Client-IP")
 	if clientIP == "" {
 		clientIP = c.Get("Fly-Client-Ip")
@@ -117,7 +121,7 @@ func (cu *ChatUtil) GetUserIP(c *fiber.Ctx) string {
 	}
 
 	// If X-Forwarded-For is also empty, use c.IP() as the last resort
-	if clientIP == "" {
+	if c != nil && clientIP == "" {
 		clientIP = c.IP()
 	}
 	return clientIP

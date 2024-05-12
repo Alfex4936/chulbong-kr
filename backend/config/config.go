@@ -87,14 +87,16 @@ func NewZincSearchConfig() *ZincSearchConfig {
 }
 
 type S3Config struct {
-	AwsRegion    string
-	S3BucketName string
+	AwsRegion                string
+	S3BucketName             string
+	ImageCacheExpirationTime time.Duration
 }
 
 func NewS3Config() *S3Config {
 	return &S3Config{
-		AwsRegion:    os.Getenv("AWS_REGION"),
-		S3BucketName: os.Getenv("AWS_BUCKET_NAME"),
+		AwsRegion:                os.Getenv("AWS_REGION"),
+		S3BucketName:             os.Getenv("AWS_BUCKET_NAME"),
+		ImageCacheExpirationTime: 180 * time.Minute,
 	}
 }
 

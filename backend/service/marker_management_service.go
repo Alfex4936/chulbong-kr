@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"mime/multipart"
+	"strconv"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/protos"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/fx"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -24,43 +26,49 @@ type MarkerManageService struct {
 
 	MarkerLocationService *MarkerLocationService
 	S3Service             *S3Service
+	ZincSearchService     *ZincSearchService
 
 	MapUtil     *util.MapUtil
 	BadWordUtil *util.BadWordUtil
 
-	// MarkersLocalCache cache to store encoded marker data
-	MarkersLocalCache []byte // 400 kb is fine here
-	CacheMutex        sync.RWMutex
+	// markersLocalCache cache to store encoded marker data
+	markersLocalCache []byte // 400 kb is fine here
+	cacheMutex        sync.RWMutex
+}
+
+type MarkerManageServiceParams struct {
+	fx.In
+
+	DB                    *sqlx.DB
+	MarkerLocationService *MarkerLocationService
+	S3Service             *S3Service
+	ZincSearchService     *ZincSearchService
+	MapUtil               *util.MapUtil
+	BadWordUtil           *util.BadWordUtil
 }
 
 // NewMarkerManageService creates a new instance of MarkerManageService.
-func NewMarkerManageService(
-	db *sqlx.DB,
-	locationService *MarkerLocationService,
-	s3Service *S3Service,
-	mapUtil *util.MapUtil,
-	badwordUtil *util.BadWordUtil,
-) *MarkerManageService {
+func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
 	return &MarkerManageService{
-		DB:                    db,
-		MarkerLocationService: locationService,
-		S3Service:             s3Service,
-
-		MapUtil:     mapUtil,
-		BadWordUtil: badwordUtil,
+		DB:                    p.DB,
+		MarkerLocationService: p.MarkerLocationService,
+		S3Service:             p.S3Service,
+		ZincSearchService:     p.ZincSearchService,
+		MapUtil:               p.MapUtil,
+		BadWordUtil:           p.BadWordUtil,
 	}
 }
 
 func (s *MarkerManageService) GetCache() []byte {
-	s.CacheMutex.RLock()
-	defer s.CacheMutex.RUnlock()
-	return s.MarkersLocalCache
+	s.cacheMutex.RLock()
+	defer s.cacheMutex.RUnlock()
+	return s.markersLocalCache
 }
 
 func (s *MarkerManageService) SetCache(mjson []byte) {
-	s.CacheMutex.Lock()
-	defer s.CacheMutex.Unlock()
-	s.MarkersLocalCache = mjson
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+	s.markersLocalCache = mjson
 }
 
 // GetAllMarkers now returns a simplified list of markers
@@ -443,6 +451,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 			log.Printf("Failed to update address for marker %d: %v", markerID, err)
 		}
 
+		go s.ZincSearchService.InsertMarkerIndex(dto.MarkerIndexData{MarkerID: int(markerID), Address: address})
 		// userIDstr := strconv.Itoa(userID)
 		// updateMsg := fmt.Sprintf("새로운 철봉이 [ %s ]에 등록되었습니다!", address)
 		// metadata := notification.NotificationMarkerMetadata{
@@ -584,6 +593,7 @@ func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string
 	}(photoURLs)
 
 	s.SetCache(nil)
+	go s.ZincSearchService.DeleteMarkerIndex(strconv.Itoa(markerID))
 
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/fx"
 )
 
 // AdminFacadeService provides a simplified interface to various admin-related services.
@@ -17,17 +18,23 @@ type AdminFacadeService struct {
 	MarkerFacility *service.MarkerFacilityService
 }
 
+type AdminFacadeParams struct {
+	fx.In
+
+	MarkerManage   *service.MarkerManageService
+	S3Service      *service.S3Service
+	ChatService    *service.ChatService
+	MarkerFacility *service.MarkerFacilityService
+}
+
 func NewAdminFacadeService(
-	markerManage *service.MarkerManageService,
-	s3 *service.S3Service,
-	chat *service.ChatService,
-	facility *service.MarkerFacilityService,
+	p AdminFacadeParams,
 ) *AdminFacadeService {
 	return &AdminFacadeService{
-		MarkerManage:   markerManage,
-		S3Service:      s3,
-		ChatService:    chat,
-		MarkerFacility: facility,
+		MarkerManage:   p.MarkerManage,
+		S3Service:      p.S3Service,
+		ChatService:    p.ChatService,
+		MarkerFacility: p.MarkerFacility,
 	}
 }
 
