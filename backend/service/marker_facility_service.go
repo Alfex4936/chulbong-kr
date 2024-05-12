@@ -184,13 +184,13 @@ func (s *MarkerFacilityService) FetchAddressFromMap(latitude, longitude float64)
 	if apiResp.New != nil && *apiResp.New.Name != "" {
 		address := *apiResp.New.Name
 		if apiResp.New.Building != nil && *apiResp.New.Building != "" {
-			address += " " + *apiResp.New.Building
+			address += ", " + *apiResp.New.Building
 		}
 		return address, nil
 	} else if apiResp.Old != nil && *apiResp.Old.Name != "" {
 		address := *apiResp.Old.Name
 		if apiResp.Old.Building != nil && *apiResp.Old.Building != "" {
-			address += " " + *apiResp.Old.Building
+			address += ", " + *apiResp.Old.Building
 		}
 		return address, nil
 	}

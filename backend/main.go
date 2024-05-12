@@ -166,7 +166,7 @@ func NewFiberApp(
 			c.Status(429).SendString("Too many requests, please try again later.")
 			return nil
 		},
-		SkipFailedRequests: true,
+		SkipFailedRequests: false,
 	}))
 
 	// loginLimiter := limiter.New(limiter.Config{
@@ -203,6 +203,31 @@ func NewFiberApp(
 		// ExposeHeaders:    "Accept",
 		AllowCredentials: true,
 	}))
+
+	app.Use(func(c *fiber.Ctx) error {
+		// List of paths to block
+		blockedPaths := []string{
+			"/mysql/scripts/setup.php",
+			"/phpMyAdmin2/scripts/setup.php",
+			"/phpma/scripts/setup.php",
+			"/sqlweb/scripts/setup.php",
+			"/dbadmin/scripts/setup.php",
+		}
+
+		// Check if the requested path is in the blocked paths list
+		for _, path := range blockedPaths {
+			if c.Path() == path {
+				// Log the attempt for monitoring purposes
+				log.Println("Blocked access attempt to:", c.Path())
+
+				// You could return a 404 Not Found, or perhaps a 403 Forbidden
+				return c.Status(fiber.StatusForbidden).SendString("Access forbidden, saving your information to server disk...: " + c.IP())
+			}
+		}
+
+		// Proceed with the next middleware if the path is not blocked
+		return c.Next()
+	})
 
 	app.Get("/swagger/*", authMiddleware.CheckAdmin, swagger.HandlerDefault)
 
@@ -360,7 +385,6 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU() * 2)
 
 	// Create an Fx application with provided dependencies and lifecycle hooks
-
 	fx.New(
 		servicefx.FxMarkerModule,
 		servicefx.FxExternalModle,
@@ -387,7 +411,10 @@ func main() {
 
 			NewFiberApp,
 		),
-		fx.Invoke(registerHooks, util.RegisterBadWordUtilLifecycle, service.RegisterSchedulerLifecycle),
+		fx.Invoke(registerHooks, util.RegisterBadWordUtilLifecycle, service.RegisterSchedulerLifecycle), // func(diGraph fx.DotGraph) {
+		// 	log.Println("➡️", diGraph)
+		// }
+
 	).Run()
 }
 

@@ -18,8 +18,8 @@ type MarkerReportResponse struct {
 	UserID       *int      `json:"userId,omitempty" db:"UserID"` // Pointer to handle nullable UserID
 	Latitude     float64   `json:"latitude" db:"Latitude"`
 	Longitude    float64   `json:"longitude" db:"Longitude"`
-	NewLatitude  float64   `json:"newLatitude,omitempty"`
-	NewLongitude float64   `json:"newLongitude,omitempty"`
+	NewLatitude  float64   `json:"newLatitude,omitempty" db:"NewLatitude"`
+	NewLongitude float64   `json:"newLongitude,omitempty" db:"NewLongitude"`
 	Description  string    `json:"description" db:"Description"`
 	PhotoURLs    []string  `json:"photoUrls,omitempty"` // Array to store multiple photo URLs
 	CreatedAt    time.Time `json:"createdAt" db:"CreatedAt"`

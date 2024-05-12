@@ -170,7 +170,7 @@ func (h *MarkerHandler) HandleGetMarker(c *fiber.Ctx) error {
 	}
 
 	go h.MarkerFacadeService.BufferClickEvent(markerID)
-	go h.MarkerFacadeService.SaveUniqueVisitor(c.Params("markerId"), c)
+	// go h.MarkerFacadeService.SaveUniqueVisitor(c.Params("markerId"), c)
 	return c.JSON(marker)
 }
 
@@ -502,7 +502,7 @@ func (h *MarkerHandler) HandleSetMarkerFacilities(c *fiber.Ctx) error {
 }
 
 // UpdateMarkersAddressesHandler handles the request to update all markers' addresses.
-func (h *MarkerHandler) updateMarkersAddressesHandler(c *fiber.Ctx) error {
+func (h *MarkerHandler) HandleUpdateMarkersAddresses(c *fiber.Ctx) error {
 	updatedMarkers, err := h.MarkerFacadeService.UpdateMarkersAddresses()
 	if err != nil {
 		// Log the error and return a generic error message to the client

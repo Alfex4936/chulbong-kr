@@ -63,3 +63,8 @@ type MarkerSearchResponse struct {
 	Took    int          `json:"took"`
 	Markers []ZincMarker `json:"markers"`
 }
+
+type MarkerIndexData struct {
+	MarkerID int    `json:"markerId"`
+	Address  string `json:"address"`
+}

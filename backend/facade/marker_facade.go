@@ -10,6 +10,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/fx"
 )
 
 // MarkerFacadeService provides a simplified interface to various marker-related services.
@@ -29,31 +30,39 @@ type MarkerFacadeService struct {
 	MapUtil     *util.MapUtil
 }
 
+type MarkerFacadeParams struct {
+	fx.In
+
+	InteractService *service.MarkerInteractService
+	LocationService *service.MarkerLocationService
+	ManageService   *service.MarkerManageService
+	RankService     *service.MarkerRankService
+	FacilityService *service.MarkerFacilityService
+	RedisService    *service.RedisService
+	ReportService   *service.ReportService
+
+	UserService *service.UserService
+
+	ChatUtil    *util.ChatUtil
+	BadWordUtil *util.BadWordUtil
+	MapUtil     *util.MapUtil
+}
+
 func NewMarkerFacadeService(
-	interact *service.MarkerInteractService,
-	location *service.MarkerLocationService,
-	manage *service.MarkerManageService,
-	rank *service.MarkerRankService,
-	facility *service.MarkerFacilityService,
-	redis *service.RedisService,
-	reporter *service.ReportService,
-	user *service.UserService,
-	chat *util.ChatUtil,
-	badword *util.BadWordUtil,
-	mapUtil *util.MapUtil,
+	p MarkerFacadeParams,
 ) *MarkerFacadeService {
 	return &MarkerFacadeService{
-		InteractService: interact,
-		LocationService: location,
-		ManageService:   manage,
-		RankService:     rank,
-		FacilityService: facility,
-		RedisService:    redis,
-		ReportService:   reporter,
-		UserService:     user,
-		ChatUtil:        chat,
-		BadWordUtil:     badword,
-		MapUtil:         mapUtil,
+		InteractService: p.InteractService,
+		LocationService: p.LocationService,
+		ManageService:   p.ManageService,
+		RankService:     p.RankService,
+		FacilityService: p.FacilityService,
+		RedisService:    p.RedisService,
+		ReportService:   p.ReportService,
+		UserService:     p.UserService,
+		ChatUtil:        p.ChatUtil,
+		BadWordUtil:     p.BadWordUtil,
+		MapUtil:         p.MapUtil,
 	}
 }
 
@@ -120,7 +129,9 @@ func (mfs *MarkerFacadeService) BufferClickEvent(markerID int) {
 }
 
 func (mfs *MarkerFacadeService) SaveUniqueVisitor(markerID string, c *fiber.Ctx) {
-	mfs.RankService.SaveUniqueVisitor(markerID, mfs.ChatUtil.GetUserIP(c))
+	if c != nil {
+		mfs.RankService.SaveUniqueVisitor(markerID, mfs.ChatUtil.GetUserIP(c))
+	}
 }
 
 func (mfs *MarkerFacadeService) RemoveMarkerClick(markerID int) error {

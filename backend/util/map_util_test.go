@@ -114,6 +114,62 @@ func TestWCONGNAMUL(t *testing.T) {
 	}
 }
 
+func TestWCONGNAMULToWGS84(t *testing.T) {
+	tests := []struct {
+		name                 string
+		lat, long            float64 // Starting point
+		expectedX, expectedY float64 // Expected ending point
+	}{
+		{
+			name:      "Test 1",
+			lat:       498040.0,
+			long:      1041367.0,
+			expectedX: 37.248098895147216,
+			expectedY: 126.99116337285824,
+		},
+		{
+			name:      "Test Not korea 1",
+			lat:       497941.0,
+			long:      -68085.0,
+			expectedX: 33.248098895147216,
+			expectedY: 126.99116337285824,
+		},
+		{
+			name:      "Test 3",
+			lat:       584279.0,
+			long:      621193.0,
+			expectedX: 35.73294563400083,
+			expectedY: 127.37264182214031,
+		},
+		{
+			name:      "Test 4",
+			lat:       584280.0,
+			long:      621153.0,
+			expectedX: 35.7328,
+			expectedY: 127.37264182214031,
+		},
+		{
+			name:      "Test 5",
+			lat:       492322.0,
+			long:      209211.0,
+			expectedX: 34.248098895147216,
+			expectedY: 126.96666,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			X, Y := ConvertWCONGToWGS84(tt.lat, tt.long)
+
+			t.Logf("Calculated WGS84: %f, %f", X, Y)
+			if math.Abs(X-tt.expectedX) > 0.01 || math.Abs(Y-tt.expectedY) > 0.00001 { // Allowing a margin of error
+				t.Errorf("ConvertWCONGToWGS84(%v, %v) = (%v, %v), want (%v, %v)",
+					tt.lat, tt.long, X, Y, tt.expectedX, tt.expectedY)
+			}
+		})
+	}
+}
+
 // Test cases for distance function
 func TestDistance(t *testing.T) {
 	tests := []struct {

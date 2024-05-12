@@ -141,13 +141,44 @@ func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportRespons
     ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
     r.Description, r.CreatedAt, r.Status, p.PhotoURL
     FROM Reports r
-	WHERE UserID = ?
     LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
+    WHERE r.UserID = ?
     ORDER BY r.CreatedAt DESC
     `
-	reports := make([]dto.MarkerReportResponse, 0)
-	if err := s.DB.Select(&reports, query, userID); err != nil {
-		return nil, fmt.Errorf("error querying reports: %w", err)
+	rows, err := s.DB.Queryx(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying reports by user: %w", err)
+	}
+	defer rows.Close()
+
+	reportMap := make(map[int]*dto.MarkerReportResponse)
+	for rows.Next() {
+		var (
+			r   dto.MarkerReportResponse
+			url sql.NullString // Use sql.NullString to handle possible NULL values from PhotoURL
+		)
+		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &url); err != nil {
+			return nil, err
+		}
+		if report, exists := reportMap[r.ReportID]; exists {
+			// Append only if url is valid to avoid appending empty strings for reports without photos
+			if url.Valid {
+				report.PhotoURLs = append(report.PhotoURLs, url.String)
+			}
+		} else {
+			r.PhotoURLs = make([]string, 0)
+			if url.Valid {
+				r.PhotoURLs = append(r.PhotoURLs, url.String)
+			}
+			reportMap[r.ReportID] = &r
+		}
+	}
+
+	// Convert map to slice
+	reports := make([]dto.MarkerReportResponse, 0, len(reportMap))
+	for _, report := range reportMap {
+		reports = append(reports, *report)
 	}
 
 	return reports, nil

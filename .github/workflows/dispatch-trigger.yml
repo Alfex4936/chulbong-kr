@@ -52,12 +52,21 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           event-type: frontend-changes
-          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
-      
+          client-payload: |
+          {
+            "ref": "${{ github.ref }}", 
+            "sha": "${{ github.sha }}",
+            "commit_message": "${{ github.event.head_commit.message }}"
+          }
+
       - name: Trigger Repository Dispatch for Backend Changes
         if: env.backend_changed == 'true'
         uses: peter-evans/repository-dispatch@v3
         with:
           event-type: backend-changes
-          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
-
+          client-payload: |
+          {
+            "ref": "${{ github.ref }}", 
+            "sha": "${{ github.sha }}",
+            "commit_message": "${{ github.event.head_commit.message }}"
+          }

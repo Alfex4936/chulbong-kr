@@ -321,18 +321,21 @@ func (s *ReportService) DeleteReport(reportID, userID, markerID int) error {
 
 	// Check if the user is authorized to delete the report
 	const authQuery = `
-    SELECT COUNT(*) FROM Reports
-    JOIN Markers ON Reports.MarkerID = Markers.MarkerID
-    WHERE Reports.ReportID = ? AND Markers.MarkerID = ? AND (Markers.UserID = ? OR EXISTS (
-        SELECT 1 FROM Users WHERE UserID = ? AND Role = 'admin'
-    ))
-    `
-	var count int
-	if err := tx.Get(&count, authQuery, reportID, markerID, userID, userID); err != nil {
+    SELECT EXISTS(
+        SELECT 1 FROM Reports
+        JOIN Markers ON Reports.MarkerID = Markers.MarkerID
+        LEFT JOIN Users ON Users.UserID = Reports.UserID
+        WHERE Reports.ReportID = ? AND (Reports.UserID = ? OR Markers.UserID = ? OR Users.Role = 'admin')
+    )`
+
+	// Prepare to check if the user has the right to delete the report
+	var authorized bool
+	if err := tx.Get(&authorized, authQuery, reportID, userID, userID); err != nil {
 		return fmt.Errorf("error checking authorization: %w", err)
 	}
-	if count == 0 {
-		return fmt.Errorf("unauthorized to delete this report")
+
+	if !authorized {
+		return fmt.Errorf("user %d is not authorized to delete report %d", userID, reportID)
 	}
 
 	// Delete report photos first

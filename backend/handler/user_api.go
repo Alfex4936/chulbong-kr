@@ -144,7 +144,7 @@ func (h *UserHandler) HandleGetMyReports(c *fiber.Ctx) error {
 
 	reports, err := h.UserFacadeService.GetAllReportsByUser(userID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get reports"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get reports:" + err.Error()})
 	}
 
 	if len(reports) == 0 {
