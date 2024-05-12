@@ -53,11 +53,11 @@ jobs:
         with:
           event-type: frontend-changes
           client-payload: |
-          {
-            "ref": "${{ github.ref }}", 
-            "sha": "${{ github.sha }}",
-            "commit_message": "${{ github.event.head_commit.message }}"
-          }
+              {
+                "ref": "${{ github.ref }}", 
+                "sha": "${{ github.sha }}",
+                "commit_message": "${{ github.event.head_commit.message }}"
+              }
 
       - name: Trigger Repository Dispatch for Backend Changes
         if: env.backend_changed == 'true'
@@ -65,8 +65,8 @@ jobs:
         with:
           event-type: backend-changes
           client-payload: |
-          {
-            "ref": "${{ github.ref }}", 
-            "sha": "${{ github.sha }}",
-            "commit_message": "${{ github.event.head_commit.message }}"
-          }
+              {
+                "ref": "${{ github.ref }}", 
+                "sha": "${{ github.sha }}",
+                "commit_message": "${{ github.event.head_commit.message }}"
+              }
