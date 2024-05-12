@@ -3,6 +3,7 @@ package csw.chulbongkr.controller;
 import csw.chulbongkr.dto.MarkerDTO;
 import csw.chulbongkr.service.MarkerService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,7 +17,7 @@ import java.util.List;
 public class MarkerController {
     private final MarkerService markerService;
 
-    @GetMapping
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<MarkerDTO.MarkerSimple>> getAllMarkers() {
         return ResponseEntity.ok(markerService.getAllMarkers());
     }

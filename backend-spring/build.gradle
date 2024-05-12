@@ -1,7 +1,12 @@
 plugins {
 	id 'java'
+	id 'application'
 	id 'org.springframework.boot' version '3.2.5'
 	id 'io.spring.dependency-management' version '1.1.4'
+}
+
+application {
+	applicationDefaultJvmArgs = ['-Xms2G', '-Xmx8G', '-XX:+UseZGC', '-XX:+ZGenerational']
 }
 
 group = 'csw'
