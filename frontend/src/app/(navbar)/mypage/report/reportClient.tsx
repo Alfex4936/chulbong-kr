@@ -2,6 +2,7 @@
 
 import { type ReportsRes } from "@/api/report/getMyReports";
 import useReportsData from "@/hooks/query/report/useReportsData";
+import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import { QueryObserverRefetchErrorResult } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import MarkerReportList from "./_components/MarkerReportList";
@@ -21,6 +22,8 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
     Error
   >;
 
+  const { data: myInfo } = useMyinfoData();
+
   if (isError) {
     if (isAxiosError(error)) {
       if (error.response?.status === 404) {
@@ -34,7 +37,7 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
       return <div className="text-center">잠시 후 다시 시도해 주세요.</div>;
     }
   }
-  // TODO: 이미지 개수 이상 오류
+  
   console.log(myReports);
 
   return (
@@ -49,6 +52,9 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
               desc={report.description}
               img={report.photoUrls}
               status={report.status}
+              userId={report.userId}
+              reportId={report.reportId}
+              myId={myInfo?.userId}
             />
           </div>
         );

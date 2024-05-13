@@ -21,7 +21,7 @@ const StatusBadge = ({ status, className }: Props) => {
   return (
     <div
       className={cn(
-        "flex items-center border border-solid border-grey px-2 py-1 rounded-lg",
+        "flex items-center bg-black-light-2 border border-solid border-grey px-2 py-1 rounded-lg text-nowrap",
         className
       )}
     >

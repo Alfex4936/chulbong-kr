@@ -7,6 +7,8 @@ const useReportMarker = () => {
   return useMutation({
     mutationFn: reportMarker,
     onSuccess: () => {
+      // TODO: 마커 상세보기 페이지 리포트 리스트로 변경
+      // TODO: 리포트  query invalidate
       router.push("/mypage/report");
     },
   });
