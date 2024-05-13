@@ -127,17 +127,22 @@ const MarkerReportList = ({
         </div>
       </div>
 
-      <div>기존</div>
-      <InfoList
-        text="주소"
-        subText={marker?.address || "제공되는 주소가 없음"}
-      />
-      <InfoList
-        text="설명"
-        subText={marker?.description || "작성된 설명 없음"}
-        isTruncate
-      />
-      <Separator className="mx-1 my-3 bg-grey-dark-1" />
+      {status !== "APPROVED" && (
+        <>
+          <div>기존</div>
+          <InfoList
+            text="주소"
+            subText={marker?.address || "제공되는 주소가 없음"}
+          />
+          <InfoList
+            text="설명"
+            subText={marker?.description || "작성된 설명 없음"}
+            isTruncate
+          />
+          <Separator className="mx-1 my-3 bg-grey-dark-1" />
+        </>
+      )}
+
       <div>수정</div>
       <InfoList text="주소" subText={addr || "제공되는 주소가 없음"} />
       <InfoList text="설명" subText={desc || "작성된 설명 없음"} isTruncate />
