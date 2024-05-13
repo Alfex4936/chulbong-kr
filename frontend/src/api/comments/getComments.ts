@@ -15,7 +15,7 @@ export interface CommentsRes {
 
 const getComments = async ({ id, pageParam }: Props): Promise<CommentsRes> => {
   const res = await instance.get(
-    `/api/v1/comments/${id}/comments?page=${pageParam}`
+    `/api/v1/comments/${id}/comments?page=${pageParam}&pageSize=10`
   );
 
   return res.data;
