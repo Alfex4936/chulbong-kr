@@ -6,7 +6,7 @@ import useUploadFormDataStore from "@/store/useUploadFormDataStore";
 import type { KaKaoMapMouseEvent } from "@/types/KakaoMap.types";
 import getAddress, { type AddressInfo } from "@/utils/getAddress";
 import { useCallback, useEffect, useRef, useState } from "react";
-// 모바일 스크롤 멈춤 적용 안됨
+// TODO: 모바일 스크롤 멈춤 적용 안됨
 
 interface Props {
   isMarker?: boolean;
@@ -28,7 +28,6 @@ const MiniMap = ({ isMarker = false, latitude, longitude }: Props) => {
 
   const setDraggable = useCallback(
     (draggable: boolean) => {
-      // 마우스 드래그로 지도 이동 가능여부를 설정합니다
       map?.setDraggable(draggable);
     },
     [map]

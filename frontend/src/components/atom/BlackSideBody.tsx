@@ -2,12 +2,12 @@
 
 import { cn } from "@/lib/utils";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
-import useMapStore from "@/store/useMapStore";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { ArrowLeftIcon, ArrowRightIcon } from "../icons/ArrowIcons";
 // TODO: 모바일 스크롤 멈춤 오류 해결하기
 // TODO: 모바일 높이 설정
+// TODO: 페이지 전환 로딩바 표시
 
 type Props = {
   children: React.ReactNode;
