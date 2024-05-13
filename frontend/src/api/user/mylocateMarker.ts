@@ -13,7 +13,9 @@ const mylocateMarker = async ({
 }: {
   pageParam: number;
 }): Promise<MyMarkerRes> => {
-  const res = await instance.get(`/api/v1/markers/my?page=${pageParam}`);
+  const res = await instance.get(
+    `/api/v1/markers/my?page=${pageParam}&pageSize=10`
+  );
 
   return res.data;
 };
