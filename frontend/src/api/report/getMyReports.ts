@@ -10,7 +10,7 @@ export interface ReportsRes {
   markerId: number;
   reportId: number;
   status: string;
-  photoUrls: string;
+  photoUrls: string [];
   userId: number;
 }
 
