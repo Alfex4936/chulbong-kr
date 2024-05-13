@@ -16,8 +16,8 @@ const ImageList = ({ photos }: Props) => {
             {photos.map((photo, i) => {
               if (i % 2 === 1) return;
               return (
-                <button key={photo.photoId}>
-                  <img src={photo.photoUrl} className="w-full" />
+                <button key={photo.photoId} className="w-full">
+                  <img src={photo.photoUrl} className="mx-auto" />
                 </button>
               );
             })}
@@ -26,8 +26,8 @@ const ImageList = ({ photos }: Props) => {
             {photos.map((photo, i) => {
               if (i % 2 !== 1) return;
               return (
-                <button key={photo.photoId}>
-                  <img src={photo.photoUrl} className="w-full" />
+                <button key={photo.photoId} className="w-full">
+                  <img src={photo.photoUrl} className="mx-auto" />
                 </button>
               );
             })}
