@@ -1,7 +1,7 @@
 import instance from "../instance";
 
-const denyReport = async (markerId: number) => {
-  const res = await instance.post(`/api/v1/reports/deny/${markerId}`);
+const denyReport = async (reportId: number) => {
+  const res = await instance.post(`/api/v1/reports/deny/${reportId}`);
 
   return res.data;
 };

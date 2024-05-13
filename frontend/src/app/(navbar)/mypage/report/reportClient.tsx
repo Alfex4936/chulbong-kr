@@ -37,8 +37,10 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
       return <div className="text-center">잠시 후 다시 시도해 주세요.</div>;
     }
   }
-  
+
   console.log(myReports);
+  if (myReports?.length === 0)
+    return <div className="text-center">요청중인 제안이 없습니다.</div>;
 
   return (
     <div>

@@ -48,7 +48,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
     error: reportError,
     isError,
     isPending: reportPending,
-  } = useReportMarker();
+  } = useReportMarker(markerId as number);
   const { mutateAsync: setFacilities } = useSetFacilities();
   const { mutateAsync: uploadMarker } = useUploadMarker();
   const {
