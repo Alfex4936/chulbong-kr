@@ -13,6 +13,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import ChangePassword from "../../user/ChangePassword";
 import StatusBadge from "./StatusBadge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Props {
   markerId: number;
@@ -64,10 +65,10 @@ const MarkerReportList = ({
   myId,
   reportId,
 }: Props) => {
-  const { data: marker } = useMarkerData(markerId);
+  const { data: marker, isLoading: markerLoading } = useMarkerData(markerId);
   const { mutate: deleteReport } = useDeleteReport(markerId, reportId);
-  const { mutate: approveReport } = useApproveReport();
-  const { mutate: denyReport } = useDenyReport();
+  const { mutate: approveReport } = useApproveReport(markerId);
+  const { mutate: denyReport } = useDenyReport(markerId);
   const { map } = useMapStore();
 
   const [addr, setAddr] = useState("");
@@ -83,6 +84,9 @@ const MarkerReportList = ({
 
     fetchAddr();
   }, [map]);
+
+  if (markerLoading)
+    return <Skeleton className="w-[90%] p-4 rounded-md h-60 mx-auto" />;
 
   return (
     <BlackLightBox className="relative">
@@ -103,17 +107,17 @@ const MarkerReportList = ({
           >
             <StatusBadge status={status} />
           </button>
-          {dropdown && (
+          {dropdown && status !== "APPROVED" && status !== "DENY" && (
             <div className="absolute top-8 left-0">
               {marker?.isChulbong && (
                 <div>
                   <button
                     className="mb-1"
-                    onClick={() => approveReport(markerId)}
+                    onClick={() => approveReport(reportId)}
                   >
-                    <StatusBadge status={"APPROVE"} />
+                    <StatusBadge status={"APPROVED"} />
                   </button>
-                  <button onClick={() => denyReport(markerId)}>
+                  <button onClick={() => denyReport(reportId)}>
                     <StatusBadge status={"DENY"} />
                   </button>
                 </div>
