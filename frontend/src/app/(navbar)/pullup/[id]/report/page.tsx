@@ -17,17 +17,11 @@ const getMarker = async (id: number): Promise<Marker> => {
   return res.data;
 };
 
-// interface SearchParams {
-//   lat: string;
-//   lng: string;
-// }
-
 interface Params {
   id: string;
 }
 
 interface Props {
-  //   searchParams: SearchParams;
   params: Params;
 }
 
