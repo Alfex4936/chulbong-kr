@@ -24,4 +24,5 @@ chulbong-kr 을 Spring Boot 3을 이용해 만드는 과정
 - [ ] service
 - [ ] repository
 - [ ] util
+  - [x] TimezoneFinder
 - [ ] external APIs
