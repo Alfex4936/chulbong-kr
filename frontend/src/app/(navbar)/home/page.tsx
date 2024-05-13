@@ -1,8 +1,7 @@
 import BlackSideBody from "@/components/atom/BlackSideBody";
-import GrowBox from "@/components/atom/GrowBox";
 import Heading from "@/components/atom/Heading";
 import { Separator } from "@/components/ui/separator";
-import Link from "next/link";
+import LinkEmojiButton from "./_components/LinkEmojiButton";
 import NoticeSlide from "./_components/NoticeSlide";
 import Ranking from "./_components/Ranking";
 import SearchInput from "./_components/SearchInput";
@@ -14,21 +13,18 @@ const Home = async () => {
       <SearchInput />
       <NoticeSlide />
       <div className="mt-4">
-        <Link href={"/pullup/regist"}>
-          <div className="block w-full text-left group rounded-sm mb-3 px-1 py-2 hover:bg-black-light-2 text-sm">
-            <div
-              className={`flex justify-start transition-transform duration-75 transform group-hover:scale-95`}
-            >
-              <span className="mr-2">🚩</span>
-
-              <span>위치 등록</span>
-              <GrowBox />
-              <span className="text-grey-dark-1 text-xs">
-                위치를 등록하고 다른 사람들과 공유하세요!
-              </span>
-            </div>
-          </div>
-        </Link>
+        <LinkEmojiButton
+          url="/search"
+          text="주변 검색"
+          subText="지도 중앙을 기준으로 주변 위치를 검색하세요!"
+          emoji="🔍"
+        />
+        <LinkEmojiButton
+          url="/pullup/regist"
+          text="위치 등록"
+          subText="위치를 등록하고 다른 사람들과 공유하세요!"
+          emoji="🚩"
+        />
       </div>
       <Separator className="my-8 bg-grey-dark-1" />
       <Ranking />
