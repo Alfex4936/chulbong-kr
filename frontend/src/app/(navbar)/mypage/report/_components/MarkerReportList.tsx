@@ -3,6 +3,7 @@ import GrowBox from "@/components/atom/GrowBox";
 import AlertButton from "@/components/common/AlertButton";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import useApproveReport from "@/hooks/mutation/report/useApproveReport";
 import useDeleteReport from "@/hooks/mutation/report/useDeleteReport";
 import useDenyReport from "@/hooks/mutation/report/useDenyReport";
@@ -13,7 +14,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import ChangePassword from "../../user/ChangePassword";
 import StatusBadge from "./StatusBadge";
-import { Skeleton } from "@/components/ui/skeleton";
+// TODO: 거절 오류 해결
 
 interface Props {
   markerId: number;

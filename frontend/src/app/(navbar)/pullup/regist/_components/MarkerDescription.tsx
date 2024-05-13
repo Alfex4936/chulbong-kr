@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+// TODO: 위치 적용 오류 해결 (서버쪽 문제인거 같음)
 
 interface Props {
   desc?: string;
@@ -104,6 +105,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
           return;
         }
 
+        // console.log(data);
         report(data);
       } catch (error) {
         setErrorMessage("잠시 후 다시 시도해 주세요.");
