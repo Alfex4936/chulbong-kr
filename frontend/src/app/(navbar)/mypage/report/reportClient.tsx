@@ -49,8 +49,8 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
           <div key={report.reportId} className="mb-4">
             <MarkerReportList
               markerId={report.markerId}
-              lat={report.latitude}
-              lng={report.longitude}
+              lat={report.newLatitude || report.latitude}
+              lng={report.newLongitude || report.longitude}
               desc={report.description}
               img={report.photoUrls}
               status={report.status}

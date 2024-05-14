@@ -15,6 +15,12 @@ const useApproveReport = (markerId: number) => {
       queryClient.invalidateQueries({
         queryKey: ["marker", "report", "formarker", markerId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["marker", markerId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["markers"],
+      });
     },
   });
 };
