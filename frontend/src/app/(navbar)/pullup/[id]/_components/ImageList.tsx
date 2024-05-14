@@ -1,5 +1,5 @@
-import React from "react";
 import { type Photo } from "@/types/Marker.types";
+import ImageWrap from "./ImageWrap";
 
 type Props = {
   photos?: Photo[];
@@ -12,22 +12,22 @@ const ImageList = ({ photos }: Props) => {
     <div className="flex">
       {photos ? (
         <>
-          <div className="w-1/2">
+          <div className="w-1/2 mr-1">
             {photos.map((photo, i) => {
               if (i % 2 === 1) return;
               return (
                 <button key={photo.photoId} className="w-full">
-                  <img src={photo.photoUrl} className="mx-auto" />
+                  <ImageWrap src={photo.photoUrl} w={170} h={170} alt="상세" />
                 </button>
               );
             })}
           </div>
-          <div className="w-1/2">
+          <div className="w-1/2 ml-1">
             {photos.map((photo, i) => {
               if (i % 2 !== 1) return;
               return (
                 <button key={photo.photoId} className="w-full">
-                  <img src={photo.photoUrl} className="mx-auto" />
+                  <ImageWrap src={photo.photoUrl} w={170} h={170} alt="상세" />
                 </button>
               );
             })}
@@ -40,4 +40,7 @@ const ImageList = ({ photos }: Props) => {
   );
 };
 
+{
+  /* <ImageWrap src={photo.photoUrl} w={170} h={170} alt="상세" /> */
+}
 export default ImageList;
