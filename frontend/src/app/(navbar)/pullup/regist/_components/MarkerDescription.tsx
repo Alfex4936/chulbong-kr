@@ -105,7 +105,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
           return;
         }
 
-        // console.log(data);
+        console.log(data);
         report(data);
       } catch (error) {
         setErrorMessage("잠시 후 다시 시도해 주세요.");
@@ -537,7 +537,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
   useEffect(() => {
     if (isAxiosError(reportError)) {
       if (reportError.response?.status === 406) {
-        setErrorMessage("너무 가까운 위치 입니다.");
+        setErrorMessage("기존 위치와 너무 많은 거리가 차이납니다.");
       }
     }
   }, [isError]);
