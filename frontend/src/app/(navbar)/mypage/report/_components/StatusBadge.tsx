@@ -9,13 +9,13 @@ const StatusBadge = ({ status, className }: Props) => {
   const getStatusText = () => {
     if (status === "PENDING") return "대기중";
     if (status === "APPROVED") return "승인 완료";
-    if (status === "DENY") return "거절";
+    if (status === "DENIED") return "거절";
   };
 
   const getStatusColor = () => {
     if (status === "PENDING") return "bg-grey-dark-1";
     if (status === "APPROVED") return "bg-green-300";
-    if (status === "DENY") return "bg-red";
+    if (status === "DENIED") return "bg-red";
   };
 
   return (

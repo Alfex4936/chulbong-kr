@@ -14,7 +14,6 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import ChangePassword from "../../user/ChangePassword";
 import StatusBadge from "./StatusBadge";
-// TODO: 거절 오류 해결
 
 interface Props {
   markerId: number;
@@ -108,7 +107,7 @@ const MarkerReportList = ({
           >
             <StatusBadge status={status} />
           </button>
-          {dropdown && status !== "APPROVED" && status !== "DENY" && (
+          {dropdown && status !== "APPROVED" && status !== "DENIED" && (
             <div className="absolute top-8 left-0">
               {marker?.isChulbong && (
                 <div>
@@ -119,7 +118,7 @@ const MarkerReportList = ({
                     <StatusBadge status={"APPROVED"} />
                   </button>
                   <button onClick={() => denyReport(reportId)}>
-                    <StatusBadge status={"DENY"} />
+                    <StatusBadge status={"DENIED"} />
                   </button>
                 </div>
               )}
