@@ -1,6 +1,7 @@
 "use client";
 
 import Heading from "@/components/atom/Heading";
+import SendIcon from "@/components/icons/SendIcon";
 import { Input } from "@/components/ui/input";
 import useAddressData from "@/hooks/common/useAddressData";
 import useInput from "@/hooks/common/useInput";
@@ -8,7 +9,7 @@ import useChatIdStore from "@/store/useChatIdStore";
 import getRegion from "@/utils/getRegion";
 import { Fragment, useEffect, useRef, useState } from "react";
 // TODO: 처음 도매인 주소 입력으로 들어올 시 연결 안됨
-// TODO: 모바일 채팅 input 안보임, 보내기 버튼 추가
+// TODO: 모바일 채팅 input 안보임, 보내기 버튼 추가 (배포 확인 필요)
 
 export interface ChatMessage {
   uid: string;
@@ -213,7 +214,7 @@ const ChatClient = () => {
           })}
         </div>
       </div>
-      <div className="flex items-center justify-center w-full h-14 px-3">
+      <div className="relative flex items-center justify-center w-full h-14 px-3">
         <Input
           type="text"
           ref={inputRef}
@@ -223,8 +224,11 @@ const ChatClient = () => {
           value={chatValue.value}
           onChange={chatValue.handleChange}
           onKeyDown={handleKeyPress}
-          className="bg-black-light-2 text-base"
+          className="bg-black-light-2 text-base pr-8"
         />
+        <button className="absolute right-5" onClick={handleChat}>
+          <SendIcon size={20} />
+        </button>
       </div>
     </div>
   );

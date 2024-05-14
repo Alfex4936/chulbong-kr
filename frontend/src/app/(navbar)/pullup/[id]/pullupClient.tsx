@@ -38,8 +38,8 @@ import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
 
-// TODO: 정보 수정 연결 (정보 수정 제안 버튼 -> 같은 유저면 정보 수정으로)
 // TODO: 삭제 시 가끔 맵 바로 연동 안됨 (새로고침 후 연동)
+// TODO: 정보 수정 제안 상세보기 주소 변경 안됨, 모든 마커 해당 위치 위치 변경 안됨
 
 // https://local.k-pullup.com:5173/pullup/5329
 

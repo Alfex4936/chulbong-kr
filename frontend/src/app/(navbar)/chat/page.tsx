@@ -10,7 +10,7 @@ export const generateMetadata = () => {
 
 const Chat = () => {
   return (
-    <BlackSideBody toggle bodyClass="p-0 mo:p-0">
+    <BlackSideBody toggle bodyClass="p-0 mo:p-0 mo:pb-20">
       <ChatClient />
     </BlackSideBody>
   );
