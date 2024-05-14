@@ -1,13 +1,21 @@
-type Props = { size?: number; color?: "black" | "white" | "grey" };
+type Props = {
+  size?: number;
+  color?: "black" | "white" | "grey";
+  selected: boolean;
+};
 
-const SearchIcon = ({ size = 24, color = "white" }: Props) => {
+const SearchIcon = ({
+  size = 24,
+  color = "white",
+  selected = false,
+}: Props) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
       viewBox="0 0 26 25"
-      fill="none"
+      fill={selected ? "#F0F0F0" : "transparent"}
     >
       <path
         d="M18.8735 18.2292L23.604 22.9167"
