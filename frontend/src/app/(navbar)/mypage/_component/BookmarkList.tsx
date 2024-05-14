@@ -11,6 +11,8 @@ import useDeleteFavorite from "@/hooks/mutation/favorites/useDeleteFavorite";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
+import usePageLoadingStore from "@/store/usePageLoadingStore";
+import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 
 type Props = {
@@ -22,6 +24,10 @@ type Props = {
 };
 
 const BookmarkList = ({ title, subTitle, lat, lng, markerId }: Props) => {
+  const router = useRouter();
+
+  const { setLoading } = usePageLoadingStore();
+
   const { open } = useMobileMapOpenStore();
   const { setPosition } = useMapStatusStore();
   const { map, markers } = useMapStore();
@@ -81,7 +87,15 @@ const BookmarkList = ({ title, subTitle, lat, lng, markerId }: Props) => {
       </TooltipProvider>
 
       <div className="w-3/4">
-        <div className={`truncate text-left mr-2`}>{title}</div>
+        <div
+          className={`truncate text-left mr-2 hover:underline cursor-pointer`}
+          onClick={() => {
+            setLoading(true);
+            router.push(`/pullup/${markerId}`);
+          }}
+        >
+          {title}
+        </div>
         <div className="truncate text-left text-xs text-grey-dark">
           {subTitle}
         </div>

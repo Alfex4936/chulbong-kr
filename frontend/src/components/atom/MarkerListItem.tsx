@@ -3,6 +3,7 @@ import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMiniMapStatusStore from "@/store/useMiniMapStatusStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
+import usePageLoadingStore from "@/store/usePageLoadingStore";
 import { useRouter } from "next/navigation";
 import { ComponentProps, useCallback } from "react";
 import { LocationIcon } from "../icons/LocationIcons";
@@ -39,6 +40,8 @@ const MarkerListItem = ({
   ...props
 }: Props) => {
   const router = useRouter();
+
+  const { setLoading } = usePageLoadingStore();
 
   const { open } = useMobileMapOpenStore();
   const { setPosition } = useMapStatusStore();
@@ -88,6 +91,7 @@ const MarkerListItem = ({
     });
 
     moveLocation();
+    setLoading(true);
     router.push(`pullup/${markerId}`);
 
     if (window.innerWidth <= MOBILE_WIDTH) {

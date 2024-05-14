@@ -11,6 +11,7 @@ import useLoginModalStateStore from "@/store/useLoginModalStateStore";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
+import usePageLoadingStore from "@/store/usePageLoadingStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import useSelectedMarkerStore from "@/store/useSelectedMarkerStore";
 import { type Photo } from "@/types/Marker.types";
@@ -53,6 +54,8 @@ const Map = () => {
     overlay: overlayState,
   } = useMapStore();
   const { isOpen } = useBodyToggleStore();
+
+  const { setLoading } = usePageLoadingStore();
 
   const { data: markers } = useAllMarkerData();
 
@@ -367,6 +370,7 @@ const Map = () => {
         if (detailLink) {
           detailLink.style.cursor = "pointer";
           detailLink.addEventListener("click", () => {
+            setLoading(true);
             if (window.innerWidth <= MOBILE_WIDTH) {
               mobileMapClose();
             }
@@ -381,6 +385,7 @@ const Map = () => {
         if (reportLink) {
           reportLink.style.cursor = "pointer";
           reportLink.addEventListener("click", () => {
+            setLoading(true);
             if (window.innerWidth <= MOBILE_WIDTH) {
               mobileMapClose();
             }

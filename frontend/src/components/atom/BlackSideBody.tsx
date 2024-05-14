@@ -2,9 +2,12 @@
 
 import { cn } from "@/lib/utils";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
+import usePageLoadingStore from "@/store/usePageLoadingStore";
+import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { ArrowLeftIcon, ArrowRightIcon } from "../icons/ArrowIcons";
+import PageLoadingBar from "../layout/PageLoadingBar";
 // TODO: 모바일 스크롤 멈춤 오류 해결하기
 // TODO: 모바일 높이 설정
 // TODO: 페이지 전환 로딩바 표시
@@ -24,7 +27,13 @@ const BlackSideBody = ({
   bodyClass,
 }: Props) => {
   const pathname = usePathname();
+
   const { isOpen, open } = useBodyToggleStore();
+  const { setLoading } = usePageLoadingStore();
+
+  useEffect(() => {
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -44,6 +53,7 @@ const BlackSideBody = ({
           containerClass
         )} // web:duration-150
       >
+        <PageLoadingBar />
         <div
           className={cn(
             `${

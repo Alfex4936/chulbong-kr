@@ -8,6 +8,7 @@ import {
   dehydrate,
 } from "@tanstack/react-query";
 import Link from "next/link";
+import LinkWrap from "./LinkWrap";
 // TODO: 프리페치 안되는 문제 해결
 // TODO: 등록한 유저면 승인 or 거절
 // TODO: 승인 거절 삭제 안됨
@@ -36,13 +37,7 @@ const ReportListPage = async ({ params }: { params: { id: string } }) => {
       <PrevHeader url={`/pullup/${params.id}`} text="정보 수정 제안 목록" />
 
       <div className="px-4 pb-4 scrollbar-thin mo:pb-20">
-        <Link
-          href={`/pullup/${params.id}/report`}
-          className="flex w-[90%] m-auto text-left group rounded-sm mb-3 px-1 py-2 bg-black-light-2 mo:text-sm"
-        >
-          <div>✏️</div>
-          <div>제안 요청 하러 가기</div>
-        </Link>
+        <LinkWrap id={params.id} />
         <HydrationBoundary state={dehydrateState}>
           <ReportClient type="formarker" markerId={Number(params.id)} />
         </HydrationBoundary>
