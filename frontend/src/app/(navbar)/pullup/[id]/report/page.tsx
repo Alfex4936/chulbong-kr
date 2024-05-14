@@ -35,7 +35,7 @@ const RportMarkerPage = async ({ params }: Props) => {
           text="정보 수정 제안"
         />
 
-        <div className="px-4 pb-4 scrollbar-thin mo:pb-20">
+        <div className="px-9 pb-4 scrollbar-thin mo:px-4 mo:pb-20">
           <p className="mb-2">🚩 수정할 위치를 선택해 주세요</p>
           <SearchInput mini searchToggle />
           <MiniMap

@@ -5,9 +5,9 @@ import ModeToggle from "@/components/common/ModeToggle";
 import { Separator } from "@/components/ui/separator";
 import useLogout from "@/hooks/mutation/auth/useLogout";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Unauthenticated from "./_component/Unauthenticated";
+import LinkWrap from "./_component/LinkWrap";
 
 const MypageClient = () => {
   const router = useRouter();
@@ -30,12 +30,7 @@ const MypageClient = () => {
       </div>
 
       <div className="flex items-center justify-center bg-black-light-2 rounded-md p-1 text-center h-10 mb-6 mo:text-sm">
-        <Link
-          href={"/mypage/user"}
-          className="flex items-center justify-center h-full w-1/2 rounded-md hover:bg-black"
-        >
-          내 정보 관리
-        </Link>
+        <LinkWrap url="/mypage/user" text="내 정보 관리" />
         <Separator orientation="vertical" className="mx-2 bg-grey-dark-1 h-5" />
         <button className="h-full w-1/2 rounded-md hover:bg-black">설정</button>
       </div>
@@ -44,19 +39,19 @@ const MypageClient = () => {
         emoji="⭐"
         text="저장한 장소"
         subText="북마크 위치"
-        onClick={() => router.push("/mypage/bookmark")}
+        url="/mypage/bookmark"
       />
       <EmojiHoverButton
         emoji="🚩"
         text="등록한 장소"
         subText="내가 등록한 위치"
-        onClick={() => router.push("/mypage/mylocate")}
+        url="/mypage/mylocate"
       />
       <EmojiHoverButton
         emoji="🪄"
         text="정보 수정 제안 목록"
         subText="내가 수정 제안 한 위치"
-        onClick={() => router.push("/mypage/report")}
+        url="/mypage/report"
       />
 
       <div className="mt-10 mx-auto w-1/2">

@@ -28,6 +28,7 @@ import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import useWeatherData from "@/hooks/query/marker/useWeatherData";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
+import usePageLoadingStore from "@/store/usePageLoadingStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import useSelectedMarkerStore from "@/store/useSelectedMarkerStore";
 import formatDate from "@/utils/formatDate";
@@ -49,6 +50,8 @@ interface Props {
 
 const PullupClient = ({ markerId }: Props) => {
   const router = useRouter();
+
+  const { setLoading } = usePageLoadingStore();
 
   const { toast } = useToast();
   const { open: openMobileMap } = useMobileMapOpenStore();
@@ -266,7 +269,10 @@ const PullupClient = ({ markerId }: Props) => {
             <span className="mx-1">|</span>
             <button
               className="underline"
-              onClick={() => router.push(`/pullup/${markerId}/reportlist`)}
+              onClick={() => {
+                setLoading(true);
+                router.push(`/pullup/${markerId}/reportlist`);
+              }}
             >
               정보 수정 제안
             </button>

@@ -1,7 +1,6 @@
 import { type MarkerClusterer } from "@/types/Cluster.types";
 import type { KakaoMap, KakaoMarker } from "@/types/KakaoMap.types";
 import { create } from "zustand";
-import { devtools } from "zustand/middleware";
 
 interface MapState {
   map: KakaoMap | null;
