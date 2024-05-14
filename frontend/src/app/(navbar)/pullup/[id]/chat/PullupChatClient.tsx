@@ -1,6 +1,7 @@
 "use client";
 
 import Heading from "@/components/atom/Heading";
+import SendIcon from "@/components/icons/SendIcon";
 import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useChatIdStore from "@/store/useChatIdStore";
@@ -196,7 +197,7 @@ const PullupChatClient = ({ markerId }: Props) => {
           })}
         </div>
       </div>
-      <div className="flex items-center justify-center w-full h-14 px-3">
+      <div className="relative flex items-center justify-center w-full h-14 px-3">
         <Input
           type="text"
           ref={inputRef}
@@ -206,8 +207,11 @@ const PullupChatClient = ({ markerId }: Props) => {
           value={chatValue.value}
           onChange={chatValue.handleChange}
           onKeyDown={handleKeyPress}
-          className="bg-black-light-2 text-base"
+          className="bg-black-light-2 text-base pr-8"
         />
+        <button className="absolute right-5" onClick={handleChat}>
+          <SendIcon size={20} />
+        </button>
       </div>
     </div>
   );
