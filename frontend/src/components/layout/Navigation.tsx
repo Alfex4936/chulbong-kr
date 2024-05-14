@@ -4,8 +4,9 @@ import IconButton from "@/components/atom/IconButton";
 import ChatBubbleIcon from "@/components/icons/ChatBubbleIcon";
 import HomeIcon from "@/components/icons/HomeIcon";
 // import { LocationIcon } from "@/components/icons/LocationIcons";
-import NotificationIcon from "@/components/icons/NotificationIcon";
+// import NotificationIcon from "@/components/icons/NotificationIcon";
 // import SettingIcon from "@/components/icons/SettingIcon";
+import SearchIcon from "../icons/SearchIcon";
 import UserCircleIcon from "@/components/icons/UserCircleIcon";
 import { usePathname } from "next/navigation";
 import MapButton from "../common/MapButton";
@@ -50,7 +51,7 @@ const Navigation = () => {
         </div>
 
         <div className="mo:flex mo:w-1/2 mo:justify-around">
-          <IconButton
+          {/* <IconButton
             text="공지"
             url="/notice"
             icon={
@@ -58,6 +59,13 @@ const Navigation = () => {
                 size={25}
                 selected={pathname.startsWith("/notice")}
               />
+            }
+          /> */}
+          <IconButton
+            text="주변"
+            url="/search"
+            icon={
+              <SearchIcon size={25} selected={pathname.startsWith("/search")} />
             }
           />
           <IconButton
@@ -71,12 +79,6 @@ const Navigation = () => {
             }
           />
         </div>
-
-        {/* <IconButton
-        selected={pathname === "/setting"}
-        icon={<SettingIcon selected={pathname === "/setting"} />}
-        onClick={() => pushRouter("/setting")}
-        /> */}
       </div>
     </div>
   );
