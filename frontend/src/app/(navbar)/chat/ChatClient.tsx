@@ -8,6 +8,7 @@ import useChatIdStore from "@/store/useChatIdStore";
 import getRegion from "@/utils/getRegion";
 import { Fragment, useEffect, useRef, useState } from "react";
 // TODO: 처음 도매인 주소 입력으로 들어올 시 연결 안됨
+// TODO: 모바일 채팅 input 안보임, 보내기 버튼 추가
 
 export interface ChatMessage {
   uid: string;

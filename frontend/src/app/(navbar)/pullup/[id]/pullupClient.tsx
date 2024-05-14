@@ -26,6 +26,7 @@ import useUpdateDescription from "@/hooks/mutation/marker/useUpdateDescription";
 import useFacilitiesData from "@/hooks/query/marker/useFacilitiesData";
 import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import useWeatherData from "@/hooks/query/marker/useWeatherData";
+import useMapStatusStore from "@/store/useMapStatusStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import useSelectedMarkerStore from "@/store/useSelectedMarkerStore";
@@ -52,6 +53,7 @@ const PullupClient = ({ markerId }: Props) => {
   const { toast } = useToast();
   const { open: openMobileMap } = useMobileMapOpenStore();
   const { setMarker } = useSelectedMarkerStore();
+  const { setPosition } = useMapStatusStore();
 
   const { open: roadviewOpen, setPosition: setRoadview } =
     useRoadviewStatusStore();
@@ -102,6 +104,7 @@ const PullupClient = ({ markerId }: Props) => {
       lat: marker.latitude,
       lng: marker.longitude,
     });
+    setPosition(marker.latitude, marker.longitude);
 
     return () => {
       setMarker(null);
