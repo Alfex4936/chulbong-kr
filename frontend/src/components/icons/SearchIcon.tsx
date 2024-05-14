@@ -1,7 +1,7 @@
 type Props = {
   size?: number;
   color?: "black" | "white" | "grey";
-  selected: boolean;
+  selected?: boolean;
 };
 
 const SearchIcon = ({
