@@ -123,13 +123,13 @@ const BlackSideBody = ({ children, toggle, bodyClass, className }: Props) => {
             ? "mo:min-w-80 min-w-[410px] w-screen"
             : "web:w-0 mo:min-w-[320px] mo:w-screen"
         } web:max-w-[410px] mo:w-full bg-gradient-to-r from-black to-black-light 
-          shadow-lg mo:m-auto z-10 web:duration-150`,
+          shadow-lg mo:m-auto z-10 web:duration-150 h-screen`,
         className
       )}
     >
       <div
         className={cn(
-          `h-screen overflow-auto scrollbar-thin pb-4 mo:pb-20 mo:px-4 ${
+          `h-full overflow-auto scrollbar-thin pb-4 mo:pb-20 mo:px-4 ${
             isOpen ? "px-4" : "px-0"
           }`,
           bodyClass
