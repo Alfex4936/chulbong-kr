@@ -1,5 +1,6 @@
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import { useEffect, useState } from "react";
+// TODO: 같은 페이지에서 클릭 시 계속 true
 
 const PageLoadingBar = () => {
   const { isLoading } = usePageLoadingStore();
