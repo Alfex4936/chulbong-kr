@@ -129,7 +129,7 @@ const BlackSideBody = ({ children, toggle, bodyClass, className }: Props) => {
     >
       <div
         className={cn(
-          `h-dvh overflow-auto scrollbar-thin pb-4 mo:pb-20 mo:px-4 ${
+          `h-screen overflow-auto scrollbar-thin pb-4 mo:pb-20 mo:px-4 ${
             isOpen ? "px-4" : "px-0"
           }`,
           bodyClass
