@@ -44,7 +44,9 @@ const Mylocate = async () => {
       <PrevHeader url="/mypage" text="등록한 장소" />
 
       <HydrationBoundary state={dehydrateState}>
-        <MylocateClient />
+        <div className="px-4 pt-2 mo:pb-20">
+          <MylocateClient />
+        </div>
       </HydrationBoundary>
     </BlackSideBody>
   );
