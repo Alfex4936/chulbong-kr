@@ -120,9 +120,9 @@ const BlackSideBody = ({ children, toggle, bodyClass, className }: Props) => {
       className={cn(
         `${isOpen ? "web:translate-x-0" : "web:-translate-x-[150%]"} relative ${
           isOpen
-            ? "max-w-[410px] mo:min-w-80 min-w-[410px] w-screen"
-            : "max-w-[410px] web:w-0 mo:min-w-[320px] mo:w-screen"
-        } bg-gradient-to-r from-black to-black-light shadow-lg mo:m-auto z-10 web:duration-150`,
+            ? "mo:min-w-80 min-w-[410px] w-screen"
+            : "web:w-0 mo:min-w-[320px] mo:w-screen"
+        } web:max-w-[410px] mo:w-full bg-gradient-to-r from-black to-black-light shadow-lg mo:m-auto z-10 web:duration-150`,
         className
       )}
     >
@@ -147,8 +147,6 @@ const BlackSideBody = ({ children, toggle, bodyClass, className }: Props) => {
           {isOpen ? <ArrowLeftIcon /> : <ArrowRightIcon />}
         </button>
       )}
-
-      {/* {isOpen && <div className="absolute top-0 left-0 w-dvw h-dvh bg-black" />} */}
     </div>
   );
 };

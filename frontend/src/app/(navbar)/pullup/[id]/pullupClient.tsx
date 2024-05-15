@@ -130,7 +130,7 @@ const PullupClient = ({ markerId }: Props) => {
   if (!marker) return;
 
   return (
-    <div>
+    <div className="mo:mb-4">
       {/* 이미지 배경 */}
       <div
         className="relative w-full h-64 bg-cover bg-center"

@@ -17,7 +17,7 @@ const ImageList = ({ photos }: Props) => {
               if (i % 2 === 1) return;
               return (
                 <button key={photo.photoId} className="w-full">
-                  <ImageWrap src={photo.photoUrl} w={170} h={170} alt="상세" />
+                  <ImageWrap src={photo.photoUrl} w={230} h={230} alt="상세" />
                 </button>
               );
             })}
@@ -27,7 +27,7 @@ const ImageList = ({ photos }: Props) => {
               if (i % 2 !== 1) return;
               return (
                 <button key={photo.photoId} className="w-full">
-                  <ImageWrap src={photo.photoUrl} w={170} h={170} alt="상세" />
+                  <ImageWrap src={photo.photoUrl} w={230} h={230} alt="상세" />
                 </button>
               );
             })}
@@ -40,7 +40,4 @@ const ImageList = ({ photos }: Props) => {
   );
 };
 
-{
-  /* <ImageWrap src={photo.photoUrl} w={170} h={170} alt="상세" /> */
-}
 export default ImageList;
