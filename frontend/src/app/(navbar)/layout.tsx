@@ -67,7 +67,7 @@ const RootLayout = ({
         />
       </Head>
       <body
-        className={`${nanum.className} flex text-black dark:text-grey mo:flex-col-reverse mo:h-screen mo:bg-neutral-800`}
+        className={`${nanum.className} flex text-black dark:text-grey mo:flex-col-reverse`}
       >
         <ThemeProvider
           attribute="class"
