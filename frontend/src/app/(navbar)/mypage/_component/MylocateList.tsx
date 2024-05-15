@@ -11,6 +11,7 @@ import useDeleteMarker from "@/hooks/mutation/marker/useDeleteMarker";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
+import usePageLoadingStore from "@/store/usePageLoadingStore";
 import Link from "next/link";
 import { useCallback } from "react";
 
@@ -20,9 +21,18 @@ type Props = {
   lat?: number;
   lng?: number;
   markerId: number;
+  deleteOption?: boolean;
 };
 
-const MylocateList = ({ title, subTitle, lat, lng, markerId }: Props) => {
+const MylocateList = ({
+  title,
+  subTitle,
+  lat,
+  lng,
+  markerId,
+  deleteOption = true,
+}: Props) => {
+  const { setLoading } = usePageLoadingStore();
   const { open } = useMobileMapOpenStore();
   const { setPosition } = useMapStatusStore();
   const { map, markers } = useMapStore();
@@ -68,25 +78,31 @@ const MylocateList = ({ title, subTitle, lat, lng, markerId }: Props) => {
     <li
       className={`flex w-full items-center p-4 rounded-sm cursor-pointer mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
     >
-      <TooltipProvider delayDuration={100}>
-        <Tooltip>
-          <TooltipTrigger
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteMarker();
-            }}
-          >
-            <div className="flex items-center justify-center mr-4 h-8 w-8 rounded-full">
-              <DeleteIcon size={20} />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>삭제</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      {deleteOption && (
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteMarker();
+              }}
+            >
+              <div className="flex items-center justify-center mr-4 h-8 w-8 rounded-full">
+                <DeleteIcon size={20} />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>삭제</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
 
-      <Link href={`/pullup/${markerId}`} className="w-3/4">
+      <Link
+        href={`/pullup/${markerId}`}
+        className="w-3/4"
+        onClick={() => setLoading(true)}
+      >
         <div className={`truncate text-left mr-2 hover:underline`}>{title}</div>
         <div className="truncate text-left text-xs text-grey-dark">
           {subTitle}

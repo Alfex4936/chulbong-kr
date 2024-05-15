@@ -11,7 +11,7 @@ const PullupRegist = () => {
   return (
     <BlackSideBody toggle bodyClass="p-0 mo:px-0 mo:pb-0">
       <PrevHeader url="/home" text="위치 등록" />
-      <div className="px-4 pt-2 mo:pb-20">
+      <div className="px-4 pt-2 pb-4 mo:pb-20">
         <p className="mb-2">🚩 등록 위치를 선택해 주세요</p>
         <SearchInput mini searchToggle />
         <MiniMap />
