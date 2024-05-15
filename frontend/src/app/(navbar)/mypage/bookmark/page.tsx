@@ -42,7 +42,9 @@ const Bookmark = async () => {
       <PrevHeader url="/mypage" text="저장한 장소" />
 
       <HydrationBoundary state={dehydrateState}>
-        <BookmarkClient />
+      <div className="px-4 pt-2 mo:pb-20">
+          <BookmarkClient />
+        </div>
       </HydrationBoundary>
     </BlackSideBody>
   );

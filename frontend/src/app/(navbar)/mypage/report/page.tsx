@@ -37,13 +37,13 @@ const ReportPage = async () => {
 
   const dehydrateState = dehydrate(queryClient);
   return (
-    <BlackSideBody toggle bodyClass="relative p-0 mo:px-0 mo:pb-0">
+    <BlackSideBody toggle bodyClass="p-0 mo:px-0 mo:pb-0">
       <PrevHeader url={`/mypage`} text="정보 수정 제안 목록" />
-      <div className="px-4 pb-4 scrollbar-thin mo:pb-20">
-        <HydrationBoundary state={dehydrateState}>
+      <HydrationBoundary state={dehydrateState}>
+        <div className="px-4 pt-2 mo:pb-20">
           <ReportClient />
-        </HydrationBoundary>
-      </div>
+        </div>
+      </HydrationBoundary>
     </BlackSideBody>
   );
 };
