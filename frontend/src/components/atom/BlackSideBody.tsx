@@ -123,7 +123,7 @@ const BlackSideBody = ({ children, toggle, bodyClass, className }: Props) => {
             ? "mo:min-w-80 min-w-[410px] w-screen"
             : "web:w-0 mo:min-w-[320px] mo:w-screen"
         } web:max-w-[410px] mo:w-full bg-gradient-to-r from-black to-black-light 
-          shadow-lg mo:m-auto z-10 web:duration-150 h-screen`,
+          shadow-lg mo:m-auto z-10 web:duration-150 h-full`,
         className
       )}
     >
