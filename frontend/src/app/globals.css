@@ -66,10 +66,10 @@
   }
 }
 
-/* body {
+body {
   margin: 0;
   padding: 0;
-} */
+}
 
 .empty-grow {
   flex-grow: 1;
