@@ -51,7 +51,7 @@ const SearchRangebar = () => {
   }, [isFetching, hasNextPage, fetchNextPage]);
 
   return (
-    <div className="p-4">
+    <div className="py-4">
       <div className="flex justify-center items-center gap-2 mb-4">
         <label htmlFor="opacityRange" className="text-white text-sm">
           주변 {distance}m
@@ -94,6 +94,7 @@ const SearchRangebar = () => {
                       lng={marker.longitude}
                       lat={marker.latitude}
                       markerId={marker.markerId}
+                      deleteOption={false}
                     />
                   );
                 })}

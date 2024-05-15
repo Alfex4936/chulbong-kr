@@ -40,7 +40,7 @@ const ReportPage = async () => {
     <BlackSideBody toggle bodyClass="p-0 mo:px-0 mo:pb-0">
       <PrevHeader url={`/mypage`} text="정보 수정 제안 목록" />
       <HydrationBoundary state={dehydrateState}>
-        <div className="px-4 pt-2 mo:pb-20">
+        <div className="px-4 pt-2 pb-4 mo:pb-20">
           <ReportClient />
         </div>
       </HydrationBoundary>

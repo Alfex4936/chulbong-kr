@@ -42,7 +42,7 @@ const User = async () => {
       <PrevHeader url="/mypage" text="내 정보" />
 
       <HydrationBoundary state={dehydrateState}>
-        <div className="px-4 pt-2 mo:pb-20">
+        <div className="px-4 pt-2 pb-4 mo:pb-20">
           <UserClient />
         </div>
       </HydrationBoundary>

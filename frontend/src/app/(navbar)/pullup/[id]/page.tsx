@@ -2,6 +2,7 @@ import { type CommentsRes } from "@/api/comments/getComments";
 import instance from "@/api/instance";
 import { type FacilitiesRes } from "@/api/markers/getFacilities";
 import BlackSideBody from "@/components/atom/BlackSideBody";
+import PrevHeader from "@/components/atom/PrevHeader";
 import { type Marker } from "@/types/Marker.types";
 import {
   HydrationBoundary,
@@ -91,6 +92,7 @@ const Pullup = async ({ params }: Props) => {
 
   return (
     <BlackSideBody bodyClass="p-0 mo:px-0 mo:pb-0" toggle>
+      <PrevHeader text="상세보기" back />
       <HydrationBoundary state={dehydrateState}>
         <PullupClient markerId={Number(id)} />
       </HydrationBoundary>
