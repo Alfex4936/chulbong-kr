@@ -14,6 +14,8 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import ChangePassword from "../../user/ChangePassword";
 import StatusBadge from "./StatusBadge";
+// TODO: 승인, 삭제, 거절 로딩 및 요청중 비활성
+// TODO: 제안 요청 요청중 비활성
 
 interface Props {
   markerId: number;
@@ -67,7 +69,7 @@ const MarkerReportList = ({
 }: Props) => {
   const { data: marker, isLoading: markerLoading } = useMarkerData(markerId);
   const { mutate: deleteReport } = useDeleteReport(markerId, reportId);
-  const { mutate: approveReport } = useApproveReport(markerId);
+  const { mutate: approveReport } = useApproveReport(markerId, lat, lng);
   const { mutate: denyReport } = useDenyReport(markerId);
   const { map } = useMapStore();
 

@@ -7,8 +7,8 @@ const PageLoadingBar = () => {
 
   useEffect(() => {
     if (isLoading) {
-      setVisible(true);
       setWidth("30%");
+      setVisible(true);
     } else {
       setWidth("100%");
     }
