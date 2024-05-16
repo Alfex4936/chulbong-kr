@@ -7,6 +7,7 @@ on:
     paths:
       - "frontend/**"
       - "backend/**"
+      - "backend-spring/**"
   workflow_dispatch:
 
 jobs:
@@ -33,6 +34,11 @@ jobs:
             else
               echo "backend_changed=false" >> $GITHUB_ENV
             fi
+            if git diff --name-only HEAD~1 HEAD | grep -q 'backend-spring/'; then
+              echo "spring_changed=true" >> $GITHUB_ENV
+            else
+              echo "spring_changed=false" >> $GITHUB_ENV
+            fi
           else
             echo "Checking all files since there's no previous commit."
             if git ls-tree --name-only -r HEAD | grep -q 'frontend/'; then
@@ -44,6 +50,11 @@ jobs:
               echo "backend_changed=true" >> $GITHUB_ENV
             else
               echo "backend_changed=false" >> $GITHUB_ENV
+            fi
+            if git ls-tree --name-only -r HEAD | grep -q 'backend-spring/'; then
+              echo "spring_changed=true" >> $GITHUB_ENV
+            else
+              echo "spring_changed=false" >> $GITHUB_ENV
             fi
           fi
       
@@ -64,6 +75,18 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           event-type: backend-changes
+          client-payload: |
+              {
+                "ref": "${{ github.ref }}", 
+                "sha": "${{ github.sha }}",
+                "commit_message": "${{ github.event.head_commit.message }}"
+              }
+
+      - name: Trigger Repository Dispatch for Backend Spring Changes
+        if: env.spring_changed == 'true'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          event-type: spring-changes
           client-payload: |
               {
                 "ref": "${{ github.ref }}", 
