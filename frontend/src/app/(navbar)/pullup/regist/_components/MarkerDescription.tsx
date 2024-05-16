@@ -253,6 +253,8 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
           content: content,
           zIndex: 5,
         });
+        
+        setOverlay(overlay);
 
         // 마커 정보
         let description: string = "";

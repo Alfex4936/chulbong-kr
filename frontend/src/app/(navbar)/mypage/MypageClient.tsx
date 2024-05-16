@@ -5,14 +5,13 @@ import ModeToggle from "@/components/common/ModeToggle";
 import { Separator } from "@/components/ui/separator";
 import useLogout from "@/hooks/mutation/auth/useLogout";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
-import { useRouter } from "next/navigation";
-import Unauthenticated from "./_component/Unauthenticated";
+import usePageLoadingStore from "@/store/usePageLoadingStore";
 import LinkWrap from "./_component/LinkWrap";
+import Unauthenticated from "./_component/Unauthenticated";
 
 const MypageClient = () => {
-  const router = useRouter();
-
   const { data: myInfo, isError } = useMyinfoData();
+  const { setLoading } = usePageLoadingStore();
 
   const { mutate: logout } = useLogout();
 
@@ -59,7 +58,10 @@ const MypageClient = () => {
           // emoji="🖐️"
           text="로그아웃"
           // subText="다음에 만나요!"
-          onClick={() => logout()}
+          onClickFn={() => {
+            logout();
+            setLoading(true);
+          }}
           center
         />
       </div>

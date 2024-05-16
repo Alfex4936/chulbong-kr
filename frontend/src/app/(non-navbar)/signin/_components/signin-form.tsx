@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -12,10 +13,11 @@ import {
 import { Input } from "@/components/ui/input";
 import useLogin from "@/hooks/mutation/auth/useLogin";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isAxiosError } from "axios";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useRouter } from "next/navigation";
-// 유효하지 않은 회원 에러 메시지
+// TODO: 유효하지 않은 회원 에러 메시지
 
 const formSchema = z.object({
   email: z.string().email({
@@ -27,8 +29,9 @@ const formSchema = z.object({
 });
 
 const SigninForm = () => {
-  const router = useRouter();
-  const { mutate: login } = useLogin();
+  const { mutateAsync: login, isPending } = useLogin();
+
+  const [errorMessage, setErrorMessage] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -38,8 +41,20 @@ const SigninForm = () => {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    login(values);
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      await login(values);
+    } catch (error) {
+      if (isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          setErrorMessage("유효하지 않은 회원 정보입니다.");
+        } else {
+          setErrorMessage("잠시 후 다시 시도해 주세요.");
+        }
+      } else {
+        setErrorMessage("잠시 후 다시 시도해 주세요.");
+      }
+    }
   };
 
   return (
@@ -67,12 +82,16 @@ const SigninForm = () => {
               <FormControl>
                 <Input type="password" {...field} />
               </FormControl>
-              <FormMessage />
+              <FormMessage>{errorMessage}</FormMessage>
             </FormItem>
           )}
         />
-        <Button type="submit" className="bg-black-light-2 hover:bg-black-light">
-          로그인
+        <Button
+          type="submit"
+          className="bg-black-light-2 hover:bg-black-light"
+          disabled={isPending}
+        >
+          {isPending ? <LoadingSpinner size="xs" /> : "로그인"}
         </Button>
       </form>
     </Form>

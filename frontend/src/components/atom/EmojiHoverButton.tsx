@@ -5,12 +5,13 @@ import GrowBox from "./GrowBox";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import { useRouter } from "next/navigation";
 
-interface Props extends ComponentProps<"button"> {
+interface Props {
   emoji?: string;
   text: string;
   subText?: string;
   center?: boolean;
   url?: string;
+  onClickFn?: VoidFunction;
 }
 
 const EmojiHoverButton = ({
@@ -19,7 +20,7 @@ const EmojiHoverButton = ({
   subText,
   center,
   url,
-  ...props
+  onClickFn,
 }: Props) => {
   const router = useRouter();
 
@@ -27,12 +28,16 @@ const EmojiHoverButton = ({
 
   return (
     <button
-      {...props}
       className="block w-full text-left group rounded-sm mb-3 px-1 py-2 hover:bg-black-light-2 mo:text-sm"
       onClick={() => {
-        if (!url) return;
-        router.push(url);
-        setLoading(true);
+        if (!url && onClickFn) {
+          onClickFn();
+          return;
+        }
+        if (url) {
+          router.push(url);
+          setLoading(true);
+        }
       }}
     >
       <div

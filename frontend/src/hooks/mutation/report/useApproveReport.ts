@@ -1,8 +1,22 @@
 import approveReport from "@/api/report/approveReport";
+import useMapStore from "@/store/useMapStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+// TODO: 오버레이 위치 변경 같이
 
-const useApproveReport = (markerId: number) => {
+const useApproveReport = (markerId: number, lat: number, lng: number) => {
   const queryClient = useQueryClient();
+  const { markers, overlay } = useMapStore();
+
+  const filtering = () => {
+    if (!markers || !overlay) return;
+    const newPosition = new window.kakao.maps.LatLng(lat, lng);
+    const marker = markers.find((value) => Number(value.Gb) === markerId);
+
+    if (marker) {
+      marker.setPosition(newPosition);
+      overlay.setPosition(newPosition);
+    }
+  };
 
   return useMutation({
     mutationFn: approveReport,
@@ -18,9 +32,7 @@ const useApproveReport = (markerId: number) => {
       queryClient.invalidateQueries({
         queryKey: ["marker", markerId],
       });
-      queryClient.invalidateQueries({
-        queryKey: ["markers"],
-      });
+      filtering();
     },
   });
 };
