@@ -1,0 +1,61 @@
+name: CodeCov for Spring Boot
+
+on:
+  repository_dispatch:
+    types: [spring-changes]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+  
+jobs:
+  jacoco:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.action == 'spring-changes' }}
+    defaults:
+     run:
+       working-directory: backend-spring
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: "17"
+          distribution: "corretto"
+
+      - name: Setup secrets
+        run: |
+          echo "${{ secrets.APPLICATION_YML }}" | base64 --decode > src/main/resources/application-secret.yml
+          echo "${{ secrets.BAD_WORD_LIST }}" | base64 --decode > src/main/resources/badwords.txt
+          echo "${{ secrets.BAD_WORD_LIST }}" | base64 --decode > src/test/resources/badwords.txt
+
+      - name: Correct permission
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew build -x test
+
+      - name: Run JacocoTest
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          command: |
+            cd ${GITHUB_WORKSPACE}/java
+            ./gradlew clean test jacocoTestReport
+
+      # - name: Run JacocoTest
+      #   run: ./gradlew clean test jacocoTestReport
+      #   continue-on-error: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: true

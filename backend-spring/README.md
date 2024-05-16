@@ -15,6 +15,7 @@ chulbong-kr 을 Spring Boot 3을 이용해 만드는 과정
   - [ ] Swagger 연동
   - [ ] JUnit 연동
   - [ ] ElasticSearch 연동
+  - [x] JaCoCo 연동
 - [ ] controller
   - [ ] marker
     - [x] GET /markers
