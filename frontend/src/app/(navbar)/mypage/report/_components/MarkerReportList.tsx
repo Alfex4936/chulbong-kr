@@ -1,5 +1,6 @@
 import BlackLightBox from "@/components/atom/BlackLightBox";
 import GrowBox from "@/components/atom/GrowBox";
+import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import AlertButton from "@/components/common/AlertButton";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import { Separator } from "@/components/ui/separator";
@@ -27,6 +28,7 @@ interface Props {
   userId: number;
   myId?: number;
   reportId: number;
+  isFetching: boolean;
 }
 
 interface InfoListProps {
@@ -66,11 +68,21 @@ const MarkerReportList = ({
   userId,
   myId,
   reportId,
+  isFetching,
 }: Props) => {
   const { data: marker, isLoading: markerLoading } = useMarkerData(markerId);
-  const { mutate: deleteReport } = useDeleteReport(markerId, reportId);
-  const { mutate: approveReport } = useApproveReport(markerId, lat, lng);
-  const { mutate: denyReport } = useDenyReport(markerId);
+  const { mutate: deleteReport, isPending: deleteReportPending } =
+    useDeleteReport(markerId, reportId);
+  const { mutate: approveReport, isPending: approvePending } = useApproveReport(
+    markerId,
+    lat,
+    lng
+  );
+  const {
+    mutate: denyReport,
+    isPending: denyPending,
+    isSuccess,
+  } = useDenyReport(markerId);
   const { map } = useMapStore();
 
   const [addr, setAddr] = useState("");
@@ -95,9 +107,16 @@ const MarkerReportList = ({
       <div className="flex items-center mb-2">
         {myId && userId === myId && (
           <AlertButton
-            ButtonText={<DeleteIcon size={20} />}
+            ButtonText={
+              deleteReportPending ? (
+                <LoadingSpinner size="xs" />
+              ) : (
+                <DeleteIcon size={20} />
+              )
+            }
             title="정말 삭제하시겠습니까?"
             clickFn={deleteReport}
+            disabled={deleteReportPending || isFetching}
           />
         )}
         <GrowBox />
@@ -106,26 +125,40 @@ const MarkerReportList = ({
             onClick={() => {
               if (marker?.isChulbong) setDropdown((prev) => !prev);
             }}
+            disabled={approvePending || denyPending || isFetching}
           >
-            <StatusBadge status={status} />
+            {approvePending || denyPending ? (
+              <LoadingSpinner size="xs" />
+            ) : (
+              <StatusBadge status={status} />
+            )}
           </button>
-          {dropdown && status !== "APPROVED" && status !== "DENIED" && (
-            <div className="absolute top-8 left-0">
-              {marker?.isChulbong && (
-                <div>
-                  <button
-                    className="mb-1"
-                    onClick={() => approveReport(reportId)}
-                  >
-                    <StatusBadge status={"APPROVED"} />
-                  </button>
-                  <button onClick={() => denyReport(reportId)}>
-                    <StatusBadge status={"DENIED"} />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+          {dropdown &&
+            status !== "APPROVED" &&
+            status !== "DENIED" &&
+            !approvePending &&
+            !denyPending &&
+            !isFetching && (
+              <div className="absolute top-8 left-0">
+                {marker?.isChulbong && (
+                  <div>
+                    <button
+                      className="mb-1"
+                      onClick={() => approveReport(reportId)}
+                      disabled={approvePending || denyPending}
+                    >
+                      <StatusBadge status={"APPROVED"} />
+                    </button>
+                    <button
+                      onClick={() => denyReport(reportId)}
+                      disabled={approvePending || denyPending}
+                    >
+                      <StatusBadge status={"DENIED"} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
         </div>
       </div>
 

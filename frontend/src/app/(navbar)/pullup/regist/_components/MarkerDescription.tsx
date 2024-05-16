@@ -48,7 +48,6 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
     mutate: report,
     error: reportError,
     isError,
-    isPending: reportPending,
   } = useReportMarker(markerId as number);
   const { mutateAsync: setFacilities } = useSetFacilities();
   const { mutateAsync: uploadMarker } = useUploadMarker();
@@ -77,6 +76,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
 
   const handleSubmit = async () => {
     if (isReport && markerId) {
+      setLoading(true);
       try {
         const marker = await getMarker(markerId);
         let data;
@@ -253,7 +253,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
           content: content,
           zIndex: 5,
         });
-        
+
         setOverlay(overlay);
 
         // 마커 정보
@@ -531,8 +531,6 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
           setError("잠시 후 다시 시도해 주세요!");
         }
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -577,7 +575,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading || reportPending ? (
+          {loading ? (
             <LoadingSpinner size="xs" />
           ) : markerId && isReport ? (
             "제안 요청"

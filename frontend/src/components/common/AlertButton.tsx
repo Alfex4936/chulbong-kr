@@ -17,6 +17,7 @@ interface Props {
   approveText?: string;
   cancelText?: string;
   clickFn?: VoidFunction;
+  disabled?: boolean;
 }
 
 const AlertButton = ({
@@ -26,11 +27,12 @@ const AlertButton = ({
   approveText,
   cancelText,
   clickFn,
+  disabled = false,
 }: Props) => {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <button>{ButtonText}</button>
+        <button disabled={disabled}>{ButtonText}</button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
