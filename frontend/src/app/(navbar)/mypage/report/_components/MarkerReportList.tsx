@@ -137,19 +137,23 @@ const MarkerReportList = ({
               <div className="absolute top-8 left-0">
                 {marker?.isChulbong && (
                   <div>
-                    <button
-                      className="mb-1"
-                      onClick={() => approveReport(reportId)}
-                      disabled={approvePending || denyPending}
-                    >
-                      <StatusBadge status={"APPROVED"} />
-                    </button>
-                    <button
-                      onClick={() => denyReport(reportId)}
-                      disabled={approvePending || denyPending}
-                    >
-                      <StatusBadge status={"DENIED"} />
-                    </button>
+                    <div className="mb-1">
+                      <AlertButton
+                        ButtonText={<StatusBadge status={"APPROVED"} />}
+                        title="정말 승인하시겠습니까?"
+                        desc="현재 등록된 정보가 바뀔 수 있습니다."
+                        clickFn={() => approveReport(reportId)}
+                        disabled={approvePending || denyPending}
+                      />
+                    </div>
+                    <div>
+                      <AlertButton
+                        ButtonText={<StatusBadge status={"DENIED"} />}
+                        title="정말 거절하시겠습니까?"
+                        clickFn={() => denyReport(reportId)}
+                        disabled={approvePending || denyPending}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
