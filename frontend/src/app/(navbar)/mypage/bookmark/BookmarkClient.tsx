@@ -4,7 +4,7 @@ import useBookmarkData from "@/hooks/query/user/useBookmarkData";
 import BookmarkList from "../_component/BookmarkList";
 
 const BookmarkClient = () => {
-  const { data: bookmarks } = useBookmarkData();
+  const { data: bookmarks, isFetching } = useBookmarkData();
 
   return (
     <div>
@@ -21,6 +21,7 @@ const BookmarkClient = () => {
               lng={bookmark.longitude}
               lat={bookmark.latitude}
               markerId={bookmark.markerId}
+              isFetching={isFetching}
             />
           );
         })}

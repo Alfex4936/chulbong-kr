@@ -50,7 +50,9 @@ const useDeleteMarker = ({
     if (marker) {
       marker.setMap(null);
       clusterer.removeMarker(marker);
-      overlay.setMap(null);
+      if (overlay) {
+        overlay.setMap(null);
+      }
       setMarkers(newMarkers);
       setOverlay(null);
     }
