@@ -1,101 +1,101 @@
 plugins {
-	id 'java'
-	id 'application'
-	id 'org.springframework.boot' version '3.2.5'
-	id 'io.spring.dependency-management' version '1.1.4'
-	id 'jacoco'
+    id 'java'
+    id 'application'
+    id 'org.springframework.boot' version '3.2.5'
+    id 'io.spring.dependency-management' version '1.1.4'
+    id 'jacoco'
 }
 
 application {
-	applicationDefaultJvmArgs = ['-Xms2G', '-Xmx8G', '-XX:+UseZGC', '-XX:+ZGenerational']
+    applicationDefaultJvmArgs = ['-Xms2G', '-Xmx8G', '-XX:+UseZGC', '-XX:+ZGenerational']
 }
 
 group = 'csw'
 version = '1.0.0'
 
 java {
-	sourceCompatibility = '17'
+    sourceCompatibility = '17'
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 
-	maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://repo.spring.io/milestone' }
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-amqp'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	implementation 'org.springframework.boot:spring-boot-starter-mail'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
-	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
-	runtimeOnly 'com.mysql:mysql-connector-j'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.amqp:spring-rabbit-test'
-	testImplementation 'org.springframework.security:spring-security-test'
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.amqp:spring-rabbit-test'
+    testImplementation 'org.springframework.security:spring-security-test'
 
-	// https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-aws
-	implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
+    // https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-aws
+    implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
 // https://mvnrepository.com/artifact/com.fasterxml.jackson.datatype/jackson-datatype-jsr310
-	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1'
 // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind
-	implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
 // https://mvnrepository.com/artifact/org.hibernate.orm/hibernate-spatial
-	implementation 'org.hibernate.orm:hibernate-spatial:6.5.0.Final'
+    implementation 'org.hibernate.orm:hibernate-spatial:6.5.0.Final'
 
-	implementation 'com.hankcs:aho-corasick-double-array-trie:1.2.2'
+    implementation 'com.hankcs:aho-corasick-double-array-trie:1.2.2'
 
-	compileOnly 'org.projectlombok:lombok:1.18.32'
-	annotationProcessor 'org.projectlombok:lombok:1.18.32'
+    compileOnly 'org.projectlombok:lombok:1.18.32'
+    annotationProcessor 'org.projectlombok:lombok:1.18.32'
 
-	// https://mvnrepository.com/artifact/org.mockito/mockito-core
-	testImplementation 'org.mockito:mockito-core:5.12.0'
+    // https://mvnrepository.com/artifact/org.mockito/mockito-core
+    testImplementation 'org.mockito:mockito-core:5.12.0'
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }
 
 jacoco {
-	toolVersion = "0.8.11"
+    toolVersion = "0.8.11"
 }
 
 jacocoTestCoverageVerification {
-	violationRules {
-		rule {
-			limit {
-				minimum = 0.5 // 50% coverage
-			}
-		}
-	}
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.5 // 50% coverage
+            }
+        }
+    }
 }
 jacocoTestReport {
-	reports {
-		xml.required = true
-		csv.required = false
-		html.outputLocation = layout.buildDirectory.dir('jacocoHtml')
-	}
+    reports {
+        xml.required = true
+        csv.required = false
+        html.outputLocation = layout.buildDirectory.dir('jacocoHtml')
+    }
 
-	afterEvaluate {
-		classDirectories.setFrom(files(classDirectories.files.collect {
-			fileTree(dir: it, exclude: [
-					'csw/chulbongkr/ChulbongKrApplication.class',   // Exclude main application class
-					'**/repository/**',                              // Exclude repository classes
-					'**/entity/**',                                   // Exclude entity classes
-					'**/dto/**',                                   // Exclude dto classes
-					'**/security/**',                                   // Exclude security classes
-					'**/config/**'                                   // Exclude config classes
-			])
-		}))
-	}
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    'csw/chulbongkr/ChulbongKrApplication.class',   // Exclude main application class
+                    '**/repository/**',                              // Exclude repository classes
+                    '**/entity/**',                                   // Exclude entity classes
+                    '**/dto/**',                                   // Exclude dto classes
+                    '**/security/**',                                   // Exclude security classes
+                    '**/config/**'                                   // Exclude config classes
+            ])
+        }))
+    }
 }
 
 bootJar {
-	mainClass = 'csw.chulbongkr.ChulbongKrApplication'
-	archiveFileName = "chulbongkr-${version}.${archiveExtension.get()}"
+    mainClass = 'csw.chulbongkr.ChulbongKrApplication'
+    archiveFileName = "chulbongKr-${version}.${archiveExtension.get()}"
 }
