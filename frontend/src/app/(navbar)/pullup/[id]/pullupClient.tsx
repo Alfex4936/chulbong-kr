@@ -9,6 +9,17 @@ import DislikeIcon from "@/components/icons/DislikeIcon";
 import EditIcon from "@/components/icons/EditIcon";
 import RoadViewIcon from "@/components/icons/RoadViewIcon";
 import ShareIcon from "@/components/icons/ShareIcon";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -34,7 +45,7 @@ import useSelectedMarkerStore from "@/store/useSelectedMarkerStore";
 import formatDate from "@/utils/formatDate";
 import formatFacilities from "@/utils/formatFacilities";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
@@ -47,6 +58,8 @@ const PullupClient = ({ markerId }: Props) => {
   const router = useRouter();
 
   const { setLoading } = usePageLoadingStore();
+
+  const alertRef = useRef<HTMLButtonElement>(null);
 
   const { toast } = useToast();
   const { open: openMobileMap } = useMobileMapOpenStore();
@@ -192,10 +205,54 @@ const PullupClient = ({ markerId }: Props) => {
             right={10}
             top={170}
             icon={deletePending ? <LoadingSpinner size="xs" /> : <DeleteIcon />}
-            onClick={() => deleteMarker()}
+            onClick={(e) => {
+              e.stopPropagation();
+
+              if (!alertRef) return;
+              alertRef.current?.click();
+            }}
             disabled={deletePending}
           />
         )}
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              className="hidden"
+              ref={alertRef}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              마커 삭제
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>정말 삭제하시겠습니까?</AlertDialogTitle>
+              <AlertDialogDescription className="text-red">
+                저장 된 모든 내용이 사라집니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                취소
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteMarker();
+                }}
+              >
+                삭제
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <div className="absolute top-0 left-0 w-full h-full bg-black-tp-dark z-10" />
       </div>

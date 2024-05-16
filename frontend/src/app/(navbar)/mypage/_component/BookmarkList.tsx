@@ -1,6 +1,18 @@
 import GrowBox from "@/components/atom/GrowBox";
+import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import BookmarkIcon from "@/components/icons/BookmarkIcon";
 import { LocationIcon } from "@/components/icons/LocationIcons";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -13,7 +25,7 @@ import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 type Props = {
   title: string;
@@ -21,9 +33,17 @@ type Props = {
   lat?: number;
   lng?: number;
   markerId: number;
+  isFetching?: boolean;
 };
 
-const BookmarkList = ({ title, subTitle, lat, lng, markerId }: Props) => {
+const BookmarkList = ({
+  title,
+  subTitle,
+  lat,
+  lng,
+  markerId,
+  isFetching = false,
+}: Props) => {
   const router = useRouter();
 
   const { setLoading } = usePageLoadingStore();
@@ -31,7 +51,10 @@ const BookmarkList = ({ title, subTitle, lat, lng, markerId }: Props) => {
   const { open } = useMobileMapOpenStore();
   const { setPosition } = useMapStatusStore();
   const { map, markers } = useMapStore();
-  const { mutate: deleteBookmark } = useDeleteFavorite(markerId);
+  const { mutate: deleteBookmark, isPending: deletePending } =
+    useDeleteFavorite(markerId);
+
+  const alertRef = useRef<HTMLButtonElement>(null);
 
   const moveLocation = useCallback(() => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
@@ -71,13 +94,30 @@ const BookmarkList = ({ title, subTitle, lat, lng, markerId }: Props) => {
 
   return (
     <li
-      className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
+      className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 cursor-pointer hover:scale-95`}
+      onClick={() => {
+        setLoading(true);
+        router.push(`/pullup/${markerId}`);
+      }}
     >
       <TooltipProvider delayDuration={100}>
         <Tooltip>
-          <TooltipTrigger onClick={() => deleteBookmark()}>
+          <TooltipTrigger
+            onClick={(e) => {
+              e.stopPropagation();
+              if (deletePending) return;
+              if (!alertRef) return;
+
+              alertRef.current?.click();
+            }}
+            disabled={deletePending || isFetching}
+          >
             <div className="flex items-center justify-center mr-4 h-8 w-8 rounded-full">
-              <BookmarkIcon size={20} isActive />
+              {deletePending ? (
+                <LoadingSpinner size="xs" />
+              ) : (
+                <BookmarkIcon size={20} isActive />
+              )}
             </div>
           </TooltipTrigger>
           <TooltipContent>
@@ -86,16 +126,47 @@ const BookmarkList = ({ title, subTitle, lat, lng, markerId }: Props) => {
         </Tooltip>
       </TooltipProvider>
 
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <button
+            className="hidden"
+            ref={alertRef}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            북마크 취소
+          </button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>정말 취소하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription className="text-red">
+              나중에 다시 등록하실 수 있습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteBookmark();
+              }}
+            >
+              확인
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="w-3/4">
-        <div
-          className={`truncate text-left mr-2 hover:underline cursor-pointer`}
-          onClick={() => {
-            setLoading(true);
-            router.push(`/pullup/${markerId}`);
-          }}
-        >
-          {title}
-        </div>
+        <div className={`truncate text-left mr-2`}>{title}</div>
         <div className="truncate text-left text-xs text-grey-dark">
           {subTitle}
         </div>
@@ -104,7 +175,12 @@ const BookmarkList = ({ title, subTitle, lat, lng, markerId }: Props) => {
 
       <TooltipProvider delayDuration={100}>
         <Tooltip>
-          <TooltipTrigger onClick={filterClickMarker}>
+          <TooltipTrigger
+            onClick={(e) => {
+              e.stopPropagation();
+              filterClickMarker();
+            }}
+          >
             <div>
               <LocationIcon selected={false} size={18} />
             </div>

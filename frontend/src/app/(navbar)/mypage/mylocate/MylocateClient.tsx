@@ -68,6 +68,7 @@ const MylocateClient = () => {
                     lng={marker.longitude}
                     lat={marker.latitude}
                     markerId={marker.markerId}
+                    isFetching={isFetching}
                   />
                 );
               })}

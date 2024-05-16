@@ -1,6 +1,18 @@
 import GrowBox from "@/components/atom/GrowBox";
+import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import { LocationIcon } from "@/components/icons/LocationIcons";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -12,8 +24,8 @@ import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
-import Link from "next/link";
-import { useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useRef } from "react";
 
 type Props = {
   title: string;
@@ -22,6 +34,7 @@ type Props = {
   lng?: number;
   markerId: number;
   deleteOption?: boolean;
+  isFetching?: boolean;
 };
 
 const MylocateList = ({
@@ -31,12 +44,19 @@ const MylocateList = ({
   lng,
   markerId,
   deleteOption = true,
+  isFetching = false,
 }: Props) => {
+  const router = useRouter();
+
   const { setLoading } = usePageLoadingStore();
   const { open } = useMobileMapOpenStore();
   const { setPosition } = useMapStatusStore();
   const { map, markers } = useMapStore();
-  const { mutate: deleteMarker } = useDeleteMarker({ id: markerId });
+  const { mutate: deleteMarker, isPending: deletePending } = useDeleteMarker({
+    id: markerId,
+  });
+
+  const alertRef = useRef<HTMLButtonElement>(null);
 
   const moveLocation = useCallback(() => {
     const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
@@ -77,6 +97,10 @@ const MylocateList = ({
   return (
     <li
       className={`flex w-full items-center p-4 rounded-sm cursor-pointer mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
+      onClick={() => {
+        setLoading(true);
+        router.push(`/pullup/${markerId}`);
+      }}
     >
       {deleteOption && (
         <TooltipProvider delayDuration={100}>
@@ -84,11 +108,19 @@ const MylocateList = ({
             <TooltipTrigger
               onClick={(e) => {
                 e.stopPropagation();
-                deleteMarker();
+                if (deletePending) return;
+                if (!alertRef) return;
+
+                alertRef.current?.click();
               }}
+              disabled={deletePending || isFetching}
             >
               <div className="flex items-center justify-center mr-4 h-8 w-8 rounded-full">
-                <DeleteIcon size={20} />
+                {deletePending ? (
+                  <LoadingSpinner size="xs" />
+                ) : (
+                  <DeleteIcon size={20} />
+                )}
               </div>
             </TooltipTrigger>
             <TooltipContent>
@@ -98,21 +130,61 @@ const MylocateList = ({
         </TooltipProvider>
       )}
 
-      <Link
-        href={`/pullup/${markerId}`}
-        className="w-3/4"
-        onClick={() => setLoading(true)}
-      >
-        <div className={`truncate text-left mr-2 hover:underline`}>{title}</div>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <button
+            className="hidden"
+            ref={alertRef}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            마커 삭제
+          </button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>정말 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription className="text-red">
+              저장 된 모든 내용이 사라집니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteMarker();
+              }}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="w-3/4">
+        <div className={`truncate text-left mr-2`}>{title}</div>
         <div className="truncate text-left text-xs text-grey-dark">
           {subTitle}
         </div>
-      </Link>
+      </div>
       <GrowBox />
 
       <TooltipProvider delayDuration={100}>
         <Tooltip>
-          <TooltipTrigger onClick={filterClickMarker}>
+          <TooltipTrigger
+            onClick={(e) => {
+              e.stopPropagation();
+              filterClickMarker();
+            }}
+          >
             <div>
               <LocationIcon selected={false} size={18} />
             </div>
