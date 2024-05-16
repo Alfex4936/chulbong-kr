@@ -17,6 +17,7 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
     data: myReports,
     error,
     isError,
+    isFetching,
   } = useReportsData({ type, markerId }) as QueryObserverRefetchErrorResult<
     ReportsRes[],
     Error
@@ -38,7 +39,6 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
     }
   }
 
-  console.log(myReports);
   if (myReports?.length === 0)
     return <div className="text-center">요청중인 제안이 없습니다.</div>;
 
@@ -57,6 +57,7 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
               userId={report.userId}
               reportId={report.reportId}
               myId={myInfo?.userId}
+              isFetching={isFetching}
             />
           </div>
         );
