@@ -46,7 +46,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 2
           command: |
-            cd ${GITHUB_WORKSPACE}/java
+            cd ${GITHUB_WORKSPACE}/backend-spring
             ./gradlew clean test jacocoTestReport
 
       # - name: Run JacocoTest
