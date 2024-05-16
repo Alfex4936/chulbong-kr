@@ -76,10 +76,6 @@ public class SecurityConfig {
                 .requestMatchers(antMatcher("/api/v1/**")).permitAll() // Secure all API endpoints
                 .anyRequest().permitAll() // Allow all other requests
         );
-
-d:
-
-
         return http.build();
     }
 }
