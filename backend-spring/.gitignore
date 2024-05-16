@@ -37,4 +37,5 @@ out/
 
 application-secret.yml
 
-src/main/java/csw/chulbongkr/config/converter/TimezoneMapper.java
+badwords.txt
+*.txt
