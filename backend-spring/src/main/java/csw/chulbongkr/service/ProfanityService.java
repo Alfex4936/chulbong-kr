@@ -1,6 +1,7 @@
 package csw.chulbongkr.service;
 
 import com.hankcs.algorithm.AhoCorasickDoubleArrayTrie;
+import csw.chulbongkr.util.DAT;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -17,13 +18,13 @@ import java.util.TreeMap;
 @Slf4j
 @Service
 public class ProfanityService {
-    private AhoCorasickDoubleArrayTrie<String> trie;
+    private DAT<String> trie;
     @Getter
     private List<String> badWords;
 
     @PostConstruct
     public void init() throws IOException {
-        trie = new AhoCorasickDoubleArrayTrie<>();
+        trie = new DAT<>();
         TreeMap<String, String> badWordsMap = new TreeMap<>();
 
         // Load bad words from file
@@ -45,7 +46,7 @@ public class ProfanityService {
             throw new IllegalStateException("ProfanityService not initialized");
         }
 //        List<AhoCorasickDoubleArrayTrie.Hit<String>> hits = trie.parseText(text);
-        AhoCorasickDoubleArrayTrie.Hit<String> hit = trie.findFirst(text);
+        DAT.Hit<String> hit = trie.findFirst(text);
         if (hit == null) {
             return false;
         }
