@@ -47,6 +47,7 @@ const Map = () => {
   const {
     map,
     setMap,
+    clusterer: sClusterer,
     setClusterer,
     setMarkers,
     setOverlay,
@@ -83,7 +84,7 @@ const Map = () => {
       maxLevel: 12,
     };
 
-    const newMap = new window.kakao.maps.Map(mapRef.current, options);
+    const newMap = map || new window.kakao.maps.Map(mapRef.current, options);
 
     const handleDrag = () => {
       const latlng = newMap.getCenter();
@@ -98,11 +99,15 @@ const Map = () => {
     window.kakao.maps.event.addListener(newMap, "dragend", handleDrag);
     window.kakao.maps.event.addListener(newMap, "zoom_changed", handleZoom);
 
-    const clusterer = new window.kakao.maps.MarkerClusterer({
-      map: newMap,
-      averageCenter: true,
-      minLevel: 6,
-    });
+    const clusterer =
+      sClusterer ||
+      new window.kakao.maps.MarkerClusterer({
+        map: newMap,
+        averageCenter: true,
+        minLevel: 6,
+      });
+
+    if (sClusterer) sClusterer.clear();
 
     const skeletoncontent = document.createElement("div");
     skeletoncontent.className = "skeleton-overlay";
