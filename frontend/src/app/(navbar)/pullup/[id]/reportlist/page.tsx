@@ -8,7 +8,6 @@ import {
   dehydrate,
 } from "@tanstack/react-query";
 import LinkWrap from "./LinkWrap";
-// TODO: 프리페치 안되는 문제 해결
 
 const getMarkerReport = async (markerId: number) => {
   const res = await instance.get(

@@ -1,23 +1,24 @@
 "use client";
 
 import useLoginModalStateStore from "@/store/useLoginModalStateStore";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "../ui/alert-dialog";
 import { Button } from "../ui/button";
 
 const AlertLogin = () => {
   const router = useRouter();
+  const pathname = usePathname();
 
   const { close, isOpen } = useLoginModalStateStore();
 
@@ -45,7 +46,9 @@ const AlertLogin = () => {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => close()}>취소</AlertDialogCancel>
-          <AlertDialogAction onClick={() => router.push("/signin")}>
+          <AlertDialogAction
+            onClick={() => router.push(`/signin?redirect=${pathname}`)}
+          >
             로그인 하러가기
           </AlertDialogAction>
         </AlertDialogFooter>
