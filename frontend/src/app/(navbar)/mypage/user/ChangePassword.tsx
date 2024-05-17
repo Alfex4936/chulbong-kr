@@ -17,9 +17,12 @@ import { useEffect, useState } from "react";
 import useSendPasswordReset from "@/hooks/mutation/auth/useSendPasswordReset";
 import LoadingSpinner from "@/components/atom/LoadingSpinner";
 
-// https://www.k-pullup.com/reset-password?token=4e54dacde6d9a8e4a1fd9f46d45756bd&email=yonghuni484@gmail.com
+interface Props {
+  text?: string;
+  textClass?: string;
+}
 
-const ChangePassword = () => {
+const ChangePassword = ({ text, textClass }: Props) => {
   const { mutateAsync: sendEmail, isPending: isSending } =
     useSendPasswordReset();
   const { value, handleChange, resetValue } = useInput("");
@@ -54,9 +57,13 @@ const ChangePassword = () => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button className="p-1 rounded-full hover:bg-white-tp-light">
-          <EditIcon size={12} />
-        </button>
+        {text && textClass ? (
+          <button className={textClass}>{text}</button>
+        ) : (
+          <button className="p-1 rounded-full hover:bg-white-tp-light">
+            <EditIcon size={12} />
+          </button>
+        )}
       </DialogTrigger>
 
       {isSended ? (
