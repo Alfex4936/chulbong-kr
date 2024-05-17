@@ -9,7 +9,6 @@ import {
 } from "@tanstack/react-query";
 import { cookies } from "next/headers";
 import MypageClient from "./MypageClient";
-// TODO: 내정보 캐싱 확인
 
 const myInfo = async (cookie: string): Promise<MyInfo> => {
   const res = await instance.get(
@@ -23,15 +22,6 @@ const myInfo = async (cookie: string): Promise<MyInfo> => {
 
   return res.data;
 };
-// const checkAdmin = async (cookie: string) => {
-//   const res = await instance.get(`${process.env.NEXT_PUBLIC_BASE_URL}/admin`, {
-//     headers: {
-//       Cookie: cookie || "",
-//     },
-//   });
-
-//   return res.data;
-// };
 
 export const generateMetadata = () => {
   return {
@@ -52,12 +42,6 @@ const Mypage = async () => {
       return myInfo(decodeCookie);
     },
   });
-  // await queryClient.prefetchQuery({
-  //   queryKey: ["admin", "check"],
-  //   queryFn: () => {
-  //     return checkAdmin(decodeCookie);
-  //   },
-  // });
 
   const dehydrateState = dehydrate(queryClient);
 
