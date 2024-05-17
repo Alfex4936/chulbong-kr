@@ -1,5 +1,17 @@
 # chulbong- :kr:
 
+> [!NOTE]  
+> The service is running with [Go as backend](https://github.com/Alfex4936/chulbong-kr/tree/main/backend) but [Spring boot 3](https://github.com/Alfex4936/chulbong-kr/tree/main/backend-spring) is also available. (WIP)
+
+### 프로젝트 소개 :world_map:
+**chulbong-kr**은 공공장소에 있는 턱걸이 바를 찾고 공유하기 위한 커뮤니티 플랫폼입니다.
+
+지도 API를 활용하여 사용자는 가입 및 로그인 후 턱걸이 바의 위치를 마커로 추가할 수 있으며,
+
+사진 한 장과 간단한 설명을 함께 업로드할 수 있습니다.
+
+로그인한 다른 사용자는 해당 마커에 댓글을 남길 수 있어, 정보 공유 및 소통이 용이합니다.
+
 ![0](https://github.com/Alfex4936/chulbong-kr/assets/2356749/c0f58f73-d568-4ef7-8fa1-1f20820b8fff)
 
 | | |
@@ -10,16 +22,6 @@
 ![chatting](https://github.com/Alfex4936/chulbong-kr/assets/2356749/53e4f587-e155-49c7-b28b-d56e150f1fe2)
 ![slack](https://github.com/Alfex4936/chulbong-kr/assets/2356749/5ec03f6a-871f-4556-90c3-13bb44769f13)
 ![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/cd2e489b-30bf-4611-845d-a3d76ba8cf3a)
-
-
-### 프로젝트 소개 :world_map:
-**chulbong-kr**은 공공장소에 있는 턱걸이 바를 찾고 공유하기 위한 커뮤니티 플랫폼입니다.
-
-지도 API를 활용하여 사용자는 가입 및 로그인 후 턱걸이 바의 위치를 마커로 추가할 수 있으며,
-
-사진 한 장과 간단한 설명을 함께 업로드할 수 있습니다.
-
-로그인한 다른 사용자는 해당 마커에 댓글을 남길 수 있어, 정보 공유 및 소통이 용이합니다.
 
 ### 기능
 - **회원가입 및 로그인**: 사용자 인증을 위한 기본적인 회원가입 및 로그인 기능. (이메일 인증 필요)
@@ -43,6 +45,7 @@
 
 
 - **백엔드**: Go언어 Fiber v2, MySQL, AWS S3, LavinMQ (RabbitMQ), Redis, ZincSearch (ElasticSearch)
+  - 메인: Go, 서브: Java (전체 프로젝트 자바로도 작성 중)
 - **프론트엔드**: React (TypeScript)
 - **개발 & 운영 효율성**: pprof, flamegraph, Uber's zap logger, Swagger OpenAPI, Prometheus+Grafana
 - **협업**: Slack (+ Slack API)
