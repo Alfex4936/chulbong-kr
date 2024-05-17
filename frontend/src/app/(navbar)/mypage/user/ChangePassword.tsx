@@ -81,10 +81,10 @@ const ChangePassword = () => {
       ) : (
         <DialogContent className="w-3/4 min-w-80 web:max-w-[425px] bg-black-dark">
           <DialogHeader>
-            <DialogTitle>비밀번호 변경</DialogTitle>
+            <DialogTitle>비밀번호 초기화</DialogTitle>
             <DialogDescription>
               이메일로 비밀번호 변경 링크가 전송됩니다. <br />
-              변경하고자 하는 이메일을 입력해 주세요.
+              초기화하고자 하는 이메일을 입력해 주세요.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-col">
