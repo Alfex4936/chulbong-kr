@@ -14,7 +14,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ChangePassword from "./ChangePassword";
 import DeleteUserAlert from "./DeleteUserAlert";
-// TODO: 에러 토스트 팝업 연결
 
 interface Props {
   text: string;
@@ -36,12 +35,7 @@ const InfoList = ({ text, subText, buttonText }: Props) => {
 const UserClient = () => {
   const router = useRouter();
 
-  const {
-    mutate: updateName,
-    isPending: isNameUpdate,
-    isError: updateNameError,
-    error,
-  } = useUpdateUserName();
+  const { mutate: updateName, isPending: isNameUpdate } = useUpdateUserName();
   const { data: myInfo, isError } = useMyinfoData();
 
   const { value, handleChange } = useInput(myInfo?.username as string);
@@ -51,8 +45,6 @@ const UserClient = () => {
   useEffect(() => {
     if (isError) router.push("/mypage");
   }, [isError]);
-
-  if (updateNameError) console.log(error);
 
   return (
     <div>
