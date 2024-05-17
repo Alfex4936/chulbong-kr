@@ -1,5 +1,4 @@
-"use client";
-
+import SigninBottomlinks from "./_components/SigninBottomlinks";
 import SigninForm from "./_components/signin-form";
 
 const Signin = () => {
@@ -10,6 +9,9 @@ const Signin = () => {
       </h1>
       <div className="absolute top-40 left-1/2 -translate-x-1/2 w-full max-w-[500px] min-w-80 p-10">
         <SigninForm />
+      </div>
+      <div className="absolute top-[460px] left-1/2 -translate-x-1/2 w-full max-w-[500px] px-10 min-w-80">
+        <SigninBottomlinks />
       </div>
     </div>
   );
