@@ -6,7 +6,6 @@ import useUploadFormDataStore from "@/store/useUploadFormDataStore";
 import type { KaKaoMapMouseEvent } from "@/types/KakaoMap.types";
 import getAddress, { type AddressInfo } from "@/utils/getAddress";
 import { useCallback, useEffect, useRef, useState } from "react";
-// TODO: 모바일 스크롤 멈춤 적용 안됨
 
 interface Props {
   isMarker?: boolean;
@@ -19,7 +18,7 @@ const MiniMap = ({ isMarker = false, latitude, longitude }: Props) => {
   const { loaded, setMap, map } = useMiniMapStatusStore();
   const { setPosition: setFormPosition } = useUploadFormDataStore();
 
-  const [mapOver, setMapOver] = useState(false);
+  const [mapOver, setMapOver] = useState(true);
   const [isClickMap, setIsClickMap] = useState(false);
 
   const [address, setAddress] = useState("");
@@ -92,12 +91,12 @@ const MiniMap = ({ isMarker = false, latitude, longitude }: Props) => {
   return (
     <div
       className="relative"
-      onMouseEnter={() => {
-        if (isClickMap) return;
-        setMapOver(true);
-      }}
+      // onMouseEnter={() => {
+      //   if (isClickMap) return;
+      //   setMapOver(true);
+      // }}
       onMouseLeave={() => {
-        setMapOver(false);
+        setMapOver(true);
         setIsClickMap(false);
       }}
     >
