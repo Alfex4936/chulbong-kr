@@ -14,13 +14,14 @@ chulbong-kr 을 Spring Boot 3을 이용해 만드는 과정
   - [x] JPA 연동
   - [x] Lombok 연동
   - [x] Config 연동
-  - [ ] Swagger 연동
-  - [ ] JUnit 연동
-  - [ ] ElasticSearch or Melisearch 연동
+  - [x] JUnit 연동
   - [x] JaCoCo/CodeCov 연동
+  - [ ] Swagger 연동
+  - [ ] ElasticSearch or Melisearch 연동
 - [ ] controller
   - [ ] marker
     - [x] GET /markers
+    - [x] GET /markers/save-offline
   - [ ] user
   - [ ] report
   - [ ] comment
@@ -28,7 +29,15 @@ chulbong-kr 을 Spring Boot 3을 이용해 만드는 과정
 - [ ] service
   - [x] Profanity (욕설 필터링)
     - 벤치마크 완료 (`String.contains` vs `Double-Array Ahocorasick`)
+  - [x] PDF (오프라인 PDF 생성)
+    - [x] File Download (파일 다운로드 from URL)
+    - [x] Image 처리
+    - [x] Temp folder cleanup scheduler (임시 폴더 청소)
+  - [ ] marker
 - [ ] repository
 - [ ] util
-  - [x] TimezoneFinder
+  - [x] TimezoneFinder to check South Korea
+  - [x] WCONGNAMUL to WGS84
+  - [x] WGS84 to WCONGNAMUL
 - [ ] external APIs
+  - [x] Kakao Map Address API

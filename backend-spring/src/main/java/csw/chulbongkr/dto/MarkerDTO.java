@@ -17,17 +17,18 @@ public class MarkerDTO {
     ) {}
 
     public record MarkerResponse(
-            int markerId,
+            Integer markerId,
             double latitude,
             double longitude,
             String description
             // String username,
-            // int userId,
+            // Integer userId,
             // List<String> photoUrls
     ) {}
 
+    @JsonInclude(JsonInclude.Include.NON_ABSENT)
     public record MarkerWithDistance(
-            int markerId,
+            Integer markerId,
             double latitude,
             double longitude,
             String description,
@@ -36,21 +37,21 @@ public class MarkerDTO {
     ) {}
 
     public record MarkerWithDislike(
-            int markerId,
+            Integer markerId,
             double latitude,
             double longitude,
             String username,
-            int dislikeCount
+            Integer dislikeCount
     ) {}
 
     public record MarkerSimple(
-            int markerId,
+            Integer markerId,
             double latitude,
             double longitude
     ) {}
 
     public record MarkerSimpleWithDescription(
-            int markerId,
+            Integer markerId,
             double latitude,
             double longitude,
             String description,
@@ -59,7 +60,7 @@ public class MarkerDTO {
     ) {}
 
     public record MarkerSimpleWithAddr(
-            int markerId,
+            Integer markerId,
             double latitude,
             double longitude,
             Optional<String> address

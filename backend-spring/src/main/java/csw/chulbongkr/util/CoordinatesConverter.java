@@ -1,5 +1,8 @@
 package csw.chulbongkr.util;
 
+import csw.chulbongkr.config.converter.TimezoneMapper;
+import org.springframework.stereotype.Service;
+
 public class CoordinatesConverter {
     // Constants related to the WGS84 ellipsoid.
     private static final double A_WGS84 = 6378137; // Semi-major axis.
@@ -166,5 +169,9 @@ public class CoordinatesConverter {
         D += A;
 
         return new double[]{o / w, D / w}; // LATITUDE, LONGITUDE
+    }
+
+    public static boolean IsInSouthKorea(double lat, double lon) {
+        return TimezoneMapper.latLngToTimezoneString(lat, lon).equals("Asia/Seoul");
     }
 }

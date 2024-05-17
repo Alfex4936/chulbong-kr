@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface MarkerRepositoryCustom {
     List<MarkerDTO.MarkerSimple> findAllSimplifiedMarkers();
+    List<MarkerDTO.MarkerWithDistance> findMarkersWithinDistance(double latitude, double longitude, double distance, int pageSize, int offset);
 }

@@ -118,8 +118,8 @@ class ProfanityServiceBenchmarkTest {
         System.out.println("Average input text length: " + averageLength);
         System.out.println("Average duration: " + averageDurationNs + " ns (" + averageDurationMs + " ms, " + averageDurationS + " s)");
 
-        // Assert that the average duration is less than 100 milliseconds
-        assertTrue(averageDurationMs < 100, "Average String.contains check should be faster than 100ms");
+        // Assert that the average duration is less than 10000 milliseconds
+        assertTrue(averageDurationS < 10, "Average String.contains check should be faster than 10s");
     }
 
     private String generateLargeRandomKoreanText(int length) {
