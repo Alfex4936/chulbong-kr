@@ -2,11 +2,11 @@
 
 import GrowBox from "@/components/atom/GrowBox";
 import DeleteIcon from "@/components/icons/DeleteIcon";
-import useGetComments from "@/hooks/query/comments/useCommentsData";
-import { useEffect, useRef } from "react";
-import formatDate from "@/utils/formatDate";
 import { Skeleton } from "@/components/ui/skeleton";
-// TODO: 리뷰 리스트 스타일 변경
+import useDeleteComment from "@/hooks/mutation/comments/useDeleteComment";
+import useGetComments from "@/hooks/query/comments/useCommentsData";
+import formatDate from "@/utils/formatDate";
+import { useEffect, useRef } from "react";
 
 type Props = {
   markerId: number;
@@ -21,6 +21,8 @@ const ReviewList = ({ markerId }: Props) => {
     isError,
     isFetching,
   } = useGetComments(markerId);
+  const { mutate: deleteComment, isPending: deletePending } =
+    useDeleteComment(markerId);
 
   const boxRef = useRef(null);
 
@@ -67,9 +69,12 @@ const ReviewList = ({ markerId }: Props) => {
           <div key={index}>
             {page.comments.map((comment) => {
               return (
-                <div className="flex items-center p-3" key={comment.commentId}>
+                <div
+                  className="flex items-center p-3 mb-1"
+                  key={comment.commentId}
+                >
                   <div className="w-2/3">
-                    <div className="truncate text-xl mr-2 overflow-hidden whitespace-nowrap hover:whitespace-normal hover:overflow-visible hover:break-words">
+                    <div className="truncate text-sm mr-2 overflow-hidden whitespace-nowrap hover:whitespace-normal hover:overflow-visible hover:break-words">
                       {comment.commentText}
                     </div>
                     <div className="truncate text-[10px] text-grey-dark-1">
@@ -78,8 +83,12 @@ const ReviewList = ({ markerId }: Props) => {
                   </div>
                   <GrowBox />
                   <span className="text-xs">{comment.username}</span>
-                  <button className="ml-2">
-                    <DeleteIcon />
+                  <button
+                    className="ml-2"
+                    onClick={() => deleteComment(comment.commentId)}
+                    disabled={isFetching || deletePending}
+                  >
+                    <DeleteIcon size={17} />
                   </button>
                 </div>
               );
