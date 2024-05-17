@@ -9,7 +9,6 @@ import useInput from "@/hooks/common/useInput";
 import useChatIdStore from "@/store/useChatIdStore";
 import getRegion from "@/utils/getRegion";
 import { Fragment, useEffect, useRef, useState } from "react";
-// TODO: 처음 도매인 주소 입력으로 들어올 시 연결 안됨 (배포 확인 필요)
 
 export interface ChatMessage {
   uid: string;
@@ -152,7 +151,7 @@ const ChatClient = () => {
     return (
       <div>
         <PrevHeader back />
-        <Heading title={`채팅방`} />
+        <Heading title={`채팅방`} className="h-auto" />
         <div className="text-red text-center">
           채팅을 불러오는데 실패하였습니다. <br /> 잠시 후 다시 시도해 주세요.
         </div>
@@ -163,7 +162,7 @@ const ChatClient = () => {
   return (
     <div className="flex flex-col h-full">
       <PrevHeader back />
-      <Heading title={roomTitle} subTitle={roomSubTitle} />
+      <Heading title={roomTitle} subTitle={roomSubTitle} className="h-auto" />
       <div
         className="grow w-full flex flex-col justify-between px-3"
         ref={chatBox}
