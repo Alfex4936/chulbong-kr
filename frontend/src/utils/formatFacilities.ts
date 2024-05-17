@@ -12,10 +12,10 @@ const formatFacilities = (facilities: FacilitiesRes[]): FormatedFacilities => {
   };
 
   data.철봉 =
-    (facilities.find((facilitie) => facilitie.facilityId === 1)
+    (facilities?.find((facilitie) => facilitie.facilityId === 1)
       ?.quantity as number) || "개수 정보 없음";
   data.평행봉 =
-    (facilities.find((facilitie) => facilitie.facilityId === 2)
+    (facilities?.find((facilitie) => facilitie.facilityId === 2)
       ?.quantity as number) || "개수 정보 없음";
 
   return data;
