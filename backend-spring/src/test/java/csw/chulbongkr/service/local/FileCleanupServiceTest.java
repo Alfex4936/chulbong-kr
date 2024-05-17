@@ -1,6 +1,7 @@
 package csw.chulbongkr.service.local;
 
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockitoAnnotations;
@@ -17,12 +18,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class FileCleanupServiceTest {
 
     private FileCleanupService fileCleanupService;
+    private Path tempDir;
 
     @BeforeEach
     void setUp() throws IOException {
         MockitoAnnotations.openMocks(this);
         fileCleanupService = new FileCleanupService();
+        tempDir = fileCleanupService.getTempDir();
     }
+
 
     @Test
     void testTempDirCreation() {
@@ -70,5 +74,15 @@ class FileCleanupServiceTest {
         // Verify both files are deleted
         assertFalse(Files.exists(file1));
         assertFalse(Files.exists(file2));
+    }
+
+    @AfterEach
+    void tearDown() throws IOException {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(tempDir)) {
+            for (Path file : stream) {
+                Files.deleteIfExists(file);
+            }
+        }
+        Files.deleteIfExists(tempDir);
     }
 }

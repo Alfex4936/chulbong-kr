@@ -28,6 +28,9 @@ jobs:
           java-version: "17"
           distribution: "corretto"
 
+      - name: Set permissions for /tmp directory
+        run: sudo chmod -R 777 /tmp
+
       - name: Setup secrets
         run: |
           echo "${{ secrets.APPLICATION_YML }}" | base64 --decode > src/main/resources/application-secret.yml
