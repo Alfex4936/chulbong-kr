@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class MarkerRepositoryCustomImpl implements MarkerRepositoryCustom {
@@ -28,5 +29,29 @@ public class MarkerRepositoryCustomImpl implements MarkerRepositoryCustom {
                         rs.getDouble("Longitude")
                 )
         );
+    }
+
+    @Override
+    public List<MarkerDTO.MarkerWithDistance> findMarkersWithinDistance(double latitude, double longitude, double distance, int pageSize, int offset) {
+        String point = String.format("POINT(%f %f)", latitude, longitude);
+        String query = """
+            SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude, Description,\s
+                   ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance, Address
+            FROM Markers
+            WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
+            ORDER BY distance
+            LIMIT ? OFFSET ?
+           \s""";
+
+        return jdbcTemplate.query(query,
+                (rs, rowNum) -> new MarkerDTO.MarkerWithDistance(
+                        rs.getInt("MarkerID"),
+                        rs.getDouble("Latitude"),
+                        rs.getDouble("Longitude"),
+                        rs.getString("Description"),
+                        rs.getDouble("distance"),
+                        Optional.ofNullable(rs.getString("Address"))
+                ),
+                point, point, distance, pageSize, offset);
     }
 }
