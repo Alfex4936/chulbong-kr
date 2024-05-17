@@ -167,7 +167,7 @@ const ChatClient = () => {
         className="grow w-full flex flex-col justify-between px-3"
         ref={chatBox}
       >
-        <div className="text-center text-red text-sm">
+        <div className="text-center text-red text-xs mt-1">
           {connection ? connectionMsg : "채팅방 접속중..."}
         </div>
         <div>
