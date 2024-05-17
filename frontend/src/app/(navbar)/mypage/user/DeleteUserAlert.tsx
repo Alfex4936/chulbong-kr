@@ -23,7 +23,7 @@ const DeleteUserAlert = () => {
             emoji="❗"
             text="탈퇴하기"
             subText="다음에 만나요!"
-            onClick={() => deleteUser()}
+            onClickFn={() => deleteUser()}
           />
         </div>
       </AlertDialogTrigger>
