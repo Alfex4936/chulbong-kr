@@ -1,6 +1,7 @@
 "use client";
 
 import Heading from "@/components/atom/Heading";
+import PrevHeader from "@/components/atom/PrevHeader";
 import SendIcon from "@/components/icons/SendIcon";
 import { Input } from "@/components/ui/input";
 import useAddressData from "@/hooks/common/useAddressData";
@@ -8,8 +9,7 @@ import useInput from "@/hooks/common/useInput";
 import useChatIdStore from "@/store/useChatIdStore";
 import getRegion from "@/utils/getRegion";
 import { Fragment, useEffect, useRef, useState } from "react";
-// TODO: 처음 도매인 주소 입력으로 들어올 시 연결 안됨
-// TODO: 모바일 채팅 input 안보임, 보내기 버튼 추가 (배포 확인 필요)
+// TODO: 처음 도매인 주소 입력으로 들어올 시 연결 안됨 (배포 확인 필요)
 
 export interface ChatMessage {
   uid: string;
@@ -151,6 +151,7 @@ const ChatClient = () => {
   if (isChatError) {
     return (
       <div>
+        <PrevHeader back />
         <Heading title={`채팅방`} />
         <div className="text-red text-center">
           채팅을 불러오는데 실패하였습니다. <br /> 잠시 후 다시 시도해 주세요.
@@ -161,6 +162,7 @@ const ChatClient = () => {
 
   return (
     <div className="flex flex-col h-full">
+      <PrevHeader back />
       <Heading title={roomTitle} subTitle={roomSubTitle} />
       <div
         className="grow w-full flex flex-col justify-between px-3"

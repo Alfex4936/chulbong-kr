@@ -8,7 +8,6 @@ import {
 } from "@tanstack/react-query";
 import { cookies } from "next/headers";
 import ReportClient from "./reportClient";
-// TODO: 리포트 삭제
 
 const getMyReports = async (cookie: string) => {
   const res = await instance.get(

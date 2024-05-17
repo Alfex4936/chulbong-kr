@@ -1,7 +1,6 @@
 import approveReport from "@/api/report/approveReport";
 import useMapStore from "@/store/useMapStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-// TODO: 오버레이 위치 변경 같이
 
 const useApproveReport = (markerId: number, lat: number, lng: number) => {
   const queryClient = useQueryClient();
