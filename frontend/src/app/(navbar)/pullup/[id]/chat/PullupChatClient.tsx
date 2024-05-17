@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useChatIdStore from "@/store/useChatIdStore";
 import { Fragment, useEffect, useRef, useState } from "react";
-// TODO: 마커 채팅방 헤더 추가, 서브 타이틀 스타일 변경 (배포 확인 필요)
 
 export interface ChatMessage {
   uid: string;
@@ -140,7 +139,7 @@ const PullupChatClient = ({ markerId }: Props) => {
     return (
       <div>
         <PrevHeader back />
-        <Heading title={`채팅방`} />
+        <Heading title={`채팅방`} className="h-auto" />
         <div className="text-red text-center">
           채팅을 불러오는데 실패하였습니다. <br /> 잠시 후 다시 시도해 주세요.
         </div>
@@ -151,7 +150,7 @@ const PullupChatClient = ({ markerId }: Props) => {
   return (
     <div className="flex flex-col h-full">
       <PrevHeader back />
-      <Heading title={roomTitle} subTitle={roomSubTitle} />
+      <Heading title={roomTitle} subTitle={roomSubTitle} className="h-auto" />
       <div
         className="grow w-full flex flex-col justify-between px-3"
         ref={chatBox}
