@@ -146,7 +146,13 @@ const PullupClient = ({ markerId }: Props) => {
     }
   };
 
-  if (isError) return <div>X</div>;
+  if (isError)
+    return (
+      <ErrorMessage
+        text="존재하지 않는 위치입니다."
+        className="text-lg text-center mt-2"
+      />
+    );
   if (!marker) return;
 
   return (
