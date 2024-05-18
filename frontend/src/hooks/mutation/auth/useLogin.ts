@@ -9,9 +9,6 @@ const useLogin = () => {
 
   return useMutation({
     mutationFn: login,
-    onError: (error) => {
-      console.log(error);
-    },
     onSuccess: () => {
       router.push(redirect || "/home");
     },

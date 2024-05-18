@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Nanum_Gothic } from "next/font/google";
 import Head from "next/head";
 import "../globals.css";
+import { Toaster } from "@/components/ui/toaster";
 
 const nanum = Nanum_Gothic({
   subsets: ["latin"],
@@ -54,9 +55,12 @@ const RootLayout = ({
         />
       </Head>
       <body
-        className={`${nanum.className} bg-black-gradient-2 h-screen w-screen text-grey`}
+        className={`${nanum.className} bg-black-gradient-2 min-h-dvh overflow-x-hidden text-grey`}
       >
-        <RQProvider>{children}</RQProvider>
+        <RQProvider>
+          {children}
+          <Toaster />
+        </RQProvider>
       </body>
     </html>
   );
