@@ -3,6 +3,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import useMylocateData from "@/hooks/query/user/useMylocateData";
 import { useEffect, useRef } from "react";
+import LinkEmojiButton from "../../home/_components/LinkEmojiButton";
 import MylocateList from "../_component/MylocateList";
 
 const MylocateClient = () => {
@@ -51,6 +52,12 @@ const MylocateClient = () => {
 
   return (
     <div>
+      <LinkEmojiButton
+        url="/pullup/regist"
+        text="위치 등록"
+        subText="위치를 등록하고 다른 사람들과 공유하세요!"
+        emoji="🚩"
+      />
       {mylocates?.pages[0].markers.length === 0 && (
         <div className="text-center">등록된 장소가 없습니다.</div>
       )}

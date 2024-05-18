@@ -1,15 +1,18 @@
 "use client";
 
 import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
-import ModeToggle from "@/components/common/ModeToggle";
+// import ModeToggle from "@/components/common/ModeToggle";
 import { Separator } from "@/components/ui/separator";
 import useLogout from "@/hooks/mutation/auth/useLogout";
 import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import LinkWrap from "./_component/LinkWrap";
 import Unauthenticated from "./_component/Unauthenticated";
+import { useToast } from "@/components/ui/use-toast";
 
 const MypageClient = () => {
+  const { toast } = useToast();
+
   const { data: myInfo, isError } = useMyinfoData();
   const { setLoading } = usePageLoadingStore();
 
@@ -31,7 +34,12 @@ const MypageClient = () => {
       <div className="flex items-center justify-center bg-black-light-2 rounded-md p-1 text-center h-10 mb-6 mo:text-sm">
         <LinkWrap url="/mypage/user" text="내 정보 관리" />
         <Separator orientation="vertical" className="mx-2 bg-grey-dark-1 h-5" />
-        <button className="h-full w-1/2 rounded-md hover:bg-black">설정</button>
+        <button
+          className="h-full w-1/2 rounded-md hover:bg-black"
+          onClick={() => toast({ description: "준비 중입니다." })}
+        >
+          설정
+        </button>
       </div>
 
       <EmojiHoverButton
@@ -65,7 +73,7 @@ const MypageClient = () => {
           center
         />
       </div>
-      <ModeToggle />
+      {/* <ModeToggle /> */}
       {/* <EmojiHoverButton emoji="🔖📁✏️🚩🗺️⭐❗🖐️✖️🪄🔑" text="저장한 장소" /> */}
     </div>
   );
