@@ -17,6 +17,8 @@ public class KakaoConfig {
     private String waterApiUrl;
 
     private String weatherUrl;
+    private String weatherIconUrl;
+
     private String addressInfo;
 
     private String coordAddr;

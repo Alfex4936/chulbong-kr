@@ -21,6 +21,13 @@ public class FileCleanupService {
         this.tempDir = Files.createTempDirectory("kpullup");
     }
 
+    public FileCleanupService(String customTempDir) throws IOException {
+        this.tempDir = Paths.get(customTempDir);
+        if (!Files.exists(this.tempDir)) {
+            Files.createDirectories(this.tempDir);
+        }
+    }
+
     @Scheduled(fixedRate = 15 * 60 * 1000) // Run every 15 minutes
     public void cleanupOldFiles() {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(tempDir)) {

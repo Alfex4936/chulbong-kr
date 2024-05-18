@@ -17,11 +17,14 @@ chulbong-kr 을 Spring Boot 3을 이용해 만드는 과정
   - [x] JUnit 연동
   - [x] JaCoCo/CodeCov 연동
   - [ ] Swagger 연동
-  - [ ] ElasticSearch or Melisearch 연동
+  - [ ] ElasticSearch or Meilisearch 연동
 - [ ] controller
   - [ ] marker
     - [x] GET /markers
-    - [x] GET /markers/save-offline
+    - [x] GET /markers/close
+    - Location
+      - [x] GET /markers/save-offline
+      - [x] GET /markers/weather
   - [ ] user
   - [ ] report
   - [ ] comment
