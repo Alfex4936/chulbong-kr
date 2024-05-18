@@ -1,16 +1,20 @@
+import Link from "next/link";
 import SigninBottomlinks from "./_components/SigninBottomlinks";
 import SigninForm from "./_components/signin-form";
 
 const Signin = () => {
   return (
     <div>
-      <h1 className="absolute top-24 left-1/2 -translate-x-1/2 text-center text-2xl">
+      <Link
+        href={"/home"}
+        className="inline-block w-full text-center text-2xl mt-14"
+      >
         대한민국 철봉 지도
-      </h1>
-      <div className="absolute top-40 left-1/2 -translate-x-1/2 w-full max-w-[500px] min-w-80 p-10">
+      </Link>
+      <div className="mx-auto w-full max-w-[500px] min-w-80 p-10">
         <SigninForm />
       </div>
-      <div className="absolute top-[460px] left-1/2 -translate-x-1/2 w-full max-w-[500px] px-10 min-w-80">
+      <div className="mx-auto w-full max-w-[500px] min-w-80 px-10">
         <SigninBottomlinks />
       </div>
     </div>
