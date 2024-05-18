@@ -59,7 +59,6 @@ public class MarkerService {
         String pdfPath = imageProcessorService.generateMapPDF(resultImagePath, address);
 
         return Optional.of(pdfPath);
-
     }
 
     public List<MarkerDTO.MarkerWithDistance> findClosestNMarkersWithinDistance(double lat, double lng, double distance, int pageSize, int offset) {

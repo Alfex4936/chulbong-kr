@@ -2,6 +2,7 @@ package csw.chulbongkr.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +22,7 @@ public class JacksonConfig {
         module.addSerializer(LocalDateTime.class, new ToStringSerializer(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss").getClass()));
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(module);
+        mapper.registerModule(new Jdk8Module());
         return mapper;
     }
 }

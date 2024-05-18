@@ -65,4 +65,12 @@ public class MarkerDTO {
             double longitude,
             Optional<String> address
     ) {}
+
+    public record FindMarkerNearbyQuery(
+            double latitude,
+            double longitude,
+            double distance,
+            int pageSize,
+            int offset
+    ) {}
 }

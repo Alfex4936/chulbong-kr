@@ -4,6 +4,7 @@ import csw.chulbongkr.config.custom.KakaoConfig;
 import csw.chulbongkr.dto.KakaoDTO;
 import csw.chulbongkr.util.CoordinatesConverter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -26,6 +27,38 @@ public class KakaoApiService {
         return Optional.ofNullable(apiResp)
                 .flatMap(this::getAddress)
                 .orElse("대한민국 철봉 지도");
+    }
+
+    public KakaoDTO.Weather.WeatherRequest fetchWeather(double lat, double lng) {
+        CoordinatesConverter.XYCoordinate xy = CoordinatesConverter.convertWGS84ToWCONGNAMUL(lat, lng);
+        String requestURL = kakaoConfig.getWeatherUrl() + "&x=" + xy.latitude() + "&y=" + xy.longitude();
+
+        // Set Referer header
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Referer", requestURL);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        // Make the request
+        ResponseEntity<KakaoDTO.Weather> response = restTemplate.exchange(requestURL, HttpMethod.GET, entity, KakaoDTO.Weather.class);
+
+        if (response.getStatusCode() != HttpStatusCode.valueOf(200) || response.getBody() == null || !response.getBody().codes().resultCode().equals("OK")) {
+            throw new RuntimeException("Failed to fetch weather data");
+        }
+
+        KakaoDTO.Weather weatherResponse = response.getBody();
+        KakaoDTO.Weather.WeatherInfo currentWeather = weatherResponse.weatherInfos().current();
+
+        String iconUrl = String.format(kakaoConfig.getWeatherIconUrl(), currentWeather.iconId());
+
+        return new KakaoDTO.Weather.WeatherRequest(
+                currentWeather.temperature(),
+                currentWeather.desc(),
+                iconUrl,
+                currentWeather.humidity(),
+                currentWeather.rainfall(),
+                currentWeather.snowfall()
+        );
     }
 
     private Optional<String> getAddress(KakaoDTO.KakaoMarkerData apiResp) {

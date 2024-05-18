@@ -39,12 +39,11 @@ public class ProfanityService {
         }
 
         trie.build(badWordsMap); // thread-safe after
+
+        assert trie != null;
     }
 
     public boolean containsProfanity(String text) {
-        if (trie == null) {
-            throw new IllegalStateException("ProfanityService not initialized");
-        }
 //        List<AhoCorasickDoubleArrayTrie.Hit<String>> hits = trie.parseText(text);
         DAT.Hit<String> hit = trie.findFirst(text);
         if (hit == null) {

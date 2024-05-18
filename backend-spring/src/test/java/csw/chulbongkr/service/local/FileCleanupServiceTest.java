@@ -15,6 +15,7 @@ import java.time.temporal.ChronoUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+// TODO: in local works, but in github action environment, it fails
 class FileCleanupServiceTest {
 
     private FileCleanupService fileCleanupService;
@@ -23,10 +24,12 @@ class FileCleanupServiceTest {
     @BeforeEach
     void setUp() throws IOException {
         MockitoAnnotations.openMocks(this);
-        fileCleanupService = new FileCleanupService();
+        // Use a custom temporary directory
+        String customTempDir = System.getProperty("java.io.tmpdir") + "/kpullup_test";
+        fileCleanupService = new FileCleanupService(customTempDir);
         tempDir = fileCleanupService.getTempDir();
+        System.out.println("Using temp directory: " + tempDir);
     }
-
 
     @Test
     void testTempDirCreation() {
