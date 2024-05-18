@@ -23,7 +23,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import Count from "./Count";
 import ErrorMessage from "@/components/atom/ErrorMessage";
-// TODO: 인증 코드 확인 부터
 
 const formSchema = z
   .object({
