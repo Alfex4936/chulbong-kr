@@ -7,10 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag("skipInCI")
 @SpringBootTest
@@ -40,13 +44,30 @@ class ProfanityServiceBenchmarkTest {
     @Test
     void benchmarkContainsProfanity() {
         int iterations = 10;
+        double totalMemoryUsed = 0;
         long totalDurationNs = 0;
         int totalLength = 0;
+
+        MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
 
         for (int i = 0; i < iterations; i++) {
             int randomLength = new Random().nextInt(1_000_000) + 1_000_000; // Random length between 1,000,000 and 2,000,000
             String largeText = generateLargeRandomKoreanText(randomLength); // Generate random length text
             totalLength += randomLength;
+
+            // Perform multiple measurements to get a more accurate memory usage
+            double[] memoryUsages = new double[5];
+            for (int j = 0; j < 5; j++) {
+                System.gc();
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                MemoryUsage beforeHeapMemoryUsage = memoryBean.getHeapMemoryUsage();
+                memoryUsages[j] = beforeHeapMemoryUsage.getUsed();
+            }
+            double beforeMemoryUsed = Arrays.stream(memoryUsages).average().orElse(0);
 
             long startTime = System.nanoTime();
             boolean containsProfanity = profanityService.containsProfanity(largeText);
@@ -55,20 +76,38 @@ class ProfanityServiceBenchmarkTest {
             long durationNs = endTime - startTime; // Duration in nanoseconds
             totalDurationNs += durationNs; // Accumulate total duration
 
+            // Perform multiple measurements to get a more accurate memory usage
+            for (int j = 0; j < 5; j++) {
+                System.gc();
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                MemoryUsage afterHeapMemoryUsage = memoryBean.getHeapMemoryUsage();
+                memoryUsages[j] = afterHeapMemoryUsage.getUsed();
+            }
+            double afterMemoryUsed = Arrays.stream(memoryUsages).average().orElse(0);
+
+            double memoryUsed = afterMemoryUsed - beforeMemoryUsed;
+            totalMemoryUsed += memoryUsed;
+
             double durationMs = durationNs / 1_000_000.0; // Convert to milliseconds
             double durationS = durationNs / 1_000_000_000.0; // Convert to seconds
 
-            System.out.println("Run " + (i + 1) + ": " + randomLength + " texts - Profanity check duration: " + durationNs + " ns (" + durationMs + " ms, " + durationS + " s)");
+            System.out.println("Run " + (i + 1) + ": " + randomLength + " texts - Profanity check duration: " + durationNs + " ns (" + durationMs + " ms, " + durationS + " s), Memory used: " + memoryUsed + " bytes");
             assertTrue(containsProfanity, "Profanity check failed on large Korean text");
         }
 
         double averageDurationNs = totalDurationNs / (double) iterations;
         double averageDurationMs = averageDurationNs / 1_000_000.0;
         double averageDurationS = averageDurationNs / 1_000_000_000.0;
+        double averageMemoryUsed = totalMemoryUsed / (double) iterations;
         double averageLength = totalLength / (double) iterations;
 
         System.out.println("Average input text length: " + averageLength);
         System.out.println("Average duration: " + averageDurationNs + " ns (" + averageDurationMs + " ms, " + averageDurationS + " s)");
+        System.out.println("Average memory used: " + averageMemoryUsed + " bytes");
 
         // Assert that the average duration is less than 10 milliseconds (10,000,000 nanoseconds)
         assertTrue(averageDurationNs < 10_000_000, "Average profanity check should be faster than 10ms");
@@ -84,13 +123,27 @@ class ProfanityServiceBenchmarkTest {
     void benchmarkStringContains() {
         int iterations = 10;
         long totalDurationNs = 0;
+        long totalMemoryUsed = 0;
         int totalLength = 0;
         List<String> badWords = profanityService.getBadWords();
+
+        MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
 
         for (int i = 0; i < iterations; i++) {
             int randomLength = new Random().nextInt(1_000_000) + 1_000_000; // Random length between 1,000,000 and 2,000,000
             String largeText = generateLargeRandomKoreanText(randomLength); // Generate random length text
             totalLength += randomLength;
+
+            // Force garbage collection and wait for a bit to get more accurate memory measurement
+            System.gc();
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            MemoryUsage beforeHeapMemoryUsage = memoryBean.getHeapMemoryUsage();
+            long beforeMemoryUsed = beforeHeapMemoryUsage.getUsed();
 
             long startTime = System.nanoTime();
             boolean containsProfanity = false;
@@ -105,20 +158,36 @@ class ProfanityServiceBenchmarkTest {
             long durationNs = endTime - startTime; // Duration in nanoseconds
             totalDurationNs += durationNs; // Accumulate total duration
 
+            // Force garbage collection and wait for a bit to get more accurate memory measurement
+            System.gc();
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            MemoryUsage afterHeapMemoryUsage = memoryBean.getHeapMemoryUsage();
+            long afterMemoryUsed = afterHeapMemoryUsage.getUsed();
+
+            long memoryUsed = afterMemoryUsed - beforeMemoryUsed;
+            totalMemoryUsed += memoryUsed;
+
             double durationMs = durationNs / 1_000_000.0; // Convert to milliseconds
             double durationS = durationNs / 1_000_000_000.0; // Convert to seconds
 
-            System.out.println("Run " + (i + 1) + ": " + randomLength + " texts - String.contains check duration: " + durationNs + " ns (" + durationMs + " ms, " + durationS + " s)");
+            System.out.println("Run " + (i + 1) + ": " + randomLength + " texts - String.contains check duration: " + durationNs + " ns (" + durationMs + " ms, " + durationS + " s), Memory used: " + memoryUsed + " bytes");
             assertTrue(containsProfanity, "String.contains check failed on large Korean text");
         }
 
         double averageDurationNs = totalDurationNs / (double) iterations;
         double averageDurationMs = averageDurationNs / 1_000_000.0;
         double averageDurationS = averageDurationNs / 1_000_000_000.0;
+        double averageMemoryUsed = totalMemoryUsed / (double) iterations;
         double averageLength = totalLength / (double) iterations;
 
         System.out.println("Average input text length: " + averageLength);
         System.out.println("Average duration: " + averageDurationNs + " ns (" + averageDurationMs + " ms, " + averageDurationS + " s)");
+        System.out.println("Average memory used: " + averageMemoryUsed + " bytes");
 
         // Assert that the average duration is less than 10000 milliseconds
         assertTrue(averageDurationS < 10, "Average String.contains check should be faster than 10s");
