@@ -74,7 +74,7 @@ public class DAT<V> implements Serializable {
      * @param processor A processor which handles the output
      */
     public void processTextCancellable(CharSequence text, IHitCancellable<V> processor) {
-        parseTextInternal(text, processor::hit);
+        parseTextInternal(text, processor);
     }
 
     /**
@@ -223,26 +223,17 @@ public class DAT<V> implements Serializable {
     }
 
     /**
-     * A result output
-     *
-     * @param <V> the value type
-     */
-    public static class Hit<V> {
-        public final int begin;
-        public final int end;
-        public final V value;
-
-        public Hit(int begin, int end, V value) {
-            this.begin = begin;
-            this.end = end;
-            this.value = value;
-        }
+         * A result output
+         *
+         * @param <V> the value type
+         */
+        public record Hit<V>(int begin, int end, V value) {
 
         @Override
-        public String toString() {
-            return String.format("[%d:%d]=%s", begin, end, value);
+            public String toString() {
+                return String.format("[%d:%d]=%s", begin, end, value);
+            }
         }
-    }
 
     /**
      * Transmit state, supports failure function
@@ -268,9 +259,8 @@ public class DAT<V> implements Serializable {
      * @return The new state
      */
     protected int transition(int current, char c) {
-        int b = current;
-        int p = b + c + 1;
-        return b == check[p] ? base[p] : -1;
+        int p = current + c + 1;
+        return current == check[p] ? base[p] : -1;
     }
 
     /**

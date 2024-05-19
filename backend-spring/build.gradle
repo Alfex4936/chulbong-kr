@@ -4,6 +4,7 @@ plugins {
     id 'org.springframework.boot' version '3.2.5'
     id 'io.spring.dependency-management' version '1.1.4'
     id 'jacoco'
+    id "me.champeau.jmh" version "0.7.2"
 }
 
 application {
@@ -68,6 +69,15 @@ dependencies {
 
     // https://mvnrepository.com/artifact/org.mockito/mockito-core
     testImplementation 'org.mockito:mockito-core:5.12.0'
+
+    // https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-core
+    implementation 'org.openjdk.jmh:jmh-core:1.37'
+    annotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+
+    jmh 'org.openjdk.jmh:jmh-core:1.37'
+    jmh 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+    jmhAnnotationProcessor  'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+
 }
 
 tasks.named('test') {
