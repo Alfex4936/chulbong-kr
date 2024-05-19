@@ -95,7 +95,7 @@ func (h *MarkerHandler) HandleCreateReport(c *fiber.Ctx) error {
 		// check if the updated location is in 30m distance from the original location
 		distance := util.CalculateDistanceApproximately(latitude, longitude, newLatitude, newLongitude)
 		if distance > maxDistance+errorMargin {
-			return c.Status(fiber.StatusNotAcceptable).JSON(fiber.Map{"error": "updated latitude and longitude are too far, try to add a new marker."})
+			return c.Status(fiber.StatusNotAcceptable).JSON(fiber.Map{"error": "new latitude and longitude are too far, try to add a new marker."})
 		}
 	}
 
@@ -136,9 +136,11 @@ func (h *MarkerHandler) HandleCreateReport(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "upload at least one picture to prove"})
 		} else if strings.Contains(err.Error(), "Error 1452 (23000)") {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "check if a marker exists"})
+		} else if strings.Contains(err.Error(), "no photos") {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "upload at least one photo"})
 		}
 
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create report: " + err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create report" + err.Error()})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "report created successfully"})
@@ -171,6 +173,10 @@ func (h *MarkerHandler) HandleDenyReport(c *fiber.Ctx) error {
 	if err := h.MarkerFacadeService.DenyReport(reportID, userID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to deny report"})
 	}
+
+	go h.MarkerFacadeService.SetMarkerCache(nil)
+	go h.MarkerFacadeService.ResetAllRedisCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
+
 	return c.SendStatus(fiber.StatusOK)
 }
 

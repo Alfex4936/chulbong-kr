@@ -30,7 +30,7 @@ func (s *ReportService) GetAllReports() ([]dto.MarkerReportResponse, error) {
 	const query = `
     SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
     ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
-    r.Description, r.CreatedAt, r.Status, p.PhotoURL
+    r.Description, r.CreatedAt, r.Status, COALESCE(p.PhotoURL, '')
     FROM Reports r
     LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
     ORDER BY r.CreatedAt DESC
@@ -51,11 +51,20 @@ func (s *ReportService) GetAllReports() ([]dto.MarkerReportResponse, error) {
 			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &url); err != nil {
 			return nil, err
 		}
-		if report, exists := reportMap[r.ReportID]; exists {
-			report.PhotoURLs = append(report.PhotoURLs, url)
+		// Check if the URL is not empty before appending
+		if url != "" {
+			if report, exists := reportMap[r.ReportID]; exists {
+				report.PhotoURLs = append(report.PhotoURLs, url)
+			} else {
+				r.PhotoURLs = []string{url}
+				reportMap[r.ReportID] = &r
+			}
 		} else {
-			r.PhotoURLs = []string{url}
-			reportMap[r.ReportID] = &r
+			// Ensure that PhotoURLs is initialized even if there are no photos
+			if _, exists := reportMap[r.ReportID]; !exists {
+				r.PhotoURLs = []string{} // Initialize with an empty slice
+				reportMap[r.ReportID] = &r
+			}
 		}
 	}
 
@@ -72,7 +81,7 @@ func (s *ReportService) GetAllReportsBy(markerID int) ([]dto.MarkerReportRespons
 	const query = `
     SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
     ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
-    r.Description, r.CreatedAt, r.Status, p.PhotoURL
+    r.Description, r.CreatedAt, r.Status, COALESCE(p.PhotoURL, '')
     FROM Reports r
     LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
     WHERE r.MarkerID = ?
@@ -94,11 +103,20 @@ func (s *ReportService) GetAllReportsBy(markerID int) ([]dto.MarkerReportRespons
 			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &url); err != nil {
 			return nil, err
 		}
-		if report, exists := reportMap[r.ReportID]; exists {
-			report.PhotoURLs = append(report.PhotoURLs, url)
+		// Check if the URL is not empty before appending
+		if url != "" {
+			if report, exists := reportMap[r.ReportID]; exists {
+				report.PhotoURLs = append(report.PhotoURLs, url)
+			} else {
+				r.PhotoURLs = []string{url}
+				reportMap[r.ReportID] = &r
+			}
 		} else {
-			r.PhotoURLs = []string{url}
-			reportMap[r.ReportID] = &r
+			// Ensure that PhotoURLs is initialized even if there are no photos
+			if _, exists := reportMap[r.ReportID]; !exists {
+				r.PhotoURLs = []string{} // Initialize with an empty slice
+				reportMap[r.ReportID] = &r
+			}
 		}
 	}
 
@@ -136,7 +154,7 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 	// Process file uploads from the multipart form
 	files := form.File["photos"]
 	if len(files) == 0 {
-		return fmt.Errorf("no files to process")
+		return fmt.Errorf("no photos to process")
 	}
 
 	const photoQuery = `INSERT INTO ReportPhotos (ReportID, PhotoURL) VALUES (?, ?)`
@@ -234,31 +252,37 @@ func (s *ReportService) ApproveReport(reportID, userID int) error {
 		return fmt.Errorf("error committing transaction: %w", err)
 	}
 
-	// s.UpdateDbLocation(markerID)
+	s.UpdateDbLocation(reportID)
 	return nil
 }
 
 func (s *ReportService) DenyReport(reportID, userID int) error {
 	const denyQuery = `
 	UPDATE Reports
-	SET Status = 'DENIED'
-	WHERE ReportID = ?
-	AND (
-		MarkerID IN (
-			SELECT MarkerID
-			FROM Markers
-			WHERE UserID = ? AND MarkerID = (
-				SELECT MarkerID
-				FROM Reports
-				WHERE ReportID = ?
-			)
-		)
-		OR EXISTS (
-			SELECT 1
-			FROM Users
-			WHERE UserID = ? AND Role = 'admin'
-		)
-	)
+    SET Status = 'DENIED'
+    WHERE ReportID = ?
+    AND (
+        MarkerID IN (
+            SELECT MarkerID
+            FROM (
+                SELECT MarkerID
+                FROM Markers
+                WHERE UserID = ? AND MarkerID IN (
+                    SELECT MarkerID
+                    FROM Reports
+                    WHERE ReportID = ?
+                )
+            ) AS subquery1
+        )
+        OR EXISTS (
+            SELECT 1
+            FROM (
+                SELECT UserID
+                FROM Users
+                WHERE UserID = ? AND Role = 'admin'
+            ) AS subquery2
+        )
+    )
 	`
 	res, err := s.DB.Exec(denyQuery, reportID, userID, reportID, userID)
 	if err != nil {
@@ -297,6 +321,20 @@ func (s *ReportService) UpdateMarkerWithReportDetailsTx(tx *sqlx.Tx, reportID in
     `
 	if _, err := tx.Exec(insertPhotosQuery, reportID); err != nil {
 		return fmt.Errorf("error transferring report photos to marker photos: %w", err)
+	}
+
+	// Check and remove the oldest photos if the limit is exceeded
+	const deleteExcessPhotosQuery = `
+	WITH OrderedPhotos AS (
+	    SELECT PhotoID, ROW_NUMBER() OVER (PARTITION BY MarkerID ORDER BY UploadedAt ASC) AS RowNum
+	    FROM Photos
+	    WHERE MarkerID = (SELECT MarkerID FROM Reports WHERE ReportID = ?)
+	)
+	DELETE FROM Photos
+	WHERE PhotoID IN (SELECT PhotoID FROM OrderedPhotos WHERE RowNum > 5)
+	`
+	if _, err := tx.Exec(deleteExcessPhotosQuery, reportID); err != nil {
+		return fmt.Errorf("error removing excess photos: %w", err)
 	}
 
 	// Delete the moved photos from ReportPhotos
@@ -379,10 +417,29 @@ func (s *ReportService) DeleteReport(reportID, userID, markerID int) error {
 	return nil
 }
 
-func (s *ReportService) UpdateDbLocation(markerID int64, latitude, longitude float64) {
-	go func(markerID int64, latitude, longitude float64) {
+func (s *ReportService) UpdateDbLocation(reportID int) {
+	go func(reportID int) {
 		maxRetries := 3
 		retryDelay := 5 * time.Second // Delay between retries
+
+		// Fetch latitude and longitude from the database
+		var location struct {
+			Latitude  float64 `db:"Latitude"`
+			Longitude float64 `db:"Longitude"`
+		}
+		// Fetch the marker ID associated with the report
+		var markerID int64
+		mErr := s.DB.Get(&markerID, "SELECT MarkerID FROM Reports WHERE ReportID = ?", reportID)
+		if mErr != nil {
+			log.Printf("Failed to fetch marker %d: %v", markerID, mErr)
+			return
+		}
+
+		mErr = s.LocationService.DB.Get(&location, "SELECT ST_X(Location) as Latitude, ST_Y(Location) as Longitude FROM Markers WHERE MarkerID = ?", markerID)
+		if mErr != nil {
+			log.Printf("Failed to fetch location for marker %d: %v", markerID, mErr)
+			return
+		}
 
 		var address string
 		var err error
@@ -392,8 +449,7 @@ func (s *ReportService) UpdateDbLocation(markerID int64, latitude, longitude flo
 				log.Printf("Retrying to fetch address for marker %d, attempt %d", markerID, attempt)
 				time.Sleep(retryDelay) // Wait before retrying
 			}
-
-			address, err = s.LocationService.FacilityService.FetchAddressFromMap(latitude, longitude)
+			address, err = s.LocationService.FacilityService.FetchAddressFromMap(location.Latitude, location.Longitude)
 			if err == nil && address != "" {
 				break // Success, exit the retry loop
 			}
@@ -402,7 +458,7 @@ func (s *ReportService) UpdateDbLocation(markerID int64, latitude, longitude flo
 		}
 
 		if err != nil || address == "" {
-			address2, _ := s.LocationService.FacilityService.FetchRegionFromAPI(latitude, longitude)
+			address2, _ := s.LocationService.FacilityService.FetchRegionFromAPI(location.Latitude, location.Longitude)
 			if address2 == "-2" {
 				// delete the marker 북한 or 일본
 				_, err = s.LocationService.DB.Exec("DELETE FROM Markers WHERE MarkerID = ?", markerID)
@@ -419,12 +475,12 @@ func (s *ReportService) UpdateDbLocation(markerID int64, latitude, longitude flo
 				errMsg = fmt.Sprintf("No address found for marker %d after %d attempts", markerID, maxRetries)
 			}
 
-			water, _ := s.LocationService.FacilityService.FetchRegionWaterInfo(latitude, longitude)
+			water, _ := s.LocationService.FacilityService.FetchRegionWaterInfo(location.Latitude, location.Longitude)
 			if water {
 				errMsg = fmt.Sprintf("The marker (%d) might be above on water", markerID)
 			}
 
-			url := fmt.Sprintf("%sd=%d&la=%f&lo=%f", s.LocationService.Config.ClientURL, markerID, latitude, longitude)
+			url := fmt.Sprintf("%sd=%d&la=%f&lo=%f", s.LocationService.Config.ClientURL, markerID, location.Latitude, location.Longitude)
 
 			logFailureStmt := "INSERT INTO MarkerAddressFailures (MarkerID, ErrorMessage, URL) VALUES (?, ?, ?)"
 			if _, logErr := s.LocationService.DB.Exec(logFailureStmt, markerID, errMsg, url); logErr != nil {
@@ -439,23 +495,5 @@ func (s *ReportService) UpdateDbLocation(markerID int64, latitude, longitude flo
 			log.Printf("Failed to update address for marker %d: %v", markerID, err)
 		}
 
-		// userIDstr := strconv.Itoa(userID)
-		// updateMsg := fmt.Sprintf("새로운 철봉이 [ %s ]에 등록되었습니다!", address)
-		// metadata := notification.NotificationMarkerMetadata{
-		// 	MarkerID:  markerID,
-		// 	Latitude:  latitude,
-		// 	Longitude: longitude,
-		// 	Address:   address,
-		// }
-
-		// rawMetadata, _ := json.Marshal(metadata)
-		// PostNotification(userIDstr, "NewMarker", "k-pullup!", updateMsg, rawMetadata)
-
-		// TODO: update when frontend updates
-		// if address != "" {
-		// 	updateMsg := fmt.Sprintf("새로운 철봉이 등록되었습니다! %s", address)
-		// 	PublishMarkerUpdate(updateMsg)
-		// }
-
-	}(markerID, latitude, longitude)
+	}(reportID)
 }

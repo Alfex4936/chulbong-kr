@@ -21,8 +21,12 @@ func (mfs *MarkerFacadeService) CreateReport(report *dto.MarkerReportRequest, fo
 }
 
 func (mfs *MarkerFacadeService) ApproveReport(reportID, userID int) error {
+	if err := mfs.ReportService.ApproveReport(reportID, userID); err != nil {
+		return err
+	}
 	go mfs.LocationService.Redis.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
-	return mfs.ReportService.ApproveReport(reportID, userID)
+	go mfs.SetMarkerCache(nil)
+	return nil
 }
 
 func (mfs *MarkerFacadeService) DenyReport(reportID, userID int) error {

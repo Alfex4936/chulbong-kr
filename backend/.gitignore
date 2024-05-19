@@ -16,3 +16,4 @@ zincsearch/Dockerfile.json
 zincsearch/fly.toml
 zincsearch/.dockerignore
 badwords_test.txt
+fonts/logo-text.png

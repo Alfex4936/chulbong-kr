@@ -10,6 +10,7 @@ import (
 
 	myconfig "github.com/Alfex4936/chulbong-kr/config"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/uuid"
@@ -175,6 +176,42 @@ func (s *S3Service) FindUnreferencedS3Objects(dbURLs []string, s3Keys []string) 
 	}
 
 	return unreferenced
+}
+
+func (s *S3Service) MoveFileInS3(sourceKey string, destinationKey string) error {
+	// Load the AWS configuration
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(s.Config.AwsRegion),
+	)
+	if err != nil {
+		return fmt.Errorf("could not load AWS configuration: %w", err)
+	}
+
+	// Create an S3 client
+	s3Client := s3.NewFromConfig(cfg)
+
+	copySource := url.PathEscape(s.Config.S3BucketName + "/" + sourceKey)
+
+	// Copy the object to the new location
+	_, err = s3Client.CopyObject(context.TODO(), &s3.CopyObjectInput{
+		Bucket:     aws.String(s.Config.S3BucketName),
+		CopySource: aws.String(copySource),
+		Key:        aws.String(destinationKey),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to copy file in S3: %w", err)
+	}
+
+	// Delete the original object
+	_, err = s3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+		Bucket: aws.String(s.Config.S3BucketName),
+		Key:    aws.String(sourceKey),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete original file in S3: %w", err)
+	}
+
+	return nil
 }
 
 // Helper function to determine if a file extension corresponds to an image

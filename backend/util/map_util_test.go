@@ -106,7 +106,7 @@ func TestWCONGNAMUL(t *testing.T) {
 			result := ConvertWGS84ToWCONGNAMUL(tt.lat, tt.long)
 
 			t.Logf("Calculated WCONGNAMUL: %f, %f", result.X, result.Y)
-			if math.Abs(result.X-tt.expectedX) > 1 || math.Abs(result.Y-tt.expectedY) > 1 { // Allowing a margin of error of 1
+			if math.Abs(result.X-tt.expectedX) > 0.001 || math.Abs(result.Y-tt.expectedY) > 0.001 { // Allowing a margin of error of 1
 				t.Errorf("ConvertWGS84ToWCONGNAMUL(%v, %v) = (%v, %v), want (%v, %v)",
 					tt.lat, tt.long, result.X, result.Y, tt.expectedX, tt.expectedY)
 			}
@@ -225,6 +225,22 @@ func TestDistance(t *testing.T) {
 			lat2:           37.267885604618314,
 			long2:          127.0840150071249,
 			expectedResult: 45, // Expecting the result to be close to 45 meters
+		},
+		{
+			name:           "Very close distance 5",
+			lat1:           33.202504,
+			long1:          126.28944700000001,
+			lat2:           33.201874152046415,
+			long2:          126.29117918946883,
+			expectedResult: 175, // Expecting the result to be close to 45 meters
+		},
+		{
+			name:           "Very close distance 6",
+			lat1:           33.23596,
+			long1:          126.56218600000001,
+			lat2:           33.23596,
+			long2:          126.56208600000001,
+			expectedResult: 0, // Expecting the result to be close to 45 meters
 		},
 	}
 

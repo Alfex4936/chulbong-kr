@@ -16,9 +16,10 @@ import (
 )
 
 type BadWordUtil struct {
-	BadWordsList []string
-	BadWordRegex *regexp.Regexp
-	Matcher      *ahocorasick.Matcher
+	BadWordsListByte [][]byte
+	BadWordsList     []string
+	BadWordRegex     *regexp.Regexp
+	Matcher          *ahocorasick.Matcher
 }
 
 func NewBadWordUtil() *BadWordUtil {
@@ -37,6 +38,8 @@ func RegisterBadWordUtilLifecycle(lifecycle fx.Lifecycle, badWordUtil *BadWordUt
 				logger.Error("Failed to load bad words", zap.Error(err))
 				return err
 			}
+			badWordUtil.LoadBadWordsByte(filePath)
+
 			logger.Info("Bad words loaded successfully")
 			return nil
 		},
@@ -222,6 +225,34 @@ func (b *BadWordUtil) LoadBadWords(filePath string) error {
 
 	// Compile the list of bad words into a trie (Aho-corasick Double-Array Trie)
 	b.Matcher = ahocorasick.CompileStrings(b.BadWordsList)
+	return nil
+}
+
+func (b *BadWordUtil) LoadBadWordsByte(filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	const estimatedWords = 1000
+	b.BadWordsListByte = make([][]byte, 0, estimatedWords)
+
+	scanner := bufio.NewScanner(file)
+	const maxCapacity = 10 * 1024 // 10KB
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+
+	for scanner.Scan() {
+		word := scanner.Bytes()
+		b.BadWordsListByte = append(b.BadWordsListByte, append([]byte(nil), word...)) // Make a copy of the word bytes
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	b.BadWordsListByte = append([][]byte{}, b.BadWordsListByte...)
 	return nil
 }
 
