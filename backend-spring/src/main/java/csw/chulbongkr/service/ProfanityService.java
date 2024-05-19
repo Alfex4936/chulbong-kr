@@ -1,6 +1,5 @@
 package csw.chulbongkr.service;
 
-import com.hankcs.algorithm.AhoCorasickDoubleArrayTrie;
 import csw.chulbongkr.util.DAT;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -50,7 +49,7 @@ public class ProfanityService {
             return false;
         }
 
-        return hit.begin >= 0 && hit.end >= 0;
+        return hit.begin() >= 0 && hit.end() >= 0;
     }
 
 }

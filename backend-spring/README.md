@@ -16,8 +16,9 @@ chulbong-kr 을 Spring Boot 3을 이용해 만드는 과정
   - [x] Config 연동
   - [x] JUnit 연동
   - [x] JaCoCo/CodeCov 연동
+  - [x] openjdk JMH 연동
   - [ ] Swagger 연동
-  - [ ] ElasticSearch or Meilisearch 연동
+  - [ ] Zincsearch or Meilisearch 연동
 - [ ] controller
   - [ ] marker
     - [x] GET /markers
@@ -38,6 +39,7 @@ chulbong-kr 을 Spring Boot 3을 이용해 만드는 과정
     - [x] Temp folder cleanup scheduler (임시 폴더 청소)
   - [ ] marker
 - [ ] repository
+  - [x] Marker
 - [ ] util
   - [x] TimezoneFinder to check South Korea
   - [x] WCONGNAMUL to WGS84

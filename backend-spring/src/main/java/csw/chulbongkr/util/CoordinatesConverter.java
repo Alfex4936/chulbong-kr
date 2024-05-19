@@ -1,7 +1,6 @@
 package csw.chulbongkr.util;
 
 import csw.chulbongkr.config.converter.TimezoneMapper;
-import org.springframework.stereotype.Service;
 
 public class CoordinatesConverter {
     // Constants related to the WGS84 ellipsoid.
@@ -53,10 +52,10 @@ public class CoordinatesConverter {
         final double z5 = z4 * z;
 
         double E = CoordinatesConverter.A_WGS84 * (1 - z + 5 * (z2 - z3) / 4 + 81 * (z4 - z5) / 64);
-        double I = 3 * CoordinatesConverter.A_WGS84 * (z - z2 + 7 * (z3 - z4) / 8 + 55 * z5 / 64) / 2;
-        double J = 15 * CoordinatesConverter.A_WGS84 * (z2 - z3 + 3 * (z4 - z5) / 4) / 16;
-        double L = 35 * CoordinatesConverter.A_WGS84 * (z3 - z4 + 11 * z5 / 16) / 48;
-        double M = 315 * CoordinatesConverter.A_WGS84 * (z4 - z5) / 512;
+        double I = 3 * CoordinatesConverter.A_WGS84 * (z - z2 + 7 * (z3 - z4) / 8 + 55 * z5 / 64) * 0.5;
+        double J = 15 * CoordinatesConverter.A_WGS84 * (z2 - z3 + 3 * (z4 - z5) / 4) * (1.0 / 16);
+        double L = 35 * CoordinatesConverter.A_WGS84 * (z3 - z4 + 11 * z5 / 16) * (1.0/48);
+        double M = 315 * CoordinatesConverter.A_WGS84 * (z4 - z5) * (1.0/512);
 
         double D = lonRad - mRad;
         double u = E * lRad - I * Math.sin(2 * lRad) + J * Math.sin(4 * lRad) - L * Math.sin(6 * lRad) + M * Math.sin(8 * lRad);
@@ -69,17 +68,17 @@ public class CoordinatesConverter {
         u = E * latRad - I * Math.sin(2 * latRad) + J * Math.sin(4 * latRad) - L * Math.sin(6 * latRad) + M * Math.sin(8 * latRad);
         double o = u * CoordinatesConverter.K0;
 
-        E = G * sinLat * cosLat * CoordinatesConverter.K0 / 2;
-        I = G * sinLat * Math.pow(cosLat, 3) * CoordinatesConverter.K0 * (5 - t * t + 9 * w + 4 * w * w) / 24;
-        J = G * sinLat * Math.pow(cosLat, 5) * CoordinatesConverter.K0 * (61 - 58 * t * t + t * t * t * t + 270 * w - 330 * t * t * w + 445 * w * w + 324 * w * w * w - 680 * t * t * w * w + 88 * w * w * w * w - 600 * t * t * w * w * w - 192 * t * t * w * w * w * w) / 720;
-        double H = G * sinLat * Math.pow(cosLat, 7) * CoordinatesConverter.K0 * (1385 - 3111 * t * t + 543 * t * t * t * t - t * t * t * t * t * t) / 40320;
+        E = G * sinLat * cosLat * CoordinatesConverter.K0 * 0.5;
+        I = G * sinLat * Math.pow(cosLat, 3) * CoordinatesConverter.K0 * (5 - t * t + 9 * w + 4 * w * w) * (1.0 / 24);
+        J = G * sinLat * Math.pow(cosLat, 5) * CoordinatesConverter.K0 * (61 - 58 * t * t + t * t * t * t + 270 * w - 330 * t * t * w + 445 * w * w + 324 * w * w * w - 680 * t * t * w * w + 88 * w * w * w * w - 600 * t * t * w * w * w - 192 * t * t * w * w * w * w) * (1.0 /720);
+        double H = G * sinLat * Math.pow(cosLat, 7) * CoordinatesConverter.K0 * (1385 - 3111 * t * t + 543 * t * t * t * t - t * t * t * t * t * t) * (1.0/40320);
         o += D * D * E + D * D * D * D * I + D * D * D * D * D * D * J + D * D * D * D * D * D * D * D * H;
         double y = o - z + CoordinatesConverter.DX;
 
         o = G * cosLat * CoordinatesConverter.K0;
-        z = G * Math.pow(cosLat, 3) * CoordinatesConverter.K0 * (1 - t * t + w) / 6;
-        w = G * Math.pow(cosLat, 5) * CoordinatesConverter.K0 * (5 - 18 * t * t + t * t * t * t + 14 * w - 58 * t * t * w + 13 * w * w + 4 * w * w * w - 64 * t * t * w * w - 25 * t * t * w * w * w) / 120;
-        u = G * Math.pow(cosLat, 7) * CoordinatesConverter.K0 * (61 - 479 * t * t + 179 * t * t * t * t - t * t * t * t * t * t) / 5040;
+        z = G * Math.pow(cosLat, 3) * CoordinatesConverter.K0 * (1 - t * t + w) * (1.0/6);
+        w = G * Math.pow(cosLat, 5) * CoordinatesConverter.K0 * (5 - 18 * t * t + t * t * t * t + 14 * w - 58 * t * t * w + 13 * w * w + 4 * w * w * w - 64 * t * t * w * w - 25 * t * t * w * w * w) * (1.0 / 120);
+        u = G * Math.pow(cosLat, 7) * CoordinatesConverter.K0 * (61 - 479 * t * t + 179 * t * t * t * t - t * t * t * t * t * t) * (1.0 / 5040);
         double x = CoordinatesConverter.DY + D * o + D * D * D * z + D * D * D * D * D * w + D * D * D * D * D * D * D * u;
 
         return new double[]{x, y};
