@@ -1,18 +1,19 @@
 package csw.chulbongkr.service;
 
 import csw.chulbongkr.ChulbongKrApplication;
+import org.junit.jupiter.api.Tag;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+@Tag("skipInCI")
 @SpringBootTest(classes = ChulbongKrApplication.class)
 @State(Scope.Benchmark)
 public class ProfanityServiceBenchmark2Test {
