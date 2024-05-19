@@ -20,6 +20,9 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
       - name: Get changed files
         shell: bash
         run: |
@@ -57,39 +60,30 @@ jobs:
               echo "spring_changed=false" >> $GITHUB_ENV
             fi
           fi
-      
+
+      - name: Prepare payload
+        id: prepare_payload
+        run: |
+          COMMIT_MESSAGE=$(jq -R -s '.' <<<'${{ github.event.head_commit.message }}')
+          echo "payload={\"ref\": \"${{ github.ref }}\", \"sha\": \"${{ github.sha }}\", \"commit_message\": $COMMIT_MESSAGE}" >> $GITHUB_ENV
+
       - name: Trigger Repository Dispatch for Frontend Changes
         if: env.frontend_changed == 'true'
         uses: peter-evans/repository-dispatch@v3
         with:
           event-type: frontend-changes
-          client-payload: |
-              {
-                "ref": "${{ github.ref }}", 
-                "sha": "${{ github.sha }}",
-                "commit_message": "${{ github.event.head_commit.message }}"
-              }
+          client-payload: ${{ env.payload }}
 
       - name: Trigger Repository Dispatch for Backend Changes
         if: env.backend_changed == 'true'
         uses: peter-evans/repository-dispatch@v3
         with:
           event-type: backend-changes
-          client-payload: |
-              {
-                "ref": "${{ github.ref }}", 
-                "sha": "${{ github.sha }}",
-                "commit_message": "${{ github.event.head_commit.message }}"
-              }
+          client-payload: ${{ env.payload }}
 
       - name: Trigger Repository Dispatch for Backend Spring Changes
         if: env.spring_changed == 'true'
         uses: peter-evans/repository-dispatch@v3
         with:
           event-type: spring-changes
-          client-payload: |
-              {
-                "ref": "${{ github.ref }}", 
-                "sha": "${{ github.sha }}",
-                "commit_message": "${{ github.event.head_commit.message }}"
-              }
+          client-payload: ${{ env.payload }}
