@@ -35,7 +35,7 @@ public class MarkerController {
         return ResponseEntity.ok(markerService.getAllMarkers());
     }
 
-    @GetMapping("/close")
+    @GetMapping(value = "/close", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> findCloseMarkers(
             // @formatter:off
             @RequestParam double latitude,
@@ -82,7 +82,7 @@ public class MarkerController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/weather")
+    @GetMapping(value = "/weather", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getWeather(@RequestParam double latitude, @RequestParam double longitude) {
         try {
             return ResponseEntity.ok(kakaoApiService.fetchWeather(latitude, longitude));
