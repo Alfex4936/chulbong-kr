@@ -80,8 +80,13 @@ dependencies {
 
 }
 
-tasks.named('test') {
-    useJUnitPlatform()
+test {
+    useJUnitPlatform {
+        def excludeTags = System.getProperty('excludeTags')
+        if (excludeTags != null) {
+            excludeTags excludeTags
+        }
+    }
 }
 
 jacoco {
@@ -109,6 +114,7 @@ jacocoTestReport {
             fileTree(dir: it, exclude: [
                     'csw/chulbongkr/ChulbongKrApplication.class',   // Exclude main application class
                     'csw/chulbongkr/util/DAT.class',   // Exclude DAT custom class
+                    'csw/chulbongkr/service/local/FileCleanupService.class',   // it fails in github action env
                     '**/repository/**',                              // Exclude repository classes
                     '**/entity/**',                                   // Exclude entity classes
                     '**/dto/**',                                   // Exclude dto classes

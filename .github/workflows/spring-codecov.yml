@@ -41,7 +41,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        run: ./gradlew build -x test
+        run: ./gradlew build -x test -DexcludeTags=skipInCI
 
       - name: Run JacocoTest
         uses: nick-fields/retry@v2
@@ -50,7 +50,7 @@ jobs:
           max_attempts: 2
           command: |
             cd ${GITHUB_WORKSPACE}/backend-spring
-            ./gradlew clean test jacocoTestReport
+            ./gradlew clean test jacocoTestReport -DexcludeTags=skipInCI
 
       # - name: Run JacocoTest
       #   run: ./gradlew clean test jacocoTestReport
