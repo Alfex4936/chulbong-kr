@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -16,26 +17,71 @@ import (
 
 	"github.com/go-pdf/fpdf"
 	"github.com/google/uuid"
+	"github.com/nfnt/resize"
+	"go.uber.org/fx"
 	"golang.org/x/image/webp"
 )
 
-var HTTPClientUtil = &http.Client{
-	Timeout: 10 * time.Second, // Set a timeout to avoid hanging requests indefinitely
-}
+const (
+	watermarkScale = 0.8
+)
 
-var monthsInKorean = map[time.Month]string{
-	time.January:   "1",
-	time.February:  "2",
-	time.March:     "3",
-	time.April:     "4",
-	time.May:       "5",
-	time.June:      "6",
-	time.July:      "7",
-	time.August:    "8",
-	time.September: "9",
-	time.October:   "10",
-	time.November:  "11",
-	time.December:  "12",
+// TODO: DI?
+// Global variables
+var (
+	watermarkImg    image.Image
+	watermarkWidth  int
+	watermarkHeight int
+
+	markerIcon   image.Image
+	markerWidth  int
+	markerHeight int
+
+	monthsInKorean = map[time.Month]string{
+		time.January:   "1",
+		time.February:  "2",
+		time.March:     "3",
+		time.April:     "4",
+		time.May:       "5",
+		time.June:      "6",
+		time.July:      "7",
+		time.August:    "8",
+		time.September: "9",
+		time.October:   "10",
+		time.November:  "11",
+		time.December:  "12",
+	}
+
+	HTTPClientUtil = &http.Client{
+		Timeout: 10 * time.Second, // Set a timeout to avoid hanging requests indefinitely
+	}
+)
+
+func RegisterPdfInitLifecycle(lifecycle fx.Lifecycle) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+
+			// Load watermark image once
+			watermarkImagePath := "fonts/logo-text.png"
+			watermarkImg, _, _ = loadImage(watermarkImagePath) // ignore error
+			watermarkBounds := watermarkImg.Bounds()
+			watermarkWidth = watermarkBounds.Dx()
+			watermarkHeight = watermarkBounds.Dy()
+
+			// Load marker icon once
+			markerIconPath := "fonts/marker_40x40.webp"
+			markerIcon, _ = LoadWebP(markerIconPath)
+			markerBounds := markerIcon.Bounds()
+			markerWidth = markerBounds.Dx()
+			markerHeight = markerBounds.Dy()
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			// Cleanup if necessary
+			return nil
+		},
+	})
+
 }
 
 func OverlayImages(baseImageFile, markerImagePath string) (string, error) {
@@ -83,29 +129,36 @@ func PlaceMarkersOnImage(baseImageFile string, markers []WCONGNAMULCoord, center
 	draw.Draw(resultImg, bounds, baseImg, image.Point{}, draw.Src)
 
 	// SCALE by 2.5 in 1280x1080 image only, center (centerCX, centerCY).
-	// Load the marker icon
-	markerIconPath := "fonts/marker_40x40.webp"
-	markerIcon, _ := LoadWebP(markerIconPath)
-	markerBounds := markerIcon.Bounds()
-	markerWidth := markerBounds.Dx()
-	markerHeight := markerBounds.Dy()
 
 	for _, marker := range markers {
 		x, y := PlaceMarkerOnImage(marker.X, marker.Y, centerCX, centerCY, bounds.Dx(), bounds.Dy())
 
 		// Calculate the top-left position to start drawing the marker icon
 		// Ensure the entire marker icon is within bounds before drawing
-		startX := x - int(markerWidth)/2 - 5 // 5px out
-		startY := y - int(markerHeight)
+		startX := x - markerWidth/2 - 5 // 5px out
+		startY := y - markerHeight
 
 		// Draw the resized marker icon
-		draw.Draw(resultImg, image.Rect(startX, startY, startX+int(markerWidth), startY+int(markerHeight)), markerIcon, image.Point{0, 0}, draw.Over)
-
-		// Ensure (x,y) is within bounds
-		//if x >= 0 && x < bounds.Dx() && y >= 0 && y < bounds.Dy() {
-		//	resultImg.Set(x, y, color.RGBA{255, 0, 0, 255}) // Red color
-		//}
+		draw.Draw(resultImg, image.Rect(startX, startY, startX+markerWidth, startY+markerHeight), markerIcon, image.Point{0, 0}, draw.Over)
 	}
+
+	// Add watermark image (logo-text.png)
+	// Resize watermark image based on the given percentage
+	newWatermarkWidth := uint(float64(watermarkWidth) * watermarkScale)
+	newWatermarkHeight := uint(float64(watermarkHeight) * watermarkScale)
+	resizedWatermarkImg := resize.Resize(newWatermarkWidth, newWatermarkHeight, watermarkImg, resize.Lanczos3)
+
+	// Calculate the center position for the resized watermark image
+	centerX := (bounds.Dx() - int(newWatermarkWidth)) / 2
+	centerY := (bounds.Dy() - int(newWatermarkHeight)) / 2
+
+	// Create an alpha mask for the watermark image with the desired transparency
+	temp := 255 * 0.1
+	alpha := uint8(temp) // 10% opacity
+	alphaMask := image.NewUniform(color.Alpha{alpha})
+
+	// Draw the watermark image with the alpha mask at the center position
+	draw.DrawMask(resultImg, image.Rect(centerX, centerY, centerX+int(newWatermarkWidth), centerY+int(newWatermarkHeight)), resizedWatermarkImg, image.Point{}, alphaMask, image.Point{}, draw.Over)
 
 	resultPath := filepath.Join(filepath.Dir(baseImageFile), "result_with_markers.png")
 	if err := saveImage(resultImg, resultPath); err != nil {

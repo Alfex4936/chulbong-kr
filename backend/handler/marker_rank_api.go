@@ -5,7 +5,7 @@ import (
 )
 
 func (h *MarkerHandler) HandleGetMarkerRanking(c *fiber.Ctx) error {
-	ranking := h.MarkerFacadeService.GetTopMarkers(10) // []dto.MarkerRank { MarkerID (string), Clicks (int) }
+	ranking := h.MarkerFacadeService.GetTopMarkers(50) // []dto.MarkerRank { MarkerID (string), Clicks (int) }
 
 	return c.JSON(ranking)
 }

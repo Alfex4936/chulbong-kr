@@ -361,6 +361,11 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 
 	// Process file uploads from the multipart form
 	files := form.File["photos"]
+	// Limit to a maximum of 5 files
+	if len(files) > 5 {
+		files = files[:5]
+	}
+
 	for _, file := range files {
 		wg.Add(1)
 		go func(file *multipart.FileHeader) {

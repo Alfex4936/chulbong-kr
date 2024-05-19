@@ -411,7 +411,7 @@ func main() {
 
 			NewFiberApp,
 		),
-		fx.Invoke(registerHooks, util.RegisterBadWordUtilLifecycle, service.RegisterSchedulerLifecycle), // func(diGraph fx.DotGraph) {
+		fx.Invoke(registerHooks, util.RegisterBadWordUtilLifecycle, service.RegisterSchedulerLifecycle, util.RegisterPdfInitLifecycle), // func(diGraph fx.DotGraph) {
 		// 	log.Println("➡️", diGraph)
 		// }
 

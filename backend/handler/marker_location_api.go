@@ -84,7 +84,7 @@ func (h *MarkerHandler) HandleFindCloseMarkers(c *fiber.Ctx) error {
 func (h *MarkerHandler) HandleGetCurrentAreaMarkerRanking(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")
-	limitParam := c.Query("limit", "5") // Default limit
+	limitParam := c.Query("limit", "10") // Default limit
 
 	lat, err := strconv.ParseFloat(latParam, 64)
 	if err != nil {

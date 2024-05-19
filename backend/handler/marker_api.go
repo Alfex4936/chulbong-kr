@@ -345,7 +345,11 @@ func (h *MarkerHandler) HandleGetUserMarkers(c *fiber.Ctx) error {
 	if err != nil || page < 1 {
 		page = 1 // default to first page
 	}
-	pageSize := 4
+
+	pageSize, err := strconv.Atoi(c.Query("pageSize", "5"))
+	if err != nil || page < 1 {
+		pageSize = 5
+	}
 
 	// Construct a unique cache key using userID and page
 	cacheKey := fmt.Sprintf("userMarkers:%d:page:%d", userID, page)
