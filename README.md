@@ -21,7 +21,8 @@
 
 ![chatting](https://github.com/Alfex4936/chulbong-kr/assets/2356749/53e4f587-e155-49c7-b28b-d56e150f1fe2)
 ![slack](https://github.com/Alfex4936/chulbong-kr/assets/2356749/5ec03f6a-871f-4556-90c3-13bb44769f13)
-![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/cd2e489b-30bf-4611-845d-a3d76ba8cf3a)
+![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/a7eb993e-f847-40c8-9b93-d367f4c6a3f8)
+
 
 ### 기능
 - **회원가입 및 로그인**: 사용자 인증을 위한 기본적인 회원가입 및 로그인 기능. (이메일 인증 필요)
