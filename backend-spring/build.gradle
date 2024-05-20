@@ -78,14 +78,14 @@ dependencies {
     jmh 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
     jmhAnnotationProcessor  'org.openjdk.jmh:jmh-generator-annprocess:1.37'
 
+    // https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api
+//    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.0-M2'
+//    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.11.0-M2'
 }
 
 test {
-    useJUnitPlatform {
-        def excludeTags = System.getProperty('excludeTags')
-        if (excludeTags != null) {
-            excludeTags excludeTags
-        }
+    useJUnitPlatform{
+        excludeTags "skipInCI"
     }
 }
 
@@ -103,6 +103,8 @@ jacocoTestCoverageVerification {
     }
 }
 jacocoTestReport {
+    dependsOn test
+
     reports {
         xml.required = true
         csv.required = false
