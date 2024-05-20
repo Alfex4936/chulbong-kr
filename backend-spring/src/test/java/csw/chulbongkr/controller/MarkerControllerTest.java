@@ -7,7 +7,10 @@ import csw.chulbongkr.service.KakaoApiService;
 import csw.chulbongkr.service.MarkerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,20 +31,18 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(MarkerController.class)
+@AutoConfigureMockMvc
+@SpringBootTest
 class MarkerControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
 
     @MockBean
     private MarkerService markerService;
+
     @MockBean
     private KakaoApiService kakaoApiService;
-
-    private MockMvc mockMvc;
-
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new MarkerController(markerService, kakaoApiService)).build();
-    }
 
     @Test
     void testGetAllMarkers() throws Exception {
