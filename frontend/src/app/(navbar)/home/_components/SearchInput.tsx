@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useSearch from "@/hooks/query/search/useSearch";
 import { useEffect, useState } from "react";
+import { ImCancelCircle } from "react-icons/im";
 import SearchResult from "./SearchResult";
 
 interface Props {
@@ -53,6 +54,12 @@ const SearchInput = ({ sticky = false }: Props) => {
           onBlur={() => setResultModal(false)}
           className="rounded-sm border border-solid border-grey placeholder:text-grey-dark pl-8 text-base"
         />
+        <button
+          className="absolute top-1/2 right-2 -translate-y-1/2"
+          onClick={searchInput.resetValue}
+        >
+          <ImCancelCircle />
+        </button>
       </div>
 
       {resultModal && searchData && searchData.markers.length > 0 && (
