@@ -10,7 +10,7 @@ const Home = async () => {
   return (
     <BlackSideBody toggle>
       <Heading title="대한민국 철봉 지도" />
-      <SearchInput />
+      <SearchInput sticky />
       {/* <NoticeSlide /> */}
       <div className="mt-4">
         <LinkEmojiButton
