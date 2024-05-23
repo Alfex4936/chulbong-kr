@@ -1,11 +1,13 @@
 "use client";
 
-import MarkerListItem from "@/components/atom/MarkerListItem";
+// import MarkerListItem from "@/components/atom/MarkerListItem";
 import SearchIcon from "@/components/icons/SearchIcon";
 import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
-import useSearchLocationData from "@/hooks/query/useSearchLocationData";
+import useSearch from "@/hooks/query/search/useSearch";
+// import useSearchLocationData from "@/hooks/query/useSearchLocationData";
 import { useEffect, useState } from "react";
+import SearchResult from "./SearchResult";
 
 interface Props {
   mini?: boolean;
@@ -14,14 +16,15 @@ interface Props {
 }
 
 const SearchInput = ({
-  mini = false,
-  searchToggle = false,
+  // mini = false,
+  // searchToggle = false,
   sticky = false,
 }: Props) => {
   const [query, setQuery] = useState("");
   const searchInput = useInput("");
 
-  const { data, isError } = useSearchLocationData(query);
+  // const { data, isError } = useSearchLocationData(query);
+  const { data: searchData, isError: searchError } = useSearch(query);
 
   useEffect(() => {
     const handler = setTimeout(() => setQuery(searchInput.value), 300);
@@ -46,7 +49,26 @@ const SearchInput = ({
           className="rounded-sm border border-solid border-grey placeholder:text-grey-dark pl-8 text-base"
         />
       </div>
-      {searchInput.value.length > 0 && (
+
+      {searchData && searchData.markers.length > 0 && (
+        <div
+          className="absolute top-10 left-0 w-full h-72 overflow-auto z-10 bg-black rounded-sm border border-solid 
+                    scrollbar-thin border-grey p-4"
+        >
+          {searchError && <div>잠시 후 다시 시도해 주세요.</div>}
+          {searchData.markers.length === 0 && <div>검색 결과가 없습니다.</div>}
+          {searchData.markers.map((data) => {
+            return (
+              <SearchResult
+                key={data.markerId}
+                title={data.address}
+                markerId={data.markerId}
+              />
+            );
+          })}
+        </div>
+      )}
+      {/* {searchInput.value.length > 0 && (
         <div className="absolute top-10 left-0 w-full z-10 bg-black rounded-sm border border-solid border-grey p-4">
           {isError && <div>잠시 후 다시 시도해 주세요.</div>}
           {data?.documents.length === 0 && <div>검색 결과가 없습니다.</div>}
@@ -65,7 +87,7 @@ const SearchInput = ({
             );
           })}
         </div>
-      )}
+      )} */}
     </div>
   );
 };
