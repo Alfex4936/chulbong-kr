@@ -10,9 +10,14 @@ import { useEffect, useState } from "react";
 interface Props {
   mini?: boolean;
   searchToggle?: boolean;
+  sticky?: boolean;
 }
 
-const SearchInput = ({ mini = false, searchToggle = false }: Props) => {
+const SearchInput = ({
+  mini = false,
+  searchToggle = false,
+  sticky = false,
+}: Props) => {
   const [query, setQuery] = useState("");
   const searchInput = useInput("");
 
@@ -25,7 +30,11 @@ const SearchInput = ({ mini = false, searchToggle = false }: Props) => {
   }, [searchInput.value]);
 
   return (
-    <div className="relative mx-auto mb-4">
+    <div
+      className={`${
+        sticky ? "sticky" : "relative"
+      } top-0 left-0 mx-auto mb-4 bg-black z-50`}
+    >
       <div className="relative flex items-center justify-center">
         <div className="absolute top-1/2 left-2 -translate-y-1/2">
           <SearchIcon size={18} color="grey" />
