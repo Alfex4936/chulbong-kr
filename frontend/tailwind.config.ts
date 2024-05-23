@@ -118,12 +118,17 @@ const config = {
             transform: "translate(-50%,-40%) scale(1)",
           },
         },
+        ripple: {
+          "0%": { width: "0", height: "0", opacity: "0.8" },
+          "100%": { width: "100px", height: "100px", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "slide-right": "slide-right .3s ease-in-out forwards",
         spotlight: "spotlight 2s ease .75s 1 forwards",
+        ripple: "ripple 2s infinite",
       },
     },
   },

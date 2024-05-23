@@ -22,6 +22,13 @@ import { useEffect, useRef, useState } from "react";
 import { useToast } from "../ui/use-toast";
 import MapLoading from "./MapLoading";
 import MapSearch from "./MapSearch";
+import { MdOutlineGpsFixed } from "react-icons/md";
+import MapButtons from "./MapButtons";
+import { type CustomOverlay } from "@/types/CustomOverlay.types";
+import MyLocateOverlay from "./MyLocateOverlay";
+import { createRoot } from "react-dom/client";
+import PlusIcon from "../icons/PlusIcon";
+import MinusIcon from "../icons/MinusIcon";
 
 const Map = () => {
   const pathname = usePathname();
@@ -63,6 +70,10 @@ const Map = () => {
   const [mapLoading, setMapLoading] = useState(true);
 
   const [bookmarkError, setBookmarkError] = useState(false);
+
+  const [currentOverlay, setCurrentOverlay] = useState<CustomOverlay | null>(
+    null
+  ); // GPS 현재 위치
 
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -568,6 +579,56 @@ const Map = () => {
     map.setCenter(moveLatLon);
   }, [map]);
 
+  const centerMapOnCurrentPosition = () => {
+    if (map && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const moveLatLon = new window.kakao.maps.LatLng(
+            position.coords.latitude,
+            position.coords.longitude
+          );
+
+          if (currentOverlay) {
+            currentOverlay.setMap(null);
+          }
+
+          const overlayDiv = document.createElement("div");
+          const root = createRoot(overlayDiv);
+          root.render(<MyLocateOverlay />);
+
+          const customOverlay = new window.kakao.maps.CustomOverlay({
+            position: moveLatLon,
+            content: overlayDiv,
+            zIndex: 3,
+          });
+
+          customOverlay.setMap(map);
+          setCurrentOverlay(customOverlay);
+
+          setPosition(position.coords.latitude, position.coords.longitude);
+          map.setCenter(moveLatLon);
+        },
+        () => {
+          alert("잠시 후 다시 시도해주세요.");
+        }
+      );
+    } else {
+      alert("잠시 후 다시 시도해주세요.");
+    }
+  };
+
+  const zoomIn = () => {
+    const level = map?.getLevel();
+
+    map?.setLevel((level as number) - 1);
+  };
+
+  const zoomOut = () => {
+    const level = map?.getLevel();
+
+    map?.setLevel((level as number) + 1);
+  };
+
   return (
     <div className="relative w-full h-dvh">
       {mapLoading && <MapLoading />}
@@ -579,6 +640,24 @@ const Map = () => {
         }`}
       >
         <MapSearch />
+        <MapButtons
+          icon={<MdOutlineGpsFixed />}
+          className="top-16 right-2"
+          onClick={centerMapOnCurrentPosition}
+          tooltipText="내 위치"
+        />
+        <MapButtons
+          icon={<PlusIcon size={18} />}
+          className="top-28 right-2"
+          onClick={zoomIn}
+          tooltipText="확대"
+        />
+        <MapButtons
+          icon={<MinusIcon size={18} />}
+          className="top-[143px] right-2"
+          onClick={zoomOut}
+          tooltipText="축소"
+        />
       </div>
     </div>
   );

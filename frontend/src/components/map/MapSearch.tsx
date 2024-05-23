@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useSearchLocationData from "@/hooks/query/useSearchLocationData";
 import { useEffect, useState } from "react";
+import { ImCancelCircle } from "react-icons/im";
 import MapSearchResult from "./MapSearchResult";
 
 const MapSearch = () => {
@@ -43,12 +44,18 @@ const MapSearch = () => {
             else setResultModal(false);
           }}
           onBlur={() => setResultModal(false)}
-          className="rounded-sm border border-solid border-grey placeholder:text-grey-dark pl-8 text-base"
+          className="rounded-sm border border-solid placeholder:text-grey-dark pl-8 text-base"
         />
+        <button
+          className="absolute top-1/2 right-2 -translate-y-1/2"
+          onClick={searchInput.resetValue}
+        >
+          <ImCancelCircle />
+        </button>
       </div>
 
       {resultModal && searchInput.value.length > 0 && (
-        <div className="absolute top-10 left-0 w-full z-10 bg-black rounded-sm border border-solid border-grey p-4">
+        <div className="absolute top-10 left-0 w-full z-10 bg-black rounded-sm border border-solid p-4">
           {isError && <div>잠시 후 다시 시도해 주세요.</div>}
           {data?.documents.length === 0 && <div>검색 결과가 없습니다.</div>}
           {data?.documents.map((document) => {
