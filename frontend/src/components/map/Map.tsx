@@ -21,6 +21,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../ui/use-toast";
 import MapLoading from "./MapLoading";
+import MapSearch from "./MapSearch";
 
 const Map = () => {
   const pathname = usePathname();
@@ -576,7 +577,9 @@ const Map = () => {
         className={`absolute top-0 left-0 w-full h-full ${
           mapLoading ? "hidden" : "block"
         }`}
-      />
+      >
+        <MapSearch />
+      </div>
     </div>
   );
 };

@@ -3,21 +3,15 @@
 import SearchIcon from "@/components/icons/SearchIcon";
 import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
-import useSearch from "@/hooks/query/search/useSearch";
+import useSearchLocationData from "@/hooks/query/useSearchLocationData";
 import { useEffect, useState } from "react";
-import SearchResult from "./SearchResult";
+import MapSearchResult from "./MapSearchResult";
 
-interface Props {
-  mini?: boolean;
-  searchToggle?: boolean;
-  sticky?: boolean;
-}
-
-const SearchInput = ({ sticky = false }: Props) => {
+const MapSearch = () => {
   const [query, setQuery] = useState("");
   const searchInput = useInput("");
 
-  const { data: searchData, isError: searchError } = useSearch(query);
+  const { data, isError } = useSearchLocationData(query);
 
   const [resultModal, setResultModal] = useState(false);
 
@@ -29,16 +23,14 @@ const SearchInput = ({ sticky = false }: Props) => {
 
   return (
     <div
-      className={`${
-        sticky ? "sticky" : "relative"
-      } top-0 left-0 mx-auto mb-4 bg-black z-50`}
+      className={`absolute top-2 left-1/2 -translate-x-1/2 w-[90%] max-w-96 min-w-[280px] bg-black-light-2 z-50 rounded-sm`}
     >
       <div className="relative flex items-center justify-center">
         <div className="absolute top-1/2 left-2 -translate-y-1/2">
           <SearchIcon size={18} color="grey" />
         </div>
         <Input
-          placeholder="장소, 위치를 입력하세요"
+          placeholder="주소 이동"
           value={searchInput.value}
           onChange={(e) => {
             searchInput.handleChange(e);
@@ -55,19 +47,19 @@ const SearchInput = ({ sticky = false }: Props) => {
         />
       </div>
 
-      {resultModal && searchData && searchData.markers.length > 0 && (
-        <div
-          className="absolute top-10 left-0 w-full h-72 overflow-auto z-10 bg-black rounded-sm border border-solid 
-                    scrollbar-thin border-grey p-4"
-        >
-          {searchError && <div>잠시 후 다시 시도해 주세요.</div>}
-          {searchData.markers.length === 0 && <div>검색 결과가 없습니다.</div>}
-          {searchData.markers.map((data) => {
+      {resultModal && searchInput.value.length > 0 && (
+        <div className="absolute top-10 left-0 w-full z-10 bg-black rounded-sm border border-solid border-grey p-4">
+          {isError && <div>잠시 후 다시 시도해 주세요.</div>}
+          {data?.documents.length === 0 && <div>검색 결과가 없습니다.</div>}
+          {data?.documents.map((document) => {
             return (
-              <SearchResult
-                key={data.markerId}
-                title={data.address}
-                markerId={data.markerId}
+              <MapSearchResult
+                key={document.id}
+                title={document.place_name}
+                subTitle={document.address_name}
+                lat={Number(document.y)}
+                lng={Number(document.x)}
+                reset={searchInput.resetValue}
               />
             );
           })}
@@ -77,4 +69,4 @@ const SearchInput = ({ sticky = false }: Props) => {
   );
 };
 
-export default SearchInput;
+export default MapSearch;
