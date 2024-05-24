@@ -1,7 +1,7 @@
 import GrowBox from "@/components/atom/GrowBox";
 import { LocationIcon } from "@/components/icons/LocationIcons";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Props {
   title: string;
@@ -9,13 +9,16 @@ interface Props {
 }
 
 const SearchResult = ({ title, markerId }: Props) => {
+  const router = useRouter();
   const { setLoading } = usePageLoadingStore();
 
   return (
-    <Link
-      href={`/pullup/${markerId}`}
-      className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
-      onClick={() => setLoading(true)}
+    <button
+      className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95 last:mb-0`}
+      onClick={() => {
+        router.push(`/pullup/${markerId}`);
+        setLoading(true);
+      }}
     >
       <div className="w-3/4">
         <div className={`truncate text-left mr-2 text-sm`}>{title}</div>
@@ -24,7 +27,7 @@ const SearchResult = ({ title, markerId }: Props) => {
       <div>
         <LocationIcon selected={false} size={18} />
       </div>
-    </Link>
+    </button>
   );
 };
 
