@@ -9,7 +9,7 @@ import MylocateList from "../../mypage/_component/MylocateList";
 import ErrorMessage from "@/components/atom/ErrorMessage";
 
 const SearchRangebar = () => {
-  const [distance, setDistance] = useState(100);
+  const [distance, setDistance] = useState(5000);
   const { lat, lng } = useMapStatusStore();
 
   const {
@@ -50,6 +50,12 @@ const SearchRangebar = () => {
     };
   }, [isFetching, hasNextPage, fetchNextPage]);
 
+  useEffect(() => {
+    if (lat && lng) {
+      refetch();
+    }
+  }, []);
+
   return (
     <div className="py-4">
       <div className="flex justify-center items-center gap-2 mb-4">
@@ -77,7 +83,8 @@ const SearchRangebar = () => {
       {isError && <ErrorMessage text="잠시 후 다시 시도해 주세요." />}
 
       <div>
-        {closeMarker?.pages[0].markers.length === 0 && (
+        {(closeMarker?.pages[0].markers === null ||
+          closeMarker?.pages[0].markers.length === 0) && (
           <div className="text-center">등록된 장소가 없습니다.</div>
         )}
 
@@ -85,7 +92,7 @@ const SearchRangebar = () => {
           {closeMarker?.pages.map((page, index) => {
             return (
               <div key={index}>
-                {page.markers.map((marker) => {
+                {page.markers?.map((marker) => {
                   return (
                     <MylocateList
                       key={marker.markerId}
