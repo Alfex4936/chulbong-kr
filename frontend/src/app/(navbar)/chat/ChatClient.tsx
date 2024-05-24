@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import useAddressData from "@/hooks/common/useAddressData";
 import useInput from "@/hooks/common/useInput";
 import useChatIdStore from "@/store/useChatIdStore";
+import useMapStore from "@/store/useMapStore";
 import getRegion from "@/utils/getRegion";
 import { Fragment, useEffect, useRef, useState } from "react";
 
@@ -33,6 +34,7 @@ const ChatClient = () => {
 
   const chatValue = useInput("");
 
+  const { map } = useMapStore();
   const { address, isError } = useAddressData();
 
   const ws = useRef<WebSocket | null>(null);
@@ -56,8 +58,13 @@ const ChatClient = () => {
   }, [inputRef]);
 
   useEffect(() => {
+    setAddressError(false);
     const code = getRegion(address?.depth1 as string).getCode();
-    if (!address?.depth1) setAddressError(true);
+
+    if (!address?.depth1) {
+      setAddressError(true);
+      return;
+    }
     if (!address || isError || code === "") {
       setConnectionMsg("채팅 서비스를 지원하지 않는 지역입니다!");
       ws.current?.close();
@@ -149,7 +156,7 @@ const ChatClient = () => {
     }
   };
 
-  if (addressError) {
+  if (map && addressError) {
     return (
       <div>
         <PrevHeader back />
@@ -168,7 +175,7 @@ const ChatClient = () => {
       <div>
         <PrevHeader back />
         <Heading title={`채팅방`} className="h-auto" />
-        <div className="text-red text-center">
+        <div className="text-red text-center mt-4 mo:text-sm">
           채팅을 불러오는데 실패하였습니다. <br /> 잠시 후 다시 시도해 주세요.
         </div>
       </div>
