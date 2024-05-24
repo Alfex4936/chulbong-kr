@@ -19,7 +19,7 @@ const MapButtons = ({ icon, tooltipText, onClick, className }: Props) => {
       <Tooltip delayDuration={10}>
         <TooltipTrigger
           className={cn(
-            "absolute bg-black-light-2 p-[6px] text-lg rounded-sm z-50 hover:bg-grey-dark-1",
+            "absolute bg-black-light-2 p-[6px] text-xl rounded-sm z-50 hover:bg-grey-dark-1",
             className
           )}
           onClick={onClick}

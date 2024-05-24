@@ -646,18 +646,20 @@ const Map = () => {
           onClick={centerMapOnCurrentPosition}
           tooltipText="내 위치"
         />
-        <MapButtons
-          icon={<PlusIcon size={18} />}
-          className="top-28 right-2"
-          onClick={zoomIn}
-          tooltipText="확대"
-        />
-        <MapButtons
-          icon={<MinusIcon size={18} />}
-          className="top-[143px] right-2"
-          onClick={zoomOut}
-          tooltipText="축소"
-        />
+        <div className="absolute top-32 right-2 bg-black-light-2 flex flex-col z-50 rounded-sm">
+          <MapButtons
+            icon={<PlusIcon size={20} />}
+            className="static"
+            onClick={zoomIn}
+            tooltipText="확대"
+          />
+          <MapButtons
+            icon={<MinusIcon size={20} />}
+            className="static"
+            onClick={zoomOut}
+            tooltipText="축소"
+          />
+        </div>
       </div>
     </div>
   );
