@@ -1,7 +1,11 @@
+import { GlobeWrap } from "@/components/common/globeWrap";
+
 const Home = () => {
   return (
     <main>
-      <h1>메인</h1>
+      <div className="mt-10">
+        <GlobeWrap />
+      </div>
     </main>
   );
 };
