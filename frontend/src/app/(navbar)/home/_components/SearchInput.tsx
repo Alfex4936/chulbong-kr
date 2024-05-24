@@ -4,7 +4,7 @@ import SearchIcon from "@/components/icons/SearchIcon";
 import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useSearch from "@/hooks/query/search/useSearch";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type FocusEvent } from "react";
 import { ImCancelCircle } from "react-icons/im";
 import SearchResult from "./SearchResult";
 
@@ -22,11 +22,23 @@ const SearchInput = ({ sticky = false }: Props) => {
 
   const [resultModal, setResultModal] = useState(false);
 
+  const searchResultRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handler = setTimeout(() => setQuery(searchInput.value), 300);
 
     return () => clearTimeout(handler);
   }, [searchInput.value]);
+
+  const handleBlur = (e: FocusEvent<HTMLInputElement>) => {
+    if (
+      searchResultRef.current &&
+      searchResultRef.current.contains(e.relatedTarget as Node)
+    ) {
+      return;
+    }
+    setResultModal(false);
+  };
 
   return (
     <div
@@ -51,7 +63,7 @@ const SearchInput = ({ sticky = false }: Props) => {
             if (e.target.value.length > 0) setResultModal(true);
             else setResultModal(false);
           }}
-          onBlur={() => setResultModal(false)}
+          onBlur={handleBlur}
           className="rounded-sm border border-solid border-grey placeholder:text-grey-dark pl-8 text-base"
         />
         <button
@@ -64,8 +76,9 @@ const SearchInput = ({ sticky = false }: Props) => {
 
       {resultModal && searchData && searchData.markers.length > 0 && (
         <div
-          className="absolute top-10 left-0 w-full h-72 overflow-auto z-10 bg-black rounded-sm border border-solid 
+          className="absolute top-10 left-0 w-full max-h-72 overflow-auto z-10 bg-black rounded-sm border border-solid 
                     scrollbar-thin border-grey p-4"
+          ref={searchResultRef}
         >
           {searchError && <div>잠시 후 다시 시도해 주세요.</div>}
           {searchData.markers.length === 0 && <div>검색 결과가 없습니다.</div>}
