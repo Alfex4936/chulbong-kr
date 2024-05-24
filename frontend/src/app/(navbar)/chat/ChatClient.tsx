@@ -48,6 +48,7 @@ const ChatClient = () => {
   const [roomSubTitle, setRoomSubTitle] = useState("");
 
   const [isChatError, setIsChatError] = useState(false);
+  const [addressError, setAddressError] = useState(false);
 
   useEffect(() => {
     if (!inputRef.current) return;
@@ -56,6 +57,7 @@ const ChatClient = () => {
 
   useEffect(() => {
     const code = getRegion(address?.depth1 as string).getCode();
+    if (!address?.depth1) setAddressError(true);
     if (!address || isError || code === "") {
       setConnectionMsg("채팅 서비스를 지원하지 않는 지역입니다!");
       ws.current?.close();
@@ -146,6 +148,20 @@ const ChatClient = () => {
       handleChat();
     }
   };
+
+  if (addressError) {
+    return (
+      <div>
+        <PrevHeader back />
+        <Heading title={`채팅방`} className="h-auto" />
+        <div className="text-red text-center mt-4 mo:text-sm">
+          채팅 서비스를 지원하지 않는 지역입니다.
+          <br />
+          지도를 움직여 원하는 지역 채팅방에 참여하세요!
+        </div>
+      </div>
+    );
+  }
 
   if (isChatError) {
     return (
