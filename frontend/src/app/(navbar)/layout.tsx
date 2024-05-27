@@ -59,6 +59,13 @@ const RootLayout = ({
 }>) => {
   return (
     <html lang="ko">
+      <head>
+        <link
+          rel="manifest"
+          href="/manifest.json"
+          crossOrigin="use-credentials"
+        />
+      </head>
       <body
         className={`${nanum.className} overflow-hidden flex text-black dark:text-grey mo:flex-col-reverse h-dvh mo:bg-neutral-800`}
       >
