@@ -85,7 +85,7 @@ const Map = () => {
     const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
     const activeMarkerImg = new window.kakao.maps.MarkerImage(
-      "/activeMarker.svg",
+      "/marker2.png",
       imageSize,
       imageOption
     );

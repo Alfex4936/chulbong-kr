@@ -3,13 +3,15 @@
 import IconButton from "@/components/atom/IconButton";
 import ChatBubbleIcon from "@/components/icons/ChatBubbleIcon";
 import HomeIcon from "@/components/icons/HomeIcon";
+import UserCircleIcon from "@/components/icons/UserCircleIcon";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import MapButton from "../common/MapButton";
+import SearchIcon from "../icons/SearchIcon";
 // import { LocationIcon } from "@/components/icons/LocationIcons";
 // import NotificationIcon from "@/components/icons/NotificationIcon";
 // import SettingIcon from "@/components/icons/SettingIcon";
-import SearchIcon from "../icons/SearchIcon";
-import UserCircleIcon from "@/components/icons/UserCircleIcon";
-import { usePathname } from "next/navigation";
-import MapButton from "../common/MapButton";
 
 const Navigation = () => {
   const pathname = usePathname();
@@ -23,9 +25,19 @@ const Navigation = () => {
         className="flex flex-col items-center mo:flex-row mo:max-w-[430px] mo:w-full 
                   mo:min-w-80 mo:justify-between mo:ml-auto mo:mr-auto mo:rounded-xl mo:bg-black-light"
       >
-        <div className="text-grey text-center w-10 mt-2 mb-6 mo:hidden">
-          철봉
-        </div>
+        <Link
+          href={"/"}
+          className="text-grey text-center w-10 mt-2 mb-6 mo:hidden"
+        >
+          <Image
+            src={"/2.png"}
+            width={100}
+            height={100}
+            alt="logo"
+            className="mb-[2px]"
+          />
+          <p className="text-xs">철봉</p>
+        </Link>
         <div className="mo:flex mo:w-1/2 mo:justify-around">
           <IconButton
             text="홈"
