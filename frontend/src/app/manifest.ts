@@ -13,8 +13,14 @@ const manifest = (): MetadataRoute.Manifest => {
     lang: "ko-KR",
     icons: [
       {
-        src: "/2.png",
-        sizes: "500x500",
+        src: "/logo192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "/logo512.png",
+        sizes: "512x512",
         type: "image/png",
       },
     ],
