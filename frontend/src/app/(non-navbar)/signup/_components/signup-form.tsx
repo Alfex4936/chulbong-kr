@@ -264,7 +264,7 @@ const SignupForm = () => {
         <div>
           <Button
             type="submit"
-            className="bg-black-light-2 mr-3 hover:bg-black-light"
+            className="bg-black-light-2 mr-3 hover:bg-black-light text-grey"
             disabled={signupPending}
           >
             {signupPending ? <LoadingSpinner size="xs" /> : "회원가입"}

@@ -1,6 +1,7 @@
 import instance from "@/api/instance";
 import { type MyInfo } from "@/api/user/myInfo";
 import BlackSideBody from "@/components/atom/BlackSideBody";
+import GrowBox from "@/components/atom/GrowBox";
 import Heading from "@/components/atom/Heading";
 import {
   HydrationBoundary,
@@ -8,6 +9,7 @@ import {
   dehydrate,
 } from "@tanstack/react-query";
 import { cookies } from "next/headers";
+import DonationButton from "../home/_components/DonationButton";
 import MypageClient from "./MypageClient";
 
 const myInfo = async (cookie: string): Promise<MyInfo> => {
@@ -48,9 +50,13 @@ const Mypage = async () => {
   return (
     <BlackSideBody toggle>
       <Heading title="내 정보" />
-      <HydrationBoundary state={dehydrateState}>
-        <MypageClient />
-      </HydrationBoundary>
+      <div className="flex flex-col h-[calc(100%-96px)]">
+        <HydrationBoundary state={dehydrateState}>
+          <MypageClient />
+        </HydrationBoundary>
+        <GrowBox />
+        <DonationButton />
+      </div>
     </BlackSideBody>
   );
 };

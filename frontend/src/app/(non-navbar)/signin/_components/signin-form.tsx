@@ -87,7 +87,7 @@ const SigninForm = () => {
         />
         <Button
           type="submit"
-          className="bg-black-light-2 hover:bg-black-light"
+          className="bg-black-light-2 hover:bg-black-light text-grey"
           disabled={isPending}
         >
           {isPending ? <LoadingSpinner size="xs" /> : "로그인"}

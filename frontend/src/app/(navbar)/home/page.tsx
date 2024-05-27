@@ -5,14 +5,12 @@ import LinkEmojiButton from "./_components/LinkEmojiButton";
 // import NoticeSlide from "./_components/NoticeSlide";
 import Ranking from "./_components/Ranking";
 import SearchInput from "./_components/SearchInput";
-import DonationButton from "./_components/DonationButton";
 
 const Home = async () => {
   return (
     <BlackSideBody toggle>
       <Heading title="대한민국 철봉 지도" />
       <SearchInput sticky />
-      <DonationButton />
       {/* <NoticeSlide /> */}
       <div className="mt-4">
         <LinkEmojiButton
