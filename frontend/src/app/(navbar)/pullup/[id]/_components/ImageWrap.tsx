@@ -22,6 +22,7 @@ const ImageWrap = ({ src, h, w, alt }: Props) => {
         alt={alt}
         className={`mx-auto ${isLoaded ? "visible" : "invisible"}`}
         onLoadingComplete={() => setIsLoaded(true)}
+        unoptimized
       />
     </>
   );
