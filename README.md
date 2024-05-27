@@ -1,5 +1,9 @@
 # chulbong- :kr:
 
+<p align="center">
+  <img width="256" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/6236863a-11e1-45d5-b2e2-9bcf40363e1d" alt="k-pullup logo"/>
+</p>
+
 > [!NOTE]  
 > The service is running with [Go as backend](https://github.com/Alfex4936/chulbong-kr/tree/main/backend) but [Spring boot 3](https://github.com/Alfex4936/chulbong-kr/tree/main/backend-spring) is also available. (WIP)
 
