@@ -22,4 +22,4 @@ const nextConfig = {
   crossOrigin: "use-credentials",
 };
 
-export default nextPWA(nextConfig);
+export default nextConfig;
