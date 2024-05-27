@@ -114,6 +114,7 @@ const Map = () => {
     const clusterer =
       sClusterer ||
       new window.kakao.maps.MarkerClusterer({
+        minClusterSize: 3,
         map: newMap,
         averageCenter: true,
         minLevel: 6,
@@ -166,7 +167,7 @@ const Map = () => {
           {
             width: "60px",
             height: "60px",
-            background: "rgba(255, 80, 80, .8)",
+            background: "rgba(227, 103, 72, .8)",
             borderRadius: "30px",
             color: "#000",
             textAlign: "center",
@@ -175,6 +176,7 @@ const Map = () => {
             userSelect: "none",
           },
         ],
+        zIndex: 8,
       });
 
     if (sClusterer) sClusterer.clear();
@@ -658,7 +660,7 @@ const Map = () => {
           const customOverlay = new window.kakao.maps.CustomOverlay({
             position: moveLatLon,
             content: overlayDiv,
-            zIndex: 3,
+            zIndex: 10,
           });
 
           customOverlay.setMap(map);
