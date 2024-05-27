@@ -1,7 +1,7 @@
 import RQProvider from "@/components/provider/RQProvider";
 import { ThemeProvider } from "@/components/provider/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Nanum_Gothic } from "next/font/google";
 import "../globals.css";
 
@@ -10,9 +10,13 @@ const nanum = Nanum_Gothic({
   weight: ["400", "700", "800"],
   display: "swap",
 });
+
+export const viewport: Viewport = {
+  themeColor: "#222",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_URL as string),
-  // manifest: "/manifest.json",
   title: "대한민국 철봉 지도",
   keywords: "철봉지도,위치등록,철봉정보,채팅,위치검색,관리,철봉찾기",
   description:
