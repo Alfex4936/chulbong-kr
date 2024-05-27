@@ -12,7 +12,6 @@ const nanum = Nanum_Gothic({
 });
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_URL as string),
-  manifest: "/manifest.json",
   title: "대한민국 철봉 지도",
   keywords: "철봉지도,위치등록,철봉정보,채팅,위치검색,관리,철봉찾기",
   description:
