@@ -91,7 +91,6 @@ const MarkerListItem = ({
     });
 
     moveLocation();
-    setLoading(true);
     router.push(`pullup/${markerId}`);
 
     if (window.innerWidth <= MOBILE_WIDTH) {
@@ -112,6 +111,7 @@ const MarkerListItem = ({
         if (mini) {
           moveLocation();
         } else {
+          setLoading(true);
           filterClickMarker();
         }
       }}
