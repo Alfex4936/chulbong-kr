@@ -29,6 +29,7 @@ import MyLocateOverlay from "./MyLocateOverlay";
 import { createRoot } from "react-dom/client";
 import PlusIcon from "../icons/PlusIcon";
 import MinusIcon from "../icons/MinusIcon";
+import { Separator } from "../ui/separator";
 
 const Map = () => {
   const pathname = usePathname();
@@ -704,13 +705,16 @@ const Map = () => {
           onClick={centerMapOnCurrentPosition}
           tooltipText="내 위치"
         />
-        <div className="absolute top-32 right-2 bg-black-light-2 flex flex-col z-50 rounded-sm">
+        <div className="absolute top-[100px] right-2 bg-black-light-2 flex flex-col z-50 rounded-sm">
           <MapButtons
             icon={<PlusIcon size={20} />}
             className="static"
             onClick={zoomIn}
             tooltipText="확대"
           />
+          <div className="px-1">
+            <Separator className="bg-grey-dark-1" />
+          </div>
           <MapButtons
             icon={<MinusIcon size={20} />}
             className="static"
