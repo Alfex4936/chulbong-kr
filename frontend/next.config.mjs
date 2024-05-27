@@ -19,6 +19,7 @@ const nextConfig = {
   images: {
     domains: ["chulbong-kr.s3.amazonaws.com"],
   },
+  crossOrigin: "use-credentials",
 };
 
 export default nextPWA(nextConfig);
