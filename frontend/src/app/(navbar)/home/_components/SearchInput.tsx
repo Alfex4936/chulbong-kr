@@ -4,7 +4,7 @@ import SearchIcon from "@/components/icons/SearchIcon";
 import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useSearch from "@/hooks/query/search/useSearch";
-import { useEffect, useRef, useState, type FocusEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImCancelCircle } from "react-icons/im";
 import SearchResult from "./SearchResult";
 
@@ -23,6 +23,7 @@ const SearchInput = ({ sticky = false }: Props) => {
   const [resultModal, setResultModal] = useState(false);
 
   const searchResultRef = useRef<HTMLDivElement>(null);
+  const inpuRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handler = setTimeout(() => setQuery(searchInput.value), 300);
@@ -30,15 +31,25 @@ const SearchInput = ({ sticky = false }: Props) => {
     return () => clearTimeout(handler);
   }, [searchInput.value]);
 
-  const handleBlur = (e: FocusEvent<HTMLInputElement>) => {
-    if (
-      searchResultRef.current &&
-      searchResultRef.current.contains(e.relatedTarget as Node)
-    ) {
-      return;
-    }
-    setResultModal(false);
-  };
+  useEffect(() => {
+    if (!searchResultRef) return;
+
+    const handleClick = (e: MouseEvent) => {
+      if (
+        e.target !== searchResultRef.current &&
+        e.target !== inpuRef.current
+      ) {
+        setResultModal(false);
+        return;
+      }
+
+      setResultModal(true);
+    };
+
+    document.addEventListener("click", handleClick);
+
+    return () => document.removeEventListener("click", handleClick);
+  }, [searchResultRef]);
 
   return (
     <div
@@ -51,6 +62,7 @@ const SearchInput = ({ sticky = false }: Props) => {
           <SearchIcon size={18} color="grey" />
         </div>
         <Input
+          ref={inpuRef}
           placeholder="장소, 위치를 입력하세요"
           value={searchInput.value}
           onChange={(e) => {
@@ -60,10 +72,10 @@ const SearchInput = ({ sticky = false }: Props) => {
             else setResultModal(false);
           }}
           onFocus={(e) => {
+            console.log(e.target.value);
             if (e.target.value.length > 0) setResultModal(true);
             else setResultModal(false);
           }}
-          // onBlur={handleBlur}
           className="rounded-sm border border-solid border-grey placeholder:text-grey-dark pl-8 text-base"
         />
         <button

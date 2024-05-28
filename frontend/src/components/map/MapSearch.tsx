@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useSearchLocationData from "@/hooks/query/useSearchLocationData";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useState, type FocusEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImCancelCircle } from "react-icons/im";
 import MapSearchResult from "./MapSearchResult";
 
@@ -23,6 +23,7 @@ const MapSearch = ({ mini = false, className }: Props) => {
   const [resultModal, setResultModal] = useState(false);
 
   const searchResultRef = useRef<HTMLDivElement>(null);
+  const inpuRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handler = setTimeout(() => setQuery(searchInput.value), 300);
@@ -30,15 +31,25 @@ const MapSearch = ({ mini = false, className }: Props) => {
     return () => clearTimeout(handler);
   }, [searchInput.value]);
 
-  const handleBlur = (e: FocusEvent<HTMLInputElement>) => {
-    if (
-      searchResultRef.current &&
-      searchResultRef.current.contains(e.relatedTarget as Node)
-    ) {
-      return;
-    }
-    setResultModal(false);
-  };
+  useEffect(() => {
+    if (!searchResultRef) return;
+
+    const handleClick = (e: MouseEvent) => {
+      if (
+        e.target !== searchResultRef.current &&
+        e.target !== inpuRef.current
+      ) {
+        setResultModal(false);
+        return;
+      }
+
+      setResultModal(true);
+    };
+
+    document.addEventListener("click", handleClick);
+
+    return () => document.removeEventListener("click", handleClick);
+  }, [searchResultRef]);
 
   return (
     <div
@@ -52,6 +63,7 @@ const MapSearch = ({ mini = false, className }: Props) => {
           <SearchIcon size={18} color="grey" />
         </div>
         <Input
+          ref={inpuRef}
           placeholder="원하는 주소로 지도 이동시키기"
           value={searchInput.value}
           onChange={(e) => {
@@ -64,7 +76,6 @@ const MapSearch = ({ mini = false, className }: Props) => {
             if (e.target.value.length > 0) setResultModal(true);
             else setResultModal(false);
           }}
-          // onBlur={handleBlur}
           className="rounded-sm border border-solid placeholder:text-grey-dark placeholder:text-sm pl-8 text-base"
         />
         <button
