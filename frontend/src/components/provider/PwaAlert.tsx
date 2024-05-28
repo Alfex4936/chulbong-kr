@@ -14,6 +14,19 @@ declare global {
   }
 }
 
+interface NavigatorStandalone extends Navigator {
+  standalone?: boolean;
+}
+
+const isRunningStandalone = (): boolean => {
+  const navigatorWithStandalone = navigator as NavigatorStandalone;
+
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    navigatorWithStandalone.standalone === true
+  );
+};
+
 const PwaAlert = () => {
   const [alert, setAlert] = useState(false);
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -89,6 +102,7 @@ const PwaAlert = () => {
           웹으로 계속 보기
         </button>
         <div>{getDeviceType()}</div>
+        <div>{isRunningStandalone()}</div>
       </div>
     </div>
   );
