@@ -103,8 +103,19 @@ const MarkerListItem = ({
       className={`flex w-full items-center ${
         styleType === "ranking" ? "p-4" : "p-4"
       } rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
-      onClick={(e) => {
-        e.stopPropagation();
+      onClick={() => {
+        if (searchToggle) {
+          if (!reset) return;
+          reset();
+        }
+        if (mini) {
+          moveLocation();
+        } else {
+          setLoading(true);
+          filterClickMarker();
+        }
+      }}
+      onTouchStart={() => {
         if (searchToggle) {
           if (!reset) return;
           reset();

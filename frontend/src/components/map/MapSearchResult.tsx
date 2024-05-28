@@ -1,5 +1,5 @@
 import useMapStore from "@/store/useMapStore";
-import { ComponentProps, MouseEvent, useCallback } from "react";
+import { ComponentProps, useCallback } from "react";
 import GrowBox from "../atom/GrowBox";
 import { LocationIcon } from "../icons/LocationIcons";
 
@@ -23,23 +23,18 @@ const MapSearchResult = ({
 }: Props) => {
   const { map } = useMapStore();
 
-  const moveLocation = useCallback(
-    (e: MouseEvent) => {
-      e.preventDefault();
-      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+  const moveLocation = useCallback(() => {
+    const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
 
-      setResultModal(false);
-      map?.setCenter(moveLatLon);
-    },
-    [lat, lng, map]
-  );
+    setResultModal(false);
+    map?.setCenter(moveLatLon);
+  }, [lat, lng, map]);
 
   return (
     <button
       className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
-      onClick={(e) => {
-        moveLocation(e);
-      }}
+      onClick={moveLocation}
+      onTouchStart={moveLocation}
       {...props}
     >
       <div className="w-3/4">
