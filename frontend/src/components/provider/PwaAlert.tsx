@@ -43,6 +43,20 @@ const PwaAlert = () => {
     };
   }, []);
 
+  const getDeviceType = (): string => {
+    const userAgent = navigator.userAgent;
+
+    if (/iPad|iPhone|iPod/.test(userAgent)) {
+      return "iOS";
+    }
+
+    if (/android/i.test(userAgent)) {
+      return "Android";
+    }
+
+    return "Web";
+  };
+
   const handleInstallClick = () => {
     if (prompt) {
       prompt.prompt();
@@ -74,6 +88,7 @@ const PwaAlert = () => {
         >
           웹으로 계속 보기
         </button>
+        <div>{getDeviceType()}</div>
       </div>
     </div>
   );
