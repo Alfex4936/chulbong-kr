@@ -32,9 +32,11 @@ const isRunningStandalone = (): boolean => {
 const PwaAlert = () => {
   const [alert, setAlert] = useState(false);
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isApp, setIsApp] = useState(false);
 
+  const [isApp, setIsApp] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  const [downInfo, setDownInfo] = useState(false);
 
   useEffect(() => {
     const handlePrompt = (e: BeforeInstallPromptEvent) => {
@@ -50,18 +52,6 @@ const PwaAlert = () => {
       }
     };
 
-    handleResize();
-
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("beforeinstallprompt", handlePrompt);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("beforeinstallprompt", handlePrompt);
-    };
-  }, []);
-
-  useEffect(() => {
     if (isRunningStandalone()) {
       setIsApp(true);
     } else {
@@ -73,6 +63,16 @@ const PwaAlert = () => {
     } else {
       setIsMobile(false);
     }
+
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("beforeinstallprompt", handlePrompt);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("beforeinstallprompt", handlePrompt);
+    };
   }, []);
 
   const getDeviceType = (): string => {
@@ -96,7 +96,10 @@ const PwaAlert = () => {
         setPrompt(null);
       });
     } else {
-      if (isMobile) return;
+      if (isMobile) {
+        setDownInfo(true);
+        return;
+      }
       setAlert(false);
     }
   };
@@ -105,7 +108,7 @@ const PwaAlert = () => {
 
   return (
     <div className="absolute top-0 left-0 w-dvw h-dvh bg-white-tp-light z-[900]">
-      {alert && isMobile ? (
+      {downInfo ? (
         <>
           <div className="absolute left-1/2 -translate-x-1/2 top-28 w-[90%] bg-black-light-2 z-[1000] p-4 rounded-md">
             <button
