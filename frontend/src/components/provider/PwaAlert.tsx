@@ -97,6 +97,10 @@ const PwaAlert = () => {
         setPrompt(null);
       });
     } else {
+      if (isMobile) {
+        setDownInfo(true);
+        return;
+      }
       setAlert(false);
     }
   };
