@@ -22,7 +22,7 @@ const Navigation = () => {
                 mo:items-center mo:pl-0 mo:pr-0 mo:border-t mo:border-solid"
     >
       <div
-        className="flex flex-col items-center mo:flex-row mo:max-w-[430px] mo:w-full 
+        className="flex flex-col items-center mo:flex-row mo:max-w-[430px] pb-9 pt-2 mo:w-full 
                   mo:min-w-80 mo:justify-between mo:ml-auto mo:mr-auto mo:rounded-xl mo:bg-black-light"
       >
         <Link

@@ -1,10 +1,10 @@
+import PwaAlert from "@/components/provider/PwaAlert";
 import RQProvider from "@/components/provider/RQProvider";
 import { ThemeProvider } from "@/components/provider/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import type { Metadata, Viewport } from "next";
 import { Nanum_Gothic } from "next/font/google";
 import "../globals.css";
-import PwaAlert from "@/components/provider/PwaAlert";
 
 const nanum = Nanum_Gothic({
   subsets: ["latin"],
