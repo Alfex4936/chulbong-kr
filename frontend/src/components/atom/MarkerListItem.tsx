@@ -91,7 +91,6 @@ const MarkerListItem = ({
     });
 
     moveLocation();
-    router.push(`pullup/${markerId}`);
 
     if (window.innerWidth <= MOBILE_WIDTH) {
       mobileMapClose();
@@ -113,6 +112,7 @@ const MarkerListItem = ({
         } else {
           setLoading(true);
           filterClickMarker();
+          router.push(`pullup/${markerId}`);
         }
       }}
       {...props}
