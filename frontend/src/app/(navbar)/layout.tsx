@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import type { Metadata, Viewport } from "next";
 import { Nanum_Gothic } from "next/font/google";
 import "../globals.css";
+import PwaAlert from "@/components/provider/PwaAlert";
 
 declare global {
   interface Window {
@@ -79,6 +80,7 @@ const RootLayout = ({
             <ChatIdProvider>
               <Navigation />
               {children}
+              <PwaAlert />
               <Toaster />
               <MapWrapper />
               <AlertLogin />
