@@ -91,6 +91,7 @@ const MarkerListItem = ({
     });
 
     moveLocation();
+    router.push(`pullup/${markerId}`);
 
     if (window.innerWidth <= MOBILE_WIDTH) {
       mobileMapClose();
@@ -102,7 +103,8 @@ const MarkerListItem = ({
       className={`flex w-full items-center ${
         styleType === "ranking" ? "p-4" : "p-4"
       } rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
-      onClick={() => {
+      onClick={(e) => {
+        e.stopPropagation();
         if (searchToggle) {
           if (!reset) return;
           reset();
@@ -112,7 +114,6 @@ const MarkerListItem = ({
         } else {
           setLoading(true);
           filterClickMarker();
-          router.push(`pullup/${markerId}`);
         }
       }}
       {...props}
