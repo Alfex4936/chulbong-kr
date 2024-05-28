@@ -162,7 +162,7 @@ const SignupForm = () => {
             <FormItem>
               <FormLabel>닉네임</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} className="text-base" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -176,7 +176,7 @@ const SignupForm = () => {
               <FormLabel>이메일</FormLabel>
               <div className="relative">
                 <FormControl className="">
-                  <Input {...field} />
+                  <Input {...field} className="text-base" />
                 </FormControl>
                 <Button
                   type="button"
@@ -204,7 +204,12 @@ const SignupForm = () => {
               <FormLabel>인증 코드</FormLabel>
               <div className="relative">
                 <FormControl className="">
-                  <Input {...field} type="text" maxLength={6} />
+                  <Input
+                    {...field}
+                    type="text"
+                    maxLength={6}
+                    className="text-base"
+                  />
                 </FormControl>
                 {isSended && (
                   <Count
@@ -242,7 +247,7 @@ const SignupForm = () => {
             <FormItem>
               <FormLabel>비밀번호</FormLabel>
               <FormControl>
-                <Input type="password" {...field} />
+                <Input type="password" {...field} className="text-base" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -255,7 +260,7 @@ const SignupForm = () => {
             <FormItem>
               <FormLabel>비밀번호 확인</FormLabel>
               <FormControl>
-                <Input type="password" {...field} />
+                <Input type="password" {...field} className="text-base" />
               </FormControl>
               <FormMessage />
             </FormItem>

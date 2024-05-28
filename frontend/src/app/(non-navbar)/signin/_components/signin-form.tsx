@@ -66,7 +66,7 @@ const SigninForm = () => {
             <FormItem>
               <FormLabel>이메일</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} className="text-base" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -79,7 +79,7 @@ const SigninForm = () => {
             <FormItem>
               <FormLabel>비밀번호</FormLabel>
               <FormControl>
-                <Input type="password" {...field} />
+                <Input type="password" {...field} className="text-base" />
               </FormControl>
               <FormMessage>{errorMessage}</FormMessage>
             </FormItem>
