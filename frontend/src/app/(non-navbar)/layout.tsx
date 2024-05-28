@@ -49,13 +49,13 @@ const RootLayout = ({
 }>) => {
   return (
     <html lang="ko">
-      <head>
+      {/* <head>
         <link
           rel="manifest"
           href="/manifest.json"
           crossOrigin="use-credentials"
         />
-      </head>
+      </head> */}
       <body
         className={`${nanum.className} bg-black-gradient-2 min-h-dvh overflow-x-hidden text-grey`}
       >
