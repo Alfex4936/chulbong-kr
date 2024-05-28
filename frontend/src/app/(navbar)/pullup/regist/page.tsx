@@ -1,11 +1,11 @@
 import BlackSideBody from "@/components/atom/BlackSideBody";
+import PrevHeader from "@/components/atom/PrevHeader";
+import MapSearch from "@/components/map/MapSearch";
 import MiniMap from "@/components/map/MiniMap";
 import { Separator } from "@/components/ui/separator";
-import SearchInput from "../../home/_components/SearchInput";
 import Facilities from "./_components/Facilities";
-import UploadImage from "./_components/UploadImage";
 import MarkerDescription from "./_components/MarkerDescription";
-import PrevHeader from "@/components/atom/PrevHeader";
+import UploadImage from "./_components/UploadImage";
 
 const PullupRegist = () => {
   return (
@@ -13,7 +13,10 @@ const PullupRegist = () => {
       <PrevHeader url="/home" text="위치 등록" />
       <div className="px-4 pt-2 pb-4 mo:pb-20">
         <p className="mb-2">🚩 등록 위치를 선택해 주세요</p>
-        <SearchInput mini searchToggle />
+        <MapSearch
+          mini
+          className={`relative top-0 w-full mb-4 bg-black z-[90]`}
+        />
         <MiniMap />
         <Separator className="my-4 bg-grey-dark-1" />
         <p className="mb-2">🎁 기구 개수를 입력해 주세요</p>

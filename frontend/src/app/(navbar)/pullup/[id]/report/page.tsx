@@ -1,8 +1,8 @@
 import instance from "@/api/instance";
-import SearchInput from "@/app/(navbar)/home/_components/SearchInput";
 import BlackSideBody from "@/components/atom/BlackSideBody";
 import Heading from "@/components/atom/Heading";
 import PrevHeader from "@/components/atom/PrevHeader";
+import MapSearch from "@/components/map/MapSearch";
 import MiniMap from "@/components/map/MiniMap";
 import { Separator } from "@/components/ui/separator";
 import { type Marker } from "@/types/Marker.types";
@@ -37,7 +37,10 @@ const RportMarkerPage = async ({ params }: Props) => {
 
         <div className="px-9 pb-4 scrollbar-thin mo:px-4 mo:pb-20">
           <p className="mb-2">🚩 수정할 위치를 선택해 주세요</p>
-          <SearchInput mini searchToggle />
+          <MapSearch
+            mini
+            className={`relative top-0 w-full mb-4 bg-black z-[90]`}
+          />
           <MiniMap
             isMarker
             latitude={marker.latitude}
