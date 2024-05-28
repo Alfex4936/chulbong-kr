@@ -62,7 +62,7 @@ const Map = () => {
     markers: mapMarkers,
     overlay: overlayState,
   } = useMapStore();
-  const { isOpen } = useBodyToggleStore();
+  const { isOpen, open: openBody } = useBodyToggleStore();
 
   const { setLoading } = usePageLoadingStore();
 
@@ -452,6 +452,7 @@ const Map = () => {
             if (window.innerWidth <= MOBILE_WIDTH) {
               mobileMapClose();
             }
+            openBody();
             router.push(`/pullup/${marker.markerId}`);
           });
         }

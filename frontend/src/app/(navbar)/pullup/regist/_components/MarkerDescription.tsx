@@ -15,6 +15,7 @@ import useMapControl from "@/hooks/common/useMapControl";
 import useSetFacilities from "@/hooks/mutation/marker/useSetFacilities";
 import useUploadMarker from "@/hooks/mutation/marker/useUploadMarker";
 import useReportMarker from "@/hooks/mutation/report/useReportMarker";
+import useBodyToggleStore from "@/store/useBodyToggleStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
@@ -38,6 +39,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
 
   const router = useRouter();
 
+  const { open: openBody } = useBodyToggleStore();
   const { close: mobileMapClose } = useMobileMapOpenStore();
   const { toast } = useToast();
   const { open: openRoadview, setPosition: setRoadview } =
@@ -414,6 +416,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
             if (window.innerWidth <= MOBILE_WIDTH) {
               mobileMapClose();
             }
+            openBody();
             router.push(`/pullup/${result.markerId}`);
           });
         }
