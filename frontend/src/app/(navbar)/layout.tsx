@@ -2,13 +2,13 @@ import AlertLogin from "@/components/layout/AlertLogin";
 import Navigation from "@/components/layout/Navigation";
 import MapWrapper from "@/components/map/MapWrapper";
 import ChatIdProvider from "@/components/provider/ChatIdProvider";
+import PwaAlert from "@/components/provider/PwaAlert";
 import RQProvider from "@/components/provider/RQProvider";
 import { ThemeProvider } from "@/components/provider/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import type { Metadata, Viewport } from "next";
 import { Nanum_Gothic } from "next/font/google";
 import "../globals.css";
-import PwaAlert from "@/components/provider/PwaAlert";
 
 declare global {
   interface Window {

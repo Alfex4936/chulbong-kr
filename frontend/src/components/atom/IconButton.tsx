@@ -3,6 +3,7 @@
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface Props {
   icon: React.ReactNode;
@@ -11,6 +12,8 @@ interface Props {
 }
 
 const IconButton = ({ icon, text, url }: Props) => {
+  const pathname = usePathname();
+
   const { setLoading } = usePageLoadingStore();
   const { close } = useMobileMapOpenStore();
 
@@ -19,6 +22,10 @@ const IconButton = ({ icon, text, url }: Props) => {
       href={url}
       className="flex justify-center items-center web:mb-3 mo:w-full"
       onClick={() => {
+        if (pathname === url) {
+          close();
+          return;
+        }
         setLoading(true);
         close();
       }}

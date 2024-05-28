@@ -156,7 +156,7 @@ const PullupClient = ({ markerId }: Props) => {
   if (!marker) return;
 
   return (
-    <div className="mo:mb-4">
+    <div className="mo:mb-12">
       {/* 이미지 배경 */}
       <div
         className="relative w-full h-64 bg-cover bg-center"
