@@ -93,13 +93,10 @@ const PwaAlert = () => {
     if (prompt) {
       prompt.prompt();
       prompt.userChoice.then(() => {
+        if (isMobile) setDownInfo(true);
         setPrompt(null);
       });
     } else {
-      if (isMobile) {
-        setDownInfo(true);
-        return;
-      }
       setAlert(false);
     }
   };
