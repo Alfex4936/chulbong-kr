@@ -10,14 +10,16 @@ interface Props {
 
 const SearchResult = ({ title, markerId }: Props) => {
   const router = useRouter();
+
   const { setLoading } = usePageLoadingStore();
 
   return (
     <button
       className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95 last:mb-0`}
-      onClick={() => {
-        router.push(`/pullup/${markerId}`);
+      onClick={(e) => {
+        e.stopPropagation();
         setLoading(true);
+        router.push(`/pullup/${markerId}`);
       }}
     >
       <div className="w-3/4">

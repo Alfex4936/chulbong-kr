@@ -44,7 +44,7 @@ const SearchInput = ({ sticky = false }: Props) => {
     <div
       className={`${
         sticky ? "sticky" : "relative"
-      } top-0 left-0 mx-auto mb-4 bg-black z-50`}
+      } top-0 left-0 mx-auto mb-4 bg-black z-[1000]`}
     >
       <div className="relative flex items-center justify-center">
         <div className="absolute top-1/2 left-2 -translate-y-1/2">

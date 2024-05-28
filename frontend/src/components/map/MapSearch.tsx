@@ -4,11 +4,17 @@ import SearchIcon from "@/components/icons/SearchIcon";
 import { Input } from "@/components/ui/input";
 import useInput from "@/hooks/common/useInput";
 import useSearchLocationData from "@/hooks/query/useSearchLocationData";
+import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState, type FocusEvent } from "react";
 import { ImCancelCircle } from "react-icons/im";
 import MapSearchResult from "./MapSearchResult";
 
-const MapSearch = () => {
+interface Props {
+  mini?: boolean;
+  className?: string;
+}
+
+const MapSearch = ({ mini = false, className }: Props) => {
   const [query, setQuery] = useState("");
   const searchInput = useInput("");
 
@@ -36,7 +42,10 @@ const MapSearch = () => {
 
   return (
     <div
-      className={`absolute top-2 left-1/2 -translate-x-1/2 w-[90%] max-w-96 min-w-[280px] bg-black-light-2 z-50 rounded-sm`}
+      className={cn(
+        `absolute top-2 left-1/2 -translate-x-1/2 w-[90%] max-w-96 min-w-[280px] bg-black-light-2 z-50 rounded-sm`,
+        className
+      )}
     >
       <div className="relative flex items-center justify-center">
         <div className="absolute top-1/2 left-2 -translate-y-1/2">
@@ -83,6 +92,7 @@ const MapSearch = () => {
                 lng={Number(document.x)}
                 reset={searchInput.resetValue}
                 setResultModal={setResultModal}
+                mini={mini}
               />
             );
           })}

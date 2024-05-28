@@ -43,60 +43,60 @@ const MarkerListItem = ({
 
   const { setLoading } = usePageLoadingStore();
 
-  const { open } = useMobileMapOpenStore();
-  const { setPosition } = useMapStatusStore();
-  const { map, markers } = useMapStore();
+  // const { open } = useMobileMapOpenStore();
+  // const { setPosition } = useMapStatusStore();
+  // const { map, markers } = useMapStore();
 
-  const { close: mobileMapClose } = useMobileMapOpenStore();
+  // const { close: mobileMapClose } = useMobileMapOpenStore();
 
-  const { map: miniMap } = useMiniMapStatusStore();
+  // const { map: miniMap } = useMiniMapStatusStore();
 
-  const moveLocation = useCallback(() => {
-    if (mini) {
-      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
-      miniMap?.setCenter(moveLatLon);
-    } else {
-      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+  // const moveLocation = useCallback(() => {
+  //   if (mini) {
+  //     const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+  //     miniMap?.setCenter(moveLatLon);
+  //   } else {
+  //     const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
 
-      setPosition(lat as number, lng as number);
-      map?.setCenter(moveLatLon);
-      open();
-    }
-  }, [lat, lng, map, mini]);
+  //     setPosition(lat as number, lng as number);
+  //     map?.setCenter(moveLatLon);
+  //     open();
+  //   }
+  // }, [lat, lng, map, mini]);
 
-  const filterClickMarker = () => {
-    if (!markers) return;
+  // const filterClickMarker = () => {
+  //   if (!markers) return;
 
-    const imageSize = new window.kakao.maps.Size(39, 39);
-    const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
+  //   const imageSize = new window.kakao.maps.Size(39, 39);
+  //   const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
 
-    const selectedMarkerImg = new window.kakao.maps.MarkerImage(
-      "/selectedMarker.svg",
-      imageSize,
-      imageOption
-    );
+  //   const selectedMarkerImg = new window.kakao.maps.MarkerImage(
+  //     "/selectedMarker.svg",
+  //     imageSize,
+  //     imageOption
+  //   );
 
-    const activeMarkerImg = new window.kakao.maps.MarkerImage(
-      "/activeMarker.svg",
-      imageSize,
-      imageOption
-    );
+  //   const activeMarkerImg = new window.kakao.maps.MarkerImage(
+  //     "/activeMarker.svg",
+  //     imageSize,
+  //     imageOption
+  //   );
 
-    markers.forEach((marker) => {
-      if (Number(marker.getTitle()) === markerId) {
-        marker.setImage(selectedMarkerImg);
-      } else {
-        marker.setImage(activeMarkerImg);
-      }
-    });
+  //   markers.forEach((marker) => {
+  //     if (Number(marker.getTitle()) === markerId) {
+  //       marker.setImage(selectedMarkerImg);
+  //     } else {
+  //       marker.setImage(activeMarkerImg);
+  //     }
+  //   });
 
-    moveLocation();
-    router.push(`pullup/${markerId}`);
+  //   moveLocation();
+  //   router.push(`pullup/${markerId}`);
 
-    if (window.innerWidth <= MOBILE_WIDTH) {
-      mobileMapClose();
-    }
-  };
+  //   if (window.innerWidth <= MOBILE_WIDTH) {
+  //     mobileMapClose();
+  //   }
+  // };
 
   return (
     <button
@@ -104,28 +104,19 @@ const MarkerListItem = ({
         styleType === "ranking" ? "p-4" : "p-4"
       } rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
       onClick={() => {
-        if (searchToggle) {
-          if (!reset) return;
-          reset();
-        }
-        if (mini) {
-          moveLocation();
-        } else {
-          setLoading(true);
-          filterClickMarker();
-        }
-      }}
-      onTouchStart={() => {
-        if (searchToggle) {
-          if (!reset) return;
-          reset();
-        }
-        if (mini) {
-          moveLocation();
-        } else {
-          setLoading(true);
-          filterClickMarker();
-        }
+        // if (searchToggle) {
+        //   if (!reset) return;
+        //   reset();
+        // }
+        // if (mini) {
+        //   moveLocation();
+        // } else {
+        //   setLoading(true);
+        //   router.push(`pullup/${markerId}`);
+        // }
+
+        setLoading(true);
+        router.push(`pullup/${markerId}`);
       }}
       {...props}
     >
