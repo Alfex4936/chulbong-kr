@@ -79,7 +79,7 @@ const PwaAlert = () => {
     const userAgent = navigator.userAgent;
 
     if (/iPad|iPhone|iPod/.test(userAgent)) {
-      return "iOS";
+      return "IOS";
     }
 
     if (/android/i.test(userAgent)) {
@@ -93,7 +93,6 @@ const PwaAlert = () => {
     if (prompt) {
       prompt.prompt();
       prompt.userChoice.then(() => {
-        if (isMobile) setDownInfo(true);
         setPrompt(null);
       });
     } else {
