@@ -1,4 +1,5 @@
 import AlertLogin from "@/components/layout/AlertLogin";
+import ImageDetail from "@/components/layout/ImageDetail";
 import Navigation from "@/components/layout/Navigation";
 import MapWrapper from "@/components/map/MapWrapper";
 import ChatIdProvider from "@/components/provider/ChatIdProvider";
@@ -80,6 +81,7 @@ const RootLayout = ({
             <ChatIdProvider>
               <Navigation />
               {children}
+              <ImageDetail />
               <PwaAlert />
               <Toaster />
               <MapWrapper />

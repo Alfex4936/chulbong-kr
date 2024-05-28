@@ -1,13 +1,21 @@
+import useMarkerImageStore from "@/store/useMarkerImageStore";
 import { type Photo } from "@/types/Marker.types";
 import ImageWrap from "./ImageWrap";
+import { useEffect } from "react";
 
 type Props = {
   photos?: Photo[];
 };
 
-// const images = ["/11.png", "/12.png", "/13.png", "/14.png", "/15.png"];
-
 const ImageList = ({ photos }: Props) => {
+  const { setImages, setCurImage, openImageModal } = useMarkerImageStore();
+
+  useEffect(() => {
+    if (!photos) return;
+
+    setImages(photos);
+  }, [photos]);
+
   return (
     <div className="flex">
       {photos ? (
@@ -16,7 +24,14 @@ const ImageList = ({ photos }: Props) => {
             {photos.map((photo, i) => {
               if (i % 2 === 1) return;
               return (
-                <button key={photo.photoId} className="w-full">
+                <button
+                  key={photo.photoId}
+                  className="w-full"
+                  onClick={() => {
+                    setCurImage(photo);
+                    openImageModal();
+                  }}
+                >
                   <ImageWrap src={photo.photoUrl} w={230} h={230} alt="상세" />
                 </button>
               );
@@ -26,7 +41,14 @@ const ImageList = ({ photos }: Props) => {
             {photos.map((photo, i) => {
               if (i % 2 !== 1) return;
               return (
-                <button key={photo.photoId} className="w-full">
+                <button
+                  key={photo.photoId}
+                  className="w-full"
+                  onClick={() => {
+                    setCurImage(photo);
+                    openImageModal();
+                  }}
+                >
                   <ImageWrap src={photo.photoUrl} w={230} h={230} alt="상세" />
                 </button>
               );
