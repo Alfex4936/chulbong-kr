@@ -102,12 +102,14 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
 
         if (imageForm.length <= 0) {
           setErrorMessage("이미지를 1개 이상 등록해 주세요");
+          setLoading(false);
           return;
         }
 
         report(data);
       } catch (error) {
         setErrorMessage("잠시 후 다시 시도해 주세요.");
+        setLoading(false);
       }
 
       return;
@@ -530,6 +532,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
           setError("잠시 후 다시 시도해 주세요!");
         }
       }
+      setLoading(false);
     }
   };
 

@@ -16,6 +16,9 @@ const nextConfig = {
       },
     ];
   },
+  images: {
+    domains: ["chulbong-kr.s3.amazonaws.com"],
+  },
 };
 
 export default nextPWA(nextConfig);
