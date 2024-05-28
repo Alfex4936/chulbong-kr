@@ -63,7 +63,7 @@ const SearchInput = ({ sticky = false }: Props) => {
             if (e.target.value.length > 0) setResultModal(true);
             else setResultModal(false);
           }}
-          onBlur={handleBlur}
+          // onBlur={handleBlur}
           className="rounded-sm border border-solid border-grey placeholder:text-grey-dark pl-8 text-base"
         />
         <button

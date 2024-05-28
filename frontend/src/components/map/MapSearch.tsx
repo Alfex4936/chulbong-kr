@@ -64,7 +64,7 @@ const MapSearch = ({ mini = false, className }: Props) => {
             if (e.target.value.length > 0) setResultModal(true);
             else setResultModal(false);
           }}
-          onBlur={handleBlur}
+          // onBlur={handleBlur}
           className="rounded-sm border border-solid placeholder:text-grey-dark placeholder:text-sm pl-8 text-base"
         />
         <button
