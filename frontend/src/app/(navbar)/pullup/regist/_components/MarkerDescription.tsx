@@ -39,7 +39,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
 
   const router = useRouter();
 
-  const { open: openBody } = useBodyToggleStore();
+  const { open: openBody, isOpen } = useBodyToggleStore();
   const { close: mobileMapClose } = useMobileMapOpenStore();
   const { toast } = useToast();
   const { open: openRoadview, setPosition: setRoadview } =
@@ -416,7 +416,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
             if (window.innerWidth <= MOBILE_WIDTH) {
               mobileMapClose();
             }
-            openBody();
+            if (!isOpen) openBody();
             router.push(`/pullup/${result.markerId}`);
           });
         }
