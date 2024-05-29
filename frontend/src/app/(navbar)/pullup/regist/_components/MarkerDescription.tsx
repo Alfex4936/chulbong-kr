@@ -15,7 +15,7 @@ import useReportMarker from "@/hooks/mutation/report/useReportMarker";
 import useMapStore from "@/store/useMapStore";
 import useUploadFormDataStore from "@/store/useUploadFormDataStore";
 import { isAxiosError } from "axios";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -26,6 +26,8 @@ interface Props {
 }
 
 const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
+  const pathname = usePathname();
+
   const descriptionValue = useInput(desc ? desc : "");
 
   const router = useRouter();

@@ -1,8 +1,10 @@
 import deleteFavorite from "@/api/favorite/deleteFavorite";
+import { useToast } from "@/components/ui/use-toast";
 import type { Marker } from "@/types/Marker.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const useDeleteFavorite = (id: number) => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -36,7 +38,7 @@ const useDeleteFavorite = (id: number) => {
     },
 
     onError(_error, _hero, context?: { previousMarkerData: Marker }) {
-      console.log(_error);
+      toast({ description: "잠시 후 다시 시도해주세요." });
       if (context?.previousMarkerData) {
         queryClient.setQueryData(["marker", id], context.previousMarkerData);
       }

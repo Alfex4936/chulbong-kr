@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
-import axios from "axios";
+import useLoginModalStateStore from "@/store/useLoginModalStateStore";
+import axios, { isAxiosError } from "axios";
 import { RefObject, useEffect, useRef, useState } from "react";
 import GrowBox from "../atom/GrowBox";
 import LoadingSpinner from "../atom/LoadingSpinner";
@@ -26,6 +27,7 @@ const ShareModal = ({
   filename,
   closeModal,
 }: Props) => {
+  const { open: openLoginModal } = useLoginModalStateStore();
   const { toast } = useToast();
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -83,7 +85,15 @@ const ShareModal = ({
 
       link.click();
     } catch (error) {
-      console.error("Error downloading the file:", error);
+      if (isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          openLoginModal();
+        } else {
+          toast({ description: "잠시 후 다시 시도해 주세요." });
+        }
+      } else {
+        toast({ description: "잠시 후 다시 시도해 주세요." });
+      }
     } finally {
       if (link) document.body.removeChild(link);
       if (downlink) window.URL.revokeObjectURL(downlink);
@@ -116,7 +126,7 @@ const ShareModal = ({
         </Button>
         <GrowBox />
         <button className="flex items-start" onClick={closeModal}>
-          <ExitIcon size={18} color="black"/>
+          <ExitIcon size={18} color="black" />
         </button>
       </div>
       <p className="text-xs text-red mt-1">
