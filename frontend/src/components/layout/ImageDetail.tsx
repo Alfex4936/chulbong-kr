@@ -7,12 +7,15 @@ import { ArrowLeftIcon, ArrowRightIcon } from "../icons/ArrowIcons";
 import ExitIcon from "../icons/ExitIcon";
 import MinusIcon from "../icons/MinusIcon";
 import PlusIcon from "../icons/PlusIcon";
+import LoadingSpinner from "../atom/LoadingSpinner";
 
 const ImageDetail = () => {
   const { imageView, curImage, nextImage, prevImage, closeImageModal } =
     useMarkerImageStore();
 
   const [imageSize, setImageSize] = useState(400);
+
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const outsideRef = useRef<HTMLDivElement>(null);
 
@@ -75,11 +78,14 @@ const ImageDetail = () => {
         <ArrowLeftIcon size={30} />
       </button>
       <div className="flex flex-col items-center mx-3">
+        {!isLoaded && <LoadingSpinner />}
         <Image
           src={curImage?.photoUrl as string}
           alt="detail"
           width={imageSize}
           height={imageSize}
+          onLoadingComplete={() => setIsLoaded(true)}
+          className={`${isLoaded ? "visible" : "invisible"}`}
         />
         <div className="absolute bottom-24 flex botder-red-2 bg-white-tp-light mt-3 px-2 py-1 rounded-lg">
           <button

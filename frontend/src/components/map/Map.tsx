@@ -452,7 +452,8 @@ const Map = () => {
             if (window.innerWidth <= MOBILE_WIDTH) {
               mobileMapClose();
             }
-            openBody();
+
+            if (!isOpen) openBody();
             router.push(`/pullup/${marker.markerId}`);
           });
         }
