@@ -8,7 +8,7 @@ import RQProvider from "@/components/provider/RQProvider";
 import { ThemeProvider } from "@/components/provider/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import type { Metadata, Viewport } from "next";
-import { Nanum_Gothic } from "next/font/google";
+import localFont from "next/font/local";
 import "../globals.css";
 
 declare global {
@@ -17,10 +17,34 @@ declare global {
   }
 }
 
-const nanum = Nanum_Gothic({
-  subsets: ["latin"],
-  weight: ["400", "700", "800"],
-  display: "swap",
+const pretendard = localFont({
+  src: [
+    {
+      path: "../font/Pretendard-Light.woff",
+      weight: "300",
+      style: "normal",
+    },
+    {
+      path: "../font/Pretendard-Regular.woff",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../font/Pretendard-Medium.woff",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../font/Pretendard-Bold.woff",
+      weight: "700",
+      style: "normal",
+    },
+    {
+      path: "../font/Pretendard-ExtraBold.woff",
+      weight: "800",
+      style: "normal",
+    },
+  ],
 });
 
 export const viewport: Viewport = {
@@ -69,7 +93,7 @@ const RootLayout = ({
         />
       </head>
       <body
-        className={`${nanum.className} overflow-hidden flex text-black dark:text-grey mo:flex-col-reverse h-dvh mo:bg-neutral-800`}
+        className={`${pretendard.className} overflow-hidden flex text-black dark:text-grey mo:flex-col-reverse h-dvh mo:bg-neutral-800`}
       >
         <ThemeProvider
           attribute="class"

@@ -57,12 +57,12 @@ export const GlobeWrap = () => {
           >
             <span className="absolute inset-[-1000%] animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#E2CBFF_0%,#393BB2_50%,#E2CBFF_100%)]" />
             <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-xl bg-slate-950 px-4 py-0 text-sm font-medium text-white backdrop-blur-3xl">
-              철봉 지도
+              철봉 지도 바로 가기
             </span>
           </button>
         </motion.div>
 
-        <div className="h-72 md:h-full pb-10 z-10 md:pb-40">
+        <div className="h-72 md:h-full pb-10 z-10 md:pb-56">
           <World data={globeArcs} globeConfig={globeConfig} />
         </div>
       </div>
