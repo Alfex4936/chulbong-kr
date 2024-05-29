@@ -7,11 +7,12 @@ import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import Image from "next/image";
-import { useCallback, useEffect } from "react";
+import { useCallback, useRef, useState } from "react";
 import BookmarkIcon from "../icons/BookmarkIcon";
 import RoadViewIcon from "../icons/RoadViewIcon";
 import ShareIcon from "../icons/ShareIcon";
 import { Skeleton } from "../ui/skeleton";
+import ShareModal from "../common/ShareModal";
 
 interface Props {
   markerId: number;
@@ -42,6 +43,10 @@ const MarkerOverlay = ({
 
   const { setLoading } = usePageLoadingStore();
 
+  const [isShare, setIsShare] = useState(false);
+
+  const shareRef = useRef<HTMLDivElement>(null);
+
   const changeRoadviewlocation = useCallback(async () => {
     setRoadview(marker?.latitude as number, marker?.longitude as number);
   }, [marker]);
@@ -53,11 +58,6 @@ const MarkerOverlay = ({
     await changeRoadviewlocation();
     roadviewOpen();
   };
-
-  useEffect(() => {
-    console.log(weather);
-    console.log(marker);
-  }, [weather]);
 
   return (
     <div
@@ -143,11 +143,30 @@ const MarkerOverlay = ({
               </button>
               <p className="text-sm">거리뷰</p>
             </div>
-            <div className="flex flex-col items-center justify-center mo:mx-2">
-              <button className="rounded-full p-1 hover:bg-white-tp-light">
+            <div
+              className="relative flex flex-col items-center justify-center mo:mx-2"
+              ref={shareRef}
+            >
+              <button
+                className="rounded-full p-1 hover:bg-white-tp-light"
+                onClick={() => setIsShare(true)}
+              >
                 <ShareIcon />
               </button>
               <p className="text-sm">공유</p>
+              {isShare && (
+                <ShareModal
+                  link={`${process.env.NEXT_PUBLIC_URL}/pullup/${markerId}`}
+                  className="absolute top-full -left-1/2 -translate-x-1/2"
+                  closeModal={() => setIsShare(false)}
+                  buttonRef={shareRef}
+                  lat={marker?.latitude as number}
+                  lng={marker?.longitude as number}
+                  filename={
+                    (marker?.address as string) || String(marker?.markerId)
+                  }
+                />
+              )}
             </div>
           </div>
         </div>
@@ -159,7 +178,7 @@ const MarkerOverlay = ({
               width={100}
               height={100}
               alt="상세"
-              className="rounded-sm mo:w-[80px] mo:h-[80px]"
+              className="rounded-sm w-[100px] h-[100px] w mo:w-[80px] mo:h-[80px] object-cover"
             />
           ) : (
             <Skeleton className="w-[100px] h-[100px] mo:w-[80px] mo:h-[80px]" />
@@ -171,19 +190,3 @@ const MarkerOverlay = ({
 };
 
 export default MarkerOverlay;
-
-// const changeRoadviewlocation = async () => {
-//   setRoadview(marker.latitude, marker.longitude);
-// };
-
-// const copyTextToClipboard = async () => {
-//   const url = `${process.env.NEXT_PUBLIC_URL}/pullup/${marker.markerId}`;
-//   try {
-//     await navigator.clipboard.writeText(url);
-//     toast({
-//       description: "링크 복사 완료",
-//     });
-//   } catch (err) {
-//     alert("잠시 후 다시 시도해 주세요!");
-//   }
-// };
