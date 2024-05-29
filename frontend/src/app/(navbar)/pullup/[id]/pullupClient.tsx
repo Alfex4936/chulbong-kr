@@ -4,6 +4,7 @@ import { FacilitiesRes } from "@/api/markers/getFacilities";
 import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
 import ErrorMessage from "@/components/atom/ErrorMessage";
 import LoadingSpinner from "@/components/atom/LoadingSpinner";
+import ShareModal from "@/components/common/ShareModal";
 import BookmarkIcon from "@/components/icons/BookmarkIcon";
 import ChatBubbleIcon from "@/components/icons/ChatBubbleIcon";
 import DeleteIcon from "@/components/icons/DeleteIcon";
@@ -104,6 +105,10 @@ const PullupClient = ({ markerId }: Props) => {
     isRouting: true,
   });
 
+  const [isShare, setIsShare] = useState(false);
+
+  const shareRef = useRef<HTMLDivElement>(null);
+
   const [isEditDesc, setIsEditDesc] = useState(false);
   const updateDescInput = useInput(marker?.description || "");
 
@@ -133,18 +138,6 @@ const PullupClient = ({ markerId }: Props) => {
       setMarker(null);
     };
   }, [marker]);
-
-  const copyTextToClipboard = async () => {
-    const url = `${process.env.NEXT_PUBLIC_URL}/pullup/${markerId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast({
-        description: "링크 복사 완료",
-      });
-    } catch (err) {
-      alert("잠시 후 다시 시도해 주세요!");
-    }
-  };
 
   if (isError)
     return (
@@ -195,12 +188,25 @@ const PullupClient = ({ markerId }: Props) => {
           }}
           disabled={setFavoritePending || deleteFavoritePending}
         />
-        <IconButton
-          right={10}
-          top={50}
-          icon={<ShareIcon />}
-          onClick={() => copyTextToClipboard()}
-        />
+        <div ref={shareRef} className="relative">
+          <IconButton
+            right={10}
+            top={50}
+            icon={<ShareIcon />}
+            onClick={() => setIsShare(true)}
+          />
+          {isShare && (
+            <ShareModal
+              link={`${process.env.NEXT_PUBLIC_URL}/pullup/${marker.markerId}`}
+              className="absolute top-[90px] right-[10px] z-[200]"
+              closeModal={() => setIsShare(false)}
+              buttonRef={shareRef}
+              lat={marker.latitude}
+              lng={marker.longitude}
+              filename={marker.address || String(marker.markerId)}
+            />
+          )}
+        </div>
         <IconButton
           right={10}
           top={90}
