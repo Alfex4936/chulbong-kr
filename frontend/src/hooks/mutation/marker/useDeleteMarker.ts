@@ -83,7 +83,6 @@ const useDeleteMarker = ({
     },
 
     onError: (error, _hero, context?: { previousMarkerData: Data }) => {
-      console.log(error);
       if (isAxiosError(error)) {
         if (error.response?.status === 401) {
           open();

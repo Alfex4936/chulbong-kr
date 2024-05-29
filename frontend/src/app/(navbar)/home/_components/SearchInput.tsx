@@ -72,7 +72,6 @@ const SearchInput = ({ sticky = false }: Props) => {
             else setResultModal(false);
           }}
           onFocus={(e) => {
-            console.log(e.target.value);
             if (e.target.value.length > 0) setResultModal(true);
             else setResultModal(false);
           }}

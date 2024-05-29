@@ -8,11 +8,11 @@ import usePageLoadingStore from "@/store/usePageLoadingStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
+import ShareModal from "../common/ShareModal";
 import BookmarkIcon from "../icons/BookmarkIcon";
 import RoadViewIcon from "../icons/RoadViewIcon";
 import ShareIcon from "../icons/ShareIcon";
 import { Skeleton } from "../ui/skeleton";
-import ShareModal from "../common/ShareModal";
 
 interface Props {
   markerId: number;
@@ -98,6 +98,7 @@ const MarkerOverlay = ({
           <div className="text-xs text-grey-dark mb-3">
             <button
               onClick={() => {
+                if (window.location.pathname === `/pullup/${markerId}`) return;
                 setLoading(true);
                 goDetail();
               }}
@@ -107,6 +108,8 @@ const MarkerOverlay = ({
             </button>
             <button
               onClick={() => {
+                if (window.location.pathname === `/pullup/${markerId}/report`)
+                  return;
                 setLoading(true);
                 goReport();
               }}

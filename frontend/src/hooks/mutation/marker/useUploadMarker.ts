@@ -11,7 +11,6 @@ const useUploadMarker = () => {
   return useMutation({
     mutationFn: setNewMarker,
     onError: (error) => {
-      console.log(error);
       if (isAxiosError(error)) {
         if (error.response?.status === 401) {
           open();

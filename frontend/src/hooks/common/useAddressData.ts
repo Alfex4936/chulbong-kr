@@ -30,7 +30,6 @@ const useAddressData = () => {
           depth3: data.region_3depth_name,
         });
       } catch (error) {
-        console.log(error);
         setIsError(true);
       }
     };

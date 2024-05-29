@@ -24,7 +24,6 @@ export const generateMetadata = async ({
 };
 
 const PullupChat = ({ params }: { params: { id: string } }) => {
-  console.log(params.id);
   return (
     <BlackSideBody toggle bodyClass="p-0 mo:p-0 mo:pb-20">
       <PullupChatClient markerId={Number(params.id)} />
