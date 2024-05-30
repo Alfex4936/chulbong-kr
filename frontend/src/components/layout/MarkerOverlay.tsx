@@ -1,4 +1,4 @@
-import { MOBILE_WIDTH } from "@/constants";
+import { MAP_LAT_DIF, MOBILE_WIDTH } from "@/constants";
 import useDeleteFavorite from "@/hooks/mutation/favorites/useDeleteFavorite";
 import useSetFavorite from "@/hooks/mutation/favorites/useSetFavorite";
 import useMarkerData from "@/hooks/query/marker/useMarkerData";
@@ -9,7 +9,7 @@ import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import ShareModal from "../common/ShareModal";
 import BookmarkIcon from "../icons/BookmarkIcon";
 import RoadViewIcon from "../icons/RoadViewIcon";
@@ -114,7 +114,7 @@ const MarkerOverlay = ({
             <button
               onClick={async () => {
                 const moveLatLon = new window.kakao.maps.LatLng(
-                  (lat as number) + 0.003,
+                  (lat as number) + MAP_LAT_DIF,
                   lng
                 );
 
@@ -142,7 +142,7 @@ const MarkerOverlay = ({
             <button
               onClick={async () => {
                 const moveLatLon = new window.kakao.maps.LatLng(
-                  (lat as number) + 0.003,
+                  (lat as number) + MAP_LAT_DIF,
                   lng
                 );
 

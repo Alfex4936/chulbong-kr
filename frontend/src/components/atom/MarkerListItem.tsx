@@ -1,3 +1,4 @@
+import { MAP_LAT_DIF } from "@/constants";
 import useMapStore from "@/store/useMapStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import { useRouter } from "next/navigation";
@@ -48,7 +49,7 @@ const MarkerListItem = ({
       onClick={() => {
         setLoading(true);
         const moveLatLon = new window.kakao.maps.LatLng(
-          (lat as number) + 0.003,
+          (lat as number) + MAP_LAT_DIF,
           lng
         );
 

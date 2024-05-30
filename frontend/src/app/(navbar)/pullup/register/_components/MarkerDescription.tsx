@@ -7,6 +7,7 @@ import MarkerOverlay from "@/components/layout/MarkerOverlay";
 import RQProvider from "@/components/provider/RQProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MAP_LAT_DIF } from "@/constants";
 import useInput from "@/hooks/common/useInput";
 import useMapControl from "@/hooks/common/useMapControl";
 import useSetFacilities from "@/hooks/mutation/marker/useSetFacilities";
@@ -143,12 +144,12 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
         const moveLatLon = new window.kakao.maps.LatLng(
-          (latitude as number) + 0.003,
+          (latitude as number) + MAP_LAT_DIF,
           longitude
         );
 
         map?.panTo(moveLatLon);
-        setPosition((latitude as number) + 0.003, longitude);
+        setPosition((latitude as number) + MAP_LAT_DIF, longitude);
 
         if (document.getElementsByClassName("overlay_1")[0]) {
           document.getElementsByClassName("overlay_1")[0].remove();

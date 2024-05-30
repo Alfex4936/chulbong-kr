@@ -6,8 +6,8 @@ import MapSearch from "@/components/map/MapSearch";
 import MiniMap from "@/components/map/MiniMap";
 import { Separator } from "@/components/ui/separator";
 import { type Marker } from "@/types/Marker.types";
-import MarkerDescription from "../../regist/_components/MarkerDescription";
-import UploadImage from "../../regist/_components/UploadImage";
+import MarkerDescription from "../../register/_components/MarkerDescription";
+import UploadImage from "../../register/_components/UploadImage";
 
 const getMarker = async (id: number): Promise<Marker> => {
   const res = await instance.get(
