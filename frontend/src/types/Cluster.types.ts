@@ -1,5 +1,6 @@
-import { CustomOverlay } from "./CustomOverlay.types";
-import { KakaoMarker } from "./KakaoMap.types";
+import { type MarkerRes } from "@/api/markers/getAllMarker";
+import { type CustomOverlay } from "./CustomOverlay.types";
+import { type KakaoMarker } from "./KakaoMap.types";
 
 export interface MarkerClusterer {
   /**
@@ -17,6 +18,10 @@ export interface MarkerClusterer {
    * @param nodraw 클러스터 redraw 여부. true인 경우 클러스터를 다시 그리지 않는다.
    */
   removeMarker(marker: KakaoMarker | CustomOverlay, nodraw?: boolean): void;
+  removeMarkers(
+    marker: KakaoMarker[] | CustomOverlay | MarkerRes[],
+    nodraw?: boolean
+  ): void;
 
   /**
    * 여러개의 마커를 추가한다.

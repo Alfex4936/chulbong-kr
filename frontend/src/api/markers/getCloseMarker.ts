@@ -2,7 +2,7 @@ import instance from "../instance";
 
 interface Props {
   lat: number;
-  lon: number;
+  lng: number;
   distance: number;
   pageParam: number;
 }
@@ -25,19 +25,15 @@ interface CloseMarkerRes {
 
 const getCloseMarker = async ({
   lat,
-  lon,
+  lng,
   distance,
   pageParam,
 }: Props): Promise<CloseMarkerRes> => {
-  try {
-    const res = await instance.get(
-      `/api/v1/markers/close?latitude=${lat}&longitude=${lon}&distance=${distance}&n=5&page=${pageParam}`
-    );
+  const res = await instance.get(
+    `/api/v1/markers/close?latitude=${lat}&longitude=${lng}&distance=${distance}&n=5&page=${pageParam}&pageSize=10`
+  );
 
-    return res.data;
-  } catch (error) {
-    throw error;
-  }
+  return res.data;
 };
 
 export default getCloseMarker;

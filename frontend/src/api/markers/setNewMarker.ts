@@ -1,4 +1,4 @@
-import type { Marker } from "../../types/Marker.types";
+import type { Marker } from "@/types/Marker.types";
 import instance from "../instance";
 
 export interface SetMarkerReq {
@@ -24,15 +24,11 @@ const setNewMarker = async (multipart: SetMarkerReq): Promise<SetMarkerRes> => {
   formData.append("longitude", multipart.longitude.toString());
   formData.append("description", multipart.description);
 
-  try {
-    const res = await instance.post(`/api/v1/markers/new`, formData, {
-      withCredentials: true,
-    });
+  const res = await instance.post(`/api/v1/markers/new`, formData, {
+    withCredentials: true,
+  });
 
-    return res.data;
-  } catch (error) {
-    throw error;
-  }
+  return res.data;
 };
 
 export default setNewMarker;

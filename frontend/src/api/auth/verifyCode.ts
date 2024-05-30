@@ -11,16 +11,12 @@ const verifyCode = async ({ email, code }: Props): Promise<string> => {
   formData.append("email", email);
   formData.append("token", code);
 
-  try {
-    const res = await instance.post(
-      `/api/v1/auth/verify-email/confirm`,
-      formData
-    );
+  const res = await instance.post(
+    `/api/v1/auth/verify-email/confirm`,
+    formData
+  );
 
-    return res.data;
-  } catch (error) {
-    throw error;
-  }
+  return res.data;
 };
 
 export default verifyCode;

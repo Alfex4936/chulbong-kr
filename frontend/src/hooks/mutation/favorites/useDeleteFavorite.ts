@@ -1,13 +1,15 @@
+import deleteFavorite from "@/api/favorite/deleteFavorite";
+import { useToast } from "@/components/ui/use-toast";
+import type { Marker } from "@/types/Marker.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Marker } from "../../../types/Marker.types";
-import deleteFavorites from "../../../api/favorite/deleteFavorites";
 
 const useDeleteFavorite = (id: number) => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: () => {
-      return deleteFavorites(id);
+      return deleteFavorite(id);
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["marker", id] });
@@ -16,6 +18,8 @@ const useDeleteFavorite = (id: number) => {
         "marker",
         id,
       ]) as Marker;
+
+      if (!previousMarkerData) return;
 
       if (previousMarkerData.favCount) {
         queryClient.setQueryData(["marker", id], {
@@ -34,6 +38,7 @@ const useDeleteFavorite = (id: number) => {
     },
 
     onError(_error, _hero, context?: { previousMarkerData: Marker }) {
+      toast({ description: "잠시 후 다시 시도해주세요." });
       if (context?.previousMarkerData) {
         queryClient.setQueryData(["marker", id], context.previousMarkerData);
       }
@@ -41,7 +46,7 @@ const useDeleteFavorite = (id: number) => {
 
     onSettled() {
       queryClient.invalidateQueries({ queryKey: ["marker", id] });
-      queryClient.invalidateQueries({ queryKey: ["favorite"] });
+      queryClient.invalidateQueries({ queryKey: ["marker", "bookmark"] });
     },
   });
 };

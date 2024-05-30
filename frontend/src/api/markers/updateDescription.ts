@@ -5,15 +5,11 @@ const updateDescription = async (desc: string, id: number) => {
 
   formData.append("description", desc);
 
-  try {
-    const res = await instance.put(`/api/v1/markers/${id}`, formData, {
-      withCredentials: true,
-    });
+  const res = await instance.put(`/api/v1/markers/${id}`, formData, {
+    withCredentials: true,
+  });
 
-    return res.data;
-  } catch (error) {
-    throw error;
-  }
+  return res.data;
 };
 
 export default updateDescription;
