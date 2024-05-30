@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Color, Scene, Fog, PerspectiveCamera, Vector3 } from "three";
-import ThreeGlobe from "three-globe";
-import { useThree, Object3DNode, Canvas, extend } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
 import countries from "@/data/globe.json";
+import { globeConfig } from "@/data/globeConfig";
+import { OrbitControls } from "@react-three/drei";
+import { Canvas, Object3DNode, extend, useThree } from "@react-three/fiber";
+import { useEffect, useRef, useState } from "react";
+import { Color, Fog, PerspectiveCamera, Scene, Vector3 } from "three";
+import ThreeGlobe from "three-globe";
+
 declare module "@react-three/fiber" {
   interface ThreeElements {
     threeGlobe: Object3DNode<ThreeGlobe, typeof ThreeGlobe>;
@@ -232,12 +234,33 @@ export function Globe({ globeConfig, data }: WorldProps) {
 }
 
 export function WebGLRendererConfig() {
-  const { gl, size } = useThree();
+  const { gl, size, camera } = useThree();
 
   useEffect(() => {
+    const getInitCoords = (lat: number, lng: number, alt: number) => {
+      const latRad = (lat * Math.PI) / 180;
+      const lngRad = (lng * Math.PI) / 180;
+
+      const x = alt * Math.cos(latRad) * Math.sin(lngRad);
+      const y = alt * Math.sin(latRad);
+      const z = alt * Math.cos(latRad) * Math.cos(lngRad);
+
+      return { x, y, z };
+    };
+
     gl.setPixelRatio(window.devicePixelRatio);
     gl.setSize(size.width, size.height);
     gl.setClearColor(0xffaaff, 0);
+
+    const { x, y, z } = getInitCoords(
+      globeConfig.initialPosition.lat,
+      globeConfig.initialPosition.lng,
+      cameraZ
+    );
+
+    camera.position.x = x;
+    camera.position.y = y;
+    camera.position.z = z;
   }, []);
 
   return null;
@@ -247,6 +270,7 @@ export function World(props: WorldProps) {
   const { globeConfig } = props;
   const scene = new Scene();
   scene.fog = new Fog(0xffffff, 400, 2000);
+
   return (
     <Canvas scene={scene} camera={new PerspectiveCamera(50, aspect, 180, 1800)}>
       <WebGLRendererConfig />
@@ -270,8 +294,6 @@ export function World(props: WorldProps) {
         enableZoom={false}
         minDistance={cameraZ}
         maxDistance={cameraZ}
-        autoRotateSpeed={1}
-        autoRotate={true}
         minPolarAngle={Math.PI / 3.5}
         maxPolarAngle={Math.PI - Math.PI / 3}
       />

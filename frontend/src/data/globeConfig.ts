@@ -16,7 +16,7 @@ export const globeConfig = {
   arcLength: 0.9,
   rings: 1,
   maxRings: 3,
-  initialPosition: { lat: 22.3193, lng: 114.1694 },
+  initialPosition: { lat: 33.450701, lng: 126.570667 },
   autoRotate: true,
   autoRotateSpeed: 0.5,
 };
