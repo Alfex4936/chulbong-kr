@@ -28,7 +28,7 @@ const Ranking = async () => {
   return (
     <div>
       <HydrationBoundary state={dehydrateState}>
-        <Tabs title="랭킹" tabs={["TOP10", "주변"]}>
+        <Tabs title="랭킹" tabs={["전체", "주변"]}>
           <RankingResult />
         </Tabs>
       </HydrationBoundary>

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import useLogin from "@/hooks/mutation/auth/useLogin";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isAxiosError } from "axios";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -28,6 +29,11 @@ const formSchema = z.object({
 });
 
 const SigninForm = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const redirect = searchParams.get("redirect");
+
   const { mutateAsync: login, isPending } = useLogin();
 
   const [errorMessage, setErrorMessage] = useState("");
@@ -87,10 +93,17 @@ const SigninForm = () => {
         />
         <Button
           type="submit"
-          className="bg-black-light-2 hover:bg-black-light text-grey"
+          className="bg-black-light-2 hover:bg-black-light text-grey mr-2"
           disabled={isPending}
         >
           {isPending ? <LoadingSpinner size="xs" /> : "로그인"}
+        </Button>
+        <Button
+          type="button"
+          className="bg-grey-dark text-black hover:bg-grey-light"
+          onClick={() => router.push(redirect || "/home")}
+        >
+          취소
         </Button>
       </form>
     </Form>
