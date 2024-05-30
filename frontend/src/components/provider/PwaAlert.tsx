@@ -31,6 +31,26 @@ const isRunningStandalone = (): boolean => {
   );
 };
 
+const getDeviceType = (): DeviceType => {
+  const userAgent = navigator.userAgent;
+
+  if (/iPad|iPhone|iPod/.test(userAgent)) {
+    if (/CriOS/.test(userAgent)) {
+      return "IOS Chrome";
+    }
+    if (/Safari/.test(userAgent) && !/CriOS/.test(userAgent)) {
+      return "IOS Safari";
+    }
+    return "IOS";
+  }
+
+  if (/android/i.test(userAgent)) {
+    return "Android";
+  }
+
+  return "Web";
+};
+
 const PwaAlert = () => {
   const [alert, setAlert] = useState(false);
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -39,6 +59,7 @@ const PwaAlert = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   const [downInfo, setDownInfo] = useState(false);
+  const [deviceType, setDeviceType] = useState<DeviceType>("Web");
 
   useEffect(() => {
     const handlePrompt = (e: BeforeInstallPromptEvent) => {
@@ -54,15 +75,14 @@ const PwaAlert = () => {
       }
     };
 
+    setDeviceType(getDeviceType());
     if (isRunningStandalone()) {
       setIsApp(true);
     } else {
       setIsApp(false);
     }
 
-    if (
-      getDeviceType() === ("IOS" || "Android" || "IOS Chrome" || "IOS Safari")
-    ) {
+    if (["IOS", "Android", "IOS Chrome", "IOS Safari"].includes(deviceType)) {
       setIsMobile(true);
     } else {
       setIsMobile(false);
@@ -77,27 +97,7 @@ const PwaAlert = () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("beforeinstallprompt", handlePrompt);
     };
-  }, []);
-
-  const getDeviceType = (): DeviceType => {
-    const userAgent = navigator.userAgent;
-
-    if (/iPad|iPhone|iPod/.test(userAgent)) {
-      if (/CriOS/.test(userAgent)) {
-        return "IOS Chrome";
-      }
-      if (/Safari/.test(userAgent) && !/CriOS/.test(userAgent)) {
-        return "IOS Safari";
-      }
-      return "IOS";
-    }
-
-    if (/android/i.test(userAgent)) {
-      return "Android";
-    }
-
-    return "Web";
-  };
+  }, [deviceType]);
 
   const handleInstallClick = () => {
     if (prompt) {
