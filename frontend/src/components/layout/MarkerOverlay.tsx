@@ -27,7 +27,8 @@ const MarkerOverlay = ({
   goDetail,
   goReport,
 }: Props) => {
-  const { open: openMobileMap } = useMobileMapOpenStore();
+  const { open: openMobileMap, close: closeMoblieMap } =
+    useMobileMapOpenStore();
   const { open: roadviewOpen, setPosition: setRoadview } =
     useRoadviewStatusStore();
 
@@ -99,6 +100,9 @@ const MarkerOverlay = ({
             <button
               onClick={() => {
                 if (window.location.pathname === `/pullup/${markerId}`) return;
+                if (window.innerWidth <= MOBILE_WIDTH) {
+                  closeMoblieMap();
+                }
                 setLoading(true);
                 goDetail();
               }}
@@ -108,8 +112,12 @@ const MarkerOverlay = ({
             </button>
             <button
               onClick={() => {
-                if (window.location.pathname === `/pullup/${markerId}/report`)
+                if (window.location.pathname === `/pullup/${markerId}/report`) {
                   return;
+                }
+                if (window.innerWidth <= MOBILE_WIDTH) {
+                  closeMoblieMap();
+                }
                 setLoading(true);
                 goReport();
               }}
