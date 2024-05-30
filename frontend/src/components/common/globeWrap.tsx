@@ -4,6 +4,7 @@ import { globeArcs, globeConfig } from "@/data/globeConfig";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 const World = dynamic(() => import("../ui/globe").then((m) => m.World), {
   ssr: false,
@@ -11,6 +12,14 @@ const World = dynamic(() => import("../ui/globe").then((m) => m.World), {
 
 export const GlobeWrap = () => {
   const router = useRouter();
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      router.push("/home");
+    }, 3300);
+
+    return () => clearTimeout(timeout);
+  }, []);
 
   return (
     <div className="flex flex-row items-center justify-center h-screen relative w-full">
@@ -30,11 +39,11 @@ export const GlobeWrap = () => {
           className="div mb-10"
         >
           <h2 className="text-center text-xl md:text-4xl font-bold text-black dark:text-white">
-            대한민국 모든 지도
+            대한민국 철봉 지도
           </h2>
-          <p className="text-center text-base md:text-lg font-normal text-neutral-700 dark:text-neutral-200 max-w-md mt-2 mx-auto">
+          {/* <p className="text-center text-base md:text-lg font-normal text-neutral-700 dark:text-neutral-200 max-w-md mt-2 mx-auto">
             다른 사람들과 함께 원하는 위치를 등록하고 공유하세요!
-          </p>
+          </p> */}
         </motion.div>
         <motion.div
           initial={{
