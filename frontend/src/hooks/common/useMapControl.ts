@@ -1,3 +1,4 @@
+import { MAP_LAT_DIF } from "@/constants";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMiniMapStatusStore from "@/store/useMiniMapStatusStore";
@@ -37,17 +38,17 @@ const useMapControl = () => {
   const moveLocation = async (lat: number, lng: number, mini?: boolean) => {
     if (mini) {
       const moveLatLon = new window.kakao.maps.LatLng(
-        (lat as number) + 0.003,
+        (lat as number) + MAP_LAT_DIF,
         lng
       );
 
       miniMap?.panTo(moveLatLon);
     } else {
       const moveLatLon = new window.kakao.maps.LatLng(
-        (lat as number) + 0.003,
+        (lat as number) + MAP_LAT_DIF,
         lng
       );
-      setPosition((lat as number) + 0.003, lng as number);
+      setPosition((lat as number) + MAP_LAT_DIF, lng as number);
       map?.panTo(moveLatLon);
       open();
     }

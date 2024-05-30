@@ -1,5 +1,6 @@
 "use client";
 
+import { MAP_LAT_DIF } from "@/constants";
 import useMyGps from "@/hooks/common/useMyGps";
 import useAllMarkerData from "@/hooks/query/marker/useAllMarkerData";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
@@ -169,12 +170,12 @@ const Map = () => {
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
         const moveLatLon = new window.kakao.maps.LatLng(
-          (marker.latitude as number) + 0.003,
+          (marker.latitude as number) + MAP_LAT_DIF,
           marker.longitude
         );
 
         newMap?.panTo(moveLatLon);
-        setPosition((marker.latitude as number) + 0.003, marker.longitude);
+        setPosition((marker.latitude as number) + MAP_LAT_DIF, marker.longitude);
 
         if (document.getElementsByClassName("overlay_1")[0]) {
           document.getElementsByClassName("overlay_1")[0].remove();
@@ -269,7 +270,7 @@ const Map = () => {
       };
 
       const moveLatLon = new window.kakao.maps.LatLng(
-        (lat as number) + 0.003,
+        (lat as number) + MAP_LAT_DIF,
         lng
       );
       map.relayout();
@@ -306,7 +307,7 @@ const Map = () => {
   useEffect(() => {
     if (!map) return;
     const moveLatLon = new window.kakao.maps.LatLng(
-      (lat as number) + 0.003,
+      (lat as number) + MAP_LAT_DIF,
       lng
     );
     map.relayout();

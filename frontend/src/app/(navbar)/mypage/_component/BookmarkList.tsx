@@ -19,6 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { MAP_LAT_DIF } from "@/constants";
 import useDeleteFavorite from "@/hooks/mutation/favorites/useDeleteFavorite";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
@@ -58,11 +59,11 @@ const BookmarkList = ({
 
   const moveLocation = useCallback(() => {
     const moveLatLon = new window.kakao.maps.LatLng(
-      (lat as number) + 0.003,
+      (lat as number) + MAP_LAT_DIF,
       lng
     );
 
-    setPosition((lat as number) + 0.003, lng as number);
+    setPosition((lat as number) + MAP_LAT_DIF, lng as number);
     map?.panTo(moveLatLon);
     open();
   }, [lat, lng, map]);
@@ -101,7 +102,7 @@ const BookmarkList = ({
       onClick={() => {
         setLoading(true);
         const moveLatLon = new window.kakao.maps.LatLng(
-          (lat as number) + 0.003,
+          (lat as number) + MAP_LAT_DIF,
           lng
         );
         map?.panTo(moveLatLon);
