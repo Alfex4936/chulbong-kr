@@ -1,7 +1,9 @@
 "use client";
 
+import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
 import MarkerListItem from "@/components/atom/MarkerListItem";
 import { Skeleton } from "@/components/ui/skeleton";
+import useMyGps from "@/hooks/common/useMyGps";
 import useAreaMarkerRankingData from "@/hooks/query/marker/useAreaMarkerRankingData";
 import useMarkerRankingData from "@/hooks/query/marker/useMarkerRankingData";
 import useMapStatusStore from "@/store/useMapStatusStore";
@@ -11,6 +13,7 @@ import getAddress, { type AddressInfo } from "@/utils/getAddress";
 import { useEffect, useState } from "react";
 
 const RankingResult = () => {
+  const { centerMapOnCurrentPositionAsync } = useMyGps();
   const { map } = useMapStore();
   const { lat, lng } = useMapStatusStore();
   const { curTab } = useTabStore();
@@ -49,6 +52,20 @@ const RankingResult = () => {
           >
             새로고침
           </button>
+          <div className="mb-1">
+            <EmojiHoverButton
+              className="bg-black-light-2 px-3"
+              emoji="🔍"
+              text="내 위치"
+              subText="내 위치를 기반으로 검색"
+              onClickFn={() => {
+                centerMapOnCurrentPositionAsync(() => areaRankingRefetch());
+              }}
+            />
+          </div>
+          <div className="text-sm text-grey-dark text-center mt-3 mb-2">
+            {address} 주변 랭킹
+          </div>
           <div className="text-sm">잠시 후 다시 시도해 주세요!</div>
         </div>
       );
@@ -63,6 +80,20 @@ const RankingResult = () => {
           >
             새로고침
           </button>
+          <div className="mb-1">
+            <EmojiHoverButton
+              className="bg-black-light-2 px-3"
+              emoji="🔍"
+              text="내 위치"
+              subText="내 위치를 기반으로 검색"
+              onClickFn={() => {
+                centerMapOnCurrentPositionAsync(() => areaRankingRefetch());
+              }}
+            />
+          </div>
+          <div className="text-sm text-grey-dark text-center mt-3 mb-2">
+            {address} 주변 랭킹
+          </div>
           <div className="text-sm">순위에 등록된 위치가 없습니다.</div>
         </div>
       );
@@ -76,9 +107,21 @@ const RankingResult = () => {
         >
           새로고침
         </button>
+        <div className="mb-1">
+          <EmojiHoverButton
+            className="bg-black-light-2 px-3"
+            emoji="🔍"
+            text="내 위치"
+            subText="내 위치를 기반으로 검색"
+            onClickFn={() => {
+              centerMapOnCurrentPositionAsync(() => areaRankingRefetch());
+            }}
+          />
+        </div>
         <div className="text-sm text-grey-dark text-center mt-3 mb-1">
           {address} 주변 랭킹
         </div>
+
         {areaRanking?.map((marker, index) => {
           return (
             <MarkerListItem

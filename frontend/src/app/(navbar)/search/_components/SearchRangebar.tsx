@@ -1,16 +1,16 @@
 "use client";
 
+import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
 import ErrorMessage from "@/components/atom/ErrorMessage";
+import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import SearchIcon from "@/components/icons/SearchIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import useAddressData from "@/hooks/common/useAddressData";
 import useMyGps from "@/hooks/common/useMyGps";
 import useCloseMarkerData from "@/hooks/query/marker/useCloseMarkerData";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import { useEffect, useRef, useState } from "react";
 import MylocateList from "../../mypage/_component/MylocateList";
-import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
-import useAddressData from "@/hooks/common/useAddressData";
-import LoadingSpinner from "@/components/atom/LoadingSpinner";
 
 const SearchRangebar = () => {
   const { lat, lng } = useMapStatusStore();
@@ -95,7 +95,7 @@ const SearchRangebar = () => {
         </button>
       </div>
 
-      <div className="text-center mb-1 w-full h-8">
+      <div className="text-sm text-grey-dark text-center mb-1 w-full h-8">
         {!addressLoading && (
           <>
             <span>{getAddressText()}</span>
@@ -106,10 +106,10 @@ const SearchRangebar = () => {
 
       <div className="mb-2">
         <EmojiHoverButton
-          className="bg-black-light-2"
+          className="bg-black-light-2 px-3"
           emoji="🔍"
           text="내 위치"
-          subText="현재 위치를 기반으로 검색"
+          subText="내 위치를 기반으로 검색"
           onClickFn={() => {
             centerMapOnCurrentPositionAsync(() => refetch());
           }}
