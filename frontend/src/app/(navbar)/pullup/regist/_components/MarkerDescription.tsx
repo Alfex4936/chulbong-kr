@@ -12,10 +12,11 @@ import useMapControl from "@/hooks/common/useMapControl";
 import useSetFacilities from "@/hooks/mutation/marker/useSetFacilities";
 import useUploadMarker from "@/hooks/mutation/marker/useUploadMarker";
 import useReportMarker from "@/hooks/mutation/report/useReportMarker";
+import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useUploadFormDataStore from "@/store/useUploadFormDataStore";
 import { isAxiosError } from "axios";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -26,8 +27,6 @@ interface Props {
 }
 
 const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
-  const pathname = usePathname();
-
   const descriptionValue = useInput(desc ? desc : "");
 
   const router = useRouter();
@@ -35,6 +34,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
   const { mutateAsync: setFacilities } = useSetFacilities();
   const { mutateAsync: uploadMarker } = useUploadMarker();
   const { clusterer, map, setMarkers, markers, setOverlay } = useMapStore();
+  const { setPosition } = useMapStatusStore();
   const { filterMarker, moveLocation } = useMapControl();
 
   const [loading, setLoading] = useState(false);
@@ -131,6 +131,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
       );
 
       const overlayDiv = document.createElement("div");
+      overlayDiv.classList.add("overlay_1");
       const root = createRoot(overlayDiv);
 
       const newMarker = new window.kakao.maps.Marker({
@@ -141,8 +142,16 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
       });
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
-        if (document.getElementsByClassName("overlay")[0]) {
-          document.getElementsByClassName("overlay")[0].remove();
+        const moveLatLon = new window.kakao.maps.LatLng(
+          (latitude as number) + 0.003,
+          longitude
+        );
+
+        map?.panTo(moveLatLon);
+        setPosition((latitude as number) + 0.003, longitude);
+
+        if (document.getElementsByClassName("overlay_1")[0]) {
+          document.getElementsByClassName("overlay_1")[0].remove();
         }
 
         const latlng = new window.kakao.maps.LatLng(latitude, longitude);
@@ -174,6 +183,8 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
               closeOverlay={closeOverlay}
               goDetail={goDetail}
               goReport={goReport}
+              lat={result.latitude}
+              lng={result.longitude}
             />
           </RQProvider>
         );

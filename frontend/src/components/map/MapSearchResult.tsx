@@ -30,15 +30,17 @@ const MapSearchResult = ({
   const moveLocation = useCallback(
     (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       e.stopPropagation();
-      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
-
+      const moveLatLon = new window.kakao.maps.LatLng(
+        (lat as number) + 0.003,
+        lng
+      );
       setResultModal(false);
 
       if (mini) {
-        minimap?.setCenter(moveLatLon);
+        minimap?.panTo(moveLatLon);
         return;
       }
-      map?.setCenter(moveLatLon);
+      map?.panTo(moveLatLon);
     },
     [lat, lng, map]
   );

@@ -36,13 +36,19 @@ const useMapControl = () => {
 
   const moveLocation = async (lat: number, lng: number, mini?: boolean) => {
     if (mini) {
-      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
-      miniMap?.setCenter(moveLatLon);
-    } else {
-      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+      const moveLatLon = new window.kakao.maps.LatLng(
+        (lat as number) + 0.003,
+        lng
+      );
 
-      setPosition(lat as number, lng as number);
-      map?.setCenter(moveLatLon);
+      miniMap?.panTo(moveLatLon);
+    } else {
+      const moveLatLon = new window.kakao.maps.LatLng(
+        (lat as number) + 0.003,
+        lng
+      );
+      setPosition((lat as number) + 0.003, lng as number);
+      map?.panTo(moveLatLon);
       open();
     }
   };

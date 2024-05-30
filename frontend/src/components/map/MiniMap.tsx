@@ -19,7 +19,6 @@ const MiniMap = ({ isMarker = false, latitude, longitude }: Props) => {
   const { setPosition: setFormPosition } = useUploadFormDataStore();
 
   const [mapOver, setMapOver] = useState(true);
-  const [isClickMap, setIsClickMap] = useState(false);
 
   const [address, setAddress] = useState("");
 
@@ -36,7 +35,7 @@ const MiniMap = ({ isMarker = false, latitude, longitude }: Props) => {
     if (!loaded) return;
 
     const options = {
-      center: new window.kakao.maps.LatLng(lat, lng),
+      center: new window.kakao.maps.LatLng(latitude || lat, longitude || lng),
       level: level,
       maxLevel: 12,
     };
@@ -91,13 +90,8 @@ const MiniMap = ({ isMarker = false, latitude, longitude }: Props) => {
   return (
     <div
       className="relative"
-      // onMouseEnter={() => {
-      //   if (isClickMap) return;
-      //   setMapOver(true);
-      // }}
       onMouseLeave={() => {
         setMapOver(true);
-        setIsClickMap(false);
       }}
     >
       {mapOver && (
@@ -105,7 +99,6 @@ const MiniMap = ({ isMarker = false, latitude, longitude }: Props) => {
           className="absolute top-0 left-0 w-full h-72 z-50 bg-black-tp-dark flex items-center justify-center text-2xl cursor-pointer"
           onClick={() => {
             setDraggable(true);
-            setIsClickMap(true);
             setMapOver(false);
           }}
         >

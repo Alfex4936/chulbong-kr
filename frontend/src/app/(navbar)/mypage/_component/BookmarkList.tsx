@@ -57,10 +57,13 @@ const BookmarkList = ({
   const alertRef = useRef<HTMLButtonElement>(null);
 
   const moveLocation = useCallback(() => {
-    const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+    const moveLatLon = new window.kakao.maps.LatLng(
+      (lat as number) + 0.003,
+      lng
+    );
 
-    setPosition(lat as number, lng as number);
-    map?.setCenter(moveLatLon);
+    setPosition((lat as number) + 0.003, lng as number);
+    map?.panTo(moveLatLon);
     open();
   }, [lat, lng, map]);
 
@@ -97,6 +100,11 @@ const BookmarkList = ({
       className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 cursor-pointer hover:scale-95`}
       onClick={() => {
         setLoading(true);
+        const moveLatLon = new window.kakao.maps.LatLng(
+          (lat as number) + 0.003,
+          lng
+        );
+        map?.panTo(moveLatLon);
         router.push(`/pullup/${markerId}`);
       }}
     >
