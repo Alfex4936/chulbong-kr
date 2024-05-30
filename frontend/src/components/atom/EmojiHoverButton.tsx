@@ -1,9 +1,9 @@
 "use client";
 
-import { ComponentProps } from "react";
-import GrowBox from "./GrowBox";
+import { cn } from "@/lib/utils";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import { useRouter } from "next/navigation";
+import GrowBox from "./GrowBox";
 
 interface Props {
   emoji?: string;
@@ -12,6 +12,7 @@ interface Props {
   center?: boolean;
   url?: string;
   onClickFn?: VoidFunction;
+  className?: string;
 }
 
 const EmojiHoverButton = ({
@@ -21,6 +22,7 @@ const EmojiHoverButton = ({
   center,
   url,
   onClickFn,
+  className,
 }: Props) => {
   const router = useRouter();
 
@@ -28,7 +30,10 @@ const EmojiHoverButton = ({
 
   return (
     <button
-      className="block w-full text-left group rounded-sm mb-3 px-1 py-2 hover:bg-black-light-2 mo:text-sm"
+      className={cn(
+        "block w-full text-left group rounded-sm mb-3 px-1 py-2 hover:bg-black-light-2 mo:text-sm",
+        className
+      )}
       onClick={() => {
         if (!url && onClickFn) {
           onClickFn();

@@ -1,12 +1,12 @@
 "use client";
 
+import useMyGps from "@/hooks/common/useMyGps";
 import useAllMarkerData from "@/hooks/query/marker/useAllMarkerData";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import useSelectedMarkerStore from "@/store/useSelectedMarkerStore";
-import { type CustomOverlay } from "@/types/CustomOverlay.types";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -19,7 +19,6 @@ import { Separator } from "../ui/separator";
 import MapButtons from "./MapButtons";
 import MapLoading from "./MapLoading";
 import MapSearch from "./MapSearch";
-import MyLocateOverlay from "./MyLocateOverlay";
 
 const Map = () => {
   const pathname = usePathname();
@@ -28,6 +27,7 @@ const Map = () => {
   const path1 = pathname.split("/")[1];
 
   const { marker: selectedMarker } = useSelectedMarkerStore();
+  const { centerMapOnCurrentPosition } = useMyGps();
 
   const { isOpen: isMobileMapOpen } = useMobileMapOpenStore();
   const { lat, lng, level, setLevel, setPosition } = useMapStatusStore();
@@ -46,10 +46,6 @@ const Map = () => {
   const { data: markers } = useAllMarkerData();
 
   const [mapLoading, setMapLoading] = useState(true);
-
-  const [currentOverlay, setCurrentOverlay] = useState<CustomOverlay | null>(
-    null
-  ); // GPS 현재 위치
 
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -303,44 +299,6 @@ const Map = () => {
     map.relayout();
     map.setCenter(moveLatLon);
   }, [map]);
-
-  const centerMapOnCurrentPosition = () => {
-    if (map && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const moveLatLon = new window.kakao.maps.LatLng(
-            position.coords.latitude,
-            position.coords.longitude
-          );
-
-          if (currentOverlay) {
-            currentOverlay.setMap(null);
-          }
-
-          const overlayDiv = document.createElement("div");
-          const root = createRoot(overlayDiv);
-          root.render(<MyLocateOverlay />);
-
-          const customOverlay = new window.kakao.maps.CustomOverlay({
-            position: moveLatLon,
-            content: overlayDiv,
-            zIndex: 10,
-          });
-
-          customOverlay.setMap(map);
-          setCurrentOverlay(customOverlay);
-
-          setPosition(position.coords.latitude, position.coords.longitude);
-          map.setCenter(moveLatLon);
-        },
-        () => {
-          alert("잠시 후 다시 시도해주세요.");
-        }
-      );
-    } else {
-      alert("잠시 후 다시 시도해주세요.");
-    }
-  };
 
   const zoomIn = () => {
     const level = map?.getLevel();
