@@ -13,11 +13,13 @@ const useAddressData = () => {
   const positionState = useMapStatusStore();
   const [address, setAddress] = useState<AddressViewInfo | null>(null);
   const [isError, setIsError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { map } = useMapStore();
 
   useEffect(() => {
     if (!map) return;
     const fetch = async () => {
+      setIsLoading(true);
       try {
         const data = (await getAddress(
           positionState.lat,
@@ -31,13 +33,15 @@ const useAddressData = () => {
         });
       } catch (error) {
         setIsError(true);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetch();
   }, [positionState.lat, positionState.lng, map]);
 
-  return { address, isError };
+  return { address, isError, isLoading };
 };
 
 export default useAddressData;
