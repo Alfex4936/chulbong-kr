@@ -103,10 +103,10 @@ const MarkerOverlay = ({
             <button
               onClick={() => {
                 if (!isBodyOpen) bodyOpen();
-                if (window.location.pathname === `/pullup/${markerId}`) return;
                 if (window.innerWidth <= MOBILE_WIDTH) {
                   closeMoblieMap();
                 }
+                if (window.location.pathname === `/pullup/${markerId}`) return;
 
                 setLoading(true);
                 goDetail();
@@ -118,11 +118,11 @@ const MarkerOverlay = ({
             <button
               onClick={() => {
                 if (!isBodyOpen) bodyOpen();
-                if (window.location.pathname === `/pullup/${markerId}/report`) {
-                  return;
-                }
                 if (window.innerWidth <= MOBILE_WIDTH) {
                   closeMoblieMap();
+                }
+                if (window.location.pathname === `/pullup/${markerId}/report`) {
+                  return;
                 }
 
                 setLoading(true);
