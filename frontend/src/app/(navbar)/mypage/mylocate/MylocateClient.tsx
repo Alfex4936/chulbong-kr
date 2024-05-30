@@ -53,7 +53,7 @@ const MylocateClient = () => {
   return (
     <div>
       <LinkEmojiButton
-        url="/pullup/regist"
+        url="/pullup/register"
         text="위치 등록"
         subText="위치를 등록하고 다른 사람들과 공유하세요!"
         emoji="🚩"
