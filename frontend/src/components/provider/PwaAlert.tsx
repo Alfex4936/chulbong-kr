@@ -60,7 +60,9 @@ const PwaAlert = () => {
       setIsApp(false);
     }
 
-    if (getDeviceType() === ("IOS" || "Android")) {
+    if (
+      getDeviceType() === ("IOS" || "Android" || "IOS Chrome" || "IOS Safari")
+    ) {
       setIsMobile(true);
     } else {
       setIsMobile(false);
