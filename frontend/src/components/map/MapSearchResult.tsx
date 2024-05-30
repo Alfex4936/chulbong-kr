@@ -1,3 +1,4 @@
+import { MAP_LAT_DIF } from "@/constants";
 import useMapStore from "@/store/useMapStore";
 import useMiniMapStatusStore from "@/store/useMiniMapStatusStore";
 import { ComponentProps, useCallback } from "react";
@@ -31,7 +32,7 @@ const MapSearchResult = ({
     (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       e.stopPropagation();
       const moveLatLon = new window.kakao.maps.LatLng(
-        (lat as number) + 0.003,
+        (lat as number) + MAP_LAT_DIF,
         lng
       );
       setResultModal(false);
