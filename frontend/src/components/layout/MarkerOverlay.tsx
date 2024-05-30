@@ -3,6 +3,7 @@ import useDeleteFavorite from "@/hooks/mutation/favorites/useDeleteFavorite";
 import useSetFavorite from "@/hooks/mutation/favorites/useSetFavorite";
 import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import useWeatherData from "@/hooks/query/marker/useWeatherData";
+import useBodyToggleStore from "@/store/useBodyToggleStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
@@ -31,6 +32,8 @@ const MarkerOverlay = ({
     useMobileMapOpenStore();
   const { open: roadviewOpen, setPosition: setRoadview } =
     useRoadviewStatusStore();
+
+  const { open: bodyOpen, isOpen: isBodyOpen } = useBodyToggleStore();
 
   const { data: marker } = useMarkerData(markerId);
   const { data: weather, isLoading: isWeatherLoading } = useWeatherData(
@@ -94,15 +97,17 @@ const MarkerOverlay = ({
               {marker.description || "작성된 설명이 없습니다."}
             </p>
           ) : (
-            <Skeleton className="w-1/3 h-6 mo:mx-auto" />
+            <Skeleton className="w-1/3 h-6 mo:mx-auto mo:mb-1" />
           )}
           <div className="text-xs text-grey-dark mb-3">
             <button
               onClick={() => {
+                if (!isBodyOpen) bodyOpen();
                 if (window.location.pathname === `/pullup/${markerId}`) return;
                 if (window.innerWidth <= MOBILE_WIDTH) {
                   closeMoblieMap();
                 }
+
                 setLoading(true);
                 goDetail();
               }}
@@ -112,12 +117,14 @@ const MarkerOverlay = ({
             </button>
             <button
               onClick={() => {
+                if (!isBodyOpen) bodyOpen();
                 if (window.location.pathname === `/pullup/${markerId}/report`) {
                   return;
                 }
                 if (window.innerWidth <= MOBILE_WIDTH) {
                   closeMoblieMap();
                 }
+
                 setLoading(true);
                 goReport();
               }}

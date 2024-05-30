@@ -32,6 +32,9 @@ const useMyGps = () => {
 
           customOverlay.setMap(map);
           setMyLocateOverlay(customOverlay);
+
+          setPosition(position.coords.latitude, position.coords.longitude);
+          map.setCenter(moveLatLon);
         },
         () => {
           alert("잠시 후 다시 시도해주세요.");
