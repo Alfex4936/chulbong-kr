@@ -426,7 +426,7 @@ const PullupClient = ({ markerId }: Props) => {
                   <AlertDialogTitle>리뷰 작성하기</AlertDialogTitle>
                 </AlertDialogHeader>
                 <Textarea
-                  className="resize-none"
+                  className="resize-none text-base"
                   value={commentInput.value}
                   onChange={(e) => {
                     commentInput.handleChange(e);
