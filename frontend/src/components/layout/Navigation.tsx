@@ -26,7 +26,7 @@ const Navigation = () => {
                   mo:min-w-80 mo:justify-between mo:ml-auto mo:mr-auto mo:rounded-xl mo:bg-black-light"
       >
         <Link
-          href={"/"}
+          href={"/home"}
           className="text-grey text-center w-10 mt-2 mb-6 mo:hidden"
         >
           <Image

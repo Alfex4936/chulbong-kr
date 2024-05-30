@@ -100,7 +100,7 @@ const MarkerReportList = ({
   return (
     <BlackLightBox className="relative">
       <div className="flex items-center mb-2">
-        {myId && userId === myId && (
+        {marker?.isChulbong && (
           <AlertButton
             ButtonText={
               deleteReportPending ? (
