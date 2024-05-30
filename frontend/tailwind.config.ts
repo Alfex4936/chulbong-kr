@@ -108,6 +108,14 @@ const config = {
           from: { transform: "translateX(-100%)" },
           to: { transform: "translateX(0)" },
         },
+        "bottom-top": {
+          from: { bottom: "0",},
+          to: { bottom: "60px" },
+        },
+        "bottom-top2": {
+          from: { bottom: "0",},
+          to: { bottom: "80px" },
+        },
         spotlight: {
           "0%": {
             opacity: "0",
@@ -138,6 +146,8 @@ const config = {
         spotlight: "spotlight 2s ease .75s 1 forwards",
         ripple: "ripple 2s infinite",
         shimmer: "shimmer 2s linear infinite",
+        "bottom-top": "bottom-top .5s ease-out forwards",
+        "bottom-top2": "bottom-top2 .5s ease-out forwards",
       },
     },
   },
