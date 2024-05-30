@@ -17,6 +17,7 @@ export interface KakaoMap {
   getCenter: () => LatLngFunctions;
   setLevel: (level: number) => void;
   setCenter: (pos: Pos) => LatLngFunctions;
+  panTo: (pos: Pos) => LatLngFunctions;
   getLevel: () => number;
   relayout: VoidFunction;
   addOverlayMapTypeId: (data: any) => void;
