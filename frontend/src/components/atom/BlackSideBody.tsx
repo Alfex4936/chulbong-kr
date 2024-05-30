@@ -22,7 +22,7 @@ type Props = {
 const BlackSideBody = ({ children, toggle, bodyClass, className }: Props) => {
   const pathname = usePathname();
 
-  const { isActive } = useScrollButtonStore();
+  const { isActive, setIsActive } = useScrollButtonStore();
   const { isOpen, open } = useBodyToggleStore();
   const { isLoading, setLoading, setVisible } = usePageLoadingStore();
 
@@ -30,6 +30,7 @@ const BlackSideBody = ({ children, toggle, bodyClass, className }: Props) => {
 
   useEffect(() => {
     setLoading(false);
+    setIsActive(false);
   }, []);
 
   useEffect(() => {
