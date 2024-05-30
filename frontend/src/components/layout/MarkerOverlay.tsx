@@ -4,11 +4,12 @@ import useSetFavorite from "@/hooks/mutation/favorites/useSetFavorite";
 import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import useWeatherData from "@/hooks/query/marker/useWeatherData";
 import useBodyToggleStore from "@/store/useBodyToggleStore";
+import useMapStore from "@/store/useMapStore";
 import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import useRoadviewStatusStore from "@/store/useRoadviewStatusStore";
 import Image from "next/image";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ShareModal from "../common/ShareModal";
 import BookmarkIcon from "../icons/BookmarkIcon";
 import RoadViewIcon from "../icons/RoadViewIcon";
@@ -17,6 +18,8 @@ import { Skeleton } from "../ui/skeleton";
 
 interface Props {
   markerId: number;
+  lat: number;
+  lng: number;
   closeOverlay: VoidFunction;
   goDetail: VoidFunction;
   goReport: VoidFunction;
@@ -24,10 +27,14 @@ interface Props {
 
 const MarkerOverlay = ({
   markerId,
+  lat,
+  lng,
   closeOverlay,
   goDetail,
   goReport,
 }: Props) => {
+  const { map } = useMapStore();
+
   const { open: openMobileMap, close: closeMoblieMap } =
     useMobileMapOpenStore();
   const { open: roadviewOpen, setPosition: setRoadview } =
@@ -61,6 +68,10 @@ const MarkerOverlay = ({
     }
     await changeRoadviewlocation();
     roadviewOpen();
+  };
+
+  const openBody = async () => {
+    bodyOpen();
   };
 
   return (
@@ -101,8 +112,21 @@ const MarkerOverlay = ({
           )}
           <div className="text-xs text-grey-dark mb-3">
             <button
-              onClick={() => {
-                if (!isBodyOpen) bodyOpen();
+              onClick={async () => {
+                const moveLatLon = new window.kakao.maps.LatLng(
+                  (lat as number) + 0.003,
+                  lng
+                );
+
+                if (!isBodyOpen) {
+                  await openBody();
+                  setTimeout(() => {
+                    map?.panTo(moveLatLon);
+                  }, 200);
+                } else {
+                  map?.panTo(moveLatLon);
+                }
+
                 if (window.innerWidth <= MOBILE_WIDTH) {
                   closeMoblieMap();
                 }
@@ -116,8 +140,21 @@ const MarkerOverlay = ({
               상세보기
             </button>
             <button
-              onClick={() => {
-                if (!isBodyOpen) bodyOpen();
+              onClick={async () => {
+                const moveLatLon = new window.kakao.maps.LatLng(
+                  (lat as number) + 0.003,
+                  lng
+                );
+
+                if (!isBodyOpen) {
+                  await openBody();
+                  setTimeout(() => {
+                    map?.panTo(moveLatLon);
+                  }, 200);
+                } else {
+                  map?.panTo(moveLatLon);
+                }
+
                 if (window.innerWidth <= MOBILE_WIDTH) {
                   closeMoblieMap();
                 }

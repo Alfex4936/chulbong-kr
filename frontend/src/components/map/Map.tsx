@@ -153,6 +153,7 @@ const Map = () => {
     if (sClusterer) sClusterer.clear();
 
     const overlayDiv = document.createElement("div");
+    overlayDiv.classList.add("overlay_1");
     const root = createRoot(overlayDiv);
 
     const newMarkers = markers?.map((marker) => {
@@ -167,8 +168,16 @@ const Map = () => {
       });
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
-        if (document.getElementsByClassName("overlay")[0]) {
-          document.getElementsByClassName("overlay")[0].remove();
+        const moveLatLon = new window.kakao.maps.LatLng(
+          (marker.latitude as number) + 0.003,
+          marker.longitude
+        );
+
+        newMap?.panTo(moveLatLon);
+        setPosition((marker.latitude as number) + 0.003, marker.longitude);
+
+        if (document.getElementsByClassName("overlay_1")[0]) {
+          document.getElementsByClassName("overlay_1")[0].remove();
         }
 
         const latlng = new window.kakao.maps.LatLng(
@@ -203,6 +212,8 @@ const Map = () => {
               closeOverlay={closeOverlay}
               goDetail={goDetail}
               goReport={goReport}
+              lat={marker.latitude}
+              lng={marker.longitude}
             />
           </RQProvider>
         );
@@ -258,10 +269,9 @@ const Map = () => {
       };
 
       const moveLatLon = new window.kakao.maps.LatLng(
-        selectedMarker.lat,
-        selectedMarker.lng
+        (lat as number) + 0.003,
+        lng
       );
-
       map.relayout();
 
       resizeTime = setTimeout(() => {
@@ -270,14 +280,15 @@ const Map = () => {
         filterClickMarker();
       }, 200);
     } else {
-      const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
-
-      map.relayout();
-
-      resizeTime = setTimeout(() => {
-        map.setCenter(moveLatLon);
-        map.relayout();
-      }, 200);
+      // const moveLatLon = new window.kakao.maps.LatLng(
+      //   (lat as number) + 0.003,
+      //   lng
+      // );
+      // map.relayout();
+      // resizeTime = setTimeout(() => {
+      //   map.setCenter(moveLatLon);
+      //   map.relayout();
+      // }, 200);
     }
     return () => clearTimeout(resizeTime);
   }, [mapLoading, map, isMobileMapOpen, path1, selectedMarker]);
@@ -294,8 +305,10 @@ const Map = () => {
 
   useEffect(() => {
     if (!map) return;
-    const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
-
+    const moveLatLon = new window.kakao.maps.LatLng(
+      (lat as number) + 0.003,
+      lng
+    );
     map.relayout();
     map.setCenter(moveLatLon);
   }, [map]);

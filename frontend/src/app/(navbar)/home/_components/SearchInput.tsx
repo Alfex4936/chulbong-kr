@@ -7,6 +7,7 @@ import useSearch from "@/hooks/query/search/useSearch";
 import { useEffect, useRef, useState } from "react";
 import { ImCancelCircle } from "react-icons/im";
 import SearchResult from "./SearchResult";
+// TODO: 나중에 search result 위치 오면 지도 먼저 이동
 
 interface Props {
   mini?: boolean;
