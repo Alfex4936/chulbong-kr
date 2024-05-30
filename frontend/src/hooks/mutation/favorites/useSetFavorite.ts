@@ -1,8 +1,14 @@
+import setFavorite from "@/api/favorite/setFavorite";
+import { useToast } from "@/components/ui/use-toast";
+import useLoginModalStateStore from "@/store/useLoginModalStateStore";
+import type { Marker } from "@/types/Marker.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Marker } from "../../../types/Marker.types";
-import setFavorite from "../../../api/favorite/setFavorite";
+import { isAxiosError } from "axios";
 
 const useSetFavorite = (id: number) => {
+  const { open } = useLoginModalStateStore();
+  const { toast } = useToast();
+
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -34,7 +40,17 @@ const useSetFavorite = (id: number) => {
       return { previousMarkerData };
     },
 
-    onError(_error, _hero, context?: { previousMarkerData: Marker }) {
+    onError(error, _hero, context?: { previousMarkerData: Marker }) {
+      if (isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          open();
+        } else {
+          toast({ description: "잠시 후 다시 시도해 주세요." });
+        }
+      } else {
+        toast({ description: "잠시 후 다시 시도해 주세요." });
+      }
+      // open();
       if (context?.previousMarkerData) {
         queryClient.setQueryData(["marker", id], context.previousMarkerData);
       }
@@ -42,7 +58,7 @@ const useSetFavorite = (id: number) => {
 
     onSettled() {
       queryClient.invalidateQueries({ queryKey: ["marker", id] });
-      queryClient.invalidateQueries({ queryKey: ["favorite"] });
+      queryClient.invalidateQueries({ queryKey: ["marker", "bookmark"] });
     },
   });
 };

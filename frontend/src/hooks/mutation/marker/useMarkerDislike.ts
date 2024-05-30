@@ -1,8 +1,13 @@
+import markerDislike from "@/api/markers/markerDislike";
+import { useToast } from "@/components/ui/use-toast";
+import useLoginModalStateStore from "@/store/useLoginModalStateStore";
+import type { Marker } from "@/types/Marker.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import markerDislike from "../../../api/markers/markerDislike";
-import type { Marker } from "../../../types/Marker.types";
+import { isAxiosError } from "axios";
 
 const useMarkerDislike = (id: number) => {
+  const { open } = useLoginModalStateStore();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -34,7 +39,16 @@ const useMarkerDislike = (id: number) => {
       return { previousMarkerData };
     },
 
-    onError(_error, _hero, context?: { previousMarkerData: Marker }) {
+    onError(error, _hero, context?: { previousMarkerData: Marker }) {
+      if (isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          open();
+        } else {
+          toast({ description: "잠시 후 다시 시도해 주세요." });
+        }
+      } else {
+        toast({ description: "잠시 후 다시 시도해 주세요." });
+      }
       if (context?.previousMarkerData) {
         queryClient.setQueryData(["marker", id], context.previousMarkerData);
       }

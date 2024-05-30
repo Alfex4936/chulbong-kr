@@ -1,16 +1,16 @@
 import { Marker } from "@/types/Marker.types";
 import instance from "../instance";
 
-export type MarkerRes = Pick<Marker, "markerId" | "latitude" | "longitude">;
+// ${process.env.NEXT_PUBLIC_BASE_URL}
+export type MarkerRes = Pick<
+  Marker,
+  "markerId" | "latitude" | "longitude" | "address"
+>;
 
 const getAllMarker = async (): Promise<MarkerRes[]> => {
-  try {
-    const res = await instance.get(`/api/v1/markers`);
+  const res = await instance.get(`/api/v1/markers`);
 
-    return res.data;
-  } catch (error) {
-    throw error;
-  }
+  return res.data;
 };
 
 export default getAllMarker;

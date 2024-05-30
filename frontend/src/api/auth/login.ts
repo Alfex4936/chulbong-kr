@@ -12,13 +12,9 @@ export interface LoginRes {
 }
 
 const login = async (body: LoginReq): Promise<LoginRes> => {
-  try {
-    const res = await instance.post(`/api/v1/auth/login`, body);
+  const res = await instance.post(`/api/v1/auth/login`, body);
 
-    return res.data;
-  } catch (error) {
-    throw error;
-  }
+  return res.data;
 };
 
 export default login;

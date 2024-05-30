@@ -5,13 +5,9 @@ const sendVerifyCode = async (email: string): Promise<string> => {
 
   formData.append("email", email);
 
-  try {
-    const res = await instance.post(`/api/v1/auth/verify-email/send`, formData);
+  const res = await instance.post(`/api/v1/auth/verify-email/send`, formData);
 
-    return res.data;
-  } catch (error) {
-    throw error;
-  }
+  return res.data;
 };
 
 export default sendVerifyCode;
