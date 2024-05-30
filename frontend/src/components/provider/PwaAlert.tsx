@@ -120,7 +120,7 @@ const PwaAlert = () => {
     <div className="absolute top-0 left-0 w-dvw h-dvh bg-white-tp-light z-[900]">
       {downInfo ? (
         <>
-          {getDeviceType() === "IOS" || "IOS Chrome" ? (
+          {deviceType === "IOS" || deviceType === "IOS Chrome" ? (
             <>
               <div className="absolute left-1/2 -translate-x-1/2 top-28 w-[90%] bg-black-light-2 z-[1000] p-4 rounded-md">
                 <button
