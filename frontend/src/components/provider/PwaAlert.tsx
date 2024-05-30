@@ -195,7 +195,6 @@ const PwaAlert = () => {
           </div>
         </>
       )}
-      <div>{getDeviceType()}</div>
     </div>
   );
 };
