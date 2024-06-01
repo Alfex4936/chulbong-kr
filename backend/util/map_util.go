@@ -152,11 +152,9 @@ func transformWGS84ToKoreaTM(d, e, h, f, c, l, m, lat, lon float64) (float64, fl
 	lRad := l * radiansPerDegree
 	mRad := m * radiansPerDegree
 
-	var w float64
+	w := 1 / e
 	if e > 1 {
 		w = e
-	} else {
-		w = 1 / e
 	}
 
 	z := d * (w - 1) / w

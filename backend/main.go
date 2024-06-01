@@ -20,6 +20,16 @@ import (
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/Alfex4936/tzf"
+	"github.com/blevesearch/bleve/v2"
+	_ "github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
+	_ "github.com/blevesearch/bleve/v2/analysis/char/html"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/cjk"
+	_ "github.com/blevesearch/bleve/v2/analysis/token/edgengram"
+	_ "github.com/blevesearch/bleve/v2/analysis/token/ngram"
+	_ "github.com/blevesearch/bleve/v2/analysis/token/unicodenorm"
+	_ "github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
+	_ "github.com/blevesearch/bleve/v2/index/upsidedown/store/boltdb"
+
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
 
@@ -374,6 +384,10 @@ func NewTimeZoneFinder() (tzf.F, error) {
 	return finder, nil
 }
 
+func NewBleveIndex() (bleve.Index, error) {
+	return bleve.Open("markers.bleve")
+}
+
 // MAIN Fx
 func main() {
 	// Load environment variables from a .env file if not in production
@@ -403,6 +417,7 @@ func main() {
 			NewRedis,
 			NewWsConfig,
 			NewTimeZoneFinder,
+			NewBleveIndex,
 			// NewGeminiClient,
 			// NewLavinMqClient,
 

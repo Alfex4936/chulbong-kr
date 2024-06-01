@@ -54,6 +54,7 @@ var (
 			service.NewRedisService,
 			service.NewS3Service,
 			service.NewZincSearchService,
+			service.NewBleveSearchService,
 			service.NewSmtpService,
 		),
 	)
