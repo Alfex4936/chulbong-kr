@@ -10,14 +10,18 @@ import (
 )
 
 type SearchHandler struct {
-	SearchService *service.ZincSearchService
+	SearchService      *service.ZincSearchService
+	BleveSearchService *service.BleveSearchService
 }
 
 // NewSearchHandler creates a new SearchHandler with dependencies injected
-func NewSearchHandler(rank *service.ZincSearchService,
+func NewSearchHandler(
+	zinc *service.ZincSearchService,
+	bleve *service.BleveSearchService,
 ) *SearchHandler {
 	return &SearchHandler{
-		SearchService: rank,
+		SearchService:      zinc,
+		BleveSearchService: bleve,
 	}
 }
 
@@ -25,7 +29,8 @@ func NewSearchHandler(rank *service.ZincSearchService,
 func RegisterSearchRoutes(api fiber.Router, handler *SearchHandler) {
 	searchGroup := api.Group("/search")
 	{
-		searchGroup.Get("/marker", handler.HandleSearchMarkerAddress)
+		searchGroup.Get("/marker", handler.HandleBleveSearchMarkerAddress)
+		// searchGroup.Get("/marker-zinc", handler.HandleSearchMarkerAddress)
 		// searchGroup.Post("/marker", handler.HandleInsertMarkerAddressTest)
 		// searchGroup.Delete("", handler.HandleDeleteMarkerAddressTest)
 	}
@@ -43,6 +48,27 @@ func (h *SearchHandler) HandleSearchMarkerAddress(c *fiber.Ctx) error {
 
 	// Call the service function
 	response, err := h.SearchService.SearchMarkerAddress(term)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+// Handler for searching marker addresses (using bleve)
+func (h *SearchHandler) HandleBleveSearchMarkerAddress(c *fiber.Ctx) error {
+	term := c.Query("term")
+	term = strings.TrimSpace(term)
+	if term == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "search term is required",
+		})
+	}
+
+	// Call the service function
+	response, err := h.BleveSearchService.SearchMarkerAddress(term)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),

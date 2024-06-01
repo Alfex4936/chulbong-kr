@@ -27,6 +27,7 @@ type MarkerManageService struct {
 	MarkerLocationService *MarkerLocationService
 	S3Service             *S3Service
 	ZincSearchService     *ZincSearchService
+	BleveSearchService    *BleveSearchService
 
 	MapUtil     *util.MapUtil
 	BadWordUtil *util.BadWordUtil
@@ -43,6 +44,7 @@ type MarkerManageServiceParams struct {
 	MarkerLocationService *MarkerLocationService
 	S3Service             *S3Service
 	ZincSearchService     *ZincSearchService
+	BleveSearchService    *BleveSearchService
 	MapUtil               *util.MapUtil
 	BadWordUtil           *util.BadWordUtil
 }
@@ -54,6 +56,7 @@ func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
 		MarkerLocationService: p.MarkerLocationService,
 		S3Service:             p.S3Service,
 		ZincSearchService:     p.ZincSearchService,
+		BleveSearchService:    p.BleveSearchService,
 		MapUtil:               p.MapUtil,
 		BadWordUtil:           p.BadWordUtil,
 	}
@@ -87,6 +90,8 @@ func (s *MarkerManageService) GetAllMarkers() ([]dto.MarkerSimple, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)
 	}
+
+	// go s.MarkerLocationService.Redis.AddGeoMarkers(markers)
 
 	return markers, nil
 }
@@ -456,7 +461,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 			log.Printf("Failed to update address for marker %d: %v", markerID, err)
 		}
 
-		go s.ZincSearchService.InsertMarkerIndex(dto.MarkerIndexData{MarkerID: int(markerID), Address: address})
+		go s.BleveSearchService.InsertMarkerIndex(dto.MarkerIndexData{MarkerID: int(markerID), Address: address})
 		// userIDstr := strconv.Itoa(userID)
 		// updateMsg := fmt.Sprintf("새로운 철봉이 [ %s ]에 등록되었습니다!", address)
 		// metadata := notification.NotificationMarkerMetadata{
@@ -598,7 +603,7 @@ func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string
 	}(photoURLs)
 
 	s.SetCache(nil)
-	go s.ZincSearchService.DeleteMarkerIndex(strconv.Itoa(markerID))
+	go s.BleveSearchService.DeleteMarkerIndex(strconv.Itoa(markerID))
 
 	return nil
 }

@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/config"
+	"github.com/Alfex4936/chulbong-kr/dto"
 
 	"github.com/goccy/go-json"
 	"github.com/redis/rueidis"
@@ -114,4 +117,86 @@ func (s *RedisService) ResetAllCache(pattern string) error {
 	}
 
 	return nil
+}
+
+// REDIS GEO
+func (s *RedisService) AddGeoMarker(key string, lat float64, lon float64) error {
+	ctx := context.Background()
+	geoAddCmd := s.Core.Client.B().Geoadd().Key("geo:markers").LongitudeLatitudeMember().LongitudeLatitudeMember(lon, lat, key).Build()
+	return s.Core.Client.Do(ctx, geoAddCmd).Error()
+}
+
+func (s *RedisService) AddGeoMarkers(markers []dto.MarkerSimple) error {
+	ctx := context.Background()
+
+	// Check the number of existing members
+	zcardCmd := s.Core.Client.B().Zcard().Key("geo:markers").Build()
+	count, err := s.Core.Client.Do(ctx, zcardCmd).AsInt64()
+	if err != nil {
+		return err
+	}
+
+	// If there are already 10 or more members, do not add new markers
+	if count >= 10 {
+		//  s.FindNearbyMarkersMeter(37.568166, 126.974102, 5000)
+
+		return nil
+	}
+
+	// Add markers
+	for _, marker := range markers {
+		geoAddCmd := s.Core.Client.B().Geoadd().Key("geo:markers").LongitudeLatitudeMember().LongitudeLatitudeMember(marker.Longitude, marker.Latitude, strconv.Itoa(marker.MarkerID)).Build()
+		if err := s.Core.Client.Do(ctx, geoAddCmd).Error(); err != nil {
+			continue
+		}
+	}
+
+	return nil
+}
+
+func (s *RedisService) RemoveGeoMarker(key string) error {
+	ctx := context.Background()
+	zremCmd := s.Core.Client.B().Zrem().Key("geo:markers").Member(key).Build()
+	return s.Core.Client.Do(ctx, zremCmd).Error()
+}
+
+func (s *RedisService) RemoveGeoAllMarkers() error {
+	ctx := context.Background()
+	delCmd := s.Core.Client.B().Del().Key("geo:markers").Build()
+	return s.Core.Client.Do(ctx, delCmd).Error()
+}
+
+func (s *RedisService) FindNearbyMarkersKM(lat float64, lon float64, radius float64) ([]rueidis.GeoLocation, error) {
+	ctx := context.Background()
+
+	// Manually build the GEOSEARCH command with the correct casing
+	cmd := s.Core.Client.B().Arbitrary("GEOSEARCH").
+		Keys("geo:markers").
+		Args("FROMLONLAT", fmt.Sprintf("%f", lon), fmt.Sprintf("%f", lat), "BYRADIUS", fmt.Sprintf("%f", radius), "KM", "ASC", "WITHCOORD", "WITHDIST").
+		Build()
+
+	// Execute the command
+	result, err := s.Core.Client.Do(ctx, cmd).AsGeosearch()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (s *RedisService) FindNearbyMarkersMeter(lat float64, lon float64, radius float64) ([]rueidis.GeoLocation, error) {
+	ctx := context.Background()
+	// Manually build the GEOSEARCH command with the correct casing
+	cmd := s.Core.Client.B().Arbitrary("GEOSEARCH").
+		Keys("geo:markers").
+		Args("FROMLONLAT", fmt.Sprintf("%f", lon), fmt.Sprintf("%f", lat), "BYRADIUS", fmt.Sprintf("%f", radius), "M", "ASC", "WITHCOORD", "WITHDIST").
+		Build()
+
+	// Execute the command
+	result, err := s.Core.Client.Do(ctx, cmd).AsGeosearch()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

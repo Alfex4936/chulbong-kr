@@ -255,7 +255,7 @@ func (s *MarkerRankService) ResetAndRandomizeClickRanking() {
 		markers[i], markers[j] = markers[j], markers[i]
 	})
 
-	numMarkers := rand.IntN(6) + 4 // 4 ~ 9
+	numMarkers := rand.IntN(10) + 5
 
 	selectedMarkers := markers[:numMarkers]
 
