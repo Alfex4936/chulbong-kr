@@ -36,7 +36,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
   const { mutateAsync: uploadMarker } = useUploadMarker();
   const { clusterer, map, setMarkers, markers, setOverlay } = useMapStore();
   const { setPosition } = useMapStatusStore();
-  const { filterMarker, moveLocation } = useMapControl();
+  const { moveLocation } = useMapControl();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -159,7 +159,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
         const overlay = new window.kakao.maps.CustomOverlay({
           position: latlng,
           content: overlayDiv,
-          zIndex: 5,
+          zIndex: 11,
         });
 
         setOverlay(overlay);
@@ -196,9 +196,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
       clusterer?.addMarker(newMarker);
 
       setMarkers(newMarkers);
-
-      await filterMarker(result.markerId);
-      await moveLocation(latitude, longitude);
+      moveLocation({ lat: latitude, lng: longitude, isfilter: true });
 
       router.push(`/pullup/${result.markerId}`);
     } catch (error) {

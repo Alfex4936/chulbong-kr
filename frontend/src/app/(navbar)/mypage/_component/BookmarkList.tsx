@@ -19,14 +19,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MAP_LAT_DIF } from "@/constants";
+import useMapControl from "@/hooks/common/useMapControl";
 import useDeleteFavorite from "@/hooks/mutation/favorites/useDeleteFavorite";
-import useMapStatusStore from "@/store/useMapStatusStore";
-import useMapStore from "@/store/useMapStore";
-import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useRef } from "react";
 
 type Props = {
   title: string;
@@ -48,64 +45,23 @@ const BookmarkList = ({
   const router = useRouter();
 
   const { setLoading } = usePageLoadingStore();
-
-  const { open } = useMobileMapOpenStore();
-  const { setPosition } = useMapStatusStore();
-  const { map, markers } = useMapStore();
   const { mutate: deleteBookmark, isPending: deletePending } =
     useDeleteFavorite(markerId);
+  const { moveLocation } = useMapControl();
 
   const alertRef = useRef<HTMLButtonElement>(null);
-
-  const moveLocation = useCallback(() => {
-    const moveLatLon = new window.kakao.maps.LatLng(
-      (lat as number) + MAP_LAT_DIF,
-      lng
-    );
-
-    setPosition((lat as number) + MAP_LAT_DIF, lng as number);
-    map?.panTo(moveLatLon);
-    open();
-  }, [lat, lng, map]);
-
-  const filterClickMarker = () => {
-    if (!markers) return;
-    const imageSize = new window.kakao.maps.Size(39, 39);
-    const imageOption = { offset: new window.kakao.maps.Point(27, 45) };
-
-    const selectedMarkerImg = new window.kakao.maps.MarkerImage(
-      "/selectedMarker.svg",
-      imageSize,
-      imageOption
-    );
-
-    const activeMarkerImg = new window.kakao.maps.MarkerImage(
-      "/activeMarker.svg",
-      imageSize,
-      imageOption
-    );
-
-    markers.forEach((marker) => {
-      if (Number(marker.getTitle()) === markerId) {
-        marker.setImage(selectedMarkerImg);
-      } else {
-        marker.setImage(activeMarkerImg);
-      }
-    });
-
-    moveLocation();
-  };
 
   return (
     <li
       className={`flex w-full items-center p-4 rounded-sm mb-2 duration-100 hover:bg-zinc-700 cursor-pointer hover:scale-95`}
       onClick={() => {
         setLoading(true);
-        const moveLatLon = new window.kakao.maps.LatLng(
-          (lat as number) + MAP_LAT_DIF,
-          lng
-        );
-        map?.panTo(moveLatLon);
+        moveLocation({
+          lat: lat as number,
+          lng: lng as number,
+          isfilter: true,
+          markerId: markerId,
+        });
         router.push(`/pullup/${markerId}`);
       }}
     >
@@ -155,13 +111,7 @@ const BookmarkList = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-            >
-              취소
-            </AlertDialogCancel>
+            <AlertDialogCancel>취소</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.stopPropagation();
@@ -184,12 +134,7 @@ const BookmarkList = ({
 
       <TooltipProvider delayDuration={100}>
         <Tooltip>
-          <TooltipTrigger
-            onClick={(e) => {
-              e.stopPropagation();
-              filterClickMarker();
-            }}
-          >
+          <TooltipTrigger>
             <div>
               <LocationIcon selected={false} size={18} />
             </div>

@@ -205,7 +205,7 @@ const RankingResult = () => {
           />
         );
       })}
-      {sliceData && (
+      {sliceData && viewData.length >= 10 && (
         <div className="relative w-full h-[.4px] bg-grey-dark-1 mt-8 mb-10">
           <button
             className="absolute -top-8 left-1/2 -translate-x-1/2 translate-y-1/2 w-16 h-8 text-sm
