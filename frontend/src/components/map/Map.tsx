@@ -189,7 +189,7 @@ const Map = () => {
         const overlay = new window.kakao.maps.CustomOverlay({
           position: latlng,
           content: overlayDiv,
-          zIndex: 5,
+          zIndex: 11,
         });
 
         setOverlay(overlay);
