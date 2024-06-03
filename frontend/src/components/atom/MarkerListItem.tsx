@@ -1,5 +1,4 @@
-import { MAP_LAT_DIF } from "@/constants";
-import useMapStore from "@/store/useMapStore";
+import useMapControl from "@/hooks/common/useMapControl";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import { useRouter } from "next/navigation";
 import { ComponentProps } from "react";
@@ -38,8 +37,8 @@ const MarkerListItem = ({
 }: Props) => {
   const router = useRouter();
 
+  const { moveLocation } = useMapControl();
   const { setLoading } = usePageLoadingStore();
-  const { map } = useMapStore();
 
   return (
     <button
@@ -48,12 +47,12 @@ const MarkerListItem = ({
       } rounded-sm mb-2 duration-100 hover:bg-zinc-700 hover:scale-95`}
       onClick={() => {
         setLoading(true);
-        const moveLatLon = new window.kakao.maps.LatLng(
-          (lat as number) + MAP_LAT_DIF,
-          lng
-        );
-
-        map?.panTo(moveLatLon);
+        moveLocation({
+          lat: lat as number,
+          lng: lng as number,
+          isfilter: true,
+          markerId: markerId,
+        });
         router.push(`pullup/${markerId}`);
       }}
       {...props}
