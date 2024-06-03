@@ -35,7 +35,21 @@ const useMapControl = () => {
     });
   };
 
-  const moveLocation = async (lat: number, lng: number, mini?: boolean) => {
+  interface MoveLocationProps {
+    lat: number;
+    lng: number;
+    mini?: boolean;
+    isfilter?: boolean;
+    markerId?: number;
+  }
+
+  const moveLocation = async ({
+    lat,
+    lng,
+    mini,
+    isfilter,
+    markerId,
+  }: MoveLocationProps) => {
     if (mini) {
       const moveLatLon = new window.kakao.maps.LatLng(
         (lat as number) + MAP_LAT_DIF,
@@ -44,6 +58,8 @@ const useMapControl = () => {
 
       miniMap?.panTo(moveLatLon);
     } else {
+      map?.setLevel(3);
+
       const moveLatLon = new window.kakao.maps.LatLng(
         (lat as number) + MAP_LAT_DIF,
         lng
@@ -52,6 +68,8 @@ const useMapControl = () => {
       map?.panTo(moveLatLon);
       open();
     }
+
+    if (isfilter && markerId) filterMarker(markerId);
   };
 
   return { filterMarker, moveLocation };

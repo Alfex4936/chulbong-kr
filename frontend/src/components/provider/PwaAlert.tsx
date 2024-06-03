@@ -1,5 +1,6 @@
 "use client";
 
+import usePWAAlertStore from "@/store/usePWAAlertStore";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { LuUpload } from "react-icons/lu";
@@ -52,6 +53,8 @@ const getDeviceType = (): DeviceType => {
 };
 
 const PwaAlert = () => {
+  const { fst, setFstTrue } = usePWAAlertStore();
+
   const [alert, setAlert] = useState(false);
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
@@ -68,7 +71,7 @@ const PwaAlert = () => {
     };
 
     const handleResize = () => {
-      if (window.innerWidth <= 540) {
+      if (window.innerWidth <= 540 && !fst) {
         setAlert(true);
       } else {
         setAlert(false);
@@ -97,13 +100,14 @@ const PwaAlert = () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("beforeinstallprompt", handlePrompt);
     };
-  }, [deviceType]);
+  }, [deviceType, fst]);
 
   const handleInstallClick = () => {
     if (prompt) {
       prompt.prompt();
       prompt.userChoice.then(() => {
         setPrompt(null);
+        setFstTrue();
       });
     } else {
       if (isMobile) {
@@ -125,7 +129,10 @@ const PwaAlert = () => {
               <div className="absolute left-1/2 -translate-x-1/2 top-28 w-[90%] bg-black-light-2 z-[1000] p-4 rounded-md">
                 <button
                   className="absolute top-1 right-2"
-                  onClick={() => setAlert(false)}
+                  onClick={() => {
+                    setFstTrue();
+                    setAlert(false);
+                  }}
                 >
                   X
                 </button>
@@ -188,7 +195,10 @@ const PwaAlert = () => {
             </button>
             <button
               className="text-sm underline text-grey-dark text-center w-full"
-              onClick={() => setAlert(false)}
+              onClick={() => {
+                setFstTrue();
+                setAlert(false);
+              }}
             >
               웹으로 계속 보기
             </button>
