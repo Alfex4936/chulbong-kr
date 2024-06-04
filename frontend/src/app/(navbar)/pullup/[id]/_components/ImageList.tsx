@@ -1,14 +1,15 @@
 import useMarkerImageStore from "@/store/useMarkerImageStore";
 import { type Photo } from "@/types/Marker.types";
-import ImageWrap from "./ImageWrap";
 import { useEffect } from "react";
+import ImageWrap from "./ImageWrap";
 
 type Props = {
   photos?: Photo[];
 };
 
 const ImageList = ({ photos }: Props) => {
-  const { setImages, setCurImage, openImageModal } = useMarkerImageStore();
+  const { setImages, setCurImage, openImageModal, setCurImageIndex } =
+    useMarkerImageStore();
 
   useEffect(() => {
     if (!photos) return;
@@ -28,6 +29,7 @@ const ImageList = ({ photos }: Props) => {
                   key={photo.photoId}
                   className="w-full"
                   onClick={() => {
+                    setCurImageIndex(i);
                     setCurImage(photo);
                     openImageModal();
                   }}
@@ -45,6 +47,7 @@ const ImageList = ({ photos }: Props) => {
                   key={photo.photoId}
                   className="w-full"
                   onClick={() => {
+                    setCurImageIndex(i);
                     setCurImage(photo);
                     openImageModal();
                   }}
