@@ -11,20 +11,24 @@ interface MarkerImageState {
   imageView: boolean;
   images: Image[] | null;
   curImage: Image | null;
+  curImageIndex: number;
   setImages: (images: Image[]) => void;
   setCurImage: (curImage: Image) => void;
+  setCurImageIndex: (curImageIndex: number) => void;
   openImageModal: VoidFunction;
   closeImageModal: VoidFunction;
   nextImage: VoidFunction;
   prevImage: VoidFunction;
 }
-// (state)=>({...state, imageView: false })
+
 const useMarkerImageStore = create<MarkerImageState>()((set) => ({
   images: null,
   imageView: false,
   curImage: null,
+  curImageIndex: -1,
   setImages: (images: Image[]) => set({ images }),
   setCurImage: (curImage: Image) => set({ curImage }),
+  setCurImageIndex: (curImageIndex: number) => set({ curImageIndex }),
   openImageModal: () => set({ imageView: true }),
   closeImageModal: () => set({ imageView: false }),
   nextImage: () =>
