@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { devtools } from "zustand/middleware";
 
 interface RoadviewState {
   lat: number;
@@ -10,16 +9,14 @@ interface RoadviewState {
   close: VoidFunction;
 }
 
-const useRoadviewStatusStore = create(
-  devtools<RoadviewState>((set) => ({
-    lat: 37.566535,
-    lng: 126.9779692,
-    isOpen: false,
-    setPosition: (lat: number, lng: number) =>
-      set((state) => ({ ...state, lat, lng })),
-    open: () => set({ isOpen: true }),
-    close: () => set({ isOpen: false }),
-  }))
-);
+const useRoadviewStatusStore = create<RoadviewState>((set) => ({
+  lat: 37.566535,
+  lng: 126.9779692,
+  isOpen: false,
+  setPosition: (lat: number, lng: number) =>
+    set((state) => ({ ...state, lat, lng })),
+  open: () => set({ isOpen: true }),
+  close: () => set({ isOpen: false }),
+}));
 
 export default useRoadviewStatusStore;

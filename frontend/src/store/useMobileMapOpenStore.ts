@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { devtools } from "zustand/middleware";
 
 interface MobileMapState {
   isOpen: boolean;
@@ -8,13 +7,11 @@ interface MobileMapState {
   toggle: VoidFunction;
 }
 
-const useMobileMapOpenStore = create(
-  devtools<MobileMapState>((set) => ({
-    isOpen: false,
-    open: () => set({ isOpen: true }),
-    close: () => set({ isOpen: false }),
-    toggle: () => set((state) => ({ isOpen: !state.isOpen })),
-  }))
-);
+const useMobileMapOpenStore = create<MobileMapState>((set) => ({
+  isOpen: false,
+  open: () => set({ isOpen: true }),
+  close: () => set({ isOpen: false }),
+  toggle: () => set((state) => ({ isOpen: !state.isOpen })),
+}));
 
 export default useMobileMapOpenStore;
