@@ -55,7 +55,7 @@ func NewBleveSearchService(index bleve.Index) *BleveSearchService {
 func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResponse, error) {
 	// index.Index("test", Marker{Address: "석원", MarkerID: 123, FullAddress: "경기도 석원동 123-456"})
 	// index.Delete("test")
-	var response dto.MarkerSearchResponse
+	response := dto.MarkerSearchResponse{Markers: make([]dto.ZincMarker, 0)}
 
 	// Split the search term by spaces
 	terms := strings.Fields(t)

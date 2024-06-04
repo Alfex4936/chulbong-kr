@@ -192,5 +192,7 @@ func (h *AdminHandler) HandleListUpdatedMarkers(c *fiber.Ctx) error {
 		}
 	}
 
+	h.AdminFacade.ResetMarkerCache()
+
 	return c.JSON(markers)
 }

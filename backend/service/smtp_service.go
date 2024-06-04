@@ -21,7 +21,7 @@ func NewSmtpService(config *config.SmtpConfig) *SmtpService {
 var emailTemplate = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <title>chulbong-kr</title>
+    <title>Email verification for k-pullup.com</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
@@ -55,7 +55,7 @@ var emailTemplate = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//
 var emailTemplateForReset = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <title>Password Reset for chulbong-kr</title>
+    <title>Password Reset request for k-pullup.com</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
@@ -90,7 +90,7 @@ var emailTemplateForReset = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transi
 func (s *SmtpService) SendVerificationEmail(to, token string) error {
 
 	// Define email headers including content type for HTML
-	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: chulbong-kr Email Verification\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", s.Config.SmtpUsername, to)
+	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: k-pullup Email Verification\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", s.Config.SmtpUsername, to)
 
 	// Replace the {{TOKEN}} placeholder in the template with the actual token
 	htmlBody := strings.Replace(emailTemplate, "{{TOKEN}}", token, -1)
@@ -109,7 +109,7 @@ func (s *SmtpService) SendVerificationEmail(to, token string) error {
 
 func (s *SmtpService) SendPasswordResetEmail(to, token string) error {
 	// Define email headers
-	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: Password Reset for chulbong-kr\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", s.Config.SmtpUsername, to)
+	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: Password Reset for k-pullup\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", s.Config.SmtpUsername, to)
 
 	// Replace the {{RESET_LINK}} placeholder with the actual reset link
 	clientURL := fmt.Sprintf("%s?token=%s&email=%s", s.Config.FrontendResetRouter, token, to)
