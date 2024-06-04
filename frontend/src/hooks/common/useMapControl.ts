@@ -2,12 +2,10 @@ import { MAP_LAT_DIF } from "@/constants";
 import useMapStatusStore from "@/store/useMapStatusStore";
 import useMapStore from "@/store/useMapStore";
 import useMiniMapStatusStore from "@/store/useMiniMapStatusStore";
-import useMobileMapOpenStore from "@/store/useMobileMapOpenStore";
 
 const useMapControl = () => {
   const { map, markers } = useMapStore();
   const { setPosition } = useMapStatusStore();
-  const { open } = useMobileMapOpenStore();
   const { map: miniMap } = useMiniMapStatusStore();
 
   const filterMarker = async (markerId: number) => {
@@ -66,7 +64,6 @@ const useMapControl = () => {
       );
       setPosition((lat as number) + MAP_LAT_DIF, lng as number);
       map?.panTo(moveLatLon);
-      open();
     }
 
     if (isfilter && markerId) filterMarker(markerId);
