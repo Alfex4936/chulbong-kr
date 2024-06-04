@@ -40,6 +40,7 @@
     "react-element-to-jsx-string": "^15.0.0",
     "react-hook-form": "^7.51.3",
     "react-icons": "^5.2.1",
+    "swiper": "^11.1.4",
     "tailwind-merge": "^2.2.2",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.164.1",
