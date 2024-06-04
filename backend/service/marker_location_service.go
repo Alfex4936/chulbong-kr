@@ -276,7 +276,7 @@ func (s *MarkerLocationService) SaveOfflineMap(lat, lng float64) (string, error)
 	}
 
 	// 5. Make PDF
-	downloadPath, err := util.GenerateMapPDF(resultImagePath, tempDir, address)
+	downloadPath, err := util.GenerateMapPDF(resultImagePath, tempDir, address, nearbyMarkers[0].MarkerID)
 	if err != nil {
 		return "", fmt.Errorf("failed to make pdf file: " + err.Error())
 	}
@@ -345,7 +345,7 @@ func (s *MarkerLocationService) SaveOfflineMap2(lat, lng float64) (string, error
 	os.Remove(baseImageFilePath) // Remove base image file
 
 	// 5. Make PDF
-	downloadPath, err := util.GenerateMapPDF(resultImagePath, tempDir, address)
+	downloadPath, err := util.GenerateMapPDF(resultImagePath, tempDir, address, nearbyMarkers[0].MarkerID)
 	if err != nil {
 		return "", fmt.Errorf("failed to make pdf file: " + err.Error())
 	}

@@ -415,5 +415,6 @@ func (s *MarkerFacilityService) FetchLatestMarkers(thresholdDate time.Time) ([]D
 			filteredData = append(filteredData, item)
 		}
 	}
+
 	return filteredData, nil
 }

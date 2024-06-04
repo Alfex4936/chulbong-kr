@@ -33,7 +33,8 @@ func RegisterUserRoutes(api fiber.Router, handler *UserHandler, authMiddleware *
 		userGroup.Use(authMiddleware.Verify)
 		userGroup.Get("/me", handler.HandleProfile)
 		userGroup.Get("/favorites", handler.HandleGetFavorites)
-		userGroup.Get("/reports", handler.HandleGetMyReports)
+		userGroup.Get("/reports", handler.HandleGetMyReports)                          // getting reports that I made
+		userGroup.Get("/reports/for-my-markers", handler.HandleGetReportsForMyMarkers) // getting reports for my markers
 		userGroup.Patch("/me", handler.HandleUpdateUser)
 		userGroup.Delete("/me", handler.HandleDeleteUser)
 		userGroup.Delete("/s3/objects", authMiddleware.CheckAdmin, handler.HandleDeleteObjectFromS3)
@@ -152,6 +153,43 @@ func (h *UserHandler) HandleGetMyReports(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(reports)
+}
+
+// HandleGetReportsForMyMarkers handles requests to get all reports for my markers
+func (h *UserHandler) HandleGetReportsForMyMarkers(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(int) // Make sure to handle errors and cases where userID might not be set
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
+	}
+
+	reports, err := h.UserFacadeService.GetAllReportsForMyMarkersByUser(userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get reports"})
+	}
+
+	if len(reports) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "No reports found"})
+	}
+
+	// Group reports by MarkerID
+	groupedReports := make(map[int][]dto.ReportWithPhotos)
+	for _, report := range reports {
+		reportWithPhotos := dto.ReportWithPhotos{
+			ReportID:    report.ReportID,
+			Description: report.Description,
+			Status:      report.Status,
+			CreatedAt:   report.CreatedAt,
+			Photos:      report.PhotoURLs,
+		}
+		groupedReports[report.MarkerID] = append(groupedReports[report.MarkerID], reportWithPhotos)
+	}
+
+	response := dto.GroupedReportsResponse{
+		TotalReports: len(reports),
+		Markers:      groupedReports,
+	}
+
+	return c.JSON(response)
 }
 
 // DeleteObjectFromS3Handler handles requests to delete objects from S3.

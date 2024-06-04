@@ -184,6 +184,70 @@ func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportRespons
 	return reports, nil
 }
 
+// GetAllReportsForMyMarkersByUser retrieves all reports for markers owned by a specific user
+func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) ([]dto.MarkerReportResponse, error) {
+	// per report, number of photos is limited so using LEFT JOIN could be more efficient
+	const query = `
+        SELECT 
+            r.ReportID,
+            r.MarkerID,
+            r.UserID,
+            ST_X(r.Location) as Latitude,
+            ST_Y(r.Location) as Longitude,
+            ST_X(r.NewLocation) as NewLatitude,
+            ST_Y(r.NewLocation) as NewLongitude,
+            r.Description,
+            r.CreatedAt,
+            r.Status,
+            rp.PhotoURL
+        FROM 
+            Reports r
+        LEFT JOIN 
+            ReportPhotos rp ON r.ReportID = rp.ReportID
+        WHERE 
+            r.MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)
+        ORDER BY 
+            r.MarkerID, r.ReportID;
+    `
+	rows, err := s.DB.Queryx(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying reports by user: %w", err)
+	}
+	defer rows.Close()
+
+	reportMap := make(map[int]*dto.MarkerReportResponse)
+	for rows.Next() {
+		var (
+			r   dto.MarkerReportResponse
+			url sql.NullString // Use sql.NullString to handle possible NULL values from PhotoURL
+		)
+		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &url); err != nil {
+			return nil, err
+		}
+		if report, exists := reportMap[r.ReportID]; exists {
+			// Append only if url is valid to avoid appending empty strings for reports without photos
+			if url.Valid {
+				report.PhotoURLs = append(report.PhotoURLs, url.String)
+			}
+		} else {
+			r.PhotoURLs = make([]string, 0)
+			if url.Valid {
+				r.PhotoURLs = append(r.PhotoURLs, url.String)
+			}
+			reportMap[r.ReportID] = &r
+		}
+	}
+
+	// Convert map to slice
+	reports := make([]dto.MarkerReportResponse, 0, len(reportMap))
+	for _, report := range reportMap {
+		reports = append(reports, *report)
+	}
+
+	return reports, nil
+}
+
 func (s *UserService) GetAllFavorites(userID int) ([]dto.MarkerSimpleWithDescrption, error) {
 	favorites := make([]dto.MarkerSimpleWithDescrption, 0)
 	const query = `
