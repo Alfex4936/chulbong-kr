@@ -50,11 +50,27 @@ export const generateMetadata = async ({ params }: Props) => {
   const { id } = params;
 
   try {
-    const { address, description, favCount } = await getMarker(Number(id));
+    const { address, description, favCount, photos } = await getMarker(
+      Number(id)
+    );
 
     return {
       title: `${address} | 철봉`,
       description: `즐거운 맨몸운동 생활 - ${description} - ${address} - 좋아요 : ${favCount}`,
+      keywords: `철봉, ${address}`,
+      openGraph: {
+        type: "website",
+        url: `https://www.k-pullup.com/pullup/${id}`,
+        title: `${address} | 철봉`,
+        description: `즐거운 맨몸운동 생활 - ${description} - ${address} - 좋아요 : ${favCount}`,
+        images: photos ? photos[0].photoUrl : "/images/metaimg.webp",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${address} | 철봉`,
+        description: `즐거운 맨몸운동 생활 - ${description} - ${address} - 좋아요 : ${favCount}`,
+        images: photos ? photos[0].photoUrl : "/images/metaimg.webp",
+      },
     };
   } catch (error) {
     return {
