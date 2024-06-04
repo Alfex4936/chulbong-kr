@@ -91,7 +91,7 @@ body {
   border-radius: 3px;
 }
 
-.overlay {
+/* .overlay {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -128,7 +128,7 @@ body {
   left: 50%;
 
   transform: translateX(-50%);
-  /* background-color: #222; */
+  background-color: #222; 
 
   content: "";
 
@@ -148,11 +148,11 @@ body {
 
   margin-bottom: 1rem;
 
-  /* border: 1px solid red; */
+   border: 1px solid red; 
 }
 
 #overlay-top > button {
-  /* border: 1px solid blue; */
+   border: 1px solid blue; 
   border-radius: 3px;
 
   width: 50px;
@@ -176,7 +176,7 @@ body {
 }
 
 #overlay-mid {
-  /* border: 1px solid greenyellow; */
+   border: 1px solid greenyellow; 
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -193,7 +193,7 @@ body {
 }
 
 #overlay-info {
-  /* border: 1px solid aqua; */
+   border: 1px solid aqua; 
   display: flex;
   flex-direction: column;
 
@@ -372,7 +372,7 @@ body {
 }
 #error-close:hover {
   background-color: #444;
-}
+} */
 
 /* 로드뷰 동동이 */
 .map_wrap {

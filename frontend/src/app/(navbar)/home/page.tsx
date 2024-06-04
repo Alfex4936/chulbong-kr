@@ -6,7 +6,7 @@ import LinkEmojiButton from "./_components/LinkEmojiButton";
 import Ranking from "./_components/Ranking";
 import SearchInput from "./_components/SearchInput";
 
-const Home = async () => {
+const Home = () => {
   return (
     <BlackSideBody toggle>
       <Heading title="대한민국 철봉 지도" />
