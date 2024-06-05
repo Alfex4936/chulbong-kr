@@ -1,9 +1,7 @@
 import Script from "next/script";
 
 const GoogleAdsense = () => {
-  if (Boolean(process.env.NEXT_PUBLIC_DEVELOP)) {
-    return null;
-  }
+  if (process.env.NEXT_PUBLIC_DEVELOP === "true") return null;
 
   return (
     <Script
