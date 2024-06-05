@@ -36,8 +36,8 @@ const ImageDetail = () => {
   const zoomIn = () => {
     if (
       imageSize < 1000 &&
-      window.innerWidth - 70 > imageSize &&
-      window.innerHeight - 70 > imageSize
+      window.innerWidth - 40 > imageSize &&
+      window.innerHeight - 40 > imageSize
     ) {
       setImageSize((prev) => prev + 50);
     }
@@ -47,10 +47,21 @@ const ImageDetail = () => {
     if (imageSize > 100) setImageSize((prev) => prev - 50);
   };
 
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY < 0) {
+      zoomIn();
+    } else {
+      zoomOut();
+    }
+  };
+
   if (!imageView || !images) return null;
 
   return (
-    <div className="absolute top-0 left-0 w-dvw h-dvh bg-black-tp-dark z-[1000] flex justify-center items-center">
+    <div
+      className="absolute top-0 left-0 w-dvw h-dvh bg-black-tp-dark z-[1000] flex justify-center items-center"
+      onWheel={handleWheel}
+    >
       <button
         className="absolute top-3 right-3 rounded-full hover:bg-white-tp-light p-1 z-[1000]"
         onClick={() => {
