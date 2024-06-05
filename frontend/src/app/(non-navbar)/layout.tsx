@@ -1,9 +1,11 @@
+import GoogleAdsense from "@/components/common/GoogleAdsense";
 import PwaAlert from "@/components/provider/PwaAlert";
 import RQProvider from "@/components/provider/RQProvider";
 import { ThemeProvider } from "@/components/provider/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+
 import "../globals.css";
 
 const pretendard = localFont({
@@ -84,6 +86,7 @@ const RootLayout = ({
       <body
         className={`${pretendard.className} bg-black-gradient-2 min-h-dvh overflow-x-hidden text-grey`}
       >
+        <GoogleAdsense />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
