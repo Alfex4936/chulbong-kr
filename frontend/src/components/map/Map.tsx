@@ -169,13 +169,18 @@ const Map = () => {
       });
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
+        newMap?.setLevel(3);
+
         const moveLatLon = new window.kakao.maps.LatLng(
           (marker.latitude as number) + MAP_LAT_DIF,
           marker.longitude
         );
 
         newMap?.panTo(moveLatLon);
-        setPosition((marker.latitude as number) + MAP_LAT_DIF, marker.longitude);
+        setPosition(
+          (marker.latitude as number) + MAP_LAT_DIF,
+          marker.longitude
+        );
 
         if (document.getElementsByClassName("overlay_1")[0]) {
           document.getElementsByClassName("overlay_1")[0].remove();
