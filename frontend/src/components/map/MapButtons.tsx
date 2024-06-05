@@ -26,7 +26,7 @@ const MapButtons = ({ icon, tooltipText, onClick, className }: Props) => {
         >
           {icon}
         </TooltipTrigger>
-        <TooltipContent className="bg-black-light-2 text-grey">
+        <TooltipContent className="bg-black-light-2 text-grey" side="left">
           <p>{tooltipText}</p>
         </TooltipContent>
       </Tooltip>
