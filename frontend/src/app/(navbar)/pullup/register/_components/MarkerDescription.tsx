@@ -143,6 +143,8 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
       });
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
+        map?.setLevel(3);
+        
         const moveLatLon = new window.kakao.maps.LatLng(
           (latitude as number) + MAP_LAT_DIF,
           longitude
