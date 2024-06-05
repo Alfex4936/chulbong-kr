@@ -2,13 +2,15 @@ import BlackSideBody from "@/components/atom/BlackSideBody";
 import Heading from "@/components/atom/Heading";
 import { Separator } from "@/components/ui/separator";
 import LinkEmojiButton from "./_components/LinkEmojiButton";
-// import NoticeSlide from "./_components/NoticeSlide";
+import LocationQuery from "./_components/LocationQuery";
 import Ranking from "./_components/Ranking";
 import SearchInput from "./_components/SearchInput";
+// import NoticeSlide from "./_components/NoticeSlide";
 
 const Home = () => {
   return (
     <BlackSideBody toggle>
+      <LocationQuery />
       <Heading title="대한민국 철봉 지도" />
       <SearchInput sticky />
       {/* <NoticeSlide /> */}
