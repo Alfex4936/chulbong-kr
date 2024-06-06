@@ -55,3 +55,5 @@
 - **프론트엔드**: React (TypeScript)
 - **개발 & 운영 효율성**: pprof, flamegraph, Uber's zap logger, Swagger OpenAPI, Prometheus+Grafana
 - **협업**: Slack (+ Slack API)
+
+### 대부분 철봉 데이터는 [chulbong.kr](https://chulbong.kr/) 에서 가져왔음을 알립니다. (2차 필터링)
