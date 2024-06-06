@@ -21,13 +21,12 @@
 
 | | |
 |:-------------------------:|:-------------------------:|
-| <img width="1604" alt="main" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/2ac3ffb2-f22e-4476-bf4b-ebc1bc58b1a4"> 메인 화면 | <img width="1604" alt="2" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/30967ec3-9921-4910-9c1a-293d950d50ef"> 마커 정보|
-| <img width="1604" alt="road view" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/0a26c86a-6da9-42c8-803a-57d5904dea29"> 거리뷰 (가장 가까운 위치)| <img width="1604" alt="comment" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a8d69589-4b7f-435b-8084-ef87419eed09"> 댓글|
-| <img width="1604" alt="nearby" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a878595b-d613-4e22-aa95-2d8fee65b578"> 주변 철봉| <img width="1604" alt="offline-pdf" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a7eb993e-f847-40c8-9b93-d367f4c6a3f8"> 오프라인 저장 (카카오맵)|
+| <img width="1604" alt="1" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/6e45dac1-6c4a-4b84-bf47-10e8c09f4f2b"> 메인 화면 | <img width="1604" alt="2" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/2bcfe0f8-eb55-46d8-ba17-0274f25bfa38"> 마커 정보 (댓글, 공유, 거리뷰)|
+| <img width="1604" alt="3" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/d56a0e34-22fa-4124-bafc-f3b1c0a3f90c"> 거리뷰 (가장 가까운 위치)| <img width="1604" alt="4" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/7c2f5a39-a82f-47b0-8cfa-14bfff0551bd"> 댓글|
 
+![chatting](https://github.com/Alfex4936/chulbong-kr/assets/2356749/53e4f587-e155-49c7-b28b-d56e150f1fe2)
 ![slack](https://github.com/Alfex4936/chulbong-kr/assets/2356749/5ec03f6a-871f-4556-90c3-13bb44769f13)
-
-<img width="500" alt="chatting" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/53e4f587-e155-49c7-b28b-d56e150f1fe2">
+![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/a7eb993e-f847-40c8-9b93-d367f4c6a3f8)
 
 
 ### 기능
@@ -50,11 +49,11 @@
 ### 기술 스택
 ![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/f82e2295-ce31-4b48-af92-20a8471b7155)
 
-- **백엔드**: Go언어 Fiber v2, MySQL, AWS S3, LavinMQ (RabbitMQ), Redis, Bleve (Apache Lucene-like, ZincSearch에서 직접 검색 인덱싱으로 변경)
+
+- **백엔드**: Go언어 Fiber v2, MySQL, AWS S3, LavinMQ (RabbitMQ), Redis, ZincSearch (ElasticSearch)
   - 메인: Go, 서브: Java (전체 프로젝트 자바로도 작성 중)
-- **프론트엔드**: React -> NextJS (TypeScript)
+- **프론트엔드**: React (TypeScript)
 - **개발 & 운영 효율성**: pprof, flamegraph, Uber's zap logger, Swagger OpenAPI, Prometheus+Grafana
 - **협업**: Slack (+ Slack API)
 
-> [!NOTE]
-> 대부분 철봉 위치 데이터는 [chulbong.kr](https://chulbong.kr/) 에서 가져왔음을 알립니다. (2차 필터링)
+### 대부분 철봉 데이터는 [chulbong.kr](https://chulbong.kr/) 에서 가져왔음을 알립니다. (2차 필터링)
