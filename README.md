@@ -31,6 +31,48 @@
 
 
 ### 기능
+```mermaid
+graph TD;
+    A[회원가입 및 로그인] -- 이메일 인증 필요 --> B[인증 완료];
+    C[마커 추가] -- 위치 표시/로그인 필요 --> D[지도];
+    D -- 사진 포함 --> E[마커 사진];
+    D -- 설명 포함 --> F[마커 설명];
+    G[댓글 기능] -- 로그인 필요 --> H[로그인된 사용자];
+    I[마커 공유] -- 링크 공유 --> J[공유 링크];
+    K[근처 턱걸이 바 검색] -- 현재 위치 기반 --> L[검색 결과];
+    M[관리자] -- 자동 필터링 --> N[주소 없는 경우 DB 기록];
+    N -- 싫어요 n개 이상 마커 확인 --> O[마커 관리];
+    Q[채팅 기능] -- 각 마커 채팅 방 --> R[채팅 방];
+    R -- 지역별 채팅 방 (익명) --> S[지역 채팅];
+    T[인기 장소 확인] -- 실시간 방문 정보 --> U[방문 정보];
+    V[정적 이미지 오프라인] -- 철봉 위치 저장 --> W[저장된 위치];
+    X[마커 장소 검색] -- 주소 검색 기능 --> Y[검색된 주소];
+
+classDef lightMode fill:#FFFFFF, stroke:#333333, color:#333333;
+classDef darkMode fill:#333333, stroke:#FFFFFF, color:#FFFFFF;
+
+classDef lightModeLinks stroke:#333333;
+classDef darkModeLinks stroke:#FFFFFF;
+
+class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y lightMode;
+class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y darkMode;
+
+linkStyle 0 stroke:#FF4136, stroke-width:2px;
+linkStyle 1 stroke:#1ABC9C, stroke-width:2px;
+linkStyle 2 stroke:#0074D9, stroke-width:2px;
+linkStyle 3 stroke:#FFCC00, stroke-width:2px;
+linkStyle 4 stroke:#2ECC40, stroke-width:2px;
+linkStyle 5 stroke:#B10DC9, stroke-width:2px;
+linkStyle 6 stroke:#FF851B, stroke-width:2px;
+linkStyle 7 stroke:#39CCCC, stroke-width:2px;
+linkStyle 8 stroke:#85144b, stroke-width:2px;
+linkStyle 9 stroke:#F012BE, stroke-width:2px;
+linkStyle 10 stroke:#FF00FF, stroke-width:2px;
+linkStyle 11 stroke:#00FF00, stroke-width:2px;
+linkStyle 12 stroke:#0000FF, stroke-width:2px;
+linkStyle 13 stroke:#FFFF00, stroke-width:2px;
+```
+
 - **회원가입 및 로그인**: 사용자 인증을 위한 기본적인 회원가입 및 로그인 기능. (이메일 인증 필요)
 - **마커 추가**: 턱걸이 바의 위치를 지도에 마커로 표시. 사진과 간단한 설명을 포함할 수 있음.
 - **댓글 기능**: 로그인한 사용자는 각 마커에 댓글을 남길 수 있어 정보 공유가 가능.
