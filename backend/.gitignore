@@ -18,3 +18,4 @@ zincsearch/.dockerignore
 badwords_test.txt
 fonts/logo-text.png
 markers.bleve
+service/marker_facility_service.go
