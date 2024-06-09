@@ -88,7 +88,6 @@ linkStyle 13 stroke:#FFFF00, stroke-width:2px;
 - **커뮤니티 포럼**: 사용자들이 운동 팁, 턱걸이 바 추천 등을 공유할 수 있는 커뮤니티 공간.
 - **이벤트 및 챌린지**: 사용자들이 참여할 수 있는 운동 관련 이벤트 및 챌린지 개최.
 
-
 ### 기술 스택
 ![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/f82e2295-ce31-4b48-af92-20a8471b7155)
 
@@ -99,6 +98,14 @@ https://github.com/Alfex4936/chulbong-kr/assets/2356749/913b113c-4a8d-4df1-bb5a-
 - **프론트엔드**: React -> NextJS (TypeScript)
 - **개발 & 운영 효율성**: pprof, flamegraph, Uber's zap logger, Swagger OpenAPI, Prometheus+Grafana
 - **협업**: Slack (+ Slack API)
+
+### 🚀 Project Roles 🚀
+
+- **Backend Development**  
+👨‍💻 [@Alfex4936](https://github.com/Alfex4936)
+
+- **Frontend Development**  
+🎨 [@2YH02](https://github.com/2YH02)
 
 > [!NOTE]
 > 대부분 철봉 위치 데이터는 [chulbong.kr](https://chulbong.kr/) 에서 가져왔음을 알립니다. (2차 필터링)
