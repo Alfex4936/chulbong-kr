@@ -92,6 +92,8 @@ linkStyle 13 stroke:#FFFF00, stroke-width:2px;
 ### 기술 스택
 ![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/f82e2295-ce31-4b48-af92-20a8471b7155)
 
+https://github.com/Alfex4936/chulbong-kr/assets/2356749/913b113c-4a8d-4df1-bb5a-83f6babf7475
+
 - **백엔드**: Go언어 Fiber v2, MySQL, AWS S3, LavinMQ (RabbitMQ), Redis, Bleve (Apache Lucene-like, ZincSearch에서 직접 검색 인덱싱으로 변경)
   - 메인: Go, 서브: Java (전체 프로젝트 자바로도 작성 중)
 - **프론트엔드**: React -> NextJS (TypeScript)
