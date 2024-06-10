@@ -34,6 +34,9 @@ const useApproveReport = (markerId: number, lat: number, lng: number) => {
       queryClient.invalidateQueries({
         queryKey: ["markers"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["report", "my"],
+      });
       filtering();
     },
   });

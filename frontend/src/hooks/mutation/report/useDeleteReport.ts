@@ -17,6 +17,9 @@ const useDeleteReport = (markerId: number, reportId: number) => {
       queryClient.invalidateQueries({
         queryKey: ["marker", "report", "formarker", markerId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["report", "my"],
+      });
     },
   });
 };

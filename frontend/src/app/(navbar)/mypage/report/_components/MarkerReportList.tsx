@@ -15,6 +15,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import ChangePassword from "../../user/ChangePassword";
 import StatusBadge from "./StatusBadge";
+import { cn } from "@/lib/utils";
 
 interface Props {
   markerId: number;
@@ -23,10 +24,11 @@ interface Props {
   desc: string;
   img: string[];
   status: string;
-  userId: number;
+  userId?: number;
   myId?: number;
   reportId: number;
   isFetching: boolean;
+  className?: string;
 }
 
 interface InfoListProps {
@@ -67,6 +69,7 @@ const MarkerReportList = ({
   myId,
   reportId,
   isFetching,
+  className,
 }: Props) => {
   const { data: marker, isLoading: markerLoading } = useMarkerData(markerId);
   const { mutate: deleteReport, isPending: deleteReportPending } =
@@ -98,7 +101,7 @@ const MarkerReportList = ({
     return <Skeleton className="w-[90%] p-4 rounded-md h-60 mx-auto" />;
 
   return (
-    <BlackLightBox className="relative">
+    <BlackLightBox className={cn("relative", className)}>
       <div className="flex items-center mb-2">
         {marker?.isChulbong && (
           <AlertButton

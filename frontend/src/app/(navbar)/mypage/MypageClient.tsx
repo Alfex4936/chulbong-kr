@@ -56,9 +56,13 @@ const MypageClient = () => {
       />
       <EmojiHoverButton
         emoji="🪄"
-        text="정보 수정 제안 목록"
-        subText="내가 수정 제안 한 위치"
+        text="정보 수정 요청 목록"
         url="/mypage/report"
+      />
+      <EmojiHoverButton
+        emoji="🔧"
+        text="받은 정보 수정 요청 목록"
+        url="/mypage/myreport"
       />
 
       <div className="mt-10 mx-auto w-1/2">

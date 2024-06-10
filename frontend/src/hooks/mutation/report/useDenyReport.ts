@@ -15,6 +15,9 @@ const useDenyReport = (markerId: number) => {
       queryClient.invalidateQueries({
         queryKey: ["marker", "report", "formarker", markerId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["report", "my"],
+      });
     },
   });
 };

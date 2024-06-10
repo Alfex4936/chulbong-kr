@@ -55,7 +55,7 @@ const Mypage = async () => {
           <MypageClient />
         </HydrationBoundary>
         <GrowBox />
-        <DonationButton />
+        {/* <DonationButton /> */}
       </div>
     </BlackSideBody>
   );

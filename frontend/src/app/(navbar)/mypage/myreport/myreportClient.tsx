@@ -1,0 +1,38 @@
+"use client";
+
+import useMyMarkerReportData from "@/hooks/query/report/useMyMarkerReportData";
+import React from "react";
+import ReportListContainer from "./_components/ReportListContainer";
+import { isAxiosError } from "axios";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const MyreportClient = () => {
+  const { data, isError, error, isLoading } = useMyMarkerReportData();
+
+  if (isError) {
+    if (isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        return (
+          <div className="text-center">정보 수정 제안한 위치가 없습니다.</div>
+        );
+      } else {
+        return <div className="text-center">잠시 후 다시 시도해 주세요.</div>;
+      }
+    } else {
+      return <div className="text-center">잠시 후 다시 시도해 주세요.</div>;
+    }
+  }
+
+  if (isLoading) <Skeleton className="bg-black-light-2 mb-4 p-2 rounded-sm" />;
+
+  if (!data)
+    return <div className="text-center">정보 수정 제안한 위치가 없습니다.</div>;
+
+  return (
+    <div>
+      <ReportListContainer data={data} />
+    </div>
+  );
+};
+
+export default MyreportClient;
