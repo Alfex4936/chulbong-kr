@@ -86,12 +86,21 @@ const MarkerReportList = ({
   const [addr, setAddr] = useState("");
   const [dropdown, setDropdown] = useState(false);
 
+  const [addrLoading, setAddrLoading] = useState(false);
+
   useEffect(() => {
     if (!map) return;
 
     const fetchAddr = async () => {
-      const data = (await getAddress(lat, lng)) as AddressInfo;
-      setAddr(data.address_name);
+      try {
+        setAddrLoading(true);
+        const data = (await getAddress(lat, lng)) as AddressInfo;
+        setAddr(data.address_name);
+      } catch (error) {
+        setAddr("제공되는 주소가 없음");
+      } finally {
+        setAddrLoading(false);
+      }
     };
 
     fetchAddr();
@@ -181,7 +190,7 @@ const MarkerReportList = ({
       )}
 
       <div>수정</div>
-      <InfoList text="주소" subText={addr || "제공되는 주소가 없음"} />
+      <InfoList text="주소" subText={addrLoading ? "" : addr} />
       <InfoList text="설명" subText={desc || "작성된 설명 없음"} isTruncate />
       {img && (
         <div>
