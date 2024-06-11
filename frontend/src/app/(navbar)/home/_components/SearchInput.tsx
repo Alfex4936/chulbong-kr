@@ -64,7 +64,7 @@ const SearchInput = ({ sticky = false }: Props) => {
         </div>
         <Input
           ref={inpuRef}
-          placeholder="장소, 위치를 입력하세요"
+          placeholder="철봉 주소 검색"
           value={searchInput.value}
           onChange={(e) => {
             searchInput.handleChange(e);
