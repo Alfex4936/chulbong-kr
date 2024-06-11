@@ -144,7 +144,7 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
 
       window.kakao.maps.event.addListener(newMarker, "click", async () => {
         map?.setLevel(3);
-        
+
         const moveLatLon = new window.kakao.maps.LatLng(
           (latitude as number) + MAP_LAT_DIF,
           longitude
@@ -223,6 +223,8 @@ const MarkerDescription = ({ desc, markerId, isReport = false }: Props) => {
       if (reportError.response?.status === 406) {
         setErrorMessage("기존 위치와 너무 많은 거리가 차이납니다.");
       }
+
+      setLoading(false);
     }
   }, [isError]);
 
