@@ -1,7 +1,6 @@
 "use client";
 
 import { FacilitiesRes } from "@/api/markers/getFacilities";
-import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
 import ErrorMessage from "@/components/atom/ErrorMessage";
 import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import ShareModal from "@/components/common/ShareModal";
@@ -28,8 +27,6 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
 import { MOBILE_WIDTH } from "@/constants";
 import useInput from "@/hooks/common/useInput";
 import useCreateComment from "@/hooks/mutation/comments/useCreateComment";
@@ -69,7 +66,6 @@ const PullupClient = ({ markerId }: Props) => {
 
   const alertRef = useRef<HTMLButtonElement>(null);
 
-  const { toast } = useToast();
   const { open: openMobileMap } = useMobileMapOpenStore();
   const { setMarker } = useSelectedMarkerStore();
   const { setPosition } = useMapStatusStore();
@@ -80,10 +76,13 @@ const PullupClient = ({ markerId }: Props) => {
   const { data: marker, isError } = useMarkerData(markerId);
   const { data: facilities } = useFacilitiesData(markerId);
 
-  const { mutateAsync: createComment } = useCreateComment({
-    markerId: markerId,
-    commentText: commentInput.value,
-  });
+  const { mutate: createComment, isPending: commentPending } = useCreateComment(
+    {
+      markerId: markerId,
+      commentText: commentInput.value,
+    },
+    commentInput.resetValue
+  );
 
   const { mutate: dislike, isPending: dislikePending } =
     useMarkerDislike(markerId);
@@ -110,12 +109,29 @@ const PullupClient = ({ markerId }: Props) => {
   const shareRef = useRef<HTMLDivElement>(null);
 
   const [isEditDesc, setIsEditDesc] = useState(false);
+  const [tabName, setTabName] = useState("photo");
+
   const updateDescInput = useInput(marker?.description || "");
 
   const { mutate: updateDesc } = useUpdateDescription(
     updateDescInput.value,
     markerId
   );
+
+  const handleComment = useCallback(() => {
+    if (commentPending) return;
+
+    if (commentInput.value.length > 40) {
+      commentInput.resetValue();
+      setCommentError("40자 이내로 작성해주세요.");
+      return;
+    } else if (commentInput.value.length === 0) {
+      setCommentError("글자를 입력해주세요.");
+      return;
+    }
+
+    createComment();
+  }, [commentInput.value, commentPending]);
 
   const changeRoadviewlocation = useCallback(async () => {
     setRoadview(marker?.latitude as number, marker?.longitude as number);
@@ -138,6 +154,18 @@ const PullupClient = ({ markerId }: Props) => {
       setMarker(null);
     };
   }, [marker]);
+
+  useEffect(() => {
+    if (tabName === "photo") return;
+
+    const handlekeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") handleComment();
+    };
+
+    window.addEventListener("keydown", handlekeyDown);
+
+    return () => window.removeEventListener("keydown", handlekeyDown);
+  }, [tabName, commentInput.value, commentPending]);
 
   if (isError)
     return (
@@ -400,10 +428,18 @@ const PullupClient = ({ markerId }: Props) => {
 
         <Tabs defaultValue="photo" className="w-full">
           <TabsList className="w-full">
-            <TabsTrigger className="w-1/2" value="photo">
+            <TabsTrigger
+              className="w-1/2"
+              value="photo"
+              onClick={() => setTabName("photo")}
+            >
               사진
             </TabsTrigger>
-            <TabsTrigger className="w-1/2" value="review">
+            <TabsTrigger
+              className="w-1/2"
+              value="review"
+              onClick={() => setTabName("review")}
+            >
               리뷰
             </TabsTrigger>
           </TabsList>
@@ -411,53 +447,35 @@ const PullupClient = ({ markerId }: Props) => {
             <ImageList photos={marker.photos} />
           </TabsContent>
           <TabsContent value="review">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <div className="w-[90%] mx-auto">
-                  <EmojiHoverButton
-                    emoji="✏️"
-                    text="리뷰 작성하기"
-                    subText="생각을 공유해 주세요!"
-                  />
-                </div>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>리뷰 작성하기</AlertDialogTitle>
-                </AlertDialogHeader>
-                <Textarea
-                  className="resize-none text-base"
-                  value={commentInput.value}
-                  onChange={(e) => {
-                    commentInput.handleChange(e);
-                    setCommentError("");
-                  }}
-                />
-                <ErrorMessage text={commentError} />
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={commentInput.resetValue}>
-                    취소
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={async () => {
-                      if (commentInput.value.length > 40) {
-                        toast({ description: "40자 이내로 작성해주세요." });
-                        commentInput.resetValue();
-                        return;
-                      }
-                      await createComment();
-                      commentInput.resetValue();
-                    }}
-                  >
-                    등록
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
             <ReviewList markerId={marker.markerId} />
           </TabsContent>
         </Tabs>
       </div>
+
+      {tabName === "review" && (
+        <div className="flex flex-col justify-center items-center fixed bottom-0 left-0 bg-black h-14 w-full px-9 z-50">
+          <div className="flex items-center justify-center w-full h-10 bg-black-light-2 px-3 rounded-3xl">
+            <input
+              type="text"
+              placeholder="댓글을 남겨보세요"
+              className="grow bg-inherit focus:outline-none"
+              value={commentInput.value}
+              onChange={(e) => {
+                commentInput.handleChange(e);
+                setCommentError("");
+              }}
+            />
+            <button
+              className="text-sm bg-black w-10 h-6 rounded-xl"
+              onClick={handleComment}
+              disabled={commentPending}
+            >
+              등록
+            </button>
+          </div>
+          <ErrorMessage text={commentError} />
+        </div>
+      )}
     </div>
   );
 };

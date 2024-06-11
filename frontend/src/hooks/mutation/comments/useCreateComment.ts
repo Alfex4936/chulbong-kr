@@ -4,7 +4,13 @@ import useLoginModalStateStore from "@/store/useLoginModalStateStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 
-const useCreateComment = (body: { markerId: number; commentText: string }) => {
+const useCreateComment = (
+  body: {
+    markerId: number;
+    commentText: string;
+  },
+  callback?: VoidFunction
+) => {
   const queryClient = useQueryClient();
 
   const { open: openLoginModal } = useLoginModalStateStore();
@@ -16,6 +22,7 @@ const useCreateComment = (body: { markerId: number; commentText: string }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comments", body.markerId] });
+      if (callback) callback();
     },
     onError: (error) => {
       if (isAxiosError(error)) {
