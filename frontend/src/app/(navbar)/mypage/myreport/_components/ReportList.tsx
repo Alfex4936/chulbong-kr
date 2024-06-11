@@ -35,7 +35,7 @@ const ReportList = ({ id, count, reports }: Props) => {
             {data.description || "작성 된 설명이 없습니다."}
           </div>
         </div>
-        <div>
+        <div className={`${toggle ? "rotate-90" : ""} duration-150`}>
           <ArrowRightIcon />
         </div>
       </button>
