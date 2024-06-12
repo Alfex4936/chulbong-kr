@@ -37,5 +37,5 @@ next-env.d.ts
 
 certificates
 
-./public/sw.js
-./public/sw.js.map
+/public/sw.js
+/public/sw.js.map
