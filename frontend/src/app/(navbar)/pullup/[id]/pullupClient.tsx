@@ -177,7 +177,7 @@ const PullupClient = ({ markerId }: Props) => {
   if (!marker) return;
 
   return (
-    <div className="mo:mb-12">
+    <div className="mo:mb-14">
       {/* 이미지 배경 */}
       <div
         className="relative w-full h-64 bg-cover bg-center"
@@ -453,7 +453,8 @@ const PullupClient = ({ markerId }: Props) => {
       </div>
 
       {tabName === "review" && (
-        <div className="flex flex-col justify-center items-center fixed bottom-0 left-0 bg-black h-14 w-full px-9 z-50">
+        <div className="flex flex-col justify-center items-center fixed bottom-0 left-0 bg-black h-14 w-full px-9 z-50
+        mo:bottom-16">
           <div className="flex items-center justify-center w-full h-10 bg-black-light-2 px-3 rounded-3xl">
             <input
               type="text"

@@ -18,11 +18,11 @@ const Navigation = () => {
 
   return (
     <div
-      className="w-16 h-screen bg-black-light shadow-xl p-4 z-20 mo:w-screen mo:h-14 mo:fixed mo:bottom-0 mo:flex 
+      className="w-16 h-screen bg-black-light shadow-xl p-4 z-20 mo:w-screen mo:h-16 mo:fixed mo:bottom-0 mo:flex 
                 mo:items-center mo:pl-0 mo:pr-0 mo:border-t mo:border-solid"
     >
       <div
-        className="flex flex-col items-center mo:flex-row mo:max-w-[430px] pb-9 pt-2 mo:w-full 
+        className="flex flex-col items-center mo:flex-row mo:max-w-[430px] mo:w-full 
                   mo:min-w-80 mo:justify-between mo:ml-auto mo:mr-auto mo:rounded-xl mo:bg-black-light"
       >
         <Link
