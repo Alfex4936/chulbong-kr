@@ -162,7 +162,11 @@ const SignupForm = () => {
             <FormItem>
               <FormLabel>닉네임</FormLabel>
               <FormControl>
-                <Input {...field} className="text-base" />
+                <Input
+                  {...field}
+                  className="text-base"
+                  data-testid="username"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -176,13 +180,14 @@ const SignupForm = () => {
               <FormLabel>이메일</FormLabel>
               <div className="relative">
                 <FormControl className="">
-                  <Input {...field} className="text-base" />
+                  <Input {...field} className="text-base" data-testid="email" />
                 </FormControl>
                 <Button
                   type="button"
                   className="absolute right-0 top-0 text-xs border border-grey border-solid rounded-sm hover:bg-white-tp-dark hover:text-black"
                   onClick={handleSendCode}
                   disabled={sendCodePending}
+                  data-testid="send-email-btn"
                 >
                   {sendCodePending ? (
                     <LoadingSpinner size="xs" />
@@ -191,7 +196,9 @@ const SignupForm = () => {
                   )}
                 </Button>
               </div>
-              <FormMessage>{emailErrorMessage}</FormMessage>
+              <FormMessage data-testid="email-error">
+                {emailErrorMessage}
+              </FormMessage>
             </FormItem>
           )}
         />
@@ -209,6 +216,7 @@ const SignupForm = () => {
                     type="text"
                     maxLength={6}
                     className="text-base"
+                    data-testid="code"
                   />
                 </FormControl>
                 {isSended && (
@@ -225,6 +233,7 @@ const SignupForm = () => {
                   className="absolute right-0 top-0 text-xs border border-grey border-solid rounded-sm hover:bg-white-tp-dark hover:text-black"
                   onClick={handleVerify}
                   disabled={isVerified}
+                  data-testid="verify-code-btn"
                 >
                   {verifyPending ? (
                     <LoadingSpinner size="xs" />
@@ -247,9 +256,14 @@ const SignupForm = () => {
             <FormItem>
               <FormLabel>비밀번호</FormLabel>
               <FormControl>
-                <Input type="password" {...field} className="text-base" />
+                <Input
+                  type="password"
+                  {...field}
+                  className="text-base"
+                  data-testid="password"
+                />
               </FormControl>
-              <FormMessage />
+              <FormMessage data-testid="password-error" />
             </FormItem>
           )}
         />
@@ -260,9 +274,14 @@ const SignupForm = () => {
             <FormItem>
               <FormLabel>비밀번호 확인</FormLabel>
               <FormControl>
-                <Input type="password" {...field} className="text-base" />
+                <Input
+                  type="password"
+                  {...field}
+                  className="text-base"
+                  data-testid="verify-password"
+                />
               </FormControl>
-              <FormMessage />
+              <FormMessage data-testid="verify-password-error" />
             </FormItem>
           )}
         />
@@ -271,6 +290,7 @@ const SignupForm = () => {
             type="submit"
             className="bg-black-light-2 mr-3 hover:bg-black-light text-grey"
             disabled={signupPending}
+            data-testid="signup-button"
           >
             {signupPending ? <LoadingSpinner size="xs" /> : "회원가입"}
           </Button>
