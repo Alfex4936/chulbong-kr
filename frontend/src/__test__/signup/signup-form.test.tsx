@@ -1,9 +1,9 @@
-import "@testing-library/jest-dom";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { act } from "react-dom/test-utils";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import axios, { type AxiosError } from "axios";
 import SignupForm from "@/app/(non-navbar)/signup/_components/signup-form";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import "@testing-library/jest-dom";
+import { fireEvent, render, screen } from "@testing-library/react";
+import axios, { type AxiosError } from "axios";
+import { act } from "react-dom/test-utils";
 
 jest.mock("axios", () => {
   const mockAxiosInstance = {
@@ -32,11 +32,6 @@ describe("회원가입 테스트", () => {
         <SignupForm />
       </QueryClientProvider>
     );
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-    cleanup();
   });
 
   it("유효하지 않은 이메일 에러", async () => {
