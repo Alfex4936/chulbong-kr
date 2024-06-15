@@ -95,6 +95,10 @@ func (mfs *MarkerFacadeService) CheckNearbyMarkersInDB() ([]dto.MarkerGroup, err
 	return mfs.ManageService.CheckNearbyMarkersInDB()
 }
 
+func (mfs *MarkerFacadeService) GenerateRSS() (string, error) {
+	return mfs.ManageService.GenerateRSS()
+}
+
 // Marker
 func (mfs *MarkerFacadeService) CheckMarkerValidity(latitude, longitude float64, description string) *fiber.Error {
 	return mfs.ManageService.CheckMarkerValidity(latitude, longitude, description)

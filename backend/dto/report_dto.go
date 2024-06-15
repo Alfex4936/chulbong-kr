@@ -36,3 +36,18 @@ type ReportsResponse struct {
 	TotalReports int                   `json:"totalReports"`
 	Markers      map[int]MarkerReports `json:"markers"`
 }
+
+// GroupedReportsResponse represents the response structure for grouped reports by MarkerID
+type GroupedReportsResponse struct {
+	TotalReports int                        `json:"totalReports"`
+	Markers      map[int][]ReportWithPhotos `json:"markers"`
+}
+
+// ReportWithPhotos is a data transfer object for reports including photos
+type ReportWithPhotos struct {
+	ReportID    int       `json:"reportID"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"createdAt"`
+	Photos      []string  `json:"photos"`
+}

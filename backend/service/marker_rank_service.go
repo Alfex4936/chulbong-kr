@@ -250,12 +250,12 @@ func (s *MarkerRankService) ResetAndRandomizeClickRanking() {
 		return
 	}
 
-	// Randomly pick up to 5 marker IDs
+	// Randomly pick up to marker IDs
 	rand.Shuffle(len(markers), func(i, j int) {
 		markers[i], markers[j] = markers[j], markers[i]
 	})
 
-	numMarkers := rand.IntN(10) + 5
+	numMarkers := rand.IntN(10) + 10
 
 	selectedMarkers := markers[:numMarkers]
 

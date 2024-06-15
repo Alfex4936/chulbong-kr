@@ -1,34 +1,33 @@
+from locust import HttpUser, task, between, events
 import random
+import os
+import logging
 
-from locust import HttpUser, between, task
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
-
-class WebsiteUser(HttpUser):
-    wait_time = between(
-        1, 5
-    )  # Simulate users waiting between 1 to 5 seconds between tasks
-
-    # Define the range for latitude and longitude within South Korea
-    SouthKoreaMinLat = 33.0
-    SouthKoreaMaxLat = 38.615
-    SouthKoreaMinLong = 124.0
-    SouthKoreaMaxLong = 132.0
-
-    headers = {
-        "Accept-Encoding": "gzip, deflate, br",
-    }
+class MyUser(HttpUser):
+    wait_time = between(1, 5)  # wait time between tasks (1 to 5 seconds)
 
     @task
-    def get_markers(self):
-        # Generate random latitude and longitude within the specified range
-        latitude = random.uniform(self.SouthKoreaMinLat, self.SouthKoreaMaxLat)
-        longitude = random.uniform(self.SouthKoreaMinLong, self.SouthKoreaMaxLong)
+    def search_marker(self):
+        terms = ["경기도", "인천광역시", "제주특별자치도"]
+        term = random.choice(terms)
+        self.client.get(f"/api/v1/search/marker?term={term}")
 
-        # Specify the distance parameter
-        distance = 5000  # in meters
+    def on_start(self):
+        logging.info("Starting load test...")
 
-        # Construct the query parameters with the random latitude, longitude, and distance
-        params = {"latitude": latitude, "longitude": longitude, "distance": distance}
+    def on_stop(self):
+        logging.info("Stopping load test...")
 
-        # Make a GET request with the query parameters
-        self.client.get("/api/v1/markers/close", params=params)
+@events.test_start.add_listener
+def on_test_start(environment, **kwargs):
+    logging.info("Test is starting...")
+
+@events.test_stop.add_listener
+def on_test_stop(environment, **kwargs):
+    logging.info("Test is stopping...")
+
+if __name__ == "__main__":
+    os.system("locust -f loadtest.py --host http://localhost:8080")

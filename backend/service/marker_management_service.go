@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/xml"
 	"fmt"
 	"log"
 	"mime/multipart"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -15,6 +17,11 @@ import (
 	"github.com/Alfex4936/chulbong-kr/protos"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gofiber/fiber/v2"
+
+	gocache "github.com/eko/gocache/lib/v4/cache"
+
+	ristretto_store "github.com/eko/gocache/store/ristretto/v4"
+
 	"go.uber.org/fx"
 
 	"github.com/jmoiron/sqlx"
@@ -28,13 +35,17 @@ type MarkerManageService struct {
 	S3Service             *S3Service
 	ZincSearchService     *ZincSearchService
 	BleveSearchService    *BleveSearchService
+	RedisService          *RedisService
 
-	MapUtil     *util.MapUtil
-	BadWordUtil *util.BadWordUtil
+	MapUtil           *util.MapUtil
+	BadWordUtil       *util.BadWordUtil
+	LocalCacheStorage *ristretto_store.RistrettoStore
 
 	// markersLocalCache cache to store encoded marker data
-	markersLocalCache []byte // 400 kb is fine here
-	cacheMutex        sync.RWMutex
+	// markersLocalCache []byte // 400 kb is fine here
+	// cacheMutex        sync.RWMutex
+
+	byteCache *gocache.Cache[[]byte]
 }
 
 type MarkerManageServiceParams struct {
@@ -45,33 +56,61 @@ type MarkerManageServiceParams struct {
 	S3Service             *S3Service
 	ZincSearchService     *ZincSearchService
 	BleveSearchService    *BleveSearchService
+	RedisService          *RedisService
 	MapUtil               *util.MapUtil
 	BadWordUtil           *util.BadWordUtil
+	LocalCacheStorage     *ristretto_store.RistrettoStore
 }
 
 // NewMarkerManageService creates a new instance of MarkerManageService.
 func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
+	byteCache := gocache.New[[]byte](p.LocalCacheStorage)
+
 	return &MarkerManageService{
 		DB:                    p.DB,
 		MarkerLocationService: p.MarkerLocationService,
 		S3Service:             p.S3Service,
 		ZincSearchService:     p.ZincSearchService,
 		BleveSearchService:    p.BleveSearchService,
+		RedisService:          p.RedisService,
 		MapUtil:               p.MapUtil,
 		BadWordUtil:           p.BadWordUtil,
+		byteCache:             byteCache,
 	}
 }
 
+func RegisterMarkerLifecycle(lifecycle fx.Lifecycle, service *MarkerManageService) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			rss, _ := service.GenerateRSS()
+			saveRSSToFile(rss, "marker_rss.xml")
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			return nil
+		},
+	})
+}
+
 func (s *MarkerManageService) GetCache() []byte {
-	s.cacheMutex.RLock()
-	defer s.cacheMutex.RUnlock()
-	return s.markersLocalCache
+	// ctx := context.Background()
+	// value, _ := s.byteCache.Get(ctx, "allMarkers")
+
+	var value []byte
+	s.RedisService.GetCacheEntry(s.RedisService.RedisConfig.AllMarkersKey, &value)
+	return value
 }
 
 func (s *MarkerManageService) SetCache(mjson []byte) {
-	s.cacheMutex.Lock()
-	defer s.cacheMutex.Unlock()
-	s.markersLocalCache = mjson
+	s.RedisService.SetCacheEntry(s.RedisService.RedisConfig.AllMarkersKey, mjson, time.Hour*24)
+	// ctx := context.Background()
+	// s.byteCache.Set(ctx, "allMarkers", mjson)
+}
+
+func (s *MarkerManageService) ClearCache() {
+	s.RedisService.ResetCache(s.RedisService.RedisConfig.AllMarkersKey)
+	// ctx := context.Background()
+	// s.byteCache.Delete(ctx, "allMarkers")
 }
 
 // GetAllMarkers now returns a simplified list of markers
@@ -338,7 +377,7 @@ func (s *MarkerManageService) CheckMarkerValidity(latitude, longitude float64, d
 }
 
 func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
-	s.SetCache(nil)
+	s.ClearCache()
 
 	// Begin a transaction for database operations
 	tx, err := s.DB.Beginx()
@@ -602,7 +641,7 @@ func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string
 		}
 	}(photoURLs)
 
-	s.SetCache(nil)
+	s.ClearCache()
 	go s.BleveSearchService.DeleteMarkerIndex(strconv.Itoa(markerID))
 
 	return nil
@@ -692,4 +731,50 @@ func (s *MarkerManageService) CheckNearbyMarkersInDB() ([]dto.MarkerGroup, error
 	}
 
 	return markerGroups, nil
+}
+
+func (s *MarkerManageService) GenerateRSS() (string, error) {
+	const markerQuery = `SELECT MarkerID, UpdatedAt, Address FROM Markers ORDER BY UpdatedAt DESC`
+
+	var markers []dto.MarkerRSS
+	err := s.DB.Select(&markers, markerQuery)
+	if err != nil {
+		return "", fmt.Errorf("error fetching markers: %w", err)
+	}
+
+	return generateRSS(markers)
+}
+
+func generateRSS(markers []dto.MarkerRSS) (string, error) {
+	items := []dto.RssItem{}
+	for _, marker := range markers {
+		item := dto.RssItem{
+			Title:       fmt.Sprintf("Marker %d", marker.MarkerID),
+			Link:        fmt.Sprintf("https://www.k-pullup.com/pullup/%d", marker.MarkerID),
+			Description: marker.Address,
+			PubDate:     marker.UpdatedAt.Format(time.RFC1123Z),
+		}
+		items = append(items, item)
+	}
+
+	rss := dto.RSS{
+		Version: "2.0",
+		Channel: dto.RssChannel{
+			Title:         "k-pullup Markers",
+			Link:          "https://www.k-pullup.com",
+			Description:   "Latest markers of public pull-up bars",
+			LastBuildDate: time.Now().Format(time.RFC1123Z),
+			Items:         items,
+		},
+	}
+
+	output, err := xml.MarshalIndent(rss, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("error marshalling RSS: %w", err)
+	}
+	return `<?xml version="1.0" encoding="UTF-8"?>` + "\n" + string(output), nil
+}
+
+func saveRSSToFile(content, filePath string) error {
+	return os.WriteFile(filePath, []byte(content), 0644)
 }
