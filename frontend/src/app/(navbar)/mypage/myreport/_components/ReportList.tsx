@@ -28,7 +28,7 @@ const ReportList = ({ id, count, reports }: Props) => {
         <div>
           <div className="text-grey-dark">
             총 <span className="font-bold text-grey-light">{count || 0}</span>개
-            요청 중
+            요청
           </div>
           <div className="truncate">{data.address}</div>
           <div className="truncate text-grey-dark text-sm">
