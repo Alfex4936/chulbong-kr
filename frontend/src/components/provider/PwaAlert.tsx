@@ -126,7 +126,7 @@ const PwaAlert = () => {
         <>
           {deviceType === "IOS" || deviceType === "IOS Chrome" ? (
             <>
-              <div className="absolute left-1/2 -translate-x-1/2 top-28 w-[90%] bg-black-light-2 z-[1000] p-4 rounded-md">
+              <div className="absolute left-1/2 -translate-x-1/2 top-28 w-[90%] max-w-96 bg-black-light-2 z-[1000] p-4 rounded-md">
                 <button
                   className="absolute top-1 right-2"
                   onClick={() => {
@@ -155,7 +155,7 @@ const PwaAlert = () => {
             </>
           ) : (
             <>
-              <div className="absolute left-1/2 -translate-x-1/2 top-28 w-[90%] bg-black-light-2 z-[1000] p-4 rounded-md">
+              <div className="absolute left-1/2 -translate-x-1/2 top-28 w-[90%] max-w-96 bg-black-light-2 z-[1000] p-4 rounded-md">
                 <button
                   className="absolute top-1 right-2"
                   onClick={() => setAlert(false)}
@@ -183,7 +183,7 @@ const PwaAlert = () => {
         </>
       ) : (
         <>
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-10 w-[90%] bg-black-light-2 z-[1000] p-4 rounded-md">
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-10 w-[90%] max-w-96 bg-black-light-2 z-[1000] p-4 rounded-md">
             <div className="text-base mb-2">
               홈 화면에 철봉 앱을 추가하고 <br /> 편하게 사용하세요.
             </div>
