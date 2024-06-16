@@ -2,7 +2,7 @@
 
 <p align="center">
   <img width="100" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/6236863a-11e1-45d5-b2e2-9bcf40363e1d" alt="k-pullup logo"/></br>
-  <img width="1024" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/36ad8dc3-fb88-4580-9b55-172a991be5e9" alt="2024-05-29 pullupbars"/>
+  <img width="1024" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/26d56570-b743-4e43-becf-93b8577c7457" alt="2024-06-16 pullupbars"/>
 </p>
 
 > [!NOTE]  
