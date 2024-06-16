@@ -1,8 +1,8 @@
 import { create } from "zustand";
 
 interface Image {
-  markerId: number;
-  photoId: number;
+  markerId?: number;
+  photoId: number | string;
   photoUrl: string;
   uploadedAt?: Date;
 }

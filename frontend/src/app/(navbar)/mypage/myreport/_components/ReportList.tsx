@@ -48,7 +48,7 @@ const ReportList = ({ id, count, reports }: Props) => {
                 className="m-0 mb-4 w-full"
                 key={report.reportID}
                 desc={report.description}
-                img={report.photos}
+                imgs={report.photos}
                 lat={data.latitude}
                 lng={data.longitude}
                 markerId={id}

@@ -12,6 +12,7 @@ import useDenyReport from "@/hooks/mutation/report/useDenyReport";
 import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import { cn } from "@/lib/utils";
 import useMapStore from "@/store/useMapStore";
+import useMarkerImageStore from "@/store/useMarkerImageStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
 import getAddress, { type AddressInfo } from "@/utils/getAddress";
 import Image from "next/image";
@@ -19,13 +20,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ChangePassword from "../../user/ChangePassword";
 import StatusBadge from "./StatusBadge";
+import { v4 } from "uuid";
 
 interface Props {
   markerId: number;
   lat: number;
   lng: number;
   desc: string;
-  img: string[];
+  imgs: string[];
   status: string;
   userId?: number;
   myId?: number;
@@ -66,14 +68,15 @@ const MarkerReportList = ({
   lat,
   lng,
   desc,
-  img,
+  imgs,
   status,
-  userId,
-  myId,
   reportId,
   isFetching,
   className,
 }: Props) => {
+  const { setImages, setCurImage, openImageModal, setCurImageIndex } =
+    useMarkerImageStore();
+
   const router = useRouter();
 
   const { setLoading } = usePageLoadingStore();
@@ -95,6 +98,10 @@ const MarkerReportList = ({
 
   const [addrLoading, setAddrLoading] = useState(false);
 
+  const [viewImages, setViewImages] = useState<
+    { photoId: string; photoUrl: string }[]
+  >([]);
+
   useEffect(() => {
     if (!map) return;
 
@@ -112,6 +119,23 @@ const MarkerReportList = ({
 
     fetchAddr();
   }, [map]);
+
+  console.log(imgs);
+
+  useEffect(() => {
+    if (!imgs) return;
+
+    const setImageId = () => {
+      const newImgs = imgs.map((img) => {
+        return { photoId: v4(), photoUrl: img };
+      });
+
+      setImages(newImgs);
+      setViewImages(newImgs);
+    };
+
+    setImageId();
+  }, [imgs]);
 
   if (markerLoading)
     return <Skeleton className="w-[90%] p-4 rounded-md h-60 mx-auto" />;
@@ -199,21 +223,29 @@ const MarkerReportList = ({
       <div>수정</div>
       <InfoList text="주소" subText={addrLoading ? "" : addr} />
       <InfoList text="설명" subText={desc || "작성된 설명 없음"} isTruncate />
-      {img && (
+      {(imgs || viewImages) && (
         <div>
           <Separator className="mx-1 my-3 bg-grey-dark-1" />
           <div>추가된 이미지</div>
           <div className="flex">
-            {img?.map((img) => {
+            {viewImages?.map((img, i) => {
               return (
-                <Image
-                  src={img as string}
-                  width={30}
-                  height={30}
-                  alt="마커 수정"
-                  className="w-10 h-10 object-contain ml-2"
-                  key={img}
-                />
+                <button
+                  onClick={() => {
+                    setCurImageIndex(i);
+                    setCurImage(img);
+                    openImageModal();
+                  }}
+                >
+                  <Image
+                    src={img.photoUrl}
+                    width={30}
+                    height={30}
+                    alt="마커 수정"
+                    className="w-10 h-10 object-contain ml-2"
+                    key={img.photoId}
+                  />
+                </button>
               );
             })}
           </div>

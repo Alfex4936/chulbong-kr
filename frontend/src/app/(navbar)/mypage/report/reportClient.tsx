@@ -52,7 +52,7 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
               lat={report.newLatitude || report.latitude}
               lng={report.newLongitude || report.longitude}
               desc={report.description}
-              img={report.photoUrls}
+              imgs={report.photoUrls}
               status={report.status}
               userId={report.userId}
               reportId={report.reportId}
