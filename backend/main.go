@@ -162,7 +162,7 @@ func NewFiberApp(
 		Next: func(c *fiber.Ctx) bool {
 			// Skip rate limiting for /users/logout and /users/me
 			path := c.Path()
-			if path == "/api/v1/auth/logout" || path == "/api/v1/users/me" || path == "/api/v1/search/marker" {
+			if path == "/api/v1/auth/logout" || path == "/api/v1/users/me" {
 				return true // Returning true skips the limiter
 			}
 			return false // Apply the limiter for all other paths

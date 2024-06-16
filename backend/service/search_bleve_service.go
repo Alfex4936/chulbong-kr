@@ -13,6 +13,29 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 )
 
+// Map of Hangul initial consonant Unicode values to their corresponding Korean consonants.
+var (
+	initialConsonantMap = map[rune]rune{
+		0x1100: 'ㄱ', 0x1101: 'ㄲ', 0x1102: 'ㄴ', 0x1103: 'ㄷ', 0x1104: 'ㄸ',
+		0x1105: 'ㄹ', 0x1106: 'ㅁ', 0x1107: 'ㅂ', 0x1108: 'ㅃ', 0x1109: 'ㅅ',
+		0x110A: 'ㅆ', 0x110B: 'ㅇ', 0x110C: 'ㅈ', 0x110D: 'ㅉ', 0x110E: 'ㅊ',
+		0x110F: 'ㅋ', 0x1110: 'ㅌ', 0x1111: 'ㅍ', 0x1112: 'ㅎ',
+	}
+
+	validInitialConsonants = map[rune]bool{
+		'ㄱ': true, 'ㄲ': true, 'ㄴ': true, 'ㄷ': true, 'ㄸ': true,
+		'ㄹ': true, 'ㅁ': true, 'ㅂ': true, 'ㅃ': true, 'ㅅ': true,
+		'ㅆ': true, 'ㅇ': true, 'ㅈ': true, 'ㅉ': true, 'ㅊ': true,
+		'ㅋ': true, 'ㅌ': true, 'ㅍ': true, 'ㅎ': true,
+	}
+
+	doubleConsonants = map[rune][]rune{
+		'ㄳ': {'ㄱ', 'ㅅ'}, 'ㄵ': {'ㄴ', 'ㅈ'}, 'ㄶ': {'ㄴ', 'ㅎ'}, 'ㄺ': {'ㄹ', 'ㄱ'},
+		'ㄻ': {'ㄹ', 'ㅁ'}, 'ㄼ': {'ㄹ', 'ㅂ'}, 'ㄽ': {'ㄹ', 'ㅅ'}, 'ㄾ': {'ㄹ', 'ㅌ'},
+		'ㄿ': {'ㄹ', 'ㅍ'}, 'ㅀ': {'ㄹ', 'ㅎ'}, 'ㅄ': {'ㅂ', 'ㅅ'},
+	}
+)
+
 type BleveSearchService struct {
 	Index bleve.Index
 	// Path string
@@ -71,15 +94,18 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 		go func(term string) {
 			defer wg.Done()
 
+			// 초성 검색
+			brokenConsonants := segmentConsonants(term)
+
 			// Add a MatchQuery for the full search term
-			matchQuery := query.NewMatchQuery(term)
+			matchQuery := query.NewMatchQuery(brokenConsonants)
 			matchQuery.SetField("initialConsonants")
 			matchQuery.Analyzer = "koCJKEdgeNgram"
 			matchQuery.SetBoost(10.0)
 			queries = append(queries, matchQuery)
 
 			// Use WildcardQuery for more flexible matches
-			wildcardQuery := query.NewWildcardQuery("*" + term + "*")
+			wildcardQuery := query.NewWildcardQuery("*" + brokenConsonants + "*")
 			wildcardQuery.SetField("initialConsonants")
 			wildcardQuery.SetBoost(5.0)
 			queries = append(queries, wildcardQuery)
@@ -212,15 +238,8 @@ func (s *BleveSearchService) DeleteMarkerIndex(markerId string) error {
 	return s.Index.Delete(markerId)
 }
 
-// Map of Hangul initial consonant Unicode values to their corresponding Korean consonants.
-var initialConsonantMap = map[rune]rune{
-	0x1100: 'ㄱ', 0x1101: 'ㄲ', 0x1102: 'ㄴ', 0x1103: 'ㄷ', 0x1104: 'ㄸ',
-	0x1105: 'ㄹ', 0x1106: 'ㅁ', 0x1107: 'ㅂ', 0x1108: 'ㅃ', 0x1109: 'ㅅ',
-	0x110A: 'ㅆ', 0x110B: 'ㅇ', 0x110C: 'ㅈ', 0x110D: 'ㅉ', 0x110E: 'ㅊ',
-	0x110F: 'ㅋ', 0x1110: 'ㅌ', 0x1111: 'ㅍ', 0x1112: 'ㅎ',
-}
-
 // extractInitialConsonants extracts the initial consonants from a Korean string.
+//
 // ex) "부산 해운대구 좌동 1395" -> "ㅂㅅㅎㅇㄷㄱㅈㄷ"
 func extractInitialConsonants(s string) string {
 	var initials []rune
@@ -233,6 +252,28 @@ func extractInitialConsonants(s string) string {
 		}
 	}
 	return string(initials)
+}
+
+// Split the user input into valid Korean initial consonants, breaking double consonants where necessary
+//
+// ex) "앍돍ㅄㄳ산" -> "앍돍ㅂㅅㄱㅅ산"
+func segmentConsonants(input string) string {
+	var result []rune
+
+	for _, r := range input {
+		// Check if the character is a valid initial consonant
+		if validInitialConsonants[r] {
+			result = append(result, r)
+		} else if components, found := doubleConsonants[r]; found {
+			// If it's a double consonant, break it into its components
+			result = append(result, components...)
+		} else {
+			// If it's not a valid consonant or double consonant, add it as is
+			result = append(result, r)
+		}
+	}
+
+	return string(result)
 }
 
 func standardizeProvince(province string) string {

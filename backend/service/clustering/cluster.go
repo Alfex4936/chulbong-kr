@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"math"
+	"sync"
+
+	"github.com/dhconnelly/rtreego"
 )
 
 // Point represents a geospatial point
@@ -11,6 +14,15 @@ type Point struct {
 	Longitude float64
 	ClusterID int // Used to identify which cluster this point belongs to
 	Address   string
+}
+
+// RTreePoint wraps a Point to implement the rtreego.Spatial interface
+type RTreePoint struct {
+	Point
+}
+
+func (p RTreePoint) Bounds() rtreego.Rect {
+	return rtreego.Point{p.Latitude, p.Longitude}.ToRect(0.00001)
 }
 
 // Haversine formula to calculate geographic distance between points
@@ -26,24 +38,38 @@ func distance(lat1, lon1, lat2, lon2 float64) float64 {
 	return r * c // Distance in meters
 }
 
-func regionQuery(points []Point, p Point, eps float64) []int {
+// regionQuery returns the indices of all points within eps distance of point p using an R-tree for efficient querying
+func regionQuery(tree *rtreego.Rtree, points []Point, p Point, eps float64) []int {
+	epsDeg := eps / 111000 // Approximate conversion from meters to degrees
+	searchRect := rtreego.Point{p.Latitude, p.Longitude}.ToRect(epsDeg)
+	results := tree.SearchIntersect(searchRect)
+
 	var neighbors []int
-	for idx, pt := range points {
-		if distance(p.Latitude, p.Longitude, pt.Latitude, pt.Longitude) < eps {
-			neighbors = append(neighbors, idx)
+	for _, item := range results {
+		rtp := item.(RTreePoint)
+		if distance(p.Latitude, p.Longitude, rtp.Latitude, rtp.Longitude) < eps {
+			for idx, pt := range points {
+				if pt.Latitude == rtp.Latitude && pt.Longitude == rtp.Longitude {
+					neighbors = append(neighbors, idx)
+					break
+				}
+			}
 		}
 	}
 	return neighbors
 }
 
-func expandCluster(points []Point, pIndex int, neighbors []int, clusterID int, eps float64, minPts int) {
+// expandCluster expands the cluster with id clusterID by recursively adding all density-reachable points
+func expandCluster(tree *rtreego.Rtree, points []Point, pIndex int, neighbors []int, clusterID int, eps float64, minPts int, wg *sync.WaitGroup, mu *sync.Mutex) {
+	defer wg.Done()
+
 	points[pIndex].ClusterID = clusterID
 	i := 0
 	for i < len(neighbors) {
 		nIndex := neighbors[i]
 		if points[nIndex].ClusterID == 0 { // Not visited
 			points[nIndex].ClusterID = clusterID
-			nNeighbors := regionQuery(points, points[nIndex], eps)
+			nNeighbors := regionQuery(tree, points, points[nIndex], eps)
 			if len(nNeighbors) >= minPts {
 				neighbors = append(neighbors, nNeighbors...)
 			}
@@ -52,22 +78,43 @@ func expandCluster(points []Point, pIndex int, neighbors []int, clusterID int, e
 		}
 		i++
 	}
+
+	mu.Lock()
+	for _, neighborIdx := range neighbors {
+		if points[neighborIdx].ClusterID == 0 {
+			points[neighborIdx].ClusterID = clusterID
+		}
+	}
+	mu.Unlock()
 }
 
+// DBSCAN performs DBSCAN clustering on the points
 func DBSCAN(points []Point, eps float64, minPts int) []Point {
 	clusterID := 0
+	tree := rtreego.NewTree(2, 25, 50) // Create an R-tree for 2D points
+
+	for _, p := range points {
+		tree.Insert(RTreePoint{p})
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
 	for i := range points {
 		if points[i].ClusterID != 0 {
 			continue
 		}
-		neighbors := regionQuery(points, points[i], eps)
+		neighbors := regionQuery(tree, points, points[i], eps)
 		if len(neighbors) < minPts {
 			points[i].ClusterID = -1
 		} else {
 			clusterID++
-			expandCluster(points, i, neighbors, clusterID, eps, minPts)
+			wg.Add(1)
+			go expandCluster(tree, points, i, neighbors, clusterID, eps, minPts, &wg, &mu)
 		}
 	}
+
+	wg.Wait()
 	return points
 }
 
@@ -77,7 +124,6 @@ func main() {
 		{Latitude: 37.568661, Longitude: 126.972375, Address: "서울 종로구 신문로2가 171"},
 		{Latitude: 37.56885, Longitude: 126.972064, Address: "서울 종로구 신문로2가 171"},
 		{Latitude: 37.56589411615361, Longitude: 126.96930309974685, Address: "서울 중구 순화동 1-1"},
-
 		{Latitude: 37.55808862059195, Longitude: 126.95976545165765, Address: "서울 서대문구 북아현동 884"},
 		{Latitude: 37.57838984677184, Longitude: 126.98853202207196, Address: "서울 종로구 원서동 181"},
 		{Latitude: 37.57318309415514, Longitude: 126.95501424473001, Address: "서울 서대문구 현저동 101"},
