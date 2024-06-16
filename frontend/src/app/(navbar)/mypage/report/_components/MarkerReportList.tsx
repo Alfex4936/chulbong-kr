@@ -120,8 +120,6 @@ const MarkerReportList = ({
     fetchAddr();
   }, [map]);
 
-  console.log(imgs);
-
   useEffect(() => {
     if (!imgs) return;
 
@@ -236,6 +234,7 @@ const MarkerReportList = ({
                     setCurImage(img);
                     openImageModal();
                   }}
+                  key={img.photoId}
                 >
                   <Image
                     src={img.photoUrl}
@@ -243,7 +242,6 @@ const MarkerReportList = ({
                     height={30}
                     alt="마커 수정"
                     className="w-10 h-10 object-contain ml-2"
-                    key={img.photoId}
                   />
                 </button>
               );
