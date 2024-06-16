@@ -67,6 +67,12 @@ type MarkerSimpleWithAddr struct {
 	Address   string  `json:"address,omitempty" db:"Address"`
 }
 
+type MarkerRSS struct {
+	MarkerID  int       `json:"markerId" db:"MarkerID"`
+	UpdatedAt time.Time `json:"updatedAt" db:"UpdatedAt"`
+	Address   string    `json:"address,omitempty" db:"Address"`
+}
+
 type FacilityQuantity struct {
 	FacilityID int `json:"facilityId"`
 	Quantity   int `json:"quantity"`

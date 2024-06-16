@@ -1,0 +1,19 @@
+# Use ZincSearch's official image from public ECR
+FROM public.ecr.aws/zinclabs/zincsearch:latest
+
+# Set the working directory in the container
+WORKDIR /data
+
+# Copy any required files or configurations you have on your local machine into the container
+# COPY ./my-custom-config.json /data/config.json
+
+# Set environment variables to configure Zinc
+ENV ZINC_DATA_PATH=/data \  
+    ZINC_FIRST_ADMIN_USER=admin \
+    ZINC_FIRST_ADMIN_PASSWORD=1234
+
+# Expose port for web access to the ZincSearch service
+EXPOSE 4080
+
+# Set the default command to run the ZincSearch server
+CMD ["zincsearch"]

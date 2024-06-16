@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
@@ -207,7 +209,7 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) ([]dto.MarkerR
         WHERE 
             r.MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)
         ORDER BY 
-            r.MarkerID, r.ReportID;
+            r.MarkerID, r.CreatedAt DESC;
     `
 	rows, err := s.DB.Queryx(query, userID)
 	if err != nil {
@@ -343,4 +345,38 @@ func fetchNewUser(tx *sqlx.Tx, userID int64) (*model.User, error) {
 		return nil, fmt.Errorf("error fetching newly created user: %w", err)
 	}
 	return &newUser, nil
+}
+
+func mapToSliceWithSorting(reportMap map[int][]dto.MarkerReportResponse) []dto.MarkerReportResponse {
+	// Create a slice to hold all the reports grouped by markers
+	type markerWithReports struct {
+		MarkerID int
+		Reports  []dto.MarkerReportResponse
+		Latest   time.Time
+	}
+
+	markerReports := make([]markerWithReports, 0, len(reportMap))
+	for markerID, reports := range reportMap {
+		// Since reports are already sorted by CreatedAt DESC within each marker group,
+		// the first report's CreatedAt will be the latest report time.
+		latestTime := reports[0].CreatedAt
+		markerReports = append(markerReports, markerWithReports{
+			MarkerID: markerID,
+			Reports:  reports,
+			Latest:   latestTime,
+		})
+	}
+
+	// Sort marker groups by the latest report's CreatedAt DESC
+	sort.Slice(markerReports, func(i, j int) bool {
+		return markerReports[i].Latest.After(markerReports[j].Latest)
+	})
+
+	// Flatten the sorted marker groups into a single slice
+	reports := make([]dto.MarkerReportResponse, 0)
+	for _, mr := range markerReports {
+		reports = append(reports, mr.Reports...)
+	}
+
+	return reports
 }

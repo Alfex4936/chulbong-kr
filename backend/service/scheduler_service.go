@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,23 +16,25 @@ import (
 )
 
 type SchedulerService struct {
-	DB                *sqlx.DB
-	TokenService      *TokenService
-	S3Service         *S3Service
-	MarkerRankService *MarkerRankService
-	RedisService      *RedisService
-	cron              *cron.Cron
+	DB                  *sqlx.DB
+	TokenService        *TokenService
+	S3Service           *S3Service
+	MarkerRankService   *MarkerRankService
+	MarkerManageService *MarkerManageService
+	RedisService        *RedisService
+	cron                *cron.Cron
 }
 
 func NewSchedulerService(
-	db *sqlx.DB, tokenService *TokenService, s3Service *S3Service, rankService *MarkerRankService, redisService *RedisService,
+	db *sqlx.DB, tokenService *TokenService, s3Service *S3Service, rankService *MarkerRankService, markerService *MarkerManageService, redisService *RedisService,
 ) *SchedulerService {
 	return &SchedulerService{
-		DB:                db,
-		TokenService:      tokenService,
-		S3Service:         s3Service,
-		MarkerRankService: rankService,
-		RedisService:      redisService,
+		DB:                  db,
+		TokenService:        tokenService,
+		S3Service:           s3Service,
+		MarkerRankService:   rankService,
+		MarkerManageService: markerService,
+		RedisService:        redisService,
 		cron: cron.New(cron.WithChain(
 			cron.Recover(cron.DefaultLogger),
 		)),
@@ -54,6 +57,7 @@ func RegisterSchedulerLifecycle(lifecycle fx.Lifecycle, scheduler *SchedulerServ
 
 func (s *SchedulerService) RunAllCrons() {
 	s.CronCleanUpToken()
+	s.CronUpdateRSS()
 	s.CronCleanUpPasswordTokens()
 	// s.CronResetClickRanking()
 	s.CronOrphanedPhotosCleanup()
@@ -145,6 +149,23 @@ func (s *SchedulerService) CronCleanUpToken() {
 		} else {
 			fmt.Println("Expired tokens cleanup executed successfully")
 		}
+	})
+	if err != nil {
+		// Handle the error
+		fmt.Printf("Error scheduling the token cleanup job: %v\n", err)
+		return
+	}
+}
+
+func (s *SchedulerService) CronUpdateRSS() {
+	_, err := s.Schedule("@daily", func() {
+		rss, _ := s.MarkerManageService.GenerateRSS()
+
+		err := saveRSSToFile(rss, "marker_rss.xml")
+		if err != nil {
+			log.Printf("Error saving RSS to file: %v\n", err)
+		}
+
 	})
 	if err != nil {
 		// Handle the error

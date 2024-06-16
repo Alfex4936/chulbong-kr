@@ -74,6 +74,10 @@ func (mfs *UserFacadeService) GetAllReportsByUser(userID int) ([]dto.MarkerRepor
 	return mfs.UserService.GetAllReportsByUser(userID)
 }
 
+func (mfs *UserFacadeService) GetAllReportsForMyMarkersByUser(userID int) ([]dto.MarkerReportResponse, error) {
+	return mfs.UserService.GetAllReportsForMyMarkersByUser(userID)
+}
+
 func (mfs *UserFacadeService) DeleteDataFromS3(dataURL string) error {
 	return mfs.S3Service.DeleteDataFromS3(dataURL)
 }

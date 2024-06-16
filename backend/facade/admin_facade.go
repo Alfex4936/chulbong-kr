@@ -73,3 +73,7 @@ func (mfs *AdminFacadeService) CreateMarkerWithPhotos(markerDto *dto.MarkerReque
 func (mfs *AdminFacadeService) SetMarkerFacilities(markerID int, facilities []dto.FacilityQuantity) error {
 	return mfs.MarkerFacility.SetMarkerFacilities(markerID, facilities)
 }
+
+func (mfs *AdminFacadeService) ResetMarkerCache() {
+	mfs.MarkerManage.ClearCache()
+}

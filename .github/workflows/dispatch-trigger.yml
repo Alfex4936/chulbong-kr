@@ -64,7 +64,7 @@ jobs:
       - name: Prepare payload
         id: prepare_payload
         run: |
-          COMMIT_MESSAGE=$(jq -R -s '.' <<<'${{ github.event.head_commit.message }}')
+          COMMIT_MESSAGE=$(echo "${{ github.event.head_commit.message }}" | jq -R -s '. | rtrimstr("\n")')
           echo "payload={\"ref\": \"${{ github.ref }}\", \"sha\": \"${{ github.sha }}\", \"commit_message\": $COMMIT_MESSAGE}" >> $GITHUB_ENV
 
       - name: Trigger Repository Dispatch for Frontend Changes

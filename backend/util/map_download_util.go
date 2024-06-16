@@ -8,7 +8,6 @@ import (
 	"image/draw"
 	"image/png"
 	"io"
-	"math"
 	"net/http"
 	"os"
 	"path"
@@ -219,7 +218,7 @@ func saveImage(img image.Image, path string) error {
 	return nil
 }
 
-func GenerateMapPDF(imagePath, tempDir, title string) (string, error) {
+func GenerateMapPDF(imagePath, tempDir, title string, markerId int) (string, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 
@@ -238,15 +237,16 @@ func GenerateMapPDF(imagePath, tempDir, title string) (string, error) {
 	pdf.SetTextColor(0, 0, 0)          // Reset text color to black for the title
 	pdf.CellFormat(totalWidth, 10, title, "0", 1, "C", false, 0, "")
 
+	url := fmt.Sprintf("https://k-pullup.com/pullup/%d", markerId)
+
 	// Add image
-	pdf.ImageOptions(imagePath, 10, 40, totalWidth, 0, false, fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "https://k-pullup.com")
+	pdf.ImageOptions(imagePath, 10, 40, totalWidth, 0, false, fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, url)
 
 	// Print the "More at k-pullup.com" as one unit, centered
 	pdf.SetFont("NanumGothic", "", 8) // Reset the font size to 10 if needed
 	pdf.SetTextColor(0, 0, 0)         // Black color for "More at "
 	moreAtText := "More at "
-	kPullupText := "https://k-pullup.com"
-	fullLinkText := moreAtText + kPullupText
+	fullLinkText := moreAtText + url
 	// fullLinkWidth := pdf.GetStringWidth(fullLinkText)
 
 	// Calculate starting X position to center the full link text
@@ -256,7 +256,7 @@ func GenerateMapPDF(imagePath, tempDir, title string) (string, error) {
 	pdf.SetY(200)
 	pdf.CellFormat(totalWidth, 10, fullLinkText, "0", 0, "R", false, 0, "")
 	// Create an invisible link over "k-pullup.com"
-	pdf.LinkString(pdf.GetX()+pdf.GetStringWidth(moreAtText), pdf.GetY(), pdf.GetStringWidth(kPullupText), 10, "https://k-pullup.com")
+	pdf.LinkString(pdf.GetX()+pdf.GetStringWidth(moreAtText), pdf.GetY(), pdf.GetStringWidth(url), 10, url)
 
 	// Save the PDF
 	pdfName := fmt.Sprintf("kpullup-%s.pdf", uuid.New().String())
@@ -328,31 +328,68 @@ func LoadWebP(filePath string) (image.Image, error) {
 	return webp.Decode(file)
 }
 
-func PlaceMarkerOnImageDynamic(CX, CY, centerCX, centerCY float64, imageWidth, imageHeight, zoomLevel int) (int, int) {
-	// Base scale for zoom level 0 (fully zoomed out)
-	const baseScale = 0.3125
+// PlaceMarkersOnImage places markers on the given base image according to their WCONGNAMUL coordinates.
+func PlaceMarkersOnImageDynamic(baseImageFile string, markers []WCONGNAMULCoord, centerCX, centerCY, zoomScale float64) (string, error) {
+	baseImg, _, err := loadImage(baseImageFile)
+	if err != nil {
+		return "", err
+	}
+	bounds := baseImg.Bounds()
+	resultImg := image.NewRGBA(bounds)
+	draw.Draw(resultImg, bounds, baseImg, image.Point{}, draw.Src)
 
-	// full coordinate range visible at zoom level 0 for a standard image size
-	const baseWidth = 1280     // Standard width at zoom level 0
-	const baseHeight = 1080    // Standard height at zoom level 0
-	const baseCXRange = 3190.0 // Total CX range at zoom level 0
-	const baseCYRange = 3190.0 // Total CY range at zoom level 0
+	// SCALE by 2.5 in 1280x1080 image only, center (centerCX, centerCY).
 
-	// Calculate scale factor based on current zoom level
-	scale := baseScale * math.Pow(2, float64(zoomLevel))
+	for _, marker := range markers {
+		x, y := PlaceMarkerOnImageDynamic(marker.X, marker.Y, centerCX, centerCY, bounds.Dx(), bounds.Dy(), zoomScale)
 
-	// Calculate the actual number of coordinate units per pixel at the current zoom level and image size
-	cxUnitsPerPixel := (baseCXRange / float64(baseWidth)) / scale * float64(baseWidth) / float64(imageWidth)
-	cyUnitsPerPixel := (baseCYRange / float64(baseHeight)) / scale * float64(baseHeight) / float64(imageHeight)
+		// Calculate the top-left position to start drawing the marker icon
+		// Ensure the entire marker icon is within bounds before drawing
+		startX := x - markerWidth/2 - 5 // 5px out
+		startY := y - markerHeight
 
-	// Calculate the pixel offset from the center
+		// Draw the resized marker icon
+		draw.Draw(resultImg, image.Rect(startX, startY, startX+markerWidth, startY+markerHeight), markerIcon, image.Point{0, 0}, draw.Over)
+	}
+
+	// Add watermark image (logo-text.png)
+	// Resize watermark image based on the given percentage
+	newWatermarkWidth := uint(float64(watermarkWidth) * watermarkScale)
+	newWatermarkHeight := uint(float64(watermarkHeight) * watermarkScale)
+	resizedWatermarkImg := resize.Resize(newWatermarkWidth, newWatermarkHeight, watermarkImg, resize.Lanczos3)
+
+	// Calculate the center position for the resized watermark image
+	centerX := (bounds.Dx() - int(newWatermarkWidth)) / 2
+	centerY := (bounds.Dy() - int(newWatermarkHeight)) / 2
+
+	// Create an alpha mask for the watermark image with the desired transparency
+	temp := 255 * 0.1
+	alpha := uint8(temp) // 10% opacity
+	alphaMask := image.NewUniform(color.Alpha{alpha})
+
+	// Draw the watermark image with the alpha mask at the center position
+	draw.DrawMask(resultImg, image.Rect(centerX, centerY, centerX+int(newWatermarkWidth), centerY+int(newWatermarkHeight)), resizedWatermarkImg, image.Point{}, alphaMask, image.Point{}, draw.Over)
+
+	resultPath := filepath.Join(filepath.Dir(baseImageFile), "result_with_markers.png")
+	if err := saveImage(resultImg, resultPath); err != nil {
+		return "", fmt.Errorf("failed to save image with markers: %w", err)
+	}
+
+	return resultPath, nil
+}
+
+// PlaceMarkerOnImageDynamic calculates (x, y) position in the image with a given zoom scale and dimensions.
+func PlaceMarkerOnImageDynamic(CX, CY, centerCX, centerCY float64, imageWidth, imageHeight int, zoomScale float64) (int, int) {
 	deltaX := CX - centerCX
 	deltaY := CY - centerCY
+
+	// Adjust units per pixel based on the zoom scale
+	cxUnitsPerPixel := (zoomScale * float64(imageWidth))
+	cyUnitsPerPixel := (zoomScale * float64(imageHeight))
 
 	pixelOffsetX := deltaX / cxUnitsPerPixel
 	pixelOffsetY := deltaY / cyUnitsPerPixel
 
-	// Calculate the absolute pixel coordinates
 	markerPosX := (imageWidth / 2) + int(pixelOffsetX)
 	markerPosY := (imageHeight / 2) - int(pixelOffsetY)
 

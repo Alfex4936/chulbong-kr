@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -368,4 +369,29 @@ func paginateMarkers(markers []dto.MarkerWithDistance, pageSize, offset int) []d
 		end = len(markers)
 	}
 	return markers[offset:end]
+}
+
+func (s *MarkerLocationService) TestDynamic(latitude, longitude, zoomScale float64, width, height int64) {
+	nearbyMarkers, total, err := s.FindClosestNMarkersWithinDistance(latitude, longitude, 700, 30, 0) // meter, pageSize, offset
+	if err != nil {
+		return
+	}
+	if total == 0 {
+		return
+	}
+
+	markers := make([]util.WCONGNAMULCoord, len(nearbyMarkers))
+	for i, marker := range nearbyMarkers {
+		markers[i] = util.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
+	}
+	mapWcon := util.ConvertWGS84ToWCONGNAMUL(latitude, longitude)
+	baseImageFile := fmt.Sprintf("base_map-%s.png", uuid.New().String())
+	baseImageFilePath := path.Join("./tests", baseImageFile)
+	log.Printf("📆 %s", baseImageFilePath)
+
+	static := fmt.Sprintf("https://spi.maps.daum.net/map2/map/imageservice?IW=%d&IH=%d&SCALE=%f&service=open", width, height, zoomScale)
+	util.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f", static, mapWcon.X, mapWcon.Y), baseImageFilePath)
+
+	resultImagePath, _ := util.PlaceMarkersOnImageDynamic(baseImageFilePath, markers, mapWcon.X, mapWcon.Y, zoomScale)
+	fmt.Println(resultImagePath)
 }

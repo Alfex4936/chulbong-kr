@@ -1,12 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+	gounicode "unicode"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
@@ -20,17 +23,109 @@ import (
 	_ "github.com/blevesearch/bleve/v2/index/upsidedown/store/boltdb"
 	"github.com/blevesearch/bleve/v2/search/highlight/format/html"
 	"github.com/blevesearch/bleve/v2/search/query"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
+// MarkerDB represents the structure of the marker data from DB.
+type MarkerDB struct {
+	MarkerID int    `json:"markerId"`
+	Address  string `json:"address"`
+}
+
 type Marker struct {
-	MarkerID    int    `json:"markerId"`
-	Province    string `json:"province"`
-	City        string `json:"city"`
-	Address     string `json:"address"` // such as Korean: 경기도 부천시 소사구 경인로29번길 32, 우성아파트
-	FullAddress string `json:"fullAddress"`
+	MarkerID          int    `json:"markerId"`
+	Province          string `json:"province"`
+	City              string `json:"city"`
+	Address           string `json:"address"` // such as Korean: 경기도 부천시 소사구 경인로29번길 32, 우성아파트
+	FullAddress       string `json:"fullAddress"`
+	InitialConsonants string `json:"initialConsonants"` // 초성
+}
+
+// Load environment variables from .env file
+func loadEnv() error {
+	err := godotenv.Load()
+	if err != nil {
+		return fmt.Errorf("error loading .env file: %v", err)
+	}
+	return nil
+}
+
+func saveJson() error {
+	// Database connection parameters
+	dbHost := os.Getenv("DB_HOST")
+	dbUser := os.Getenv("DB_USERNAME")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+
+	// Database connection string
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", dbUser, dbPassword, dbHost, dbName)
+
+	// Open database connection
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return fmt.Errorf("error connecting to the database: %v", err)
+	}
+	defer db.Close()
+
+	// Query to select all rows from the Markers table
+	selectSQL := `SELECT MarkerID, Address FROM Markers`
+
+	// Execute the query
+	rows, err := db.Query(selectSQL)
+	if err != nil {
+		return fmt.Errorf("error executing query: %v", err)
+	}
+	defer rows.Close()
+
+	// Prepare data for JSON
+	var markers []MarkerDB
+	for rows.Next() {
+		var marker MarkerDB
+		err := rows.Scan(&marker.MarkerID, &marker.Address)
+		if err != nil {
+			return fmt.Errorf("error scanning row: %v", err)
+		}
+		markers = append(markers, marker)
+	}
+
+	// Check for errors from iterating over rows
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating over rows: %v", err)
+	}
+
+	// Write to JSON file
+	file, err := os.Create("markers.json")
+	if err != nil {
+		return fmt.Errorf("error creating JSON file: %v", err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	err = encoder.Encode(markers)
+	if err != nil {
+		return fmt.Errorf("error encoding JSON: %v", err)
+	}
+
+	fmt.Println("Data has been written to markers.json")
+
+	return nil
 }
 
 func main() {
+	// Load environment variables
+	err := loadEnv()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
+	if len(os.Args) < 2 {
+		saveJson()
+		log.Println("Fetching completed.")
+	}
+
 	// Sample JSON data
 	markers, _ := getMarkersFromJson("markers.json")
 
@@ -40,7 +135,7 @@ func main() {
 
 	// Define custom mapping
 	indexMapping := bleve.NewIndexMapping()
-	err := indexMapping.AddCustomTokenFilter("edge_ngram_min_1_max_4",
+	err = indexMapping.AddCustomTokenFilter("edge_ngram_min_1_max_4",
 		map[string]interface{}{
 			"type": edgengram.Name,
 			"min":  1.0,
@@ -102,7 +197,14 @@ func main() {
 
 	fullAddressMapping := bleve.NewTextFieldMapping()
 	fullAddressMapping.Store = true
+	fullAddressMapping.IncludeTermVectors = true
 	markerMapping.AddFieldMappingsAt("fullAddress", fullAddressMapping)
+
+	initialConsonantsMapping := bleve.NewTextFieldMapping()
+	initialConsonantsMapping.Analyzer = "koCJKEdgeNgram"
+	initialConsonantsMapping.Store = true
+	initialConsonantsMapping.IncludeTermVectors = true
+	markerMapping.AddFieldMappingsAt("initialConsonants", initialConsonantsMapping)
 
 	indexMapping.AddDocumentMapping("marker", markerMapping)
 
@@ -120,12 +222,16 @@ func main() {
 	}
 
 	// Index the markers
-	for _, marker := range markers {
+	for i, marker := range markers {
 		province, city, rest := splitAddress(marker.Address)
 		marker.Province = province
 		marker.City = city
 		marker.FullAddress = marker.Address
 		marker.Address = rest
+		marker.InitialConsonants = extractInitialConsonants(marker.FullAddress)
+		if i == 10 {
+			log.Printf("🌍 address: %s (%s)", marker.FullAddress, marker.InitialConsonants)
+		}
 		err = index.Index(strconv.Itoa(marker.MarkerID), marker)
 		if err != nil {
 			log.Fatalf("Error indexing document: %v", err)
@@ -162,6 +268,19 @@ func search(t string) {
 	// queries = append(queries, phraseQuery)
 
 	for _, term := range terms {
+		// Add a MatchQuery for the full search term
+		matchQuery := query.NewMatchQuery(term)
+		matchQuery.SetField("initialConsonants")
+		matchQuery.Analyzer = "koCJKEdgeNgram"
+		matchQuery.SetBoost(10.0)
+		queries = append(queries, matchQuery)
+
+		// Use WildcardQuery for more flexible matches
+		wildcardQuery := query.NewWildcardQuery("*" + term + "*")
+		wildcardQuery.SetField("initialConsonants")
+		wildcardQuery.SetBoost(5.0)
+		queries = append(queries, wildcardQuery)
+
 		standardizedProvince := standardizeProvince(term)
 		if standardizedProvince != term {
 			// If the term is a province, use a lower boost
@@ -220,7 +339,7 @@ func search(t string) {
 	// conjunctionQuery := bleve.NewConjunctionQuery(disjunctionQuery)
 
 	searchRequest := bleve.NewSearchRequest(disjunctionQuery)
-	searchRequest.Fields = []string{"fullAddress", "address", "province", "city"}
+	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
 	searchRequest.Size = 10 // Limit the number of results
 	searchResult, err := index.Search(searchRequest)
 	searchRequest.SortBy([]string{"_score", "markerId"})
@@ -364,3 +483,41 @@ func getMarkersFromJson(filepath string) ([]Marker, error) {
 
 	return markerData, nil
 }
+
+// Map of Hangul initial consonant Unicode values to their corresponding Korean consonants.
+var initialConsonantMap = map[rune]rune{
+	0x1100: 'ㄱ', 0x1101: 'ㄲ', 0x1102: 'ㄴ', 0x1103: 'ㄷ', 0x1104: 'ㄸ',
+	0x1105: 'ㄹ', 0x1106: 'ㅁ', 0x1107: 'ㅂ', 0x1108: 'ㅃ', 0x1109: 'ㅅ',
+	0x110A: 'ㅆ', 0x110B: 'ㅇ', 0x110C: 'ㅈ', 0x110D: 'ㅉ', 0x110E: 'ㅊ',
+	0x110F: 'ㅋ', 0x1110: 'ㅌ', 0x1111: 'ㅍ', 0x1112: 'ㅎ',
+}
+
+// ExtractInitialConsonants extracts the initial consonants from a Korean string.
+// ex) "부산 해운대구 좌동 1395" -> "ㅂㅅㅎㅇㄷㄱㅈㄷ"
+func extractInitialConsonants(s string) string {
+	var initials []rune
+	for _, r := range s {
+		if gounicode.Is(gounicode.Hangul, r) {
+			initial := (r - 0xAC00) / 28 / 21
+			if mapped, exists := initialConsonantMap[0x1100+initial]; exists {
+				initials = append(initials, mapped)
+			}
+		}
+	}
+	return string(initials)
+}
+
+/*
+my json looks like
+
+[
+  {
+    "markerId": 1,
+    "address": "경북 포항시 북구 창포동 655"
+  },
+  {
+    "markerId": 2,
+    "address": "서울 노원구 하계동 250"
+  },
+]
+*/

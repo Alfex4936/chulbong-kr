@@ -29,6 +29,7 @@ import (
 	_ "github.com/blevesearch/bleve/v2/analysis/token/unicodenorm"
 	_ "github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	_ "github.com/blevesearch/bleve/v2/index/upsidedown/store/boltdb"
+	"github.com/dgraph-io/ristretto"
 
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
@@ -39,6 +40,8 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/redis/rueidis"
+
+	ristretto_store "github.com/eko/gocache/store/ristretto/v4"
 
 	"github.com/gofiber/contrib/fgprof"
 	"github.com/gofiber/contrib/websocket"
@@ -63,7 +66,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Fiber app constructor
+// ඞ Fiber app constructor
 func NewFiberApp(
 	logger *zap.Logger,
 	chatUtil *util.ChatUtil,
@@ -79,6 +82,7 @@ func NewFiberApp(
 	authMiddleware *middleware.AuthMiddleware,
 	zapMiddleware *middleware.LogMiddleware) *fiber.App {
 	app := fiber.New(fiber.Config{
+		Prefork:       false,
 		CaseSensitive: true,
 		StrictRouting: true,
 		ServerHeader:  "nginx",
@@ -126,7 +130,7 @@ func NewFiberApp(
 	app.Use(zapMiddleware.ZapLogMiddleware(logger))
 	app.Use(healthcheck.New(healthcheck.Config{
 		LivenessProbe: func(c *fiber.Ctx) bool {
-			log.Printf("---- %s", chatUtil.CreateAnonymousID(c))
+			// log.Printf("---- %s", chatUtil.CreateAnonymousID(c))
 			return true
 		},
 		LivenessEndpoint: "/",
@@ -275,6 +279,24 @@ func NewLavinMqClient() (*amqp.Connection, error) {
 	return amqp.Dial(os.Getenv("LAVINMQ_HOST"))
 }
 
+func NewGoCacheLocalStorage() (*ristretto_store.RistrettoStore, error) {
+	estimatedMarkers := 10000
+	approxMarkerSize := 100 // bytes
+	maxCost := estimatedMarkers * approxMarkerSize
+
+	ristrettoCache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 10,
+		MaxCost:     int64(maxCost),
+		BufferItems: 64,
+	})
+	if err != nil {
+		return nil, err
+	}
+	ristrettoStore := ristretto_store.NewRistretto(ristrettoCache)
+
+	return ristrettoStore, nil
+}
+
 // NewDatabase sets up the database connection
 func NewDatabase() (*sqlx.DB, error) {
 	dbUsername := os.Getenv("DB_USERNAME")
@@ -418,6 +440,7 @@ func main() {
 			NewWsConfig,
 			NewTimeZoneFinder,
 			NewBleveIndex,
+			NewGoCacheLocalStorage,
 			// NewGeminiClient,
 			// NewLavinMqClient,
 
@@ -426,7 +449,13 @@ func main() {
 
 			NewFiberApp,
 		),
-		fx.Invoke(registerHooks, util.RegisterBadWordUtilLifecycle, service.RegisterSchedulerLifecycle, util.RegisterPdfInitLifecycle), // func(diGraph fx.DotGraph) {
+		fx.Invoke(
+			registerHooks,
+			util.RegisterBadWordUtilLifecycle,
+			service.RegisterSchedulerLifecycle,
+			util.RegisterPdfInitLifecycle,
+			service.RegisterMarkerLifecycle,
+		), // func(diGraph fx.DotGraph) {
 		// 	log.Println("➡️", diGraph)
 		// }
 

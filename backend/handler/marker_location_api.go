@@ -211,6 +211,38 @@ func (h *MarkerHandler) HandleSaveOfflineMap(c *fiber.Ctx) error {
 	return c.Download(pdf)
 }
 
+func (h *MarkerHandler) HandleTestDynamic(c *fiber.Ctx) error {
+	latParam := c.Query("latitude")
+	longParam := c.Query("longitude")
+	lat, err := strconv.ParseFloat(latParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+	}
+	long, err := strconv.ParseFloat(longParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+
+	sParam := c.Query("scale")
+	wParam := c.Query("width")
+	hParam := c.Query("height")
+	scale, err := strconv.ParseFloat(sParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+	}
+	width, err := strconv.ParseInt(wParam, 0, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+	height, err := strconv.ParseInt(hParam, 0, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+
+	h.MarkerFacadeService.TestDynamic(lat, long, scale, width, height)
+	return c.SendString("Dynamic API test")
+}
+
 func (h *MarkerHandler) HandleSaveOfflineMap2(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")

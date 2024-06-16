@@ -65,9 +65,10 @@ type MarkerSearchResponse struct {
 }
 
 type MarkerIndexData struct {
-	MarkerID    int    `json:"markerId"`
-	Province    string `json:"province"`
-	City        string `json:"city"`
-	Address     string `json:"address"` // such as Korean: 경기도 부천시 소사구 경인로29번길 32, 우성아파트
-	FullAddress string `json:"fullAddress"`
+	MarkerID          int    `json:"markerId"`
+	Province          string `json:"province"`
+	City              string `json:"city"`
+	Address           string `json:"address"` // such as Korean: 경기도 부천시 소사구 경인로29번길 32, 우성아파트
+	FullAddress       string `json:"fullAddress"`
+	InitialConsonants string `json:"initialConsonants"` // 초성
 }

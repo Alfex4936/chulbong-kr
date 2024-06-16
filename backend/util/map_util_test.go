@@ -5,6 +5,8 @@ package util
 import (
 	"math"
 	"testing"
+
+	"github.com/twpayne/go-proj/v10"
 )
 
 // Test
@@ -112,6 +114,79 @@ func TestWCONGNAMUL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProjWCONGNAMUL(t *testing.T) {
+	tests := []struct {
+		name                 string
+		lat, long            float64 // Starting point
+		expectedX, expectedY float64 // Expected ending point
+	}{
+		{
+			name:      "Test 1",
+			lat:       37.248098895147216,
+			long:      126.99116337285824,
+			expectedX: 498040.0,
+			expectedY: 1041367.0,
+		},
+		{
+			name:      "Test Not korea 1",
+			lat:       33.248098895147216,
+			long:      126.99116337285824,
+			expectedX: 497941.0,
+			expectedY: -68085.0,
+		},
+		{
+			name:      "Test 3",
+			lat:       35.73294563400083,
+			long:      127.37264182214031,
+			expectedX: 584279.0,
+			expectedY: 621193.0,
+		},
+		{
+			name:      "Test 4",
+			lat:       35.7328,
+			long:      127.37264182214031,
+			expectedX: 584280.0,
+			expectedY: 621153.0,
+		},
+		{
+			name:      "Test 5",
+			lat:       34.248098895147216,
+			long:      126.96666,
+			expectedX: 492322.0,
+			expectedY: 209211.0,
+		},
+	}
+
+	pj, err := proj.NewCRSToCRS("EPSG:4326", "EPSG:5181", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	scaleFactor := 2.5
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 입력 좌표를 Coord 객체로 생성 (x=경도, y=위도, z와 m은 0으로 설정)
+			inputCoord := proj.NewCoord(tt.lat, tt.long, 0, 0) // 위도, 경도
+			outputCoord, _ := pj.Forward(inputCoord)
+
+			// 스케일 팩터 적용 후 소수점 이하 두 자리에서 자르기
+			y_kakao := truncateFloat(outputCoord.X() * scaleFactor)
+			x_kakao := truncateFloat(outputCoord.Y() * scaleFactor)
+
+			t.Logf("Calculated WCONGNAMUL: %f, %f", x_kakao, y_kakao)
+			if math.Abs(x_kakao-tt.expectedX) > 0.001 || math.Abs(y_kakao-tt.expectedY) > 0.001 { // Allowing a margin of error of 1
+				t.Errorf("ConvertWGS84ToWCONGNAMUL(%v, %v) = (%f, %f), want (%f, %f)",
+					tt.lat, tt.long, x_kakao, y_kakao, tt.expectedX, tt.expectedY)
+			}
+		})
+	}
+}
+
+// truncateFloat 함수는 주어진 float64 값을 소수점 이하 특정 자리에서 자릅니다.
+func truncateFloat(f float64) float64 {
+	return math.Trunc(f*100) / 100 // 소수점 이하 두 자리에서 자르기
 }
 
 func TestWCONGNAMULToWGS84(t *testing.T) {
