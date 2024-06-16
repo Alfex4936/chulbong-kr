@@ -25,6 +25,7 @@
 |           <img width="1604" alt="main" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/2ac3ffb2-f22e-4476-bf4b-ebc1bc58b1a4"> 메인 화면            |             <img width="1604" alt="2" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/30967ec3-9921-4910-9c1a-293d950d50ef"> 마커 정보              |
 | <img width="1604" alt="road view" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/0a26c86a-6da9-42c8-803a-57d5904dea29"> 거리뷰 (가장 가까운 위치) |             <img width="1604" alt="comment" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a8d69589-4b7f-435b-8084-ef87419eed09"> 댓글             |
 |          <img width="1604" alt="nearby" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a878595b-d613-4e22-aa95-2d8fee65b578"> 주변 철봉           | <img width="1604" alt="offline-pdf" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a7eb993e-f847-40c8-9b93-d367f4c6a3f8"> 오프라인 저장 (카카오맵) |
+|          <img width="500" alt="consonant" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/d240d3d2-d42c-4136-b483-2805a03231a1"> 철봉 주소 검색 (초성 지원)           | <img width="500" alt="offline-pdf" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/566ac319-4bd9-4acf-8bf4-eb5a05c21b0f"> 정보 수정 제안 |
 
 ![slack](https://github.com/Alfex4936/chulbong-kr/assets/2356749/5ec03f6a-871f-4556-90c3-13bb44769f13)
 
@@ -83,7 +84,8 @@ linkStyle 13 stroke:#FFFF00, stroke-width:2px;
 - **채팅**: 각 마커마다 채팅 방 + 지역별 채팅 방 (익명)
 - **인기 장소 확인**: 사용자들이 실시간 자주 방문하는 인기 턱걸이 바 위치 확인 기능. (현재 위치 기준 + 전국)
 - **정적 이미지 오프라인**: 오프라인 용도로 철봉 위치들을 저장할 수 있는 기능. (카카오맵 정적 이미지 보완)
-- **마커 장소 검색**: 등록된 마커들의 주소 검색 기능.
+- **마커 장소 검색**: 등록된 마커들의 주소 검색 기능 (초성 지원)
+- **정보 수정 제안**: 등록된 마커들의 정보 수정 제안 기능 (사진 1장 필수)
 
 ### TODO 아이디어
 
