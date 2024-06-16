@@ -1,4 +1,5 @@
 import BlackLightBox from "@/components/atom/BlackLightBox";
+import EmojiHoverButton from "@/components/atom/EmojiHoverButton";
 import GrowBox from "@/components/atom/GrowBox";
 import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import AlertButton from "@/components/common/AlertButton";
@@ -9,13 +10,15 @@ import useApproveReport from "@/hooks/mutation/report/useApproveReport";
 import useDeleteReport from "@/hooks/mutation/report/useDeleteReport";
 import useDenyReport from "@/hooks/mutation/report/useDenyReport";
 import useMarkerData from "@/hooks/query/marker/useMarkerData";
+import { cn } from "@/lib/utils";
 import useMapStore from "@/store/useMapStore";
+import usePageLoadingStore from "@/store/usePageLoadingStore";
 import getAddress, { type AddressInfo } from "@/utils/getAddress";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ChangePassword from "../../user/ChangePassword";
 import StatusBadge from "./StatusBadge";
-import { cn } from "@/lib/utils";
 
 interface Props {
   markerId: number;
@@ -71,6 +74,10 @@ const MarkerReportList = ({
   isFetching,
   className,
 }: Props) => {
+  const router = useRouter();
+
+  const { setLoading } = usePageLoadingStore();
+
   const { data: marker, isLoading: markerLoading } = useMarkerData(markerId);
   const { mutate: deleteReport, isPending: deleteReportPending } =
     useDeleteReport(markerId, reportId);
@@ -212,6 +219,16 @@ const MarkerReportList = ({
           </div>
         </div>
       )}
+
+      <EmojiHoverButton
+        text="위치 상세보기"
+        className="bg-black-light mt-3 hover:bg-black-light"
+        center
+        onClickFn={() => {
+          setLoading(true);
+          router.push(`/pullup/${markerId}`);
+        }}
+      />
     </BlackLightBox>
   );
 };
