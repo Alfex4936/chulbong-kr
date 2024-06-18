@@ -35,45 +35,72 @@
 ### 기능
 
 ```mermaid
-graph TD;
-    A[회원가입 및 로그인] -- 이메일 인증 필요 --> B[인증 완료];
-    C[마커 추가] -- 위치 표시/로그인 필요 --> D[지도];
-    D -- 사진 포함 --> E[마커 사진];
-    D -- 설명 포함 --> F[마커 설명];
-    G[댓글 기능] -- 로그인 필요 --> H[로그인된 사용자];
-    I[마커 공유] -- 링크 공유 --> J[공유 링크];
-    K[근처 턱걸이 바 검색] -- 현재 위치 기반 --> L[검색 결과];
-    M[관리자] -- 자동 필터링 --> N[주소 없는 경우 DB 기록];
-    N -- 싫어요 n개 이상 마커 확인 --> O[마커 관리];
-    Q[채팅 기능] -- 각 마커 채팅 방 --> R[채팅 방];
-    R -- 지역별 채팅 방 (익명) --> S[지역 채팅];
-    T[인기 장소 확인] -- 실시간 방문 정보 --> U[방문 정보];
-    V[정적 이미지 오프라인] -- 철봉 위치 저장 --> W[저장된 위치];
-    X[마커 장소 검색] -- 주소 검색 기능 --> Y[검색된 주소];
+sequenceDiagram
+    participant User
+    participant AuthService as Auth Service
+    participant MarkerService as Marker Service
+    participant CommentService as Comment Service
+    participant ShareService as Share Service
+    participant SearchService as Search Service
+    participant AdminService as Admin Service
+    participant ChatService as Chat Service
+    participant PopularService as Popular Service
+    participant OfflineService as Offline Service
+    participant AddressService as Address Service
 
-classDef lightMode fill:#FFFFFF, stroke:#333333, color:#333333;
-classDef darkMode fill:#333333, stroke:#FFFFFF, color:#FFFFFF;
+    Note over User, AuthService: User Registration and Authentication
+    User->>AuthService: Sign Up with Email
+    AuthService->>User: Send Email Verification
+    User->>AuthService: Verify Email
+    User->>AuthService: Login
+    AuthService->>User: Authentication Token
 
-classDef lightModeLinks stroke:#333333;
-classDef darkModeLinks stroke:#FFFFFF;
+    Note over User, MarkerService: Marker Management
+    User->>MarkerService: Add Marker with Location, Photo, Description
+    MarkerService->>AddressService: Validate Address
+    AddressService-->>MarkerService: Address Validated/Failed
+    MarkerService-->>User: Marker Added
+    User->>MarkerService: View Marker
+    MarkerService-->>User: Display Marker Details
 
-class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y lightMode;
-class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y darkMode;
+    Note over User, CommentService: Commenting on Markers
+    User->>CommentService: Add Comment to Marker
+    CommentService-->>User: Comment Added
+    User->>CommentService: View Comments
+    CommentService-->>User: Display Comments
 
-linkStyle 0 stroke:#FF4136, stroke-width:2px;
-linkStyle 1 stroke:#1ABC9C, stroke-width:2px;
-linkStyle 2 stroke:#0074D9, stroke-width:2px;
-linkStyle 3 stroke:#FFCC00, stroke-width:2px;
-linkStyle 4 stroke:#2ECC40, stroke-width:2px;
-linkStyle 5 stroke:#B10DC9, stroke-width:2px;
-linkStyle 6 stroke:#FF851B, stroke-width:2px;
-linkStyle 7 stroke:#39CCCC, stroke-width:2px;
-linkStyle 8 stroke:#85144b, stroke-width:2px;
-linkStyle 9 stroke:#F012BE, stroke-width:2px;
-linkStyle 10 stroke:#FF00FF, stroke-width:2px;
-linkStyle 11 stroke:#00FF00, stroke-width:2px;
-linkStyle 12 stroke:#0000FF, stroke-width:2px;
-linkStyle 13 stroke:#FFFF00, stroke-width:2px;
+    Note over User, ShareService: Sharing Markers
+    User->>ShareService: Share Marker Link
+    ShareService-->>User: Marker Link
+
+    Note over User, SearchService: Searching for Nearby Markers
+    User->>SearchService: Search Markers Near Current Location
+    SearchService-->>User: Display Nearby Markers
+
+    Note over Admin, AdminService: Admin Tasks
+    Admin->>AdminService: Review Markers with Dislikes
+    AdminService-->>Admin: Display Markers for Review
+    Admin->>AdminService: Update Marker Status
+    AdminService-->>Admin: Marker Status Updated
+
+    Note over User, ChatService: Chat Functionality
+    User->>ChatService: Join Marker Chat Room
+    ChatService-->>User: Joined Chat Room
+    User->>ChatService: Send Message in Chat Room
+    ChatService-->>User: Message Sent
+
+    Note over User, PopularService: Viewing Popular Markers
+    User->>PopularService: View Popular Markers
+    PopularService-->>User: Display Popular Markers
+
+    Note over User, OfflineService: Offline Marker Access
+    User->>OfflineService: Download Static Map Image
+    OfflineService-->>User: Static Map Image with Markers
+
+    Note over User, MarkerService: Suggesting Marker Edits
+    User->>MarkerService: Suggest Marker Edit with Photo
+    MarkerService-->>User: Edit Suggestion Submitted
+
 ```
 
 - **회원가입 및 로그인**: 사용자 인증을 위한 기본적인 회원가입 및 로그인 기능. (이메일 인증 필요)
