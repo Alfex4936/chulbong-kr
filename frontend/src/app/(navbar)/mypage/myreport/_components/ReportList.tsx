@@ -25,13 +25,13 @@ const ReportList = ({ id, count, reports }: Props) => {
         className="flex items-center justify-between text-left w-full bg-black-light-2 mb-4 p-3 rounded-sm"
         onClick={() => setToggle((prev) => !prev)}
       >
-        <div>
+        <div className="w-full">
           <div className="text-grey-dark">
             총 <span className="font-bold text-grey-light">{count || 0}</span>개
             요청
           </div>
-          <div className="truncate">{data.address}</div>
-          <div className="truncate text-grey-dark text-sm">
+          <div className="break-words">{data.address}</div>
+          <div className="text-grey-dark text-sm break-words">
             {data.description || "작성 된 설명이 없습니다."}
           </div>
         </div>
