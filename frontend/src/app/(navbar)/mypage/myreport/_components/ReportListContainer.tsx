@@ -7,8 +7,8 @@ interface Props {
 
 const ReportListContainer = ({ data }: Props) => {
   const reportItems = Object.entries(data.markers).map(([key, reports]) => (
-    <div key={key} className="">
-      <ReportList id={Number(key)} count={reports.length} reports={reports}/>
+    <div key={key}>
+      <ReportList id={Number(key)} count={reports.length} reports={reports} />
     </div>
   ));
   return <div>{reportItems}</div>;

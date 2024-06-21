@@ -28,7 +28,7 @@ const PrevHeader = ({ url, text, back = false }: Props) => {
         >
           <ArrowLeftIcon />
         </button>
-        {text && <span>{text}</span>}
+        {text && <span className="truncate">{text}</span>}
       </div>
     );
   }
@@ -43,7 +43,7 @@ const PrevHeader = ({ url, text, back = false }: Props) => {
         >
           <ArrowLeftIcon />
         </Link>
-        {text && <span>{text}</span>}
+        {text && <span className="truncate">{text}</span>}
       </div>
     );
   }

@@ -17,12 +17,14 @@ const ReportList = ({ id, count, reports }: Props) => {
   const [toggle, setToggle] = useState(false);
 
   if (!data)
-    return <Skeleton className="bg-black-light-2 mb-4 p-2 rounded-sm" />;
+    return (
+      <Skeleton className="bg-black-light-2 mb-4 w-full h-20 rounded-sm" />
+    );
 
   return (
     <Fragment>
       <button
-        className="flex items-center justify-between text-left w-full bg-black-light-2 mb-4 p-3 rounded-sm"
+        className={`flex items-center justify-between text-left w-full bg-black-light-2 mb-4 p-3 rounded-sm`}
         onClick={() => setToggle((prev) => !prev)}
       >
         <div className="w-full">

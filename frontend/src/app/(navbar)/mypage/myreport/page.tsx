@@ -2,9 +2,9 @@ import instance from "@/api/instance";
 import BlackSideBody from "@/components/atom/BlackSideBody";
 import PrevHeader from "@/components/atom/PrevHeader";
 import {
-    HydrationBoundary,
-    QueryClient,
-    dehydrate,
+  HydrationBoundary,
+  QueryClient,
+  dehydrate,
 } from "@tanstack/react-query";
 import { cookies } from "next/headers";
 import MyreportClient from "./myreportClient";
