@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
@@ -141,7 +139,7 @@ func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportRespons
 	const query = `
     SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
     ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
-    r.Description, r.CreatedAt, r.Status, p.PhotoURL
+    r.Description, r.CreatedAt, r.Status, r.DoesExist, p.PhotoURL
     FROM Reports r
     LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
     WHERE r.UserID = ?
@@ -160,7 +158,7 @@ func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportRespons
 			url sql.NullString // Use sql.NullString to handle possible NULL values from PhotoURL
 		)
 		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
-			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &url); err != nil {
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.DoesExist, &url); err != nil {
 			return nil, err
 		}
 		if report, exists := reportMap[r.ReportID]; exists {
@@ -201,6 +199,7 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) ([]dto.MarkerR
             r.Description,
             r.CreatedAt,
             r.Status,
+			r.DoesExist,
             rp.PhotoURL
         FROM 
             Reports r
@@ -224,7 +223,7 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) ([]dto.MarkerR
 			url sql.NullString // Use sql.NullString to handle possible NULL values from PhotoURL
 		)
 		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
-			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &url); err != nil {
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.DoesExist, &url); err != nil {
 			return nil, err
 		}
 		if report, exists := reportMap[r.ReportID]; exists {
@@ -345,38 +344,4 @@ func fetchNewUser(tx *sqlx.Tx, userID int64) (*model.User, error) {
 		return nil, fmt.Errorf("error fetching newly created user: %w", err)
 	}
 	return &newUser, nil
-}
-
-func mapToSliceWithSorting(reportMap map[int][]dto.MarkerReportResponse) []dto.MarkerReportResponse {
-	// Create a slice to hold all the reports grouped by markers
-	type markerWithReports struct {
-		MarkerID int
-		Reports  []dto.MarkerReportResponse
-		Latest   time.Time
-	}
-
-	markerReports := make([]markerWithReports, 0, len(reportMap))
-	for markerID, reports := range reportMap {
-		// Since reports are already sorted by CreatedAt DESC within each marker group,
-		// the first report's CreatedAt will be the latest report time.
-		latestTime := reports[0].CreatedAt
-		markerReports = append(markerReports, markerWithReports{
-			MarkerID: markerID,
-			Reports:  reports,
-			Latest:   latestTime,
-		})
-	}
-
-	// Sort marker groups by the latest report's CreatedAt DESC
-	sort.Slice(markerReports, func(i, j int) bool {
-		return markerReports[i].Latest.After(markerReports[j].Latest)
-	})
-
-	// Flatten the sorted marker groups into a single slice
-	reports := make([]dto.MarkerReportResponse, 0)
-	for _, mr := range markerReports {
-		reports = append(reports, mr.Reports...)
-	}
-
-	return reports
 }
