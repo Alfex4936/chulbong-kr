@@ -21,3 +21,4 @@ markers.bleve
 service/marker_facility_service.go
 marker_rss.xml
 deploy.ps1
+marker_facility_service.go

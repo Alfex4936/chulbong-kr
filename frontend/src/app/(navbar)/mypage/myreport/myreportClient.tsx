@@ -21,7 +21,7 @@ const MyreportClient = () => {
     }
   }
 
-  if (isLoading) <Skeleton className="bg-black-light-2 mb-4 p-2 rounded-sm" />;
+  if (isLoading) <Skeleton className="bg-black-light-2 mb-4 w-full h-20 rounded-sm" />;
 
   if (!data) return <div className="text-center">받은 요청이 없습니다.</div>;
 

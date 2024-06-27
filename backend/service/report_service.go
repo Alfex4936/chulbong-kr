@@ -30,7 +30,7 @@ func (s *ReportService) GetAllReports() ([]dto.MarkerReportResponse, error) {
 	const query = `
     SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
     ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
-    r.Description, r.CreatedAt, r.Status, COALESCE(p.PhotoURL, '')
+    r.Description, r.CreatedAt, r.Status, r.DoesExist, COALESCE(p.PhotoURL, '')
     FROM Reports r
     LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
     ORDER BY r.CreatedAt DESC
@@ -48,7 +48,7 @@ func (s *ReportService) GetAllReports() ([]dto.MarkerReportResponse, error) {
 			url string
 		)
 		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
-			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &url); err != nil {
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.DoesExist, &url); err != nil {
 			return nil, err
 		}
 		// Check if the URL is not empty before appending
@@ -139,8 +139,8 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 	defer tx.Rollback() // Ensure the transaction is rolled back in case of error
 
 	// Insert the main report record
-	const reportQuery = `INSERT INTO Reports (MarkerID, UserID, Location, NewLocation, Description) VALUES (?, ?, ST_PointFromText(?, 4326), ST_PointFromText(?, 4326), ?)`
-	res, err := tx.Exec(reportQuery, report.MarkerID, report.UserID, fmt.Sprintf("POINT(%f %f)", report.Latitude, report.Longitude), fmt.Sprintf("POINT(%f %f)", report.NewLatitude, report.NewLongitude), report.Description)
+	const reportQuery = `INSERT INTO Reports (MarkerID, UserID, Location, NewLocation, Description, DoesExist) VALUES (?, ?, ST_PointFromText(?, 4326), ST_PointFromText(?, 4326), ?, ?)`
+	res, err := tx.Exec(reportQuery, report.MarkerID, report.UserID, fmt.Sprintf("POINT(%f %f)", report.Latitude, report.Longitude), fmt.Sprintf("POINT(%f %f)", report.NewLatitude, report.NewLongitude), report.Description, report.DoesExist)
 	if err != nil {
 		return fmt.Errorf("failed to insert report: %w", err)
 	}

@@ -3,8 +3,11 @@ package service
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -283,6 +286,49 @@ func (s *MarkerFacilityService) FetchRegionFromAPI(latitude, longitude float64) 
 	}
 
 	return doc.AddressName, nil // Address data is empty but no error occurred
+}
+
+// FetchEnglishAddress fetches the English address for a given Korean address from the website.
+func (s *MarkerFacilityService) FetchEnglishAddress(koreanAddress string) (string, error) {
+	// URL encode the Korean address
+	encodedAddress := strings.ReplaceAll(koreanAddress, " ", "+")
+	reqURL := fmt.Sprintf("https://www.jusoen.com/addreng.asp?p1=%s", encodedAddress)
+
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+	// Create a new HTTP request
+
+	resp, err := s.HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error making HTTP request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response body: %w", err)
+	}
+
+	// Use regex to find the English address in the response body
+	re := regexp.MustCompile(`<strong>([^<]+)</strong>`)
+	matches := re.FindStringSubmatch(string(body))
+	if len(matches) < 2 {
+		return "", fmt.Errorf("could not find English address in response")
+	}
+
+	// Remove commas from the address
+	englishAddress := strings.ReplaceAll(matches[1], ",", "")
+
+	return englishAddress, nil
 }
 
 // FetchWeatherFromAddress

@@ -454,7 +454,7 @@ const PullupClient = ({ markerId }: Props) => {
 
       {tabName === "review" && (
         <div className="flex flex-col justify-center items-center fixed bottom-0 left-0 bg-black h-14 w-full px-9 z-50
-        mo:bottom-16">
+        mo:bottom-[70px]">
           <div className="flex items-center justify-center w-full h-10 bg-black-light-2 px-3 rounded-3xl">
             <input
               type="text"

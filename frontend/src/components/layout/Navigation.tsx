@@ -18,8 +18,8 @@ const Navigation = () => {
 
   return (
     <div
-      className="w-16 h-screen bg-black-light shadow-xl p-4 z-20 mo:w-screen mo:h-16 mo:fixed mo:bottom-0 mo:flex 
-                mo:items-center mo:pl-0 mo:pr-0 mo:border-t mo:border-solid"
+      className="w-16 h-screen bg-black-light shadow-xl p-4 z-20 mo:w-screen mo:fixed mo:bottom-0 mo:flex mo:flex-col
+                mo:items-center mo:justify-center mo:border-t mo:border-solid mo:p-0 mo:h-[70px]"
     >
       <div
         className="flex flex-col items-center mo:flex-row mo:max-w-[430px] mo:w-full 
@@ -92,6 +92,7 @@ const Navigation = () => {
           />
         </div>
       </div>
+      <div className="w-full h-4 web:hidden" />
     </div>
   );
 };
