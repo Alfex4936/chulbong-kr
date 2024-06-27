@@ -102,7 +102,7 @@ const MarkerOverlay = ({
         </button>
       </div>
       <div className="flex mo:flex-col-reverse mo:items-center">
-        <div className="w-[240px] pr-4 mo:pr-0 mo:text-center mo:mt-4">
+        <div className="w-[240px] pr-4 mo:pr-0 mo:text-center mo:mt-4 mo:w-[190px]">
           {marker ? (
             <p className="font-bold truncate">
               {marker.description || "작성된 설명이 없습니다."}
