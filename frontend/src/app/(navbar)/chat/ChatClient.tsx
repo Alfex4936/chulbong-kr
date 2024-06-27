@@ -59,7 +59,7 @@ const ChatClient = () => {
 
   useEffect(() => {
     setAddressError(false);
-    const code = getRegion(address?.depth1 as string).getCode();
+    const code = getRegion().getCode(address?.depth1 as string);
 
     if (!address?.depth1) {
       setAddressError(true);
@@ -89,10 +89,7 @@ const ChatClient = () => {
       if (data.userNickname === "chulbong-kr") {
         const titleArr = data.message.split(" ");
 
-        titleArr[0] = getRegion(data.roomID).getTitle();
-
-        console.log(`arr: ` + titleArr);
-        console.log(`title: ` + titleArr[0]);
+        titleArr[0] = getRegion().getTitle(data.roomID);
 
         setRoomSubTitle(`${titleArr[1]} ${titleArr[2]} ${titleArr[3]}`);
         setRoomTitle(titleArr[0]);
