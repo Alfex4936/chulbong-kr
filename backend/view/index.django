@@ -1,0 +1,203 @@
+{% include "partials/header.django" %}
+
+<h1>{{ Title }}</h1>
+<div class="gallery">
+    {% for photo in Photos %}
+    <div class="thumbnail">
+        <div class="image-container">
+            <img src="https://chulbong-kr.s3.amazonaws.com/{{ photo.Key }}" alt="Photo" class="thumbnail-image"  onclick="openModal('{{ photo.Key }}', '{{ photo.Size }}')">
+        </div>
+        <div class="info">
+            <p>{{ photo.Key }} ({{ photo.Size }} KB)</p>
+            <!--<button onclick="deletePhoto('{{ photo.Key }}')">Delete</button>-->
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<button onclick="refreshGallery()">Refresh</button>
+<!-- The Modal -->
+<div id="myModal" class="modal">
+    <div class="modal-content-wrapper">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImg">
+        <div id="caption"></div>
+        <div class="zoom-buttons">
+                      <button onclick="zoomIn()">Zoom In</button>
+                      <button onclick="zoomOut()">Zoom Out</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function deletePhoto(photo) {
+        fetch(`/api/v1/users/s3/objects`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ objectUrl: photo }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to delete photo');
+            }
+        });
+    }
+
+    function refreshGallery() {
+        location.reload();
+    }
+
+    // Modal functions
+    function openModal(photo, size) {
+        var modal = document.getElementById("myModal");
+        var modalImg = document.getElementById("modalImg");
+        var captionText = document.getElementById("caption");
+        modal.style.display = "flex";
+        modalImg.src = "https://chulbong-kr.s3.amazonaws.com/" + photo;
+        captionText.innerHTML = photo + " (" + size + " KB)";
+        currentScale = 1; // Reset scale when opening a new image
+        modalImg.style.transform = 'scale(1)';
+    }
+
+    function closeModal() {
+        var modal = document.getElementById("myModal");
+        modal.style.display = "none";
+    }
+
+    var currentScale = 1;
+    function zoomIn() {
+        var modalImg = document.getElementById("modalImg");
+        currentScale += 0.1;
+        modalImg.style.transform = 'scale(' + currentScale + ')';
+    }
+
+    function zoomOut() {
+        var modalImg = document.getElementById("modalImg");
+        if (currentScale > 0.1) {
+            currentScale -= 0.1;
+            modalImg.style.transform = 'scale(' + currentScale + ')';
+        }
+    }
+</script>
+
+<style>
+    .gallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .thumbnail {
+        width: 250px;
+        height: 300px;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+    .image-container {
+        width: 100%;
+        height: 250px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .thumbnail-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+    .thumbnail-image:hover {
+        transform: scale(1.1);
+    }
+    .info {
+        padding: 10px;
+        background-color: #f8f8f8;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .info p {
+        margin: 0;
+        font-size: 0.9em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .info button {
+        margin-top: 5px;
+        padding: 5px 10px;
+        background-color: #ff4d4d;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    .info button:hover {
+        background-color: #ff3333;
+    }
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: rgba(0,0,0,0.9);
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-content-wrapper {
+        positio        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 90%;
+        max-height: 90%;
+    }
+    .modal-content {
+        max-width: 100%;
+        max-height: 80vh;
+        object-fit: contain;
+        transition: transform 0.2s;    }
+    .close {
+        position: absolute;
+        top: 10px;
+        right: 0;
+        color: #f1f1f1;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    #caption {
+        color: #f1f1f1;
+        text-align: center;
+        margin        max-width: 100%;
+        word-wrap: break-word;
+    }
+    .zoom-buttons {
+        margin-top: 10px;
+    }
+    .zoom-buttons button {
+        background-color: #f1f1f1;
+        border: none;
+        padding: 10px 20px;
+        margin: 5px;
+        cursor: pointer;
+    }
+    .zoom-buttons button:hover {
+        background-color: #ddd;
+    }
+</style>
+
+{% include "partials/footer.django" %}

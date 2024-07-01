@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/util"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
@@ -11,11 +12,13 @@ import (
 
 type LogMiddleware struct {
 	ChatUtil *util.ChatUtil
+	DB       *sqlx.DB
 }
 
-func NewLogMiddleware(chatUtil *util.ChatUtil) *LogMiddleware {
+func NewLogMiddleware(chatUtil *util.ChatUtil, db *sqlx.DB) *LogMiddleware {
 	return &LogMiddleware{
 		ChatUtil: chatUtil,
+		DB:       db,
 	}
 }
 
@@ -36,6 +39,17 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 		path := c.OriginalURL()
 
 		clientIP := l.ChatUtil.GetUserIP(c)
+		visitDate := time.Now().Format("2006-01-02")
+
+		// Perform the database logging in a goroutine
+		go func() {
+			if clientIP != "" {
+				check, err := l.ChatUtil.IsIPFromSouthKorea(clientIP)
+				if check || err != nil {
+					l.DB.Exec("INSERT IGNORE INTO Visitors (IPAddress, VisitDate) VALUES (?, ?)", clientIP, visitDate)
+				}
+			}
+		}()
 
 		userAgent := c.Get(fiber.HeaderUserAgent)
 		referer := c.Get(fiber.HeaderReferer)

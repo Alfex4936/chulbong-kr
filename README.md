@@ -1,8 +1,7 @@
 # chulbong- :kr:
-
 <p align="center">
   <img width="100" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/6236863a-11e1-45d5-b2e2-9bcf40363e1d" alt="k-pullup logo"/></br>
-  <img width="1024" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/26d56570-b743-4e43-becf-93b8577c7457" alt="2024-06-16 pullupbars"/>
+  <img width="1024" alt="2024-07-01 pullupbars" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/29185935-35e8-4b5d-a250-605fb98d4dc1" />
   <img alt="GitHub commit activity (branch)" src="https://img.shields.io/github/commit-activity/w/Alfex4936/chulbong-kr/main">
 </p>
 
@@ -100,7 +99,6 @@ sequenceDiagram
     Note over User, MarkerService: Suggesting Marker Edits
     User->>MarkerService: Suggest Marker Edit with Photo
     MarkerService-->>User: Edit Suggestion Submitted
-
 ```
 
 - **회원가입 및 로그인**: 사용자 인증을 위한 기본적인 회원가입 및 로그인 기능. (이메일 인증 필요)

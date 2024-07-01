@@ -28,6 +28,10 @@ func NewUserHandler(authMiddleware *middleware.AuthMiddleware, facade *facade.Us
 }
 
 func RegisterUserRoutes(api fiber.Router, handler *UserHandler, authMiddleware *middleware.AuthMiddleware) {
+
+	// Route to serve the gallery
+	api.Get("/gallery", handler.HandleGalleryView)
+
 	userGroup := api.Group("/users")
 	{
 		userGroup.Use(authMiddleware.Verify)
@@ -164,32 +168,13 @@ func (h *UserHandler) HandleGetReportsForMyMarkers(c *fiber.Ctx) error {
 
 	reports, err := h.UserFacadeService.GetAllReportsForMyMarkersByUser(userID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get reports"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get reports: " + err.Error()})
 	}
 
-	if len(reports) == 0 {
+	if reports.TotalReports == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "No reports found"})
 	}
-
-	// Group reports by MarkerID
-	groupedReports := make(map[int][]dto.ReportWithPhotos)
-	for _, report := range reports {
-		reportWithPhotos := dto.ReportWithPhotos{
-			ReportID:    report.ReportID,
-			Description: report.Description,
-			Status:      report.Status,
-			CreatedAt:   report.CreatedAt,
-			Photos:      report.PhotoURLs,
-		}
-		groupedReports[report.MarkerID] = append(groupedReports[report.MarkerID], reportWithPhotos)
-	}
-
-	response := dto.GroupedReportsResponse{
-		TotalReports: len(reports),
-		Markers:      groupedReports,
-	}
-
-	return c.JSON(response)
+	return c.JSON(reports)
 }
 
 // DeleteObjectFromS3Handler handles requests to delete objects from S3.
@@ -217,4 +202,16 @@ func (h *UserHandler) HandleDeleteObjectFromS3(c *fiber.Ctx) error {
 
 	// Return a success response
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *UserHandler) HandleGalleryView(c *fiber.Ctx) error {
+	photos, err := h.UserFacadeService.S3Service.ListAllObjectsInS3()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+
+	return c.Render("index", fiber.Map{
+		"Title":  "Photo Gallery",
+		"Photos": photos,
+	})
 }

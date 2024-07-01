@@ -4,10 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
+	"github.com/iancoleman/orderedmap"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
@@ -185,8 +189,7 @@ func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportRespons
 }
 
 // GetAllReportsForMyMarkersByUser retrieves all reports for markers owned by a specific user
-func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) ([]dto.MarkerReportResponse, error) {
-	// per report, number of photos is limited so using LEFT JOIN could be more efficient
+func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedReportsResponse, error) {
 	const query = `
         SELECT 
             r.ReportID,
@@ -199,35 +202,47 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) ([]dto.MarkerR
             r.Description,
             r.CreatedAt,
             r.Status,
-			r.DoesExist,
+            r.DoesExist,
+			m.Address,
             rp.PhotoURL
         FROM 
             Reports r
         LEFT JOIN 
             ReportPhotos rp ON r.ReportID = rp.ReportID
+		LEFT JOIN
+			Markers m ON r.MarkerID = m.MarkerID
         WHERE 
-            r.MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)
-        ORDER BY 
+            EXISTS (
+				SELECT 1
+				FROM Markers
+				WHERE Markers.MarkerID = r.MarkerID
+				AND Markers.UserID = ?
+			)
+        ORDER BY
             r.MarkerID, r.CreatedAt DESC;
     `
+
 	rows, err := s.DB.Queryx(query, userID)
 	if err != nil {
-		return nil, fmt.Errorf("error querying reports by user: %w", err)
+		return dto.GroupedReportsResponse{}, fmt.Errorf("error querying reports by user: %w", err)
 	}
 	defer rows.Close()
 
+	groupedReports := make(map[int][]dto.ReportWithPhotos, 0)
 	reportMap := make(map[int]*dto.MarkerReportResponse)
+	// Map to track if address is already added for a marker
+	addressAdded := make(map[int]struct{})
+
 	for rows.Next() {
-		var (
-			r   dto.MarkerReportResponse
-			url sql.NullString // Use sql.NullString to handle possible NULL values from PhotoURL
-		)
+		var r dto.MarkerReportResponse
+		var url sql.NullString
 		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
-			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.DoesExist, &url); err != nil {
-			return nil, err
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.DoesExist, &r.Address, &url); err != nil {
+			return dto.GroupedReportsResponse{}, err
 		}
-		if report, exists := reportMap[r.ReportID]; exists {
-			// Append only if url is valid to avoid appending empty strings for reports without photos
+
+		report, exists := reportMap[r.ReportID]
+		if exists {
 			if url.Valid {
 				report.PhotoURLs = append(report.PhotoURLs, url.String)
 			}
@@ -237,16 +252,69 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) ([]dto.MarkerR
 				r.PhotoURLs = append(r.PhotoURLs, url.String)
 			}
 			reportMap[r.ReportID] = &r
+
+			// Add address only if it's the first report for the marker
+			reportWithPhotos := dto.ReportWithPhotos{
+				ReportID:    r.ReportID,
+				Description: r.Description,
+				Status:      r.Status,
+				CreatedAt:   r.CreatedAt,
+				Photos:      r.PhotoURLs,
+			}
+			if _, added := addressAdded[r.MarkerID]; !added {
+				reportWithPhotos.Address = r.Address
+				addressAdded[r.MarkerID] = struct{}{}
+			}
+			groupedReports[r.MarkerID] = append(groupedReports[r.MarkerID], reportWithPhotos)
 		}
 	}
 
-	// Convert map to slice
-	reports := make([]dto.MarkerReportResponse, 0, len(reportMap))
-	for _, report := range reportMap {
-		reports = append(reports, *report)
+	// Sort each group by status and CreatedAt
+	for _, reports := range groupedReports {
+		sort.SliceStable(reports, func(i, j int) bool {
+			if reports[i].Status == "PENDING" && reports[j].Status != "PENDING" {
+				return true
+			}
+			if reports[i].Status != "PENDING" && reports[j].Status == "PENDING" {
+				return false
+			}
+			return reports[i].CreatedAt.After(reports[j].CreatedAt)
+		})
 	}
 
-	return reports, nil
+	// Create a slice of marker IDs to sort by the most recent report date
+	type MarkerWithLatestReport struct {
+		MarkerID   int
+		LatestDate time.Time
+	}
+
+	markersWithLatestReports := make([]MarkerWithLatestReport, 0, len(groupedReports))
+	for markerID, reports := range groupedReports {
+		if len(reports) > 0 {
+			markersWithLatestReports = append(markersWithLatestReports, MarkerWithLatestReport{
+				MarkerID:   markerID,
+				LatestDate: reports[0].CreatedAt,
+			})
+		}
+	}
+
+	// Sort markers by the date of their latest report
+	sort.SliceStable(markersWithLatestReports, func(i, j int) bool {
+		return markersWithLatestReports[i].LatestDate.After(markersWithLatestReports[j].LatestDate)
+	})
+
+	// Construct the response in the sorted order of markers
+	sortedGroupedReports := orderedmap.New()
+	for _, marker := range markersWithLatestReports {
+		sortedGroupedReports.Set(strconv.Itoa(marker.MarkerID), groupedReports[marker.MarkerID])
+	}
+
+	response := dto.GroupedReportsResponse{
+		TotalReports: len(reportMap),
+		Markers:      sortedGroupedReports,
+	}
+
+	return response, nil
 }
 
 func (s *UserService) GetAllFavorites(userID int) ([]dto.MarkerSimpleWithDescrption, error) {

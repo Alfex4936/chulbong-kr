@@ -762,7 +762,7 @@ func generateRSS(markers []dto.MarkerRSS) (string, error) {
 		Channel: dto.RssChannel{
 			Title:         "k-pullup Markers",
 			Link:          "https://www.k-pullup.com",
-			Description:   "Latest markers of public pull-up bars",
+			Description:   fmt.Sprintf("Public pull-up bars in South Korea (%d)", len(markers)),
 			LastBuildDate: time.Now().Format(time.RFC1123Z),
 			Items:         items,
 		},
