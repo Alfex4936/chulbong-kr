@@ -1,6 +1,6 @@
 "use client";
 
-import IconButton from "@/components/atom/IconButton";
+import NavigationButton from "@/components/atom/NavigationButton";
 import ChatBubbleIcon from "@/components/icons/ChatBubbleIcon";
 import HomeIcon from "@/components/icons/HomeIcon";
 import UserCircleIcon from "@/components/icons/UserCircleIcon";
@@ -9,16 +9,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import MapButton from "../common/MapButton";
 import SearchIcon from "../icons/SearchIcon";
-// import { LocationIcon } from "@/components/icons/LocationIcons";
-// import NotificationIcon from "@/components/icons/NotificationIcon";
-// import SettingIcon from "@/components/icons/SettingIcon";
 
 const Navigation = () => {
   const pathname = usePathname();
 
   return (
     <div
-      className="w-16 h-screen bg-black-light shadow-xl p-4 z-20 mo:w-screen mo:fixed mo:bottom-0 mo:flex mo:flex-col
+      className="w-16 h-screen bg-black-light shadow-xl p-4 z-20 mo:w-screen mo:bottom-0 mo:flex mo:flex-col
                 mo:items-center mo:justify-center mo:border-t mo:border-solid mo:p-0 mo:h-[70px]"
     >
       <div
@@ -39,14 +36,14 @@ const Navigation = () => {
           <p className="text-xs">철봉</p>
         </Link>
         <div className="mo:flex mo:w-1/2 mo:justify-around">
-          <IconButton
+          <NavigationButton
             text="홈"
             url="/home"
             icon={
               <HomeIcon size={25} selected={pathname.startsWith("/home")} />
             }
           />
-          <IconButton
+          <NavigationButton
             text="채팅"
             url="/chat"
             icon={
@@ -63,24 +60,14 @@ const Navigation = () => {
         </div>
 
         <div className="mo:flex mo:w-1/2 mo:justify-around">
-          {/* <IconButton
-            text="공지"
-            url="/notice"
-            icon={
-              <NotificationIcon
-                size={25}
-                selected={pathname.startsWith("/notice")}
-              />
-            }
-          /> */}
-          <IconButton
+          <NavigationButton
             text="주변"
             url="/search"
             icon={
               <SearchIcon size={25} selected={pathname.startsWith("/search")} />
             }
           />
-          <IconButton
+          <NavigationButton
             text="내 정보"
             url="/mypage"
             icon={

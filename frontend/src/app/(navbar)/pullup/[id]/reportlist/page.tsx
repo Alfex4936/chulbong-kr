@@ -29,10 +29,10 @@ const ReportListPage = async ({ params }: { params: { id: string } }) => {
 
   const dehydrateState = dehydrate(queryClient);
   return (
-    <BlackSideBody toggle bodyClass="relative p-0 mo:px-0 mo:pb-0">
-      <PrevHeader url={`/pullup/${params.id}`} text="정보 수정 제안 목록" />
+    <BlackSideBody>
+      <PrevHeader back text="정보 수정 제안 목록" />
 
-      <div className="px-4 pb-4 scrollbar-thin mo:pb-20">
+      <div className="pb-4">
         <LinkWrap id={params.id} />
         <HydrationBoundary state={dehydrateState}>
           <ReportClient type="formarker" markerId={Number(params.id)} />

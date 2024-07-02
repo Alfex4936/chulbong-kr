@@ -221,7 +221,7 @@ const MarkerReportList = ({
       <div>수정</div>
       <InfoList text="주소" subText={addrLoading ? "" : addr} />
       <InfoList text="설명" subText={desc || "작성된 설명 없음"} isTruncate />
-      {(imgs || viewImages) && (
+      {(imgs && viewImages) && (
         <div>
           <Separator className="mx-1 my-3 bg-grey-dark-1" />
           <div>추가된 이미지</div>

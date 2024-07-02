@@ -3,7 +3,7 @@ import Heading from "@/components/atom/Heading";
 
 const Setting = () => {
   return (
-    <BlackSideBody toggle>
+    <BlackSideBody>
       <Heading title="설정" />
     </BlackSideBody>
   );

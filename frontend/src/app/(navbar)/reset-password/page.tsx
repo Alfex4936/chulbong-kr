@@ -4,7 +4,7 @@ import ResetPasswordClient from "./ResetPasswordClient";
 
 const ResetPassword = () => {
   return (
-    <BlackSideBody toggle>
+    <BlackSideBody>
       <Heading title="비밀번호 초기화" />
       <ResetPasswordClient />
     </BlackSideBody>

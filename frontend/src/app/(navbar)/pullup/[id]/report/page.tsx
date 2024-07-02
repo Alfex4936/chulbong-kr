@@ -29,13 +29,10 @@ const RportMarkerPage = async ({ params }: Props) => {
   try {
     const marker = await getMarker(Number(params.id));
     return (
-      <BlackSideBody toggle bodyClass="relative p-0 mo:px-0 mo:pb-0">
-        <PrevHeader
-          url={`/pullup/${params.id}/reportlist`}
-          text="정보 수정 제안"
-        />
+      <BlackSideBody>
+        <PrevHeader back text="정보 수정 제안" />
 
-        <div className="px-9 pb-4 scrollbar-thin mo:px-4 mo:pb-20">
+        <div className="px-4 pb-4">
           <p className="mb-2">🚩 수정할 위치를 선택해 주세요</p>
           <MapSearch
             mini
@@ -64,7 +61,7 @@ const RportMarkerPage = async ({ params }: Props) => {
     );
   } catch (error) {
     return (
-      <BlackSideBody toggle>
+      <BlackSideBody>
         <Heading title="정보 수정 제안" />
         <p className="text-center text-red">존재하지 않는 위치입니다.</p>
       </BlackSideBody>

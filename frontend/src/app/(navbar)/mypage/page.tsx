@@ -48,7 +48,7 @@ const Mypage = async () => {
   const dehydrateState = dehydrate(queryClient);
 
   return (
-    <BlackSideBody toggle>
+    <BlackSideBody className="px-4">
       <Heading title="내 정보" />
       <div className="flex flex-col h-[calc(100%-96px)]">
         <HydrationBoundary state={dehydrateState}>
