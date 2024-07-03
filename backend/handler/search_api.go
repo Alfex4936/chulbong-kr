@@ -30,6 +30,7 @@ func RegisterSearchRoutes(api fiber.Router, handler *SearchHandler) {
 	searchGroup := api.Group("/search")
 	{
 		searchGroup.Get("/marker", handler.HandleBleveSearchMarkerAddress)
+		searchGroup.Get("/autocomplete", handler.HandleAutoComplete)
 		// searchGroup.Get("/marker-zinc", handler.HandleSearchMarkerAddress)
 		// searchGroup.Post("/marker", handler.HandleInsertMarkerAddressTest)
 		// searchGroup.Delete("", handler.HandleDeleteMarkerAddressTest)
@@ -69,6 +70,27 @@ func (h *SearchHandler) HandleBleveSearchMarkerAddress(c *fiber.Ctx) error {
 
 	// Call the service function
 	response, err := h.BleveSearchService.SearchMarkerAddress(term)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+// Handler for autocomplete marker addresses (using bleve)
+func (h *SearchHandler) HandleAutoComplete(c *fiber.Ctx) error {
+	term := c.Query("term")
+	term = strings.TrimSpace(term)
+	if term == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "search term is required",
+		})
+	}
+
+	// Call the service function
+	response, err := h.BleveSearchService.AutoComplete(term)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),

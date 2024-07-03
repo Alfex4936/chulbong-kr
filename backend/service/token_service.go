@@ -15,12 +15,14 @@ import (
 type TokenService struct {
 	DB        *sqlx.DB
 	TokenUtil *util.TokenUtil
+	TokenMax  int
 }
 
 func NewTokenService(db *sqlx.DB, tokenUtil *util.TokenUtil) *TokenService {
 	return &TokenService{
 		DB:        db,
 		TokenUtil: tokenUtil,
+		TokenMax:  2,
 	}
 }
 
@@ -32,12 +34,54 @@ func (s *TokenService) GenerateAndSaveToken(userID int) (string, error) {
 	}
 
 	expiresAt := time.Now().Add(s.TokenUtil.Config.TokenExpirationTime) // Use the global duration.
-	err = s.SaveOrUpdateOpaqueToken(userID, token, expiresAt)
+
+	// Ensure the token limit is enforced
+	err = s.EnforceTokenLimit(userID)
+	if err != nil {
+		return "", err
+	}
+
+	err = s.SaveOpaqueToken(userID, token, expiresAt)
 	if err != nil {
 		return "", err
 	}
 
 	return token, nil
+}
+
+func (s *TokenService) EnforceTokenLimit(userID int) error {
+	var tokenCount int
+
+	countQuery := `SELECT COUNT(*) FROM OpaqueTokens WHERE UserID = ?`
+	err := s.DB.QueryRow(countQuery, userID).Scan(&tokenCount)
+	if err != nil {
+		return err
+	}
+
+	// If the token count is at or above the limit, delete the oldest tokens
+	if tokenCount >= s.TokenMax {
+		tokensToDelete := tokenCount - s.TokenMax + 1
+
+		// mysql8.0 does not support LIMIT in subqueries for DELETE statements
+		deleteQuery := `
+        WITH cte AS (
+            SELECT TokenID FROM OpaqueTokens WHERE UserID = ? ORDER BY CreatedAt ASC LIMIT ?
+        )
+        DELETE FROM OpaqueTokens WHERE TokenID IN (SELECT TokenID FROM cte)
+        `
+		_, err := s.DB.Exec(deleteQuery, userID, tokensToDelete)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *TokenService) SaveOpaqueToken(userID int, token string, expiresAt time.Time) error {
+	query := `INSERT INTO OpaqueTokens (UserID, OpaqueToken, ExpiresAt) VALUES (?, ?, ?)`
+	_, err := s.DB.Exec(query, userID, token, expiresAt)
+	return err
 }
 
 // SaveOrUpdateOpaqueToken stores a new opaque token in the database
@@ -52,9 +96,15 @@ func (s *TokenService) SaveOrUpdateOpaqueToken(userID int, token string, expires
 }
 
 // DeleteOpaqueToken removes an opaque token from the database for a user
-func (s *TokenService) DeleteOpaqueToken(userID int) error {
-	query := "DELETE FROM OpaqueTokens WHERE UserID = ?"
-	_, err := s.DB.Exec(query, userID)
+// func (s *TokenService) DeleteOpaqueToken(userID int) error {
+// 	query := "DELETE FROM OpaqueTokens WHERE UserID = ?"
+// 	_, err := s.DB.Exec(query, userID)
+// 	return err
+// }
+
+func (s *TokenService) DeleteOpaqueToken(userID int, token string) error {
+	query := "DELETE FROM OpaqueTokens WHERE UserID = ? AND OpaqueToken = ?"
+	_, err := s.DB.Exec(query, userID, token)
 	return err
 }
 

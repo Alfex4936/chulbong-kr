@@ -129,3 +129,55 @@ func BenchmarkGeoIsInSouthKorea(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkWCONGNAMUL(b *testing.B) {
+	tests := []struct {
+		name                 string
+		lat, long            float64 // Starting point
+		expectedX, expectedY float64 // Expected ending point
+	}{
+		{
+			name:      "Test 1",
+			lat:       37.248098895147216,
+			long:      126.99116337285824,
+			expectedX: 498040.0,
+			expectedY: 1041367.0,
+		},
+		{
+			name:      "Test Not korea 1",
+			lat:       33.248098895147216,
+			long:      126.99116337285824,
+			expectedX: 497941.0,
+			expectedY: -68085.0,
+		},
+		{
+			name:      "Test 3",
+			lat:       35.73294563400083,
+			long:      127.37264182214031,
+			expectedX: 584279.0,
+			expectedY: 621193.0,
+		},
+		{
+			name:      "Test 4",
+			lat:       35.7328,
+			long:      127.37264182214031,
+			expectedX: 584280.0,
+			expectedY: 621153.0,
+		},
+		{
+			name:      "Test 5",
+			lat:       34.248098895147216,
+			long:      126.96666,
+			expectedX: 492322.0,
+			expectedY: 209211.0,
+		},
+	}
+
+	for _, coord := range tests {
+		b.Run(coord.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = util.ConvertWGS84ToWCONGNAMUL(coord.lat, coord.long)
+			}
+		})
+	}
+}

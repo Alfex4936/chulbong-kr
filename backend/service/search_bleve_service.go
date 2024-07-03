@@ -3,13 +3,16 @@ package service
 import (
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/blevesearch/bleve/v2"
+	bleve_search "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
 )
 
@@ -84,133 +87,81 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 
 	// Split the search term by spaces
 	terms := strings.Fields(t)
-	var queries []query.Query
-	var mu sync.Mutex
+	results := make(chan *bleve_search.DocumentMatch, 100)
+	done := make(chan struct{})
+	tookTimes := make(chan time.Duration, len(terms))
 
-	wg := sync.WaitGroup{}
-	wg.Add(len(terms))
+	workerCount := 5
+	var wg sync.WaitGroup
+	wg.Add(workerCount)
+	termChan := make(chan string, len(terms))
+
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			defer wg.Done()
+			for term := range termChan {
+				performSearch(s.Index, term, results, tookTimes)
+			}
+		}()
+	}
 
 	for _, term := range terms {
-		go func(term string) {
-			defer wg.Done()
-
-			// 초성 검색
-			brokenConsonants := segmentConsonants(term)
-
-			// Add a MatchQuery for the full search term
-			matchQuery := query.NewMatchQuery(brokenConsonants)
-			matchQuery.SetField("initialConsonants")
-			matchQuery.Analyzer = "koCJKEdgeNgram"
-			matchQuery.SetBoost(10.0)
-			queries = append(queries, matchQuery)
-
-			// Use WildcardQuery for more flexible matches
-			wildcardQuery := query.NewWildcardQuery("*" + brokenConsonants + "*")
-			wildcardQuery.SetField("initialConsonants")
-			wildcardQuery.SetBoost(5.0)
-			queries = append(queries, wildcardQuery)
-
-			standardizedProvince := standardizeProvince(term)
-			var additionalQueries []query.Query
-
-			if standardizedProvince != term {
-				// If the term is a province, use a lower boost
-				matchQuery := query.NewMatchQuery(standardizedProvince)
-				matchQuery.SetField("province")
-				matchQuery.Analyzer = "koCJKEdgeNgram"
-				matchQuery.SetBoost(1.5)
-				additionalQueries = append(queries, matchQuery)
-			} else {
-				// Use PrefixQuery for cities and regions
-				prefixQueryCity := query.NewPrefixQuery(term)
-				prefixQueryCity.SetField("city")
-				prefixQueryCity.SetBoost(10.0)
-
-				// Use MatchPhraseQuery for detailed matches in full address
-				matchPhraseQueryFull := query.NewMatchPhraseQuery(term)
-				matchPhraseQueryFull.SetField("fullAddress")
-				matchPhraseQueryFull.Analyzer = "koCJKEdgeNgram"
-				matchPhraseQueryFull.SetBoost(5.0)
-
-				// Use WildcardQuery for more flexible matches
-				wildcardQueryFull := query.NewWildcardQuery("*" + term + "*")
-				wildcardQueryFull.SetField("fullAddress")
-				wildcardQueryFull.SetBoost(2.0)
-
-				// Additional PrefixQuery and WildcardQuery for other fields
-				prefixQueryAddr := query.NewPrefixQuery(term)
-				prefixQueryAddr.SetField("address")
-				prefixQueryAddr.SetBoost(5.0)
-
-				wildcardQueryAddr := query.NewWildcardQuery("*" + term + "*")
-				wildcardQueryAddr.SetField("address")
-				wildcardQueryAddr.SetBoost(2.0)
-
-				// Use MatchQuery for city and district to catch all matches
-				matchQueryCity := query.NewMatchQuery(term)
-				matchQueryCity.SetField("city")
-				matchQueryCity.Analyzer = "koCJKEdgeNgram"
-				matchQueryCity.SetBoost(5.0)
-
-				matchQueryDistrict := query.NewMatchQuery(term)
-				matchQueryDistrict.SetField("district")
-				matchQueryDistrict.Analyzer = "koCJKEdgeNgram"
-				matchQueryDistrict.SetBoost(5.0)
-
-				additionalQueries = append(additionalQueries, prefixQueryCity, matchPhraseQueryFull, wildcardQueryFull, prefixQueryAddr, wildcardQueryAddr, matchQueryCity, matchQueryDistrict)
-			}
-
-			mu.Lock()
-			queries = append(queries, matchQuery, wildcardQuery)
-			queries = append(queries, additionalQueries...)
-			mu.Unlock()
-		}(term)
+		termChan <- term
 	}
+	close(termChan)
 
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(results)
+		close(tookTimes)
+		done <- struct{}{}
+	}()
 
-	disjunctionQuery := bleve.NewDisjunctionQuery(queries...)
-	// conjunctionQuery := bleve.NewConjunctionQuery(disjunctionQuery)
-
-	searchRequest := bleve.NewSearchRequest(disjunctionQuery)
-	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
-	searchRequest.Size = 10 // Limit the number of results
-	searchResult, err := s.Index.Search(searchRequest)
-	searchRequest.SortBy([]string{"_score", "markerId"})
-	if err != nil {
-		log.Fatalf("Error performing search: %v", err)
+	var allResults []*bleve_search.DocumentMatch
+	var totalTook time.Duration
+	for result := range results {
+		if result != nil {
+			allResults = append(allResults, result)
+		}
 	}
-
-	if len(searchResult.Hits) == 0 {
-		return response, nil
+	for took := range tookTimes {
+		totalTook += took
 	}
+	<-done
 
-	if len(searchResult.Hits) == 0 {
+	// Sort and ensure diverse results
+	// diverseResults := ensureDiversity(allResults, 10)
+
+	sortResultsByScore(allResults)
+
+	// if len(searchResult.Hits) == 0 {
+	// 	return response, nil
+	// }
+
+	if len(allResults) == 0 {
 		// If no results, try fuzzy search with controlled fuzziness
 		for _, term := range terms {
 			fuzzyQuery := bleve.NewFuzzyQuery(term)
 			fuzzyQuery.Fuzziness = 1
-			searchRequest = bleve.NewSearchRequest(fuzzyQuery)
+			searchRequest := bleve.NewSearchRequest(fuzzyQuery)
 			searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
 			searchRequest.Size = 10
-			searchResult, err = s.Index.Search(searchRequest)
+			searchResult, err := s.Index.Search(searchRequest)
 			if err != nil {
 				return response, fmt.Errorf("error fuzzy searching marker")
 			}
 
-			if len(searchResult.Hits) == 0 {
-				return response, nil
+			for _, hit := range searchResult.Hits {
+				allResults = append(allResults, hit)
 			}
 		}
-	}
+	} // end of if len(allResults) == 0
 
-	response = MarkerSearchResponse{
-		Took:    int(searchResult.Took.Milliseconds()),
-		Markers: make([]dto.ZincMarker, 0, len(searchResult.Hits)),
-	}
+	response.Took = int(totalTook.Milliseconds())
+	response.Markers = make([]dto.ZincMarker, 0, len(allResults))
 
 	// Extract relevant fields from search results
-	for _, hit := range searchResult.Hits {
+	for _, hit := range allResults {
 		var marker dto.ZincMarker
 		intID, _ := strconv.Atoi(hit.ID)
 		marker.MarkerID = intID
@@ -219,6 +170,26 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 	}
 
 	return response, nil
+}
+
+func (s *BleveSearchService) AutoComplete(term string) ([]string, error) {
+	var suggestions []string
+
+	prefixQuery := bleve.NewPrefixQuery(term)
+	searchRequest := bleve.NewSearchRequest(prefixQuery)
+	searchRequest.Fields = []string{"fullAddress", "address", "province", "city"}
+	searchRequest.Size = 10 // Limit the number of suggestions
+
+	searchResult, err := s.Index.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("error performing autocomplete search: %v", err)
+	}
+
+	for _, hit := range searchResult.Hits {
+		suggestions = append(suggestions, hit.Fields["fullAddress"].(string))
+	}
+
+	return suggestions, nil
 }
 
 func (s *BleveSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error {
@@ -234,8 +205,99 @@ func (s *BleveSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error 
 	}
 	return nil
 }
+
 func (s *BleveSearchService) DeleteMarkerIndex(markerId string) error {
 	return s.Index.Delete(markerId)
+}
+
+func performSearch(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
+	var queries []query.Query
+
+	// Exact match queries with higher boosts
+	matchQueryFullAddress := query.NewMatchQuery(term)
+	matchQueryFullAddress.SetField("fullAddress")
+	matchQueryFullAddress.Analyzer = "koCJKEdgeNgram"
+	matchQueryFullAddress.SetBoost(25.0)
+	queries = append(queries, matchQueryFullAddress)
+
+	// Phrase match query for exact phrases
+	matchPhraseQueryFullAddress := query.NewMatchPhraseQuery(term)
+	matchPhraseQueryFullAddress.SetField("fullAddress")
+	matchPhraseQueryFullAddress.Analyzer = "koCJKEdgeNgram"
+	matchPhraseQueryFullAddress.SetBoost(20.0)
+	queries = append(queries, matchPhraseQueryFullAddress)
+
+	// Wildcard queries with lower boosts
+	wildcardQueryFullAddress := query.NewWildcardQuery("*" + term + "*")
+	wildcardQueryFullAddress.SetField("fullAddress")
+	wildcardQueryFullAddress.SetBoost(10.0)
+	queries = append(queries, wildcardQueryFullAddress)
+
+	// Additional fields and queries
+	brokenConsonants := segmentConsonants(term)
+	matchQueryInitialConsonants := query.NewMatchQuery(brokenConsonants)
+	matchQueryInitialConsonants.SetField("initialConsonants")
+	matchQueryInitialConsonants.Analyzer = "koCJKEdgeNgram"
+	matchQueryInitialConsonants.SetBoost(15.0)
+	queries = append(queries, matchQueryInitialConsonants)
+
+	wildcardQueryInitialConsonants := query.NewWildcardQuery("*" + brokenConsonants + "*")
+	wildcardQueryInitialConsonants.SetField("initialConsonants")
+	wildcardQueryInitialConsonants.SetBoost(5.0)
+	queries = append(queries, wildcardQueryInitialConsonants)
+
+	standardizedProvince := standardizeProvince(term)
+	if standardizedProvince != term {
+		matchQueryProvince := query.NewMatchQuery(standardizedProvince)
+		matchQueryProvince.SetField("province")
+		matchQueryProvince.Analyzer = "koCJKEdgeNgram"
+		matchQueryProvince.SetBoost(1.5)
+		queries = append(queries, matchQueryProvince)
+	} else {
+		prefixQueryCity := query.NewPrefixQuery(term)
+		prefixQueryCity.SetField("city")
+		prefixQueryCity.SetBoost(10.0)
+		queries = append(queries, prefixQueryCity)
+
+		matchQueryCity := query.NewMatchQuery(term)
+		matchQueryCity.SetField("city")
+		matchQueryCity.Analyzer = "koCJKEdgeNgram"
+		matchQueryCity.SetBoost(10.0)
+		queries = append(queries, matchQueryCity)
+
+		matchQueryDistrict := query.NewMatchQuery(term)
+		matchQueryDistrict.SetField("district")
+		matchQueryDistrict.Analyzer = "koCJKEdgeNgram"
+		matchQueryDistrict.SetBoost(5.0)
+		queries = append(queries, matchQueryDistrict)
+
+		prefixQueryAddr := query.NewPrefixQuery(term)
+		prefixQueryAddr.SetField("address")
+		prefixQueryAddr.SetBoost(5.0)
+		queries = append(queries, prefixQueryAddr)
+
+		wildcardQueryAddr := query.NewWildcardQuery("*" + term + "*")
+		wildcardQueryAddr.SetField("address")
+		wildcardQueryAddr.SetBoost(2.0)
+		queries = append(queries, wildcardQueryAddr)
+	}
+
+	disjunctionQuery := bleve.NewDisjunctionQuery(queries...)
+	searchRequest := bleve.NewSearchRequest(disjunctionQuery)
+	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
+	searchRequest.Size = 10
+	searchRequest.SortBy([]string{"_score", "markerId"})
+
+	searchResult, err := index.Search(searchRequest)
+	if err != nil {
+		log.Printf("Error performing search: %v", err)
+		return
+	}
+
+	tookTimes <- searchResult.Took
+	for _, hit := range searchResult.Hits {
+		results <- hit
+	}
 }
 
 // extractInitialConsonants extracts the initial consonants from a Korean string.
@@ -326,4 +388,28 @@ func splitAddress(address string) (string, string, string) {
 	city := parts[1]
 	rest := strings.Join(parts[2:], " ")
 	return province, city, rest
+}
+
+func ensureDiversity(results []*bleve_search.DocumentMatch, limit int) []*bleve_search.DocumentMatch {
+	addressSet := make(map[string]struct{})
+	var diverseResults []*bleve_search.DocumentMatch
+
+	for _, result := range results {
+		if len(diverseResults) >= limit {
+			break
+		}
+		address := result.Fields["fullAddress"].(string)
+		if _, exists := addressSet[address]; !exists {
+			addressSet[address] = struct{}{}
+			diverseResults = append(diverseResults, result)
+		}
+	}
+
+	return diverseResults
+}
+
+func sortResultsByScore(results []*bleve_search.DocumentMatch) {
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
 }

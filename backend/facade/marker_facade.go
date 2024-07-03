@@ -1,15 +1,21 @@
 package facade
 
 import (
+	"context"
 	"fmt"
 	"mime/multipart"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gofiber/fiber/v2"
+
+	gocache "github.com/eko/gocache/lib/v4/cache"
+	ristretto_store "github.com/eko/gocache/store/ristretto/v4"
 	"go.uber.org/fx"
 )
 
@@ -28,6 +34,9 @@ type MarkerFacadeService struct {
 	ChatUtil    *util.ChatUtil
 	BadWordUtil *util.BadWordUtil
 	MapUtil     *util.MapUtil
+
+	GoCache    *ristretto_store.RistrettoStore
+	wcongCache *gocache.Cache[[]byte]
 }
 
 type MarkerFacadeParams struct {
@@ -46,6 +55,10 @@ type MarkerFacadeParams struct {
 	ChatUtil    *util.ChatUtil
 	BadWordUtil *util.BadWordUtil
 	MapUtil     *util.MapUtil
+
+	GoCache *ristretto_store.RistrettoStore
+
+	// wcongCache cache.New[float64](ristrettoStore)
 }
 
 func NewMarkerFacadeService(
@@ -63,6 +76,7 @@ func NewMarkerFacadeService(
 		ChatUtil:        p.ChatUtil,
 		BadWordUtil:     p.BadWordUtil,
 		MapUtil:         p.MapUtil,
+		wcongCache:      gocache.New[[]byte](p.GoCache),
 	}
 }
 
@@ -138,6 +152,12 @@ func (mfs *MarkerFacadeService) SaveUniqueVisitor(markerID string, c *fiber.Ctx)
 	}
 }
 
+func (mfs *MarkerFacadeService) GetUniqueVisitors(markerID string, c *fiber.Ctx) {
+	if c != nil {
+		mfs.RankService.SaveUniqueVisitor(markerID, mfs.ChatUtil.GetUserIP(c))
+	}
+}
+
 func (mfs *MarkerFacadeService) RemoveMarkerClick(markerID int) error {
 	return mfs.RankService.RemoveMarkerClick(markerID)
 }
@@ -181,6 +201,34 @@ func (mfs *MarkerFacadeService) SetMarkerCache(mjson []byte) {
 	mfs.ManageService.SetCache(mjson)
 }
 
+func (mfs *MarkerFacadeService) SetWcongCache(latitude, longitude float64, coord util.WCONGNAMULCoord) {
+	key := generateCacheKey(latitude, longitude)
+	data, err := json.Marshal(coord)
+	if err != nil {
+		return
+	}
+	mfs.wcongCache.Set(context.TODO(), key, data)
+}
+
+func (mfs *MarkerFacadeService) GetWcongCache(latitude, longitude float64) (*util.WCONGNAMULCoord, error) {
+	key := generateCacheKey(latitude, longitude)
+	value, err := mfs.wcongCache.Get(context.TODO(), key)
+	if err != nil {
+		return nil, err
+	}
+	if value == nil {
+		return nil, nil // cache miss
+	}
+
+	var coord util.WCONGNAMULCoord
+	err = json.Unmarshal(value, &coord)
+	if err != nil {
+		return nil, err
+	}
+
+	return &coord, nil
+}
+
 // Redis
 func (mfs *MarkerFacadeService) GetRedisCache(key string, value interface{}) error {
 	return mfs.RedisService.GetCacheEntry(key, value)
@@ -208,4 +256,9 @@ func (mfs *MarkerFacadeService) ResetFavCache(username string, userID int) error
 // User
 func (mfs *MarkerFacadeService) GetUserFromContext(c *fiber.Ctx) (*dto.UserData, error) {
 	return mfs.UserService.GetUserFromContext(c)
+}
+
+// generateCacheKey generates a unique cache key based on latitude and longitude.
+func generateCacheKey(latitude, longitude float64) string {
+	return fmt.Sprintf("wcong:%f:%f", latitude, longitude)
 }

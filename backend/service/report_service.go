@@ -81,12 +81,14 @@ func (s *ReportService) GetAllReportsBy(markerID int) ([]dto.MarkerReportRespons
 	const query = `
     SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
     ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
-    r.Description, r.CreatedAt, r.Status, COALESCE(p.PhotoURL, '')
+    r.Description, r.CreatedAt, r.Status, m.Address, COALESCE(p.PhotoURL, '') AS PhotoURL
     FROM Reports r
     LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
+    LEFT JOIN Markers m ON r.MarkerID = m.MarkerID
     WHERE r.MarkerID = ?
     ORDER BY r.CreatedAt DESC
     `
+
 	rows, err := s.DB.Queryx(query, markerID)
 	if err != nil {
 		return nil, fmt.Errorf("error querying reports by marker ID: %w", err)
@@ -100,7 +102,7 @@ func (s *ReportService) GetAllReportsBy(markerID int) ([]dto.MarkerReportRespons
 			url string
 		)
 		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
-			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &url); err != nil {
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.Address, &url); err != nil {
 			return nil, err
 		}
 		// Check if the URL is not empty before appending

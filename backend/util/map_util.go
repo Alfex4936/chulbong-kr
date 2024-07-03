@@ -140,9 +140,7 @@ type WCONGNAMULCoord struct {
 // ConvertWGS84ToWCONGNAMUL converts coordinates from WGS84 to WCONGNAMUL.
 func ConvertWGS84ToWCONGNAMUL(lat, long float64) WCONGNAMULCoord {
 	x, y := transformWGS84ToKoreaTM(aWGS84, flatteningFactor, dx, dy, k0, lat0, lon0, lat, long)
-	x = math.Round(x * scaleFactor)
-	y = math.Round(y * scaleFactor)
-	return WCONGNAMULCoord{X: x, Y: y}
+	return WCONGNAMULCoord{X: math.Round(x * scaleFactor), Y: math.Round(y * scaleFactor)}
 }
 
 // transformWGS84ToKoreaTM optimizes the coordinate conversion calculation.

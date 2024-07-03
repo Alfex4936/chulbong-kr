@@ -3,17 +3,23 @@ package util
 import (
 	"fmt"
 	"math/rand/v2"
+	"net"
+	"net/http"
 	"strings"
 
+	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
 type ChatUtil struct {
+	HTTPClient *http.Client
 }
 
-func NewChatUtil() *ChatUtil {
-	return &ChatUtil{}
+func NewChatUtil(httpClient *http.Client) *ChatUtil {
+	return &ChatUtil{
+		HTTPClient: httpClient,
+	}
 }
 
 var adjectives = []string{
@@ -115,6 +121,10 @@ func (cu *ChatUtil) GetUserIP(c *fiber.Ctx) string {
 	// If Fly-Client-IP is not found, fall back to X-Forwarded-For
 	if clientIP == "" {
 		clientIP = c.Get("X-Forwarded-For")
+		if clientIP != "" {
+			// X-Forwarded-For can contain multiple IPs, take the first one
+			clientIP = strings.Split(clientIP, ",")[0]
+		}
 	}
 	if clientIP == "" {
 		clientIP = c.Get("X-Real-IP")
@@ -124,6 +134,13 @@ func (cu *ChatUtil) GetUserIP(c *fiber.Ctx) string {
 	if c != nil && clientIP == "" {
 		clientIP = c.IP()
 	}
+
+	// Validate and clean the IP address
+	clientIP = strings.TrimSpace(clientIP)
+	if net.ParseIP(clientIP) == nil {
+		return ""
+	}
+
 	return clientIP
 }
 
@@ -141,4 +158,48 @@ func (cu *ChatUtil) CreateAnonymousID(c *fiber.Ctx) string {
 	name := names[rand.IntN(len(names))]
 
 	return fmt.Sprintf("%s%s#%s", adjective, name, cu.anonymizeIP(c)) // Combine nickname and IP
+}
+
+// NordAPIResponse represents the response structure from the Nord API
+type NordAPIResponse struct {
+	Country     string `json:"country"`
+	CountryCode string `json:"country_code"`
+	ISP         string `json:"isp"`
+}
+
+func (cu *ChatUtil) IsIPFromSouthKorea(ip string) (bool, error) {
+	url := fmt.Sprintf("https://nordvpn.com/wp-admin/admin-ajax.php?action=get_user_info_data&ip=%s", ip)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return false, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+	req.Header.Add("X-Forwarded-For", GenerateRandomIP())
+
+	// Create a new HTTP request
+	resp, err := cu.HTTPClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var response NordAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return false, fmt.Errorf("unmarshalling response: %w", err)
+	}
+
+	// log.Printf("💕 ip: %s", response.Country)
+	return response.CountryCode == "KR" && response.ISP != "Amazon.com", nil
+}
+
+// GenerateRandomIP generates a random IPv4 address
+func GenerateRandomIP() string {
+	ip := net.IPv4(byte(rand.IntN(256)), byte(rand.IntN(256)), byte(rand.IntN(256)), byte(rand.IntN(256)))
+	return ip.String()
 }

@@ -42,7 +42,7 @@ func (mfs *AdminFacadeService) FetchAllPhotoURLsFromDB() ([]string, error) {
 	return mfs.MarkerManage.FetchAllPhotoURLsFromDB()
 }
 
-func (mfs *AdminFacadeService) ListAllObjectsInS3() ([]string, error) {
+func (mfs *AdminFacadeService) ListAllObjectsInS3() ([]map[string]interface{}, error) {
 	return mfs.S3Service.ListAllObjectsInS3()
 }
 
@@ -76,4 +76,13 @@ func (mfs *AdminFacadeService) SetMarkerFacilities(markerID int, facilities []dt
 
 func (mfs *AdminFacadeService) ResetMarkerCache() {
 	mfs.MarkerManage.ClearCache()
+}
+
+func (mfs *AdminFacadeService) GetUniqueVisitorsDB(date string) (int, error) {
+	var count int
+
+	const query = "SELECT COUNT(*) FROM visitors WHERE visit_date = ?"
+
+	err := mfs.MarkerManage.DB.Get(&count, query, date)
+	return count, err
 }

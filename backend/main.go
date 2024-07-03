@@ -81,6 +81,39 @@ func NewFiberApp(
 	notificatinHandler *handler.NotificationHandler,
 	authMiddleware *middleware.AuthMiddleware,
 	zapMiddleware *middleware.LogMiddleware) *fiber.App {
+
+	// Load the Caffe model
+	// net := gocv.NewCascadeClassifier() // gocv.NewScalar(104, 177, 123, 0)
+	// net.Load("fonts/haarcascade_frontalface_default.xml")
+
+	// net := gocv.ReadNetFromCaffe("fonts/deploy.mobilnet.prototxt", "fonts/mobilenet_iter_73000.caffemodel") // gocv.NewScalar(104, 177, 123, 0)
+	// net := gocv.ReadNetFromCaffe("fonts/deploy.prototxt", "fonts/res10_300x300_ssd_iter_140000.caffemodel") // gocv.NewScalar(104, 177, 123, 0)
+	// net := gocv.ReadNet("fonts/opencv_face_detector_uint8.pb", "fonts/opencv_face_detector.pbtxt")
+	// net := gocv.ReadNetFromONNX("fonts/yolov8n-face.onnx")
+	// defer net.Close()
+	// net.SetPreferableBackend(gocv.NetBackendType(gocv.NetBackendDefault))
+	// net.SetPreferableTarget(gocv.NetTargetType(gocv.NetTargetCPU))
+
+	// faceDetection(net)
+	// faceDetectionXML(net)
+	// faceDetectionPigo()
+
+	// modelPath := "fonts/yolov8n-face.onnx"
+	// imgPath := "fonts/1.jpg"
+	// savePath := "fonts/face.png" // Path where the edited image will be saved
+
+	// yolo := NewYOLOv8Face(modelPath, 0.45, 0.5)
+	// img := gocv.IMRead(imgPath, gocv.IMReadColor)
+	// defer img.Close()
+
+	// boxes, scores, _, kpts := yolo.detect(img)
+	// yolo.drawDetections(&img, boxes, scores, kpts)
+
+	// // Save the edited image
+	// if ok := gocv.IMWrite(savePath, img); !ok {
+	// 	fmt.Println("Error saving image")
+	// }
+
 	app := fiber.New(fiber.Config{
 		Prefork:       false,
 		CaseSensitive: true,
@@ -157,7 +190,7 @@ func NewFiberApp(
 	}))
 
 	// ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'"
-	app.Use(helmet.New(helmet.Config{XSSProtection: "1; mode=block"}))
+	app.Use(helmet.New(helmet.Config{XSSProtection: "1; mode=block", CrossOriginEmbedderPolicy: "credentialless"}))
 	app.Use(limiter.New(limiter.Config{
 		Next: func(c *fiber.Ctx) bool {
 			// Skip rate limiting for /users/logout and /users/me
@@ -267,7 +300,7 @@ func NewLogger() (*zap.Logger, error) {
 
 func NewHTTPClient() *http.Client {
 	return &http.Client{
-		Timeout: 10 * time.Second, // Set a timeout to avoid hanging requests indefinitely
+		Timeout: 5 * time.Second, // Set a timeout to avoid hanging requests indefinitely
 	}
 }
 
@@ -279,21 +312,22 @@ func NewLavinMqClient() (*amqp.Connection, error) {
 	return amqp.Dial(os.Getenv("LAVINMQ_HOST"))
 }
 
+// NewGoCacheLocalStorage initializes a new Ristretto cache store with appropriate settings.
 func NewGoCacheLocalStorage() (*ristretto_store.RistrettoStore, error) {
-	estimatedMarkers := 10000
-	approxMarkerSize := 100 // bytes
-	maxCost := estimatedMarkers * approxMarkerSize
+	estimatedItems := 10000 // Estimated number of items to cache
+	approxItemSize := 200   // Approximate size of each item in bytes
+	maxCost := estimatedItems * approxItemSize
 
 	ristrettoCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 10,
-		MaxCost:     int64(maxCost),
-		BufferItems: 64,
+		NumCounters: 1e7,            // 10 million counters for better hit ratio
+		MaxCost:     int64(maxCost), // Maximum cost of cache (in bytes)
+		BufferItems: 64,             // Number of keys per Get buffer
 	})
 	if err != nil {
 		return nil, err
 	}
-	ristrettoStore := ristretto_store.NewRistretto(ristrettoCache)
 
+	ristrettoStore := ristretto_store.NewRistretto(ristrettoCache)
 	return ristrettoStore, nil
 }
 
