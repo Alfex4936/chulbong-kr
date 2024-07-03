@@ -3,7 +3,7 @@ import Link from "next/link";
 
 const NotFound = () => {
   return (
-    <BlackSideBody toggle>
+    <BlackSideBody>
       <div className="flex flex-col items-center">
         <h1 className="text-7xl text-center py-9 mt-5">404</h1>
         <p className="text-center">찾으시는 페이지가 존재하지 않습니다.</p>
