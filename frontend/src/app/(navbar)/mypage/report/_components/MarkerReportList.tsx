@@ -5,35 +5,30 @@ import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import AlertButton from "@/components/common/AlertButton";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import useApproveReport from "@/hooks/mutation/report/useApproveReport";
 import useDeleteReport from "@/hooks/mutation/report/useDeleteReport";
 import useDenyReport from "@/hooks/mutation/report/useDenyReport";
-import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import { cn } from "@/lib/utils";
-import useMapStore from "@/store/useMapStore";
 import useMarkerImageStore from "@/store/useMarkerImageStore";
 import usePageLoadingStore from "@/store/usePageLoadingStore";
-import getAddress, { type AddressInfo } from "@/utils/getAddress";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { v4 } from "uuid";
 import ChangePassword from "../../user/ChangePassword";
 import StatusBadge from "./StatusBadge";
-import { v4 } from "uuid";
 
 interface Props {
   markerId: number;
-  lat: number;
-  lng: number;
   desc: string;
   imgs: string[];
   status: string;
   userId?: number;
   myId?: number;
   reportId: number;
-  isFetching: boolean;
   className?: string;
+  address?: string;
+  isAdmin?: boolean;
 }
 
 interface InfoListProps {
@@ -65,14 +60,13 @@ const InfoList = ({
 
 const MarkerReportList = ({
   markerId,
-  lat,
-  lng,
   desc,
   imgs,
   status,
   reportId,
-  isFetching,
   className,
+  address,
+  isAdmin = false,
 }: Props) => {
   const { setImages, setCurImage, openImageModal, setCurImageIndex } =
     useMarkerImageStore();
@@ -81,44 +75,18 @@ const MarkerReportList = ({
 
   const { setLoading } = usePageLoadingStore();
 
-  const { data: marker, isLoading: markerLoading } = useMarkerData(markerId);
   const { mutate: deleteReport, isPending: deleteReportPending } =
     useDeleteReport(markerId, reportId);
-  const { mutate: approveReport, isPending: approvePending } = useApproveReport(
-    markerId,
-    lat,
-    lng
-  );
+  const { mutate: approveReport, isPending: approvePending } =
+    useApproveReport(markerId);
   const { mutate: denyReport, isPending: denyPending } =
     useDenyReport(markerId);
-  const { map } = useMapStore();
 
-  const [addr, setAddr] = useState("");
   const [dropdown, setDropdown] = useState(false);
-
-  const [addrLoading, setAddrLoading] = useState(false);
 
   const [viewImages, setViewImages] = useState<
     { photoId: string; photoUrl: string }[]
   >([]);
-
-  useEffect(() => {
-    if (!map) return;
-
-    const fetchAddr = async () => {
-      try {
-        setAddrLoading(true);
-        const data = (await getAddress(lat, lng)) as AddressInfo;
-        setAddr(data.address_name);
-      } catch (error) {
-        setAddr("제공되는 주소가 없음");
-      } finally {
-        setAddrLoading(false);
-      }
-    };
-
-    fetchAddr();
-  }, [map]);
 
   useEffect(() => {
     if (!imgs) return;
@@ -135,13 +103,10 @@ const MarkerReportList = ({
     setImageId();
   }, [imgs]);
 
-  if (markerLoading)
-    return <Skeleton className="w-[90%] p-4 rounded-md h-60 mx-auto" />;
-
   return (
     <BlackLightBox className={cn("relative", className)}>
       <div className="flex items-center mb-2">
-        {marker?.isChulbong && (
+        {isAdmin && (
           <AlertButton
             ButtonText={
               deleteReportPending ? (
@@ -152,16 +117,16 @@ const MarkerReportList = ({
             }
             title="정말 삭제하시겠습니까?"
             clickFn={deleteReport}
-            disabled={deleteReportPending || isFetching}
+            disabled={deleteReportPending}
           />
         )}
         <GrowBox />
         <div className="relative">
           <button
             onClick={() => {
-              if (marker?.isChulbong) setDropdown((prev) => !prev);
+              if (isAdmin) setDropdown((prev) => !prev);
             }}
-            disabled={approvePending || denyPending || isFetching}
+            disabled={approvePending || denyPending}
           >
             {approvePending || denyPending ? (
               <LoadingSpinner size="xs" />
@@ -173,10 +138,9 @@ const MarkerReportList = ({
             status !== "APPROVED" &&
             status !== "DENIED" &&
             !approvePending &&
-            !denyPending &&
-            !isFetching && (
+            !denyPending && (
               <div className="absolute top-8 left-0">
-                {marker?.isChulbong && (
+                {isAdmin && (
                   <div>
                     <div className="mb-1">
                       <AlertButton
@@ -202,26 +166,10 @@ const MarkerReportList = ({
         </div>
       </div>
 
-      {status !== "APPROVED" && (
-        <>
-          <div>기존</div>
-          <InfoList
-            text="주소"
-            subText={marker?.address || "제공되는 주소가 없음"}
-          />
-          <InfoList
-            text="설명"
-            subText={marker?.description || "작성된 설명 없음"}
-            isTruncate
-          />
-          <Separator className="mx-1 my-3 bg-grey-dark-1" />
-        </>
-      )}
-
       <div>수정</div>
-      <InfoList text="주소" subText={addrLoading ? "" : addr} />
+      <InfoList text="주소" subText={address || "주소 제공 안됨"} />
       <InfoList text="설명" subText={desc || "작성된 설명 없음"} isTruncate />
-      {(imgs && viewImages) && (
+      {imgs && viewImages && (
         <div>
           <Separator className="mx-1 my-3 bg-grey-dark-1" />
           <div>추가된 이미지</div>

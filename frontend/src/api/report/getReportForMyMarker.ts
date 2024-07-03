@@ -6,6 +6,7 @@ export interface Report {
   status: string;
   createdAt: string;
   photos: string[];
+  address: string;
 }
 
 interface Marker {

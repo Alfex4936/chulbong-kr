@@ -17,13 +17,16 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
     data: myReports,
     error,
     isError,
-    isFetching,
   } = useReportsData({ type, markerId }) as QueryObserverRefetchErrorResult<
     ReportsRes[],
     Error
   >;
 
+  console.log(myReports);
+
   const { data: myInfo } = useMyinfoData();
+
+  console.log(myInfo);
 
   if (isError) {
     if (isAxiosError(error)) {
@@ -49,15 +52,14 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
           <div key={report.reportId} className="mb-4">
             <MarkerReportList
               markerId={report.markerId}
-              lat={report.newLatitude || report.latitude}
-              lng={report.newLongitude || report.longitude}
               desc={report.description}
               imgs={report.photoUrls}
               status={report.status}
               userId={report.userId}
               reportId={report.reportId}
               myId={myInfo?.userId}
-              isFetching={isFetching}
+              address={report.address}
+              isAdmin={report.userId === myInfo?.userId || myInfo?.chulbong}
             />
           </div>
         );

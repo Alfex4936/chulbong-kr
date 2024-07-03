@@ -4,6 +4,7 @@ export interface MyInfo {
   userId: number;
   username: string;
   email: string;
+  chulbong?: boolean;
 }
 
 const myInfo = async (): Promise<MyInfo> => {
