@@ -51,6 +51,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
+import useMapControl from "@/hooks/common/useMapControl";
 
 interface Props {
   markerId: number;
@@ -60,6 +61,7 @@ const PullupClient = ({ markerId }: Props) => {
   const router = useRouter();
 
   const commentInput = useInput("");
+  const { moveLocation } = useMapControl();
   const [commentError, setCommentError] = useState("");
 
   const { setLoading } = usePageLoadingStore();
@@ -345,9 +347,19 @@ const PullupClient = ({ markerId }: Props) => {
         <div className="mt-4">
           <div className="flex items-center mb-[2px]">
             <span className="mr-1 w-3/4">
-              <h1 className="whitespace-normal overflow-visible break-words truncate text-xl">
-                {marker.address || "제공되는 주소가 없습니다."}
-              </h1>
+              <button
+                onClick={() => {
+                  moveLocation({
+                    lat: marker.latitude,
+                    lng: marker.longitude,
+                    isfilter: true,
+                  });
+                }}
+              >
+                <h1 className="whitespace-normal overflow-visible break-words truncate text-xl hover:underline">
+                  {marker.address || "제공되는 주소가 없습니다."}
+                </h1>
+              </button>
             </span>
             <button
               onClick={async () => {
