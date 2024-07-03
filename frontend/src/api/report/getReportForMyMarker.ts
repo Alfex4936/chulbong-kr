@@ -17,7 +17,7 @@ export interface MyMarkerReportRes {
   totalReports: number;
   markers: Marker;
 }
-
+// TODO: 여기에 뉴 위치 경도 위도 받기
 const getReportForMyMarker = async (): Promise<MyMarkerReportRes> => {
   const res = await instance.get(`/api/v1/users/reports/for-my-markers`);
 

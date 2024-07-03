@@ -2,6 +2,7 @@ import { type Report } from "@/api/report/getReportForMyMarker";
 import { ArrowRightIcon } from "@/components/icons/ArrowIcons";
 import { Fragment, useState } from "react";
 import MarkerReportList from "../../report/_components/MarkerReportList";
+// TODO: formarker /mypage/myreport 승인 마커, 오버레이 이동
 
 interface Props {
   id: number;

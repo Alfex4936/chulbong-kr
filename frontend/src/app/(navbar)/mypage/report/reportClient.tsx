@@ -6,6 +6,8 @@ import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import { QueryObserverRefetchErrorResult } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import MarkerReportList from "./_components/MarkerReportList";
+// TODO: formarker /pullup/id/reportlist 승인 마커, 오버레이 이동
+// TODO: formarker /mypage/report 승인 마커, 오버레이 이동
 
 interface Props {
   type?: "me" | "formarker" | "all";
@@ -22,11 +24,7 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
     Error
   >;
 
-  console.log(myReports);
-
   const { data: myInfo } = useMyinfoData();
-
-  console.log(myInfo);
 
   if (isError) {
     if (isAxiosError(error)) {

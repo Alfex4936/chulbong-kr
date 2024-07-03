@@ -2,6 +2,7 @@
 
 import useMarkerImageStore from "@/store/useMarkerImageStore";
 import Image from "next/image";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import LoadingSpinner from "../atom/LoadingSpinner";
@@ -14,12 +15,19 @@ import "swiper/css";
 import "swiper/css/navigation";
 
 const ImageDetail = () => {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const { images, imageView, closeImageModal, curImageIndex } =
     useMarkerImageStore();
 
   const [imageSize, setImageSize] = useState(400);
 
   const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    closeImageModal();
+  }, [pathname, searchParams]);
 
   useEffect(() => {
     if (!imageView) return;

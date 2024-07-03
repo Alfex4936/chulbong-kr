@@ -6,6 +6,7 @@ interface Props {
 }
 
 const ReportListContainer = ({ data }: Props) => {
+  // TODO: 여기 주소랑 성명 data에 가끔 안보임
   const reportItems = Object.entries(data.markers).map(([key, reports]) => (
     <div key={key}>
       <ReportList
