@@ -356,7 +356,7 @@ const PullupClient = ({ markerId }: Props) => {
                   });
                 }}
               >
-                <h1 className="whitespace-normal overflow-visible break-words truncate text-xl hover:underline">
+                <h1 className="whitespace-normal overflow-visible break-words text-left truncate text-xl hover:underline">
                   {marker.address || "제공되는 주소가 없습니다."}
                 </h1>
               </button>
