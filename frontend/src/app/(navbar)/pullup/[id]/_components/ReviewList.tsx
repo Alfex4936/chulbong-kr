@@ -59,7 +59,7 @@ const ReviewList = ({ markerId }: Props) => {
   }
 
   return (
-    <div className="min-h-40 pb-4">
+    <div className="pb-4">
       {review?.pages[0].comments.length === 0 && (
         <div>등록된 리뷰가 없습니다.</div>
       )}
