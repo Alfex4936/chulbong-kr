@@ -10,9 +10,10 @@ import { useEffect, useRef } from "react";
 
 type Props = {
   markerId: number;
+  isAdmin?: boolean;
 };
 
-const ReviewList = ({ markerId }: Props) => {
+const ReviewList = ({ markerId, isAdmin }: Props) => {
   const {
     data: review,
     fetchNextPage,
@@ -51,12 +52,14 @@ const ReviewList = ({ markerId }: Props) => {
       }
     };
   }, [isFetching, hasNextPage, fetchNextPage]);
-
+  
+  // TODO: 리뷰 삭제 에러 컨트롤 수정
   if (isError) return <div>잠시 후 다시 시도해 주세요!</div>;
 
   if (isLoading) {
     return <Skeleton className="w-full h-12 rounded-sm bg-black-light-2" />;
   }
+
 
   return (
     <div className="pb-4">
@@ -83,13 +86,15 @@ const ReviewList = ({ markerId }: Props) => {
                   </div>
                   <GrowBox />
                   <span className="text-xs">{comment.username}</span>
-                  <button
-                    className="ml-2"
-                    onClick={() => deleteComment(comment.commentId)}
-                    disabled={isFetching || deletePending}
-                  >
-                    <DeleteIcon size={17} />
-                  </button>
+                  {isAdmin && (
+                    <button
+                      className="ml-2"
+                      onClick={() => deleteComment(comment.commentId)}
+                      disabled={isFetching || deletePending}
+                    >
+                      <DeleteIcon size={17} />
+                    </button>
+                  )}
                 </div>
               );
             })}
