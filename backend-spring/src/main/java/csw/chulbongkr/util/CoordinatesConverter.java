@@ -15,7 +15,6 @@ public class CoordinatesConverter {
     private static final double LON0 = 127; // Longitude of origin.
     private static final double RADIANS_PER_DEGREE = Math.PI / 180;
     private static final double SCALE_FACTOR = 2.5;
-    private static final double DEGREES_TO_RADIANS = Math.PI / 180;
 
     public static double calculateDistanceApproximately(double lat1, double long1, double lat2, double long2) {
         double lat1Rad = lat1 * RADIANS_PER_DEGREE;

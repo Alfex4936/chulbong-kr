@@ -9,6 +9,8 @@ import org.springframework.scheduling.annotation.EnableAsync;
 public class ChulbongKrApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(ChulbongKrApplication.class, args);
+		SpringApplication application = new SpringApplication(ChulbongKrApplication.class);
+		application.setLazyInitialization(true);
+		application.run(args);
 	}
 }

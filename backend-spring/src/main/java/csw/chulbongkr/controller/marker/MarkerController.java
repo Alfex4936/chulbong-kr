@@ -69,9 +69,6 @@ public class MarkerController {
         if (page > totalPages) {
             page = totalPages;
         }
-        if (page < 1) {
-            page = 1;
-        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("markers", markers);

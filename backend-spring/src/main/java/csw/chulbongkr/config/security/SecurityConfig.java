@@ -1,17 +1,26 @@
 package csw.chulbongkr.config.security;
 
+import csw.chulbongkr.service.auth.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
 import org.springframework.security.web.header.Header;
 import org.springframework.security.web.header.writers.*;
@@ -28,7 +37,9 @@ import static org.springframework.security.web.util.matcher.AntPathRequestMatche
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private final CustomUserDetailsService userDetailService;
     private final CorsConfigurationSource corsConfigurationSource;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Bean
     public StrictHttpFirewall httpFirewall() {
@@ -43,12 +54,16 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // Disable CSRF as API is stateless
         http.csrf(AbstractHttpConfigurer::disable);
+        http.anonymous(AbstractHttpConfigurer::disable);
 
         // Configure CORS using a custom configuration source
         http.cors(corsConfigurer -> corsConfigurer.configurationSource(corsConfigurationSource));
 
         // Disable session creation as API is stateless
-        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .maximumSessions(1)
+                .sessionRegistry(sessionRegistry()));
 
         // @formatter:off
         http.headers(
@@ -73,9 +88,48 @@ public class SecurityConfig {
 
         http.authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.OPTIONS, "/*").permitAll() // Allow preflight requests for all paths
                 .requestMatchers(antMatcher("/")).permitAll() // Allow all requests to the root path
+                .requestMatchers(antMatcher("/api/v1/users/**")).authenticated() // Secure all API endpoints
                 .requestMatchers(antMatcher("/api/v1/**")).permitAll() // Secure all API endpoints
                 .anyRequest().permitAll() // Allow all other requests
         );
+
+        http.addFilterBefore(authenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    @Bean
+    public AuthenticationFilter authenticationFilter() {
+        return new AuthenticationFilter(jwtTokenProvider, userDetailService);
+    }
+
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return userDetailService;
+    }
+
+    @Bean
+    public BCryptPasswordEncoder bCryptPasswordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+
+    @Bean
+    public SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+
+        authProvider.setUserDetailsService(userDetailService);
+        authProvider.setPasswordEncoder(bCryptPasswordEncoder());
+
+        return authProvider;
     }
 }
