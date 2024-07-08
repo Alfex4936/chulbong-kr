@@ -34,6 +34,17 @@ func (s *MarkerCommentService) CreateComment(markerID, userID int, commentText s
 		return nil, fmt.Errorf("marker with ID %d does not exist", markerID)
 	}
 
+	// Check if the user has already commented 3 times on this marker
+	var commentCount int
+	commentCountQuery := `SELECT COUNT(*) FROM Comments WHERE MarkerID = ? AND UserID = ? AND DeletedAt IS NULL`
+	err = s.DB.Get(&commentCount, commentCountQuery, markerID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking comment count: %w", err)
+	}
+	if commentCount > 3 {
+		return nil, fmt.Errorf("user with ID %d has already commented 3 times on marker with ID %d", userID, markerID)
+	}
+
 	// Create the comment instance
 	comment := Comment{
 		MarkerID:    markerID,
@@ -85,8 +96,17 @@ func (s *MarkerCommentService) UpdateComment(commentID int, userID int, newComme
 
 func (s *MarkerCommentService) RemoveComment(commentID, userID int) error {
 	// Soft delete the comment by setting the DeletedAt timestamp
-	query := `UPDATE Comments SET DeletedAt = NOW() WHERE CommentID = ? AND UserID = ? AND DeletedAt IS NULL`
-	res, err := s.DB.Exec(query, commentID, userID)
+	const query = `
+		UPDATE Comments
+		SET DeletedAt = NOW()
+		WHERE CommentID = ?
+		  AND DeletedAt IS NULL
+		  AND (UserID = ? OR EXISTS (
+		      SELECT 1 FROM Users 
+		      WHERE Users.UserID = ? AND Users.Role = 'admin'
+		  ))
+	`
+	res, err := s.DB.Exec(query, commentID, userID, userID)
 	if err != nil {
 		return err
 	}

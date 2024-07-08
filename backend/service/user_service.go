@@ -31,11 +31,11 @@ func NewUserService(db *sqlx.DB, s3Service *S3Service) *UserService {
 }
 
 // GetUserById retrieves a user by their email address
-func (s *UserService) GetUserById(userID int) (*model.User, error) {
-	var user model.User
+func (s *UserService) GetUserById(userID int) (*dto.UserResponse, error) {
+	var user dto.UserResponse
 
 	// Define the query to select the user
-	query := `SELECT UserID, Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?`
+	query := `SELECT UserID, Username, Email FROM Users WHERE UserID = ?`
 
 	// Execute the query
 	err := s.DB.Get(&user, query, userID)
@@ -71,7 +71,7 @@ func (s *UserService) GetUserByEmail(email string) (*model.User, error) {
 	return &user, nil
 }
 
-func (s *UserService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*model.User, error) {
+func (s *UserService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*dto.UserResponse, error) {
 	tx, err := s.DB.Beginx()
 	if err != nil {
 		return nil, err
@@ -79,11 +79,13 @@ func (s *UserService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserReq
 	defer tx.Rollback()
 
 	if updateReq.Username != nil {
+		normalizedUsername := strings.TrimSpace(SegmentConsonants(*updateReq.Username))
 		var existingID int
-		err = tx.Get(&existingID, "SELECT UserID FROM Users WHERE Username = ?", *updateReq.Username)
+		err = tx.Get(&existingID, "SELECT UserID FROM Users WHERE Username = ?", normalizedUsername)
 		if err == nil || err != sql.ErrNoRows {
-			return nil, fmt.Errorf("username %s is already in use", *updateReq.Username)
+			return nil, fmt.Errorf("username %s is already in use", normalizedUsername)
 		}
+		*updateReq.Username = normalizedUsername
 	}
 
 	if updateReq.Email != nil {
@@ -143,9 +145,10 @@ func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportRespons
 	const query = `
     SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
     ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
-    r.Description, r.CreatedAt, r.Status, r.DoesExist, p.PhotoURL
+    r.Description, r.CreatedAt, r.Status, r.DoesExist, m.Address, p.PhotoURL
     FROM Reports r
     LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
+	LEFT JOIN Markers m ON r.MarkerID = m.MarkerID
     WHERE r.UserID = ?
     ORDER BY r.CreatedAt DESC
     `
@@ -162,7 +165,7 @@ func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportRespons
 			url sql.NullString // Use sql.NullString to handle possible NULL values from PhotoURL
 		)
 		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
-			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.DoesExist, &url); err != nil {
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.DoesExist, &r.Address, &url); err != nil {
 			return nil, err
 		}
 		if report, exists := reportMap[r.ReportID]; exists {
@@ -255,11 +258,13 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedRe
 
 			// Add address only if it's the first report for the marker
 			reportWithPhotos := dto.ReportWithPhotos{
-				ReportID:    r.ReportID,
-				Description: r.Description,
-				Status:      r.Status,
-				CreatedAt:   r.CreatedAt,
-				Photos:      r.PhotoURLs,
+				ReportID:     r.ReportID,
+				Description:  r.Description,
+				Status:       r.Status,
+				CreatedAt:    r.CreatedAt,
+				Photos:       r.PhotoURLs,
+				NewLatitude:  r.NewLatitude,
+				NewLongitude: r.NewLongitude,
 			}
 			if _, added := addressAdded[r.MarkerID]; !added {
 				reportWithPhotos.Address = r.Address

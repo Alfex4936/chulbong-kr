@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/Alfex4936/chulbong-kr/config"
+	"github.com/Alfex4936/chulbong-kr/dto"
+	"github.com/Alfex4936/chulbong-kr/util"
 )
 
 type SmtpService struct {
@@ -86,6 +88,35 @@ var emailTemplateForReset = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transi
 </body>
 </html>`
 
+var emailTemplateForPendingReports = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <title>Daily Pending Reports</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0; padding:0; font-family: Arial, sans-serif; background-color: #f3f3f3; color: #333; text-align: center;">
+<table width="100%" cellspacing="0" cellpadding="0" style="background-color: #f3f3f3; margin: 0; padding: 0;">
+    <tr>
+        <td align="center">
+            <table width="600" cellspacing="0" cellpadding="0" style="margin: 40px auto; border-collapse: collapse; background-color: #fff; border: 1px solid #ddd;">
+                <thead>
+                    <tr style="background-color: #e5b000;">
+                        <th style="padding: 10px; border: 1px solid #ddd; color: #fff;">Report ID</th>
+                        <th style="padding: 10px; border: 1px solid #ddd; color: #fff;">Description</th>
+                        <th style="padding: 10px; border: 1px solid #ddd; color: #fff;">Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{REPORTS}}
+                </tbody>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>`
+
 // SendVerificationEmail sends a verification email to the user
 func (s *SmtpService) SendVerificationEmail(to, token string) error {
 
@@ -124,5 +155,37 @@ func (s *SmtpService) SendPasswordResetEmail(to, token string) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (s *SmtpService) SendPendingReportsEmail(to string, reports []dto.MarkerReportResponse) error {
+	// Define email headers
+	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: Daily Pending Reports\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", s.Config.SmtpUsername, to)
+
+	// Build the reports table rows for email
+	var reportRows string
+	var slackReportRows string
+	for _, report := range reports {
+		link := fmt.Sprintf("https://k-pullup.com/pullup/%d", report.MarkerID)
+		reportRows += fmt.Sprintf("<tr><td style=\"padding: 8px; border: 1px solid #ddd;\">%d</td><td style=\"padding: 8px; border: 1px solid #ddd;\">%s</td><td style=\"padding: 8px; border: 1px solid #ddd;\"><a href=\"%s\" style=\"color: #e5b000; text-decoration: none;\">View Report</a></td></tr>", report.ReportID, report.Description, link)
+		slackReportRows += fmt.Sprintf("*Report ID:* %d\n*Description:* %s\n*Link:* <%s|View Report>\n\n", report.ReportID, report.Description, link)
+	}
+
+	// Replace the {{REPORTS}} placeholder in the template with the actual report rows
+	htmlBody := strings.Replace(emailTemplateForPendingReports, "{{REPORTS}}", reportRows, -1)
+
+	// Combine headers and HTML body into a single raw email message
+	message := []byte(headers + htmlBody)
+
+	// Connect to the SMTP server and send the email
+	auth := smtp.PlainAuth("", s.Config.SmtpUsername, s.Config.SmtpPassword, s.Config.SmtpServer)
+	err := smtp.SendMail(s.Config.SmtpServer+":"+s.Config.SmtpPort, auth, s.Config.SmtpUsername, []string{to}, message)
+	if err != nil {
+		return err
+	}
+
+	// Send notification to Slack
+	util.SendSlackReportNotification(slackReportRows)
+
 	return nil
 }

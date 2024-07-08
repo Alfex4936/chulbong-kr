@@ -22,11 +22,18 @@ type SchedulerService struct {
 	MarkerRankService   *MarkerRankService
 	MarkerManageService *MarkerManageService
 	RedisService        *RedisService
+	SmtpService         *SmtpService
+	ReportService       *ReportService
 	cron                *cron.Cron
+	adminEmail          string
 }
 
 func NewSchedulerService(
-	db *sqlx.DB, tokenService *TokenService, s3Service *S3Service, rankService *MarkerRankService, markerService *MarkerManageService, redisService *RedisService,
+	db *sqlx.DB, tokenService *TokenService,
+	s3Service *S3Service, rankService *MarkerRankService,
+	markerService *MarkerManageService, redisService *RedisService,
+	smtpService *SmtpService, reportService *ReportService,
+
 ) *SchedulerService {
 	return &SchedulerService{
 		DB:                  db,
@@ -35,9 +42,12 @@ func NewSchedulerService(
 		MarkerRankService:   rankService,
 		MarkerManageService: markerService,
 		RedisService:        redisService,
+		SmtpService:         smtpService,
+		ReportService:       reportService,
 		cron: cron.New(cron.WithChain(
 			cron.Recover(cron.DefaultLogger),
 		)),
+		adminEmail: os.Getenv("SMTP_PRIVATE_EMAIL"),
 	}
 }
 
@@ -59,10 +69,27 @@ func (s *SchedulerService) RunAllCrons() {
 	s.CronCleanUpToken()
 	s.CronUpdateRSS()
 	s.CronCleanUpPasswordTokens()
-	// s.CronResetClickRanking()
+	s.CronResetClickRanking()
 	s.CronOrphanedPhotosCleanup()
 	s.CronCleanUpOldDirs()
 	s.CronProcessClickEventsBatch(RankUpdateTime)
+	s.CronSendPendingReportsEmail()
+
+	// reports, err := s.ReportService.GetPendingReports()
+	// if err != nil {
+	// 	// Log the error
+	// 	fmt.Printf("Error fetching pending reports: %v\n", err)
+	// 	return
+	// }
+
+	// if len(reports) > 0 {
+	// 	if err := s.SmtpService.SendPendingReportsEmail(s.adminEmail, reports); err != nil {
+	// 		// Log the error
+	// 		fmt.Printf("Error sending pending reports email: %v\n", err)
+	// 	} else {
+	// 		fmt.Println("Pending reports email sent successfully")
+	// 	}
+	// }
 }
 
 // Schedule a new job with a cron specification.
@@ -99,15 +126,40 @@ func (s *SchedulerService) CronResetClickRanking() {
 			SketchedLocations.Clear() // unique visitor 도 초기화
 		}
 
-		if err := s.RedisService.ResetCache("marker_clicks"); err != nil {
-			// Log the error
-			fmt.Printf("Error reseting marker clicks: %v\n", err)
-		} else {
-			fmt.Println("Marker ranking cleanup executed successfully")
-		}
+		// if err := s.RedisService.ResetCache("marker_clicks"); err != nil {
+		// 	// Log the error
+		// 	fmt.Printf("Error reseting marker clicks: %v\n", err)
+		// } else {
+		// 	fmt.Println("Marker ranking cleanup executed successfully")
+		// }
 	})
 	if err != nil {
 		fmt.Printf("Error scheduling the marker ranking cleanup job: %v\n", err)
+		return
+	}
+}
+
+func (s *SchedulerService) CronSendPendingReportsEmail() {
+	// Convert 12 PM KST to UTC (3 AM UTC)
+	_, err := s.Schedule("0 3 * * *", func() {
+		reports, err := s.ReportService.GetPendingReports()
+		if err != nil {
+			// Log the error
+			fmt.Printf("Error fetching pending reports: %v\n", err)
+			return
+		}
+
+		if len(reports) > 0 {
+			if err := s.SmtpService.SendPendingReportsEmail(s.adminEmail, reports); err != nil {
+				// Log the error
+				fmt.Printf("Error sending pending reports email: %v\n", err)
+			} else {
+				fmt.Println("Pending reports email sent successfully")
+			}
+		}
+	})
+	if err != nil {
+		fmt.Printf("Error scheduling the pending reports email job: %v\n", err)
 		return
 	}
 }

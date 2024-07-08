@@ -536,11 +536,9 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 func (s *MarkerManageService) FetchAllPhotoURLsFromDB() ([]string, error) {
 	query := `
         SELECT PhotoURL FROM Photos WHERE PhotoURL IS NOT NULL
-        UNION
-        SELECT URL FROM MarkerAddressFailures WHERE URL IS NOT NULL
-        UNION
-        SELECT ReportImageURL FROM Reports WHERE ReportImageURL IS NOT NULL
     `
+	// UNION
+	//     SELECT PhotoURL FROM ReportPhotos WHERE PhotoURL
 	// Execute the query
 	rows, err := s.DB.Query(query)
 	if err != nil {

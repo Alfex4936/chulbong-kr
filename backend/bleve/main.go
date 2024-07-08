@@ -204,35 +204,21 @@ func main() {
 	markerIDMapping := bleve.NewNumericFieldMapping()
 	markerMapping.AddFieldMappingsAt("markerId", markerIDMapping)
 
-	provinceMapping := bleve.NewTextFieldMapping()
-	provinceMapping.Analyzer = "koCJKEdgeNgram"
-	provinceMapping.Store = true
-	provinceMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("province", provinceMapping)
+	// korean address
+	addressFieldMapping := bleve.NewTextFieldMapping()
+	addressFieldMapping.Analyzer = "koCJKEdgeNgram"
+	addressFieldMapping.Store = true
+	addressFieldMapping.IncludeTermVectors = true
 
-	cityMapping := bleve.NewTextFieldMapping()
-	cityMapping.Analyzer = "koCJKEdgeNgram"
-	cityMapping.Store = true
-	cityMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("city", cityMapping)
+	// add mapping
+	markerMapping.AddFieldMappingsAt("initialConsonants", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("province", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("city", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("address", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("fullAddress", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("initialConsonants", addressFieldMapping)
 
-	addressMapping := bleve.NewTextFieldMapping()
-	addressMapping.Analyzer = "koCJKEdgeNgram"
-	addressMapping.Store = true
-	addressMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("address", addressMapping)
-
-	fullAddressMapping := bleve.NewTextFieldMapping()
-	fullAddressMapping.Store = true
-	fullAddressMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("fullAddress", fullAddressMapping)
-
-	initialConsonantsMapping := bleve.NewTextFieldMapping()
-	initialConsonantsMapping.Analyzer = "koCJKEdgeNgram"
-	initialConsonantsMapping.Store = true
-	initialConsonantsMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("initialConsonants", initialConsonantsMapping)
-
+	// finalize
 	indexMapping.AddDocumentMapping("marker", markerMapping)
 
 	// Create a new Bleve index with custom settings

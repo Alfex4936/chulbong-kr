@@ -198,7 +198,7 @@ func (s *BleveSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error 
 	indexBody.City = city
 	indexBody.FullAddress = indexBody.Address
 	indexBody.Address = rest
-	indexBody.InitialConsonants = extractInitialConsonants(indexBody.FullAddress)
+	indexBody.InitialConsonants = ExtractInitialConsonants(indexBody.FullAddress)
 	err := s.Index.Index(strconv.Itoa(indexBody.MarkerID), indexBody)
 	if err != nil {
 		return fmt.Errorf("error indexing marker")
@@ -234,7 +234,7 @@ func performSearch(index bleve.Index, term string, results chan<- *bleve_search.
 	queries = append(queries, wildcardQueryFullAddress)
 
 	// Additional fields and queries
-	brokenConsonants := segmentConsonants(term)
+	brokenConsonants := SegmentConsonants(term)
 	matchQueryInitialConsonants := query.NewMatchQuery(brokenConsonants)
 	matchQueryInitialConsonants.SetField("initialConsonants")
 	matchQueryInitialConsonants.Analyzer = "koCJKEdgeNgram"
@@ -300,10 +300,115 @@ func performSearch(index bleve.Index, term string, results chan<- *bleve_search.
 	}
 }
 
+// Perform search with facets
+func performSearchFacet(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
+	var queries []query.Query
+
+	// Exact match queries with higher boosts
+	matchQueryFullAddress := query.NewMatchQuery(term)
+	matchQueryFullAddress.SetField("fullAddress")
+	matchQueryFullAddress.Analyzer = "koCJKEdgeNgram"
+	matchQueryFullAddress.SetBoost(25.0)
+	queries = append(queries, matchQueryFullAddress)
+
+	// Phrase match query for exact phrases
+	matchPhraseQueryFullAddress := query.NewMatchPhraseQuery(term)
+	matchPhraseQueryFullAddress.SetField("fullAddress")
+	matchPhraseQueryFullAddress.Analyzer = "koCJKEdgeNgram"
+	matchPhraseQueryFullAddress.SetBoost(20.0)
+	queries = append(queries, matchPhraseQueryFullAddress)
+
+	// Wildcard queries with lower boosts
+	wildcardQueryFullAddress := query.NewWildcardQuery("*" + term + "*")
+	wildcardQueryFullAddress.SetField("fullAddress")
+	wildcardQueryFullAddress.SetBoost(10.0)
+	queries = append(queries, wildcardQueryFullAddress)
+
+	// Additional fields and queries
+	brokenConsonants := SegmentConsonants(term)
+	matchQueryInitialConsonants := query.NewMatchQuery(brokenConsonants)
+	matchQueryInitialConsonants.SetField("initialConsonants")
+	matchQueryInitialConsonants.Analyzer = "koCJKEdgeNgram"
+	matchQueryInitialConsonants.SetBoost(15.0)
+	queries = append(queries, matchQueryInitialConsonants)
+
+	wildcardQueryInitialConsonants := query.NewWildcardQuery("*" + brokenConsonants + "*")
+	wildcardQueryInitialConsonants.SetField("initialConsonants")
+	wildcardQueryInitialConsonants.SetBoost(5.0)
+	queries = append(queries, wildcardQueryInitialConsonants)
+
+	standardizedProvince := standardizeProvince(term)
+	if standardizedProvince != term {
+		matchQueryProvince := query.NewMatchQuery(standardizedProvince)
+		matchQueryProvince.SetField("province")
+		matchQueryProvince.Analyzer = "koCJKEdgeNgram"
+		matchQueryProvince.SetBoost(1.5)
+		queries = append(queries, matchQueryProvince)
+	} else {
+		prefixQueryCity := query.NewPrefixQuery(term)
+		prefixQueryCity.SetField("city")
+		prefixQueryCity.SetBoost(10.0)
+		queries = append(queries, prefixQueryCity)
+
+		matchQueryCity := query.NewMatchQuery(term)
+		matchQueryCity.SetField("city")
+		matchQueryCity.Analyzer = "koCJKEdgeNgram"
+		matchQueryCity.SetBoost(10.0)
+		queries = append(queries, matchQueryCity)
+
+		matchQueryDistrict := query.NewMatchQuery(term)
+		matchQueryDistrict.SetField("district")
+		matchQueryDistrict.Analyzer = "koCJKEdgeNgram"
+		matchQueryDistrict.SetBoost(5.0)
+		queries = append(queries, matchQueryDistrict)
+
+		prefixQueryAddr := query.NewPrefixQuery(term)
+		prefixQueryAddr.SetField("address")
+		prefixQueryAddr.SetBoost(5.0)
+		queries = append(queries, prefixQueryAddr)
+
+		wildcardQueryAddr := query.NewWildcardQuery("*" + term + "*")
+		wildcardQueryAddr.SetField("address")
+		wildcardQueryAddr.SetBoost(2.0)
+		queries = append(queries, wildcardQueryAddr)
+	}
+
+	disjunctionQuery := bleve.NewDisjunctionQuery(queries...)
+	searchRequest := bleve.NewSearchRequest(disjunctionQuery)
+	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
+	searchRequest.Size = 10
+	searchRequest.SortBy([]string{"_score", "markerId"})
+
+	// Add facet request for province
+	facetRequest := bleve.NewFacetRequest("province", 10)
+	searchRequest.AddFacet("province_facets", facetRequest)
+
+	searchResult, err := index.Search(searchRequest)
+	if err != nil {
+		log.Printf("Error performing search: %v", err)
+		return
+	}
+
+	tookTimes <- searchResult.Took
+	for _, hit := range searchResult.Hits {
+		results <- hit
+	}
+
+	// Print facet results
+	if facet, found := searchResult.Facets["province_facets"]; found {
+		fmt.Printf("Facet Results for 'province':\n")
+		fmt.Printf("Total: %d\n", facet.Total)
+		fmt.Printf("Missing: %d\n", facet.Missing)
+		for _, term := range facet.Terms.Terms() {
+			fmt.Printf("Term: %s, Count: %d\n", term.Term, term.Count)
+		}
+	}
+}
+
 // extractInitialConsonants extracts the initial consonants from a Korean string.
 //
 // ex) "부산 해운대구 좌동 1395" -> "ㅂㅅㅎㅇㄷㄱㅈㄷ"
-func extractInitialConsonants(s string) string {
+func ExtractInitialConsonants(s string) string {
 	var initials []rune
 	for _, r := range s {
 		if unicode.Is(unicode.Hangul, r) {
@@ -319,7 +424,7 @@ func extractInitialConsonants(s string) string {
 // Split the user input into valid Korean initial consonants, breaking double consonants where necessary
 //
 // ex) "앍돍ㅄㄳ산" -> "앍돍ㅂㅅㄱㅅ산"
-func segmentConsonants(input string) string {
+func SegmentConsonants(input string) string {
 	var result []rune
 
 	for _, r := range input {
