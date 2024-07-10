@@ -124,7 +124,6 @@ const PullupClient = ({ markerId }: Props) => {
     if (commentPending) return;
 
     if (commentInput.value.length > 40) {
-      commentInput.resetValue();
       setCommentError("40자 이내로 작성해주세요.");
       return;
     } else if (commentInput.value.length === 0) {
@@ -177,9 +176,9 @@ const PullupClient = ({ markerId }: Props) => {
       />
     );
   if (!marker) return;
-
+  
   return (
-    <div>
+    <div className="grow">
       {/* 이미지 배경 */}
       <div
         className="relative w-full h-64 bg-cover bg-center"
@@ -463,7 +462,7 @@ const PullupClient = ({ markerId }: Props) => {
       </div>
 
       {tabName === "review" && (
-        <div className="flex flex-col justify-center grow items-center sticky bottom-0 left-0 bg-black h-14 w-full px-9 z-50">
+        <div className="flex flex-col justify-center grow items-center fixed bottom-0 left-0 bg-black h-14 w-full px-9 z-50 mo:mb-[70px]">
           <div className="flex items-center justify-center w-full h-10 bg-black-light-2 px-3 rounded-3xl">
             <input
               type="text"
