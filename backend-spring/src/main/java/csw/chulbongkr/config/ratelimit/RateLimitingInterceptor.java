@@ -2,6 +2,8 @@ package csw.chulbongkr.config.ratelimit;
 
 import csw.chulbongkr.util.IdentityUtil;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -15,7 +17,8 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
     private final int SC_TOO_MANY_REQUESTS = 429;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+            @NonNull Object handler) throws Exception {
         String userId = IdentityUtil.getClientIp(request);
         String endpoint = request.getRequestURI();
 

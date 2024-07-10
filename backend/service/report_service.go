@@ -499,3 +499,55 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 
 	}(reportID)
 }
+
+func (s *ReportService) GetPendingReports() ([]dto.MarkerReportResponse, error) {
+	const query = `
+    SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
+    ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
+    r.Description, r.CreatedAt, r.Status, r.DoesExist, COALESCE(p.PhotoURL, '')
+    FROM Reports r
+    LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
+    WHERE r.Status = 'PENDING'
+    ORDER BY r.CreatedAt DESC
+    `
+	rows, err := s.DB.Queryx(query)
+	if err != nil {
+		return nil, fmt.Errorf("error querying reports: %w", err)
+	}
+	defer rows.Close()
+
+	reportMap := make(map[int]*dto.MarkerReportResponse)
+	for rows.Next() {
+		var (
+			r   dto.MarkerReportResponse
+			url string
+		)
+		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.DoesExist, &url); err != nil {
+			return nil, err
+		}
+		// Check if the URL is not empty before appending
+		if url != "" {
+			if report, exists := reportMap[r.ReportID]; exists {
+				report.PhotoURLs = append(report.PhotoURLs, url)
+			} else {
+				r.PhotoURLs = []string{url}
+				reportMap[r.ReportID] = &r
+			}
+		} else {
+			// Ensure that PhotoURLs is initialized even if there are no photos
+			if _, exists := reportMap[r.ReportID]; !exists {
+				r.PhotoURLs = []string{} // Initialize with an empty slice
+				reportMap[r.ReportID] = &r
+			}
+		}
+	}
+
+	// Convert map to slice
+	reports := make([]dto.MarkerReportResponse, 0, len(reportMap))
+	for _, report := range reportMap {
+		reports = append(reports, *report)
+	}
+
+	return reports, nil
+}

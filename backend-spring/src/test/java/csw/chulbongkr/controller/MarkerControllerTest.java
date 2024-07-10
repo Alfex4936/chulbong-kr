@@ -141,15 +141,15 @@ class MarkerControllerTest {
         List<MarkerDTO.MarkerWithDistance> markers = Collections.singletonList(
                 new MarkerDTO.MarkerWithDistance(1, 37.529903839012064, 127.04447892740619, "Description", 100.0, null)
         );
-        when(markerService.findClosestNMarkersWithinDistance(37.529903839012064, 127.04447892740619, 2000, 10, 10))
+        when(markerService.findClosestNMarkersWithinDistance(37.529903839012064, 127.04447892740619, 2000, 5, 0))
                 .thenReturn(markers);
 
         mockMvc.perform(get("/api/v1/markers/close")
                         .param("latitude", "37.529903839012064")
                         .param("longitude", "127.04447892740619")
                         .param("distance", "2000")
-                        .param("pageSize", "10")
-                        .param("page", "2"))
+                        .param("pageSize", "0")
+                        .param("page", "0"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(jsonPath("$.markers[0].markerId").value(1))
@@ -157,7 +157,7 @@ class MarkerControllerTest {
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.totalMarkers").value(1));
 
-        verify(markerService, times(1)).findClosestNMarkersWithinDistance(37.529903839012064, 127.04447892740619, 2000, 10, 10);
+        verify(markerService, times(1)).findClosestNMarkersWithinDistance(37.529903839012064, 127.04447892740619, 2000, 5, 0);
     }
 
     @Test

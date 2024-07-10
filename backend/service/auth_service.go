@@ -260,7 +260,7 @@ func generateUsername(signUpReq *dto.SignUpRequest) string {
 		return *signUpReq.Username
 	}
 	emailParts := strings.Split(signUpReq.Email, "@")
-	return emailParts[0]
+	return SegmentConsonants(emailParts[0])
 }
 
 func (s *AuthService) insertUserWithRetry(tx *sqlx.Tx, signUpReq *dto.SignUpRequest, hashedPassword string) (int64, error) {
