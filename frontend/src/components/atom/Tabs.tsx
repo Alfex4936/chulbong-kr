@@ -10,7 +10,7 @@ type Props = {
 };
 
 const Tabs = ({ title, tabs, children }: Props) => {
-  const { setCurTab } = useTabStore();
+  const { setCurTab, disableIndex } = useTabStore();
   const [tabIndex, setTabIndex] = useState(0);
 
   useEffect(() => {
@@ -33,6 +33,7 @@ const Tabs = ({ title, tabs, children }: Props) => {
                   setTabIndex(index);
                   setCurTab(tab);
                 }}
+                disabled={disableIndex === index}
               >
                 {tab}
               </button>
