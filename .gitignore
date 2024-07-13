@@ -5,3 +5,5 @@ backend/__pycache__/
 frontend/yarn.lock
 .env
 *.pem
+*.geojson
+*.json
