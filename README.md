@@ -8,6 +8,10 @@
 > [!NOTE]  
 > The service is running with [Go as backend](https://github.com/Alfex4936/chulbong-kr/tree/main/backend) but [Spring boot 3](https://github.com/Alfex4936/chulbong-kr/tree/main/backend-spring) is also available. (WIP)
 
+<p align="center">
+  <img width="356" src="https://github.com/user-attachments/assets/78072f29-59f5-4303-b241-533b9198b18d" alt="gochulbong"/></br>
+</p>
+
 ### 프로젝트 소개 :world_map:
 
 **chulbong-kr**은 공공장소에 있는 턱걸이 바를 찾고 공유하기 위한 커뮤니티 플랫폼입니다.
