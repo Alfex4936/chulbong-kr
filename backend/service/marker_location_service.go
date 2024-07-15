@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,6 +20,42 @@ import (
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+)
+
+const (
+	earthRadius = 6371000
+
+	existNearbyMarkerQuery = `
+SELECT EXISTS (
+    SELECT 1 
+    FROM Markers
+    WHERE ST_Within(Location, ST_Buffer(ST_GeomFromText(?, 4326), ?))
+) AS Nearby;
+`
+
+	// Using the optimized query with bounding box
+	findClosestMarkersQuery = `
+SELECT MarkerID, 
+       ST_X(Location) AS Latitude, 
+       ST_Y(Location) AS Longitude, 
+       Description, 
+       ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance, 
+       Address
+FROM Markers
+WHERE MBRContains(
+    ST_SRID(
+        ST_GeomFromText(
+            CONCAT('POLYGON((',
+                   ?, ' ', ?, ',', 
+                   ?, ' ', ?, ',', 
+                   ?, ' ', ?, ',', 
+                   ?, ' ', ?, ',', 
+                   ?, ' ', ?, 
+                   '))')), 
+        4326), 
+    Location)
+  AND ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
+ORDER BY distance ASC`
 )
 
 type MarkerLocationService struct {
@@ -53,17 +90,9 @@ func NewMarkerLocationService(
 func (s *MarkerLocationService) IsMarkerNearby(lat, long float64, bufferDistanceMeters int) (bool, error) {
 	point := fmt.Sprintf("POINT(%f %f)", lat, long)
 
-	query := `
-SELECT EXISTS (
-    SELECT 1 
-    FROM Markers
-    WHERE ST_Within(Location, ST_Buffer(ST_GeomFromText(?, 4326), ?))
-) AS Nearby;
-`
-
 	// Execute the query
 	var nearby bool
-	err := s.DB.Get(&nearby, query, point, bufferDistanceMeters)
+	err := s.DB.Get(&nearby, existNearbyMarkerQuery, point, bufferDistanceMeters)
 	if err != nil {
 		return false, fmt.Errorf("error checking for nearby markers: %w", err)
 	}
@@ -73,17 +102,18 @@ SELECT EXISTS (
 
 // FindClosestNMarkersWithinDistance
 func (s *MarkerLocationService) FindClosestNMarkersWithinDistance(lat, long float64, distance, pageSize, offset int) ([]dto.MarkerWithDistance, int, error) {
+	// Calculate bounding box
+	radLat := lat * math.Pi / 180
+	radDist := float64(distance) / earthRadius
+	minLat := lat - radDist*180/math.Pi
+	maxLat := lat + radDist*180/math.Pi
+	minLon := long - radDist*180/(math.Pi*math.Cos(radLat))
+	maxLon := long + radDist*180/(math.Pi*math.Cos(radLat))
+
 	point := fmt.Sprintf("POINT(%f %f)", lat, long)
 
-	// Using a single query to fetch all markers within the distance
-	query := `
-SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude, Description, ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance, Address
-FROM Markers
-WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
-ORDER BY distance ASC`
-
 	var allMarkers []dto.MarkerWithDistance
-	err := s.DB.Select(&allMarkers, query, point, point, distance)
+	err := s.DB.Select(&allMarkers, findClosestMarkersQuery, point, minLon, minLat, maxLon, minLat, maxLon, maxLat, minLon, maxLat, minLon, minLat, point, distance)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error checking for nearby markers: %w", err)
 	}
@@ -325,6 +355,7 @@ func (s *MarkerLocationService) SaveOfflineMap2(lat, lng float64) (string, error
 	// Predefine capacity for slices based on known limits to avoid multiple allocations
 	// 1280*720 500m
 	nearbyMarkers, total, err := s.FindClosestNMarkersWithinDistance(lat, lng, 700, 30, 0) // meter, pageSize, offset
+	log.Printf("🎙️ Found %+v markers", nearbyMarkers)
 	if err != nil {
 		return "", fmt.Errorf("failed to find nearby markers")
 	}

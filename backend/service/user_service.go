@@ -18,6 +18,67 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const (
+	getUserById               = "SELECT UserID, Username, Email FROM Users WHERE UserID = ?"
+	getManyDetailsUserByEmail = "SELECT UserID, Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE Email = ?"
+	getUserByUsernameQuery    = "SELECT UserID FROM Users WHERE Username = ?"
+	getAllReportsByUserQuery  = `
+SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
+ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
+r.Description, r.CreatedAt, r.Status, r.DoesExist, m.Address, p.PhotoURL
+FROM Reports r
+LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
+LEFT JOIN Markers m ON r.MarkerID = m.MarkerID
+WHERE r.UserID = ?
+ORDER BY r.CreatedAt DESC`
+	getAllReportsForMyMarkersQuery = `
+SELECT 
+	r.ReportID,
+	r.MarkerID,
+	r.UserID,
+	ST_X(r.Location) as Latitude,
+	ST_Y(r.Location) as Longitude,
+	ST_X(r.NewLocation) as NewLatitude,
+	ST_Y(r.NewLocation) as NewLongitude,
+	r.Description,
+	r.CreatedAt,
+	r.Status,
+	r.DoesExist,
+	m.Address,
+	rp.PhotoURL
+FROM 
+	Reports r
+LEFT JOIN 
+	ReportPhotos rp ON r.ReportID = rp.ReportID
+LEFT JOIN
+	Markers m ON r.MarkerID = m.MarkerID
+WHERE 
+	EXISTS (
+		SELECT 1
+		FROM Markers
+		WHERE Markers.MarkerID = r.MarkerID
+		AND Markers.UserID = ?
+	)
+ORDER BY
+	r.MarkerID, r.CreatedAt DESC;`
+	getAllFavQuery = `
+SELECT Markers.MarkerID, ST_X(Markers.Location) AS Latitude, ST_Y(Markers.Location) AS Longitude, Markers.Description, Markers.Address
+FROM Favorites
+JOIN Markers ON Favorites.MarkerID = Markers.MarkerID
+WHERE Favorites.UserID = ?
+ORDER BY Markers.CreatedAt DESC` // Order by CreatedAt in descending order
+
+	getPhotoByUserIdQuery = "SELECT PhotoURL FROM Photos WHERE MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)"
+
+	deleteOpaqueTokensQuery   = "DELETE FROM OpaqueTokens WHERE UserID = ?"
+	deleteCommentsQuery       = "DELETE FROM Comments WHERE UserID = ?"
+	deleteMarkerDislikesQuery = "DELETE FROM MarkerDislikes WHERE UserID = ?"
+	deletePhotosQuery         = "DELETE FROM Photos WHERE MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)"
+	updateMarkersQuery        = "UPDATE Markers SET UserID = NULL WHERE UserID = ?" // Set UserID to NULL for Markers instead of deleting
+	deleteUserQuery           = "DELETE FROM Users WHERE UserID = ?"
+	getNewUserQuery           = "SELECT UserID, Username, Email, Provider, ProviderID, Role, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?"
+)
+
 type UserService struct {
 	DB        *sqlx.DB
 	S3Service *S3Service
@@ -34,11 +95,8 @@ func NewUserService(db *sqlx.DB, s3Service *S3Service) *UserService {
 func (s *UserService) GetUserById(userID int) (*dto.UserResponse, error) {
 	var user dto.UserResponse
 
-	// Define the query to select the user
-	query := `SELECT UserID, Username, Email FROM Users WHERE UserID = ?`
-
 	// Execute the query
-	err := s.DB.Get(&user, query, userID)
+	err := s.DB.Get(&user, getUserById, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("no user found with userID %d", userID)
@@ -53,11 +111,8 @@ func (s *UserService) GetUserById(userID int) (*dto.UserResponse, error) {
 func (s *UserService) GetUserByEmail(email string) (*model.User, error) {
 	var user model.User
 
-	// Define the query to select the user
-	query := `SELECT UserID, Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE Email = ?`
-
 	// Execute the query
-	err := s.DB.Get(&user, query, email)
+	err := s.DB.Get(&user, getManyDetailsUserByEmail, email)
 	if err != nil {
 		return nil, err
 		// if err == sql.ErrNoRows {
@@ -81,7 +136,7 @@ func (s *UserService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserReq
 	if updateReq.Username != nil {
 		normalizedUsername := strings.TrimSpace(SegmentConsonants(*updateReq.Username))
 		var existingID int
-		err = tx.Get(&existingID, "SELECT UserID FROM Users WHERE Username = ?", normalizedUsername)
+		err = tx.Get(&existingID, getUserByUsernameQuery, normalizedUsername)
 		if err == nil || err != sql.ErrNoRows {
 			return nil, fmt.Errorf("username %s is already in use", normalizedUsername)
 		}
@@ -90,7 +145,7 @@ func (s *UserService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserReq
 
 	if updateReq.Email != nil {
 		var existingID int
-		err = tx.Get(&existingID, "SELECT UserID FROM Users WHERE Email = ?", *updateReq.Email)
+		err = tx.Get(&existingID, getUserEmailQuery, *updateReq.Email)
 		if err == nil || err != sql.ErrNoRows {
 			return nil, fmt.Errorf("email %s is already in use", *updateReq.Email)
 		}
@@ -142,17 +197,7 @@ func (s *UserService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserReq
 
 // GetAllReportsByUser retrieves all reports submitted by a specific user from the database.
 func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportResponse, error) {
-	const query = `
-    SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
-    ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
-    r.Description, r.CreatedAt, r.Status, r.DoesExist, m.Address, p.PhotoURL
-    FROM Reports r
-    LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
-	LEFT JOIN Markers m ON r.MarkerID = m.MarkerID
-    WHERE r.UserID = ?
-    ORDER BY r.CreatedAt DESC
-    `
-	rows, err := s.DB.Queryx(query, userID)
+	rows, err := s.DB.Queryx(getAllReportsByUserQuery, userID)
 	if err != nil {
 		return nil, fmt.Errorf("error querying reports by user: %w", err)
 	}
@@ -193,39 +238,7 @@ func (s *UserService) GetAllReportsByUser(userID int) ([]dto.MarkerReportRespons
 
 // GetAllReportsForMyMarkersByUser retrieves all reports for markers owned by a specific user
 func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedReportsResponse, error) {
-	const query = `
-        SELECT 
-            r.ReportID,
-            r.MarkerID,
-            r.UserID,
-            ST_X(r.Location) as Latitude,
-            ST_Y(r.Location) as Longitude,
-            ST_X(r.NewLocation) as NewLatitude,
-            ST_Y(r.NewLocation) as NewLongitude,
-            r.Description,
-            r.CreatedAt,
-            r.Status,
-            r.DoesExist,
-			m.Address,
-            rp.PhotoURL
-        FROM 
-            Reports r
-        LEFT JOIN 
-            ReportPhotos rp ON r.ReportID = rp.ReportID
-		LEFT JOIN
-			Markers m ON r.MarkerID = m.MarkerID
-        WHERE 
-            EXISTS (
-				SELECT 1
-				FROM Markers
-				WHERE Markers.MarkerID = r.MarkerID
-				AND Markers.UserID = ?
-			)
-        ORDER BY
-            r.MarkerID, r.CreatedAt DESC;
-    `
-
-	rows, err := s.DB.Queryx(query, userID)
+	rows, err := s.DB.Queryx(getAllReportsForMyMarkersQuery, userID)
 	if err != nil {
 		return dto.GroupedReportsResponse{}, fmt.Errorf("error querying reports by user: %w", err)
 	}
@@ -324,14 +337,8 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedRe
 
 func (s *UserService) GetAllFavorites(userID int) ([]dto.MarkerSimpleWithDescrption, error) {
 	favorites := make([]dto.MarkerSimpleWithDescrption, 0)
-	const query = `
-    SELECT Markers.MarkerID, ST_X(Markers.Location) AS Latitude, ST_Y(Markers.Location) AS Longitude, Markers.Description, Markers.Address
-    FROM Favorites
-    JOIN Markers ON Favorites.MarkerID = Markers.MarkerID
-    WHERE Favorites.UserID = ?
-    ORDER BY Markers.CreatedAt DESC` // Order by CreatedAt in descending order
 
-	err := s.DB.Select(&favorites, query, userID)
+	err := s.DB.Select(&favorites, getAllFavQuery, userID)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching favorites: %w", err)
 	}
@@ -349,8 +356,7 @@ func (s *UserService) DeleteUserWithRelatedData(ctx context.Context, userID int)
 
 	// Fetch Photo URLs associated with the user
 	var photoURLs []string
-	fetchPhotosQuery := `SELECT PhotoURL FROM Photos WHERE MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)`
-	if err := tx.SelectContext(ctx, &photoURLs, fetchPhotosQuery, userID); err != nil {
+	if err := tx.SelectContext(ctx, &photoURLs, getPhotoByUserIdQuery, userID); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("fetching photo URLs: %w", err)
 	}
@@ -364,13 +370,13 @@ func (s *UserService) DeleteUserWithRelatedData(ctx context.Context, userID int)
 	}
 
 	// Note: Order matters due to foreign key constraints
-	deletionQueries := []string{
-		"DELETE FROM OpaqueTokens WHERE UserID = ?",
-		"DELETE FROM Comments WHERE UserID = ?",
-		"DELETE FROM MarkerDislikes WHERE UserID = ?",
-		"DELETE FROM Photos WHERE MarkerID IN (SELECT MarkerID FROM Markers WHERE UserID = ?)",
-		"UPDATE Markers SET UserID = NULL WHERE UserID = ?", // Set UserID to NULL for Markers instead of deleting
-		"DELETE FROM Users WHERE UserID = ?",
+	var deletionQueries = []string{
+		deleteOpaqueTokensQuery,
+		deleteCommentsQuery,
+		deleteMarkerDislikesQuery,
+		deletePhotosQuery,
+		updateMarkersQuery,
+		deleteUserQuery,
 	}
 
 	// Execute each deletion query within the transaction
@@ -411,8 +417,7 @@ func (s *UserService) GetUserFromContext(c *fiber.Ctx) (*dto.UserData, error) {
 
 func fetchNewUser(tx *sqlx.Tx, userID int64) (*model.User, error) {
 	var newUser model.User
-	query := `SELECT UserID, Username, Email, Provider, ProviderID, Role, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?`
-	err := tx.QueryRowx(query, userID).StructScan(&newUser)
+	err := tx.QueryRowx(getNewUserQuery, userID).StructScan(&newUser)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching newly created user: %w", err)
 	}

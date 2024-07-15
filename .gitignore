@@ -7,3 +7,6 @@ frontend/yarn.lock
 *.pem
 *.geojson
 *.json
+__pycache__
+chulbong-geopandas/
+*.png

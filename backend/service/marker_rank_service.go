@@ -20,6 +20,17 @@ import (
 const (
 	RankUpdateTime = 3 * time.Minute
 	MinClickRank   = 5
+
+	getTopMarkersQuery = `
+SELECT 
+	MarkerID, 
+	ST_X(Location) AS Latitude,
+	ST_Y(Location) AS Longitude,
+	Address
+FROM 
+	Markers
+WHERE MarkerID IN (?)
+ORDER BY FIELD(MarkerID, ?)`
 )
 
 type MarkerRankService struct {
@@ -180,16 +191,7 @@ func (s *MarkerRankService) GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr 
 	}
 
 	// Prepare an SQL query using IN clause with sqlx.In
-	query, args, err := sqlx.In(`
-    SELECT 
-        MarkerID, 
-        ST_X(Location) AS Latitude,
-        ST_Y(Location) AS Longitude,
-        Address
-    FROM 
-        Markers
-    WHERE MarkerID IN (?)
-    ORDER BY FIELD(MarkerID, ?)`, markerIDs, markerIDs)
+	query, args, err := sqlx.In(getTopMarkersQuery, markerIDs, markerIDs)
 	if err != nil {
 		log.Printf("Error preparing query: %v", err)
 		return nil

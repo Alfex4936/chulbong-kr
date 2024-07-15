@@ -12,6 +12,40 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	countTokenQuery = "SELECT COUNT(*) FROM OpaqueTokens WHERE UserID = ?"
+
+	// mysql8.0 does not support LIMIT in subqueries for DELETE statements
+	deleteTokenQuery = `
+WITH cte AS (
+	SELECT TokenID FROM OpaqueTokens WHERE UserID = ? ORDER BY CreatedAt ASC LIMIT ?
+)
+DELETE FROM OpaqueTokens WHERE TokenID IN (SELECT TokenID FROM cte)`
+
+	insertOpaqueTokenQuery = "INSERT INTO OpaqueTokens (UserID, OpaqueToken, ExpiresAt) VALUES (?, ?, ?)"
+
+	saveOrUpdateOpaqueTokenQuery = `
+INSERT INTO OpaqueTokens (UserID, OpaqueToken, ExpiresAt) 
+VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE 
+OpaqueToken=VALUES(OpaqueToken), ExpiresAt=VALUES(ExpiresAt), UpdatedAt=NOW()`
+
+	deleteOpaqueTokenQuery = "DELETE FROM OpaqueTokens WHERE UserID = ? AND OpaqueToken = ?"
+
+	deleteExpiredOpaqueTokenQuery   = "DELETE FROM OpaqueTokens WHERE ExpiresAt < NOW()"
+	deleteExpiredPasswordTokenQuery = "DELETE FROM PasswordTokens WHERE ExpiresAt < NOW()"
+
+	insertOrUpdatePasswordTokenQuery = `
+INSERT INTO PasswordTokens (Token, Email, Verified, ExpiresAt, CreatedAt)
+VALUES (?, ?, FALSE, ?, NOW())
+ON DUPLICATE KEY UPDATE Token=VALUES(Token), ExpiresAt=VALUES(ExpiresAt), Verified=FALSE`
+
+	getValidatedPasswordTokenQuery = "SELECT ExpiresAt FROM PasswordTokens WHERE Token = ? AND Email = ? AND ExpiresAt > NOW() LIMIT 1"
+
+	updatePasswordTokenQuery = "UPDATE PasswordTokens SET Verified = TRUE WHERE Token = ? AND Email = ?"
+
+	getVerifiedPasswordTokenQuery = "SELECT Verified FROM PasswordTokens WHERE Email = ? AND ExpiresAt > NOW() AND Verified = TRUE LIMIT 1"
+)
+
 type TokenService struct {
 	DB        *sqlx.DB
 	TokenUtil *util.TokenUtil
@@ -22,7 +56,7 @@ func NewTokenService(db *sqlx.DB, tokenUtil *util.TokenUtil) *TokenService {
 	return &TokenService{
 		DB:        db,
 		TokenUtil: tokenUtil,
-		TokenMax:  2,
+		TokenMax:  3, // 3 tokens per user
 	}
 }
 
@@ -52,8 +86,7 @@ func (s *TokenService) GenerateAndSaveToken(userID int) (string, error) {
 func (s *TokenService) EnforceTokenLimit(userID int) error {
 	var tokenCount int
 
-	countQuery := `SELECT COUNT(*) FROM OpaqueTokens WHERE UserID = ?`
-	err := s.DB.QueryRow(countQuery, userID).Scan(&tokenCount)
+	err := s.DB.QueryRow(countTokenQuery, userID).Scan(&tokenCount)
 	if err != nil {
 		return err
 	}
@@ -62,14 +95,7 @@ func (s *TokenService) EnforceTokenLimit(userID int) error {
 	if tokenCount >= s.TokenMax {
 		tokensToDelete := tokenCount - s.TokenMax + 1
 
-		// mysql8.0 does not support LIMIT in subqueries for DELETE statements
-		deleteQuery := `
-        WITH cte AS (
-            SELECT TokenID FROM OpaqueTokens WHERE UserID = ? ORDER BY CreatedAt ASC LIMIT ?
-        )
-        DELETE FROM OpaqueTokens WHERE TokenID IN (SELECT TokenID FROM cte)
-        `
-		_, err := s.DB.Exec(deleteQuery, userID, tokensToDelete)
+		_, err := s.DB.Exec(deleteTokenQuery, userID, tokensToDelete)
 		if err != nil {
 			return err
 		}
@@ -79,19 +105,14 @@ func (s *TokenService) EnforceTokenLimit(userID int) error {
 }
 
 func (s *TokenService) SaveOpaqueToken(userID int, token string, expiresAt time.Time) error {
-	query := `INSERT INTO OpaqueTokens (UserID, OpaqueToken, ExpiresAt) VALUES (?, ?, ?)`
-	_, err := s.DB.Exec(query, userID, token, expiresAt)
+	_, err := s.DB.Exec(insertOpaqueTokenQuery, userID, token, expiresAt)
 	return err
 }
 
 // SaveOrUpdateOpaqueToken stores a new opaque token in the database
 func (s *TokenService) SaveOrUpdateOpaqueToken(userID int, token string, expiresAt time.Time) error {
 	// Attempt to update the token if it exists for the user
-	query := `
-    INSERT INTO OpaqueTokens (UserID, OpaqueToken, ExpiresAt) 
-    VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE 
-    OpaqueToken=VALUES(OpaqueToken), ExpiresAt=VALUES(ExpiresAt), UpdatedAt=NOW()`
-	_, err := s.DB.Exec(query, userID, token, expiresAt)
+	_, err := s.DB.Exec(saveOrUpdateOpaqueTokenQuery, userID, token, expiresAt)
 	return err
 }
 
@@ -103,20 +124,17 @@ func (s *TokenService) SaveOrUpdateOpaqueToken(userID int, token string, expires
 // }
 
 func (s *TokenService) DeleteOpaqueToken(userID int, token string) error {
-	query := "DELETE FROM OpaqueTokens WHERE UserID = ? AND OpaqueToken = ?"
-	_, err := s.DB.Exec(query, userID, token)
+	_, err := s.DB.Exec(deleteOpaqueTokenQuery, userID, token)
 	return err
 }
 
 func (s *TokenService) DeleteExpiredTokens() error {
-	query := `DELETE FROM OpaqueTokens WHERE ExpiresAt < NOW()`
-	_, err := s.DB.Exec(query)
+	_, err := s.DB.Exec(deleteExpiredOpaqueTokenQuery)
 	return err
 }
 
 func (s *TokenService) DeleteExpiredPasswordTokens() error {
-	query := `DELETE FROM PasswordTokens WHERE ExpiresAt < NOW()`
-	_, err := s.DB.Exec(query)
+	_, err := s.DB.Exec(deleteExpiredPasswordTokenQuery)
 	return err
 }
 
@@ -146,10 +164,8 @@ func (s *TokenService) GenerateAndSaveSignUpToken(email string) (string, error) 
 	expiresAt := time.Now().Add(5 * time.Minute)
 
 	// Attempt to insert or update the token for the user
-	_, err = s.DB.Exec(`
-        INSERT INTO PasswordTokens (Token, Email, Verified, ExpiresAt, CreatedAt)
-        VALUES (?, ?, FALSE, ?, NOW())
-        ON DUPLICATE KEY UPDATE Token=VALUES(Token), ExpiresAt=VALUES(ExpiresAt), Verified=FALSE`,
+	_, err = s.DB.Exec(
+		insertOrUpdatePasswordTokenQuery,
 		token, email, expiresAt)
 	if err != nil {
 		return "", fmt.Errorf("error saving or updating token: %w", err)
@@ -167,7 +183,7 @@ func (s *TokenService) ValidateToken(token string, email string) (bool, error) {
 	defer tx.Rollback()
 
 	var expiresAt time.Time
-	err = tx.QueryRow("SELECT ExpiresAt FROM PasswordTokens WHERE Token = ? AND Email = ? AND ExpiresAt > NOW() LIMIT 1", token, email).Scan(&expiresAt)
+	err = tx.QueryRow(getValidatedPasswordTokenQuery, token, email).Scan(&expiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil // Token not found or expired
@@ -176,7 +192,7 @@ func (s *TokenService) ValidateToken(token string, email string) (bool, error) {
 	}
 
 	// Update the Verified status
-	_, err = tx.Exec("UPDATE PasswordTokens SET Verified = TRUE WHERE Token = ? AND Email = ?", token, email)
+	_, err = tx.Exec(updatePasswordTokenQuery, token, email)
 	if err != nil {
 		return false, err
 	}
@@ -187,7 +203,7 @@ func (s *TokenService) ValidateToken(token string, email string) (bool, error) {
 
 func (s *TokenService) IsTokenVerified(email string) (bool, error) {
 	var verified bool
-	err := s.DB.Get(&verified, "SELECT Verified FROM PasswordTokens WHERE Email = ? AND ExpiresAt > NOW() AND Verified = TRUE LIMIT 1", email)
+	err := s.DB.Get(&verified, getVerifiedPasswordTokenQuery, email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil // No verified token found

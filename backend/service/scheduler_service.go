@@ -15,6 +15,22 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	getOrphanedPhotosQuery = `
+SELECT PhotoID, PhotoURL FROM Photos
+LEFT JOIN Markers ON Photos.MarkerID = Markers.MarkerID
+WHERE Markers.MarkerID IS NULL`
+
+	deletePhotoByPhotoIdQuery = "DELETE FROM Photos WHERE PhotoID = ?"
+
+	getOrphanedPhotosByReportQuery = `
+SELECT PhotoID, PhotoURL FROM ReportPhotos
+LEFT JOIN Reports ON ReportPhotos.ReportID = Reports.ReportID
+WHERE Reports.ReportID IS NULL`
+
+	deleteViewedNotificationsQuery = "DELETE FROM Notifications WHERE Viewed = TRUE AND UpdatedAt < NOW() - INTERVAL ? DAY"
+)
+
 type SchedulerService struct {
 	DB                  *sqlx.DB
 	TokenService        *TokenService
@@ -312,19 +328,13 @@ func cleanTempDir(dir string, maxAge time.Duration) error {
 // deleteOrphanedPhotos checks for photos without a corresponding marker and deletes them.
 func (s *SchedulerService) deleteOrphanedPhotos() error {
 	// Find photos with no corresponding marker.
-	orphanedPhotosQuery := `
-	SELECT PhotoID, PhotoURL FROM Photos
-	LEFT JOIN Markers ON Photos.MarkerID = Markers.MarkerID
-	WHERE Markers.MarkerID IS NULL
-	`
-	rows, err := s.DB.Query(orphanedPhotosQuery)
+	rows, err := s.DB.Query(getOrphanedPhotosQuery)
 	if err != nil {
 		return fmt.Errorf("querying orphaned photos: %w", err)
 	}
 	defer rows.Close()
 
 	// Prepare to delete photos from the database and S3.
-	deletePhotoQuery := "DELETE FROM Photos WHERE PhotoID = ?"
 	var photoIDsToDelete []int
 	var photoURLsToDelete []string
 
@@ -346,7 +356,7 @@ func (s *SchedulerService) deleteOrphanedPhotos() error {
 
 	// Delete orphaned photos from the database.
 	for _, photoID := range photoIDsToDelete {
-		if _, err := tx.Exec(deletePhotoQuery, photoID); err != nil {
+		if _, err := tx.Exec(deletePhotoByPhotoIdQuery, photoID); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("deleting photo ID %d: %w", photoID, err)
 		}
@@ -370,19 +380,13 @@ func (s *SchedulerService) deleteOrphanedPhotos() error {
 
 func (s *SchedulerService) deleteOrphanedReportPhotos() error {
 	// Find photos with no corresponding marker.
-	orphanedPhotosQuery := `
-	SELECT PhotoID, PhotoURL FROM ReportPhotos
-	LEFT JOIN Reports ON ReportPhotos.ReportID = Reports.ReportID
-	WHERE Reports.ReportID IS NULL
-	`
-	rows, err := s.DB.Query(orphanedPhotosQuery)
+	rows, err := s.DB.Query(getOrphanedPhotosByReportQuery)
 	if err != nil {
 		return fmt.Errorf("querying orphaned photos: %w", err)
 	}
 	defer rows.Close()
 
 	// Prepare to delete photos from the database and S3.
-	deletePhotoQuery := "DELETE FROM ReportPhotos WHERE PhotoID = ?"
 	var photoIDsToDelete []int
 	var photoURLsToDelete []string
 
@@ -404,7 +408,7 @@ func (s *SchedulerService) deleteOrphanedReportPhotos() error {
 
 	// Delete orphaned photos from the database.
 	for _, photoID := range photoIDsToDelete {
-		if _, err := tx.Exec(deletePhotoQuery, photoID); err != nil {
+		if _, err := tx.Exec(deleteReportPhotosQuery, photoID); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("deleting photo ID %d: %w", photoID, err)
 		}
@@ -429,8 +433,7 @@ func (s *SchedulerService) deleteOrphanedReportPhotos() error {
 func (s *SchedulerService) cleanUpViewedNotifications() error {
 	// how long to retain viewed notifications
 	retentionDays := 7
-	query := `DELETE FROM Notifications WHERE Viewed = TRUE AND UpdatedAt < NOW() - INTERVAL ? DAY`
-	_, err := s.DB.Exec(query, retentionDays)
+	_, err := s.DB.Exec(deleteViewedNotificationsQuery, retentionDays)
 	if err != nil {
 		return err
 	} else {

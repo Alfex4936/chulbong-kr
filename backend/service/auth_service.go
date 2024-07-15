@@ -16,6 +16,28 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const (
+	verifyOpaqueTokenQuery = "SELECT UserID, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?"
+	fetchTokenQuery        = `
+    SELECT u.UserID, u.Role, ot.ExpiresAt
+    FROM OpaqueTokens ot
+    JOIN Users u ON ot.UserID = u.UserID
+    WHERE ot.OpaqueToken = ?`
+	profileQuery                  = "SELECT Username, Email FROM Users WHERE UserID = ?"
+	deletePasswordTokenQuery      = "DELETE FROM PasswordTokens WHERE Email = ? AND Verified = TRUE"
+	loginGetQuery                 = "SELECT UserID, Username, Email, PasswordHash, Provider FROM Users WHERE Email = ?"
+	checkExpiredTokenQuery        = "SELECT UserID FROM PasswordResetTokens WHERE Token = ? AND ExpiresAt > NOW()"
+	updatePasswordQuery           = "UPDATE Users SET PasswordHash = ? WHERE UserID = ?"
+	deleteResetTokenQuery         = "DELETE FROM PasswordResetTokens WHERE Token = ?"
+	getUserEmailQuery             = "SELECT UserID FROM Users WHERE Email = ?"
+	insertPasswordResetTokenQuery = `
+INSERT INTO PasswordResetTokens (UserID, Token, ExpiresAt)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE Token = VALUES(Token), ExpiresAt = VALUES(ExpiresAt)
+	`
+	insertUserQuery = "INSERT INTO Users (Username, Email, PasswordHash, Provider, ProviderID, Role, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, 'user', NOW(), NOW())"
+)
+
 type UserDetails struct {
 	UserID    int
 	Username  string
@@ -43,8 +65,7 @@ func NewAuthService(db *sqlx.DB, config *config.AppConfig, tokenUtil *util.Token
 func (s *AuthService) VerifyOpaqueToken(token string) (int, time.Time, error) {
 	var userID int
 	var expiresAt time.Time
-	const query = `SELECT UserID, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?`
-	err := s.DB.QueryRow(query, token).Scan(&userID, &expiresAt)
+	err := s.DB.QueryRow(verifyOpaqueTokenQuery, token).Scan(&userID, &expiresAt)
 	if err != nil {
 		return 0, time.Time{}, err
 	}
@@ -55,19 +76,17 @@ func (s *AuthService) FetchUserDetails(jwtCookie string, fetchProfile bool) (Use
 	details := UserDetails{}
 
 	// Fetch user ID, role, and expiration based on the opaque token
-	const tokenQuery = `
-    SELECT u.UserID, u.Role, ot.ExpiresAt
-    FROM OpaqueTokens ot
-    JOIN Users u ON ot.UserID = u.UserID
-    WHERE ot.OpaqueToken = ?`
-	err := s.DB.QueryRow(tokenQuery, jwtCookie).Scan(&details.UserID, &details.Role, &details.ExpiresAt)
+	/// MYSQL
+	/// access_type: const, query_cost: 1.00
+	err := s.DB.QueryRow(fetchTokenQuery, jwtCookie).Scan(&details.UserID, &details.Role, &details.ExpiresAt)
 	if err != nil {
 		return UserDetails{}, err
 	}
 
 	// Optionally fetch additional user profile information
 	if fetchProfile {
-		const profileQuery = `SELECT Username, Email FROM Users WHERE UserID = ?`
+		/// MYSQL
+		/// access_type: const, query_cost: 1.00
 		err = s.DB.QueryRow(profileQuery, details.UserID).Scan(&details.Username, &details.Email)
 		if err != nil {
 			return UserDetails{}, err
@@ -106,7 +125,7 @@ func (s *AuthService) SaveUser(signUpReq *dto.SignUpRequest) (*model.User, error
 		return nil, err
 	}
 
-	_, err = tx.Exec("DELETE FROM PasswordTokens WHERE Email = ? AND Verified = TRUE", newUser.Email)
+	_, err = tx.Exec(deletePasswordTokenQuery, newUser.Email)
 	if err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("error removing verified token: %w", err)
@@ -122,8 +141,10 @@ func (s *AuthService) SaveUser(signUpReq *dto.SignUpRequest) (*model.User, error
 // Login checks if a user exists with the given email and password.
 func (s *AuthService) Login(email, password string) (*model.User, error) {
 	user := &model.User{}
-	query := `SELECT UserID, Username, Email, PasswordHash, Provider FROM Users WHERE Email = ?`
-	err := s.DB.Get(user, query, email)
+
+	/// MYSQL
+	/// access_type: const, query_cost: 1.00
+	err := s.DB.Get(user, loginGetQuery, email)
 	if err != nil {
 		return nil, err // User not found or db error
 	}
@@ -159,7 +180,7 @@ func (s *AuthService) ResetPassword(token string, newPassword string) error {
 
 	var userID int
 	// Use the transaction (tx) to perform the query
-	err = tx.Get(&userID, "SELECT UserID FROM PasswordResetTokens WHERE Token = ? AND ExpiresAt > NOW()", token)
+	err = tx.Get(&userID, checkExpiredTokenQuery, token)
 	if err != nil {
 		return err // Token not found or expired
 	}
@@ -170,13 +191,14 @@ func (s *AuthService) ResetPassword(token string, newPassword string) error {
 	}
 
 	// Use the transaction (tx) to update the user's password
-	_, err = tx.Exec("UPDATE Users SET PasswordHash = ? WHERE UserID = ?", string(hashedPassword), userID)
+	_, err = tx.Exec(updatePasswordQuery, string(hashedPassword), userID)
 	if err != nil {
 		return err
 	}
 
 	// Use the transaction (tx) to delete the reset token
-	_, err = tx.Exec("DELETE FROM PasswordResetTokens WHERE Token = ?", token)
+	const deleteQuery = deleteResetTokenQuery
+	_, err = tx.Exec(deleteQuery, token)
 	if err != nil {
 		return err
 	}
@@ -187,7 +209,8 @@ func (s *AuthService) ResetPassword(token string, newPassword string) error {
 
 func (s *AuthService) GeneratePasswordResetToken(email string) (string, error) {
 	user := model.User{}
-	err := s.DB.Get(&user, "SELECT UserID FROM Users WHERE Email = ?", email)
+
+	err := s.DB.Get(&user, getUserEmailQuery, email)
 	if err != nil {
 		return "", err // User not found or db error
 	}
@@ -197,10 +220,7 @@ func (s *AuthService) GeneratePasswordResetToken(email string) (string, error) {
 		return "", err
 	}
 
-	_, err = s.DB.Exec(`
-    INSERT INTO PasswordResetTokens (UserID, Token, ExpiresAt)
-    VALUES (?, ?, ?)
-    ON DUPLICATE KEY UPDATE Token = VALUES(Token), ExpiresAt = VALUES(ExpiresAt)`,
+	_, err = s.DB.Exec(insertPasswordResetTokenQuery,
 		user.UserID, token, time.Now().Add(24*time.Hour))
 	if err != nil {
 		return "", err
@@ -267,7 +287,7 @@ func (s *AuthService) insertUserWithRetry(tx *sqlx.Tx, signUpReq *dto.SignUpRequ
 	username := generateUsername(signUpReq)
 	const maxRetries = 5
 	for i := 0; i < maxRetries; i++ {
-		res, err := tx.Exec(`INSERT INTO Users (Username, Email, PasswordHash, Provider, ProviderID, Role, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, 'user', NOW(), NOW())`,
+		res, err := tx.Exec(insertUserQuery,
 			username, signUpReq.Email, hashedPassword, signUpReq.Provider, signUpReq.ProviderID)
 		if err != nil {
 			if strings.Contains(err.Error(), "Duplicate entry") && strings.Contains(err.Error(), "for key 'idx_users_username'") {
