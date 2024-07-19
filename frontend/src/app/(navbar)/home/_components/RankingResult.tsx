@@ -40,10 +40,11 @@ const RankingResult = () => {
   const [viewData, setViewData] = useState<RankingInfo[]>([]);
 
   useEffect(() => {
-    if (!top10) {
+    if (!top10 || top10.length === 0) {
       setDisable(1);
       return;
     }
+
     const sliceArray = () => {
       const result = [];
       for (let i = 0; i < top10.length; i += CHUNK_SIZE) {
