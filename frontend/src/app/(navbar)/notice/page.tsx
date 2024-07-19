@@ -4,7 +4,7 @@ import NoticeClient from "./NoticeClient";
 
 const Notice = () => {
   return (
-    <BlackSideBody toggle>
+    <BlackSideBody>
       <Heading title="공지" />
       <NoticeClient />
     </BlackSideBody>

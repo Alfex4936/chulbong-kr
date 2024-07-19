@@ -5,15 +5,13 @@ import LinkEmojiButton from "./_components/LinkEmojiButton";
 import LocationQuery from "./_components/LocationQuery";
 import Ranking from "./_components/Ranking";
 import SearchInput from "./_components/SearchInput";
-// import NoticeSlide from "./_components/NoticeSlide";
 
 const Home = () => {
   return (
-    <BlackSideBody toggle>
+    <BlackSideBody className="px-4">
       <LocationQuery />
       <Heading title="대한민국 철봉 지도" />
       <SearchInput sticky />
-      {/* <NoticeSlide /> */}
       <div className="mt-4">
         <LinkEmojiButton
           url="/search"

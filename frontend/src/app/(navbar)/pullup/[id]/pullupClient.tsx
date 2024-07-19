@@ -2,6 +2,7 @@
 
 import { FacilitiesRes } from "@/api/markers/getFacilities";
 import ErrorMessage from "@/components/atom/ErrorMessage";
+import IconButton from "@/components/atom/IconButton";
 import LoadingSpinner from "@/components/atom/LoadingSpinner";
 import ShareModal from "@/components/common/ShareModal";
 import BookmarkIcon from "@/components/icons/BookmarkIcon";
@@ -48,9 +49,9 @@ import formatDate from "@/utils/formatDate";
 import formatFacilities from "@/utils/formatFacilities";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import IconButton from "./_components/IconButton";
 import ImageList from "./_components/ImageList";
 import ReviewList from "./_components/ReviewList";
+import useMapControl from "@/hooks/common/useMapControl";
 
 interface Props {
   markerId: number;
@@ -60,6 +61,7 @@ const PullupClient = ({ markerId }: Props) => {
   const router = useRouter();
 
   const commentInput = useInput("");
+  const { moveLocation } = useMapControl();
   const [commentError, setCommentError] = useState("");
 
   const { setLoading } = usePageLoadingStore();
@@ -122,7 +124,6 @@ const PullupClient = ({ markerId }: Props) => {
     if (commentPending) return;
 
     if (commentInput.value.length > 40) {
-      commentInput.resetValue();
       setCommentError("40자 이내로 작성해주세요.");
       return;
     } else if (commentInput.value.length === 0) {
@@ -175,9 +176,9 @@ const PullupClient = ({ markerId }: Props) => {
       />
     );
   if (!marker) return;
-
+  
   return (
-    <div className="mo:mb-14">
+    <div className="grow">
       {/* 이미지 배경 */}
       <div
         className="relative w-full h-64 bg-cover bg-center"
@@ -201,8 +202,7 @@ const PullupClient = ({ markerId }: Props) => {
         )}
 
         <IconButton
-          right={10}
-          top={10}
+          className="right-[10px] top-[10px]"
           icon={
             setFavoritePending || deleteFavoritePending ? (
               <LoadingSpinner size="xs" />
@@ -218,8 +218,7 @@ const PullupClient = ({ markerId }: Props) => {
         />
         <div ref={shareRef} className="relative">
           <IconButton
-            right={10}
-            top={50}
+            className="right-[10px] top-[50px]"
             icon={<ShareIcon />}
             onClick={() => setIsShare(true)}
           />
@@ -236,8 +235,7 @@ const PullupClient = ({ markerId }: Props) => {
           )}
         </div>
         <IconButton
-          right={10}
-          top={90}
+          className="right-[10px] top-[90px]"
           icon={<DislikeIcon isActive={marker.disliked || false} />}
           numberState={marker.dislikeCount || 0}
           disabled={dislikePending || undoDislikePending}
@@ -247,15 +245,13 @@ const PullupClient = ({ markerId }: Props) => {
           }}
         />
         <IconButton
-          right={10}
-          top={130}
+          className="right-[10px] top-[130px]"
           icon={<ChatBubbleIcon size={24} selected={false} />}
           onClick={() => router.push(`/pullup/${markerId}/chat`)}
         />
         {marker.isChulbong && (
           <IconButton
-            right={10}
-            top={170}
+            className="right-[10px] top-[170px]"
             icon={deletePending ? <LoadingSpinner size="xs" /> : <DeleteIcon />}
             onClick={(e) => {
               e.stopPropagation();
@@ -350,9 +346,19 @@ const PullupClient = ({ markerId }: Props) => {
         <div className="mt-4">
           <div className="flex items-center mb-[2px]">
             <span className="mr-1 w-3/4">
-              <h1 className="whitespace-normal overflow-visible break-words truncate text-xl">
-                {marker.address || "제공되는 주소가 없습니다."}
-              </h1>
+              <button
+                onClick={() => {
+                  moveLocation({
+                    lat: marker.latitude,
+                    lng: marker.longitude,
+                    isfilter: true,
+                  });
+                }}
+              >
+                <h1 className="whitespace-normal overflow-visible break-words text-left truncate text-xl hover:underline">
+                  {marker.address || "제공되는 주소가 없습니다."}
+                </h1>
+              </button>
             </span>
             <button
               onClick={async () => {
@@ -447,14 +453,16 @@ const PullupClient = ({ markerId }: Props) => {
             <ImageList photos={marker.photos} />
           </TabsContent>
           <TabsContent value="review">
-            <ReviewList markerId={marker.markerId} />
+            <ReviewList
+              markerId={marker.markerId}
+              isAdmin={marker.isChulbong}
+            />
           </TabsContent>
         </Tabs>
       </div>
 
       {tabName === "review" && (
-        <div className="flex flex-col justify-center items-center fixed bottom-0 left-0 bg-black h-14 w-full px-9 z-50
-        mo:bottom-[70px]">
+        <div className="flex flex-col justify-center grow items-center fixed bottom-0 left-0 bg-black h-14 w-full px-9 z-50 mo:mb-[70px]">
           <div className="flex items-center justify-center w-full h-10 bg-black-light-2 px-3 rounded-3xl">
             <input
               type="text"

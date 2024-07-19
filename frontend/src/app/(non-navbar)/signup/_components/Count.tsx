@@ -1,4 +1,4 @@
-import { cn } from "@/utils/cn";
+import { cn } from "@/lib/utils";
 import formatDigitNumber from "@/utils/formatDigitNumber";
 import { useEffect, useState } from "react";
 

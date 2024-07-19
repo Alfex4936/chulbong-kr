@@ -132,7 +132,7 @@ const ShareModal = ({
       <p className="text-xs text-red mt-1">
         해당 위치를 기반으로 주변의 지도와 철봉 위치들을
         <br />
-        PDF로 다운로들 할 수 있습니다.
+        PDF로 저장 할 수 있습니다.
       </p>
     </div>
   );

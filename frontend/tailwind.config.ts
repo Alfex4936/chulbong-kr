@@ -110,7 +110,7 @@ const config = {
         },
         "bottom-top": {
           from: { bottom: "0",},
-          to: { bottom: "60px" },
+          to: { bottom: "30px" },
         },
         "bottom-top2": {
           from: { bottom: "0",},

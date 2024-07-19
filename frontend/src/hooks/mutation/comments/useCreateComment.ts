@@ -28,6 +28,8 @@ const useCreateComment = (
       if (isAxiosError(error)) {
         if (error?.response?.status === 401) {
           openLoginModal();
+        } else if (error?.response?.status === 400) {
+          toast({ description: "댓글은 최대 4개까지 등록 가능합니다." });
         } else {
           toast({ description: "잠시 후 다시 시도해주세요." });
         }

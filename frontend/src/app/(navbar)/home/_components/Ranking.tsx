@@ -7,16 +7,16 @@ import {
 } from "@tanstack/react-query";
 import RankingResult from "./RankingResult";
 
+const fetchRanking = async () => {
+  const res = await instance.get(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/markers/ranking`
+  );
+
+  return res.data;
+};
+
 const Ranking = async () => {
   const queryClient = new QueryClient();
-
-  const fetchRanking = async () => {
-    const res = await instance.get(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/markers/ranking`
-    );
-
-    return res.data;
-  };
 
   await queryClient.prefetchQuery({
     queryKey: ["ranking", "top10"],

@@ -1,21 +1,8 @@
 import approveReport from "@/api/report/approveReport";
-import useMapStore from "@/store/useMapStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-const useApproveReport = (markerId: number, lat: number, lng: number) => {
+const useApproveReport = (markerId: number) => {
   const queryClient = useQueryClient();
-  const { markers, overlay } = useMapStore();
-
-  const filtering = () => {
-    if (!markers || !overlay) return;
-    const newPosition = new window.kakao.maps.LatLng(lat, lng);
-    const marker = markers.find((value) => Number(value.Gb) === markerId);
-
-    if (marker) {
-      marker.setPosition(newPosition);
-      overlay.setPosition(newPosition);
-    }
-  };
 
   return useMutation({
     mutationFn: approveReport,
@@ -37,7 +24,6 @@ const useApproveReport = (markerId: number, lat: number, lng: number) => {
       queryClient.invalidateQueries({
         queryKey: ["report", "my"],
       });
-      filtering();
     },
   });
 };

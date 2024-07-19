@@ -1,4 +1,3 @@
-import GoogleAdsense from "@/components/common/GoogleAdsense";
 import AlertLogin from "@/components/layout/AlertLogin";
 import ImageDetail from "@/components/layout/ImageDetail";
 import Navigation from "@/components/layout/Navigation";
@@ -12,6 +11,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 
 import "../globals.css";
+import BodyToggleButton from "@/components/layout/body-toggle-button";
 
 declare global {
   interface Window {
@@ -97,7 +97,6 @@ const RootLayout = ({
       <body
         className={`${pretendard.className} overflow-hidden flex text-black dark:text-grey mo:flex-col-reverse h-dvh mo:bg-neutral-800`}
       >
-        <GoogleAdsense />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -108,6 +107,7 @@ const RootLayout = ({
             <ChatIdProvider>
               <Navigation />
               {children}
+              <BodyToggleButton />
               <ImageDetail />
               <PwaAlert />
               <Toaster />

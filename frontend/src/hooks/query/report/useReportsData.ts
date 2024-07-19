@@ -33,13 +33,13 @@ const useReportsData = ({ markerId, type = "me" }: Props) => {
   return useQuery({
     queryKey,
     queryFn,
-    select: (data) => {
-      const sortedData = [...data].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      return sortedData;
-    },
+    // select: (data) => {
+    //   const sortedData = [...data].sort(
+    //     (a, b) =>
+    //       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    //   );
+    //   return sortedData;
+    // },
   });
 };
 

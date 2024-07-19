@@ -1,25 +1,19 @@
 import { type Report } from "@/api/report/getReportForMyMarker";
 import { ArrowRightIcon } from "@/components/icons/ArrowIcons";
-import { Skeleton } from "@/components/ui/skeleton";
-import useMarkerData from "@/hooks/query/marker/useMarkerData";
 import { Fragment, useState } from "react";
 import MarkerReportList from "../../report/_components/MarkerReportList";
+// TODO: formarker /mypage/myreport 승인 마커, 오버레이 이동
 
 interface Props {
   id: number;
   count: number;
   reports: Report[];
+  address: string;
+  desc: string;
 }
 
-const ReportList = ({ id, count, reports }: Props) => {
-  const { data, isFetching } = useMarkerData(id);
-
+const ReportList = ({ id, count, reports, address, desc }: Props) => {
   const [toggle, setToggle] = useState(false);
-
-  if (!data)
-    return (
-      <Skeleton className="bg-black-light-2 mb-4 w-full h-20 rounded-sm" />
-    );
 
   return (
     <Fragment>
@@ -32,10 +26,8 @@ const ReportList = ({ id, count, reports }: Props) => {
             총 <span className="font-bold text-grey-light">{count || 0}</span>개
             요청
           </div>
-          <div className="break-words">{data.address}</div>
-          <div className="text-grey-dark text-sm break-words">
-            {data.description || "작성 된 설명이 없습니다."}
-          </div>
+          <div className="break-words">{address}</div>
+          <div className="text-grey-dark text-sm break-words">{desc}</div>
         </div>
         <div className={`${toggle ? "rotate-90" : ""} duration-150`}>
           <ArrowRightIcon />
@@ -51,12 +43,11 @@ const ReportList = ({ id, count, reports }: Props) => {
                 key={report.reportID}
                 desc={report.description}
                 imgs={report.photos}
-                lat={data.latitude}
-                lng={data.longitude}
                 markerId={id}
                 reportId={report.reportID}
                 status={report.status}
-                isFetching={isFetching}
+                address={reports[0].address}
+                isAdmin={true}
               />
             );
           })}

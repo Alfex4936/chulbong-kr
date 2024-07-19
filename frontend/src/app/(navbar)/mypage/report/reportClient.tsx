@@ -6,6 +6,8 @@ import useMyinfoData from "@/hooks/query/user/useMyinfoData";
 import { QueryObserverRefetchErrorResult } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import MarkerReportList from "./_components/MarkerReportList";
+// TODO: formarker /pullup/id/reportlist 승인 마커, 오버레이 이동
+// TODO: formarker /mypage/report 승인 마커, 오버레이 이동
 
 interface Props {
   type?: "me" | "formarker" | "all";
@@ -17,7 +19,6 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
     data: myReports,
     error,
     isError,
-    isFetching,
   } = useReportsData({ type, markerId }) as QueryObserverRefetchErrorResult<
     ReportsRes[],
     Error
@@ -49,15 +50,14 @@ const ReportClient = ({ type = "me", markerId }: Props) => {
           <div key={report.reportId} className="mb-4">
             <MarkerReportList
               markerId={report.markerId}
-              lat={report.newLatitude || report.latitude}
-              lng={report.newLongitude || report.longitude}
               desc={report.description}
               imgs={report.photoUrls}
               status={report.status}
               userId={report.userId}
               reportId={report.reportId}
               myId={myInfo?.userId}
-              isFetching={isFetching}
+              address={report.address}
+              isAdmin={report.userId === myInfo?.userId || myInfo?.chulbong}
             />
           </div>
         );

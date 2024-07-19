@@ -107,7 +107,7 @@ const Pullup = async ({ params }: Props) => {
   const dehydrateState = dehydrate(queryClient);
 
   return (
-    <BlackSideBody bodyClass="p-0 mo:px-0 mo:pb-0" toggle>
+    <BlackSideBody className="flex flex-col">
       <PrevHeader text="상세보기" back />
       <HydrationBoundary state={dehydrateState}>
         <PullupClient markerId={Number(id)} />

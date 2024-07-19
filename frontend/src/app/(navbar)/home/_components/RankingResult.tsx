@@ -22,7 +22,7 @@ const RankingResult = () => {
 
   const { map } = useMapStore();
   const { lat, lng } = useMapStatusStore();
-  const { curTab } = useTabStore();
+  const { curTab, setDisable } = useTabStore();
 
   const { data: top10 } = useMarkerRankingData();
   const {
@@ -40,7 +40,10 @@ const RankingResult = () => {
   const [viewData, setViewData] = useState<RankingInfo[]>([]);
 
   useEffect(() => {
-    if (!top10) return;
+    if (!top10) {
+      setDisable(1);
+      return;
+    }
     const sliceArray = () => {
       const result = [];
       for (let i = 0; i < top10.length; i += CHUNK_SIZE) {
