@@ -163,10 +163,14 @@ func (h *AuthHandler) HandleLogout(c *fiber.Ctx) error {
 		log.Println("LogoutHandler: UserID missing in session. Proceeding with client-side logout.")
 	}
 
-	// Attempt to delete the token from the database
-	if err := h.TokenService.DeleteOpaqueToken(userID); err != nil {
-		// Log the error but do not disrupt the logout process
-		log.Printf("LogoutHandler: Failed to delete session token for user ID %d: %v\n", userID, err)
+	token := c.Cookies("token")
+
+	if token != "" {
+		// Attempt to delete the token from the database
+		if err := h.TokenService.DeleteOpaqueToken(userID, token); err != nil {
+			// Log the error but do not disrupt the logout process
+			log.Printf("LogoutHandler: Failed to delete session token for user ID %d: %v\n", userID, err)
+		}
 	}
 
 	// Clear the authentication cookie

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"mime/multipart"
 	"net/url"
 	"path/filepath"
@@ -125,7 +126,7 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 	return nil
 }
 
-func (s *S3Service) ListAllObjectsInS3() ([]string, error) {
+func (s *S3Service) ListAllObjectsInS3() ([]map[string]interface{}, error) {
 	// Load the AWS credentials
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(s.Config.AwsRegion),
@@ -139,7 +140,8 @@ func (s *S3Service) ListAllObjectsInS3() ([]string, error) {
 		Bucket: &s.Config.S3BucketName,
 	}
 
-	var s3Keys []string
+	var s3Objects []map[string]interface{}
+	var sumKB int64
 	paginator := s3.NewListObjectsV2Paginator(s3Client, input)
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(context.Background())
@@ -147,11 +149,19 @@ func (s *S3Service) ListAllObjectsInS3() ([]string, error) {
 			return nil, fmt.Errorf("error listing S3 objects: %w", err)
 		}
 		for _, item := range output.Contents {
-			s3Keys = append(s3Keys, *item.Key)
+			sizeKB := *item.Size / 1024 // Size in KB
+
+			sumKB += sizeKB
+
+			s3Objects = append(s3Objects, map[string]interface{}{
+				"Key":  *item.Key,
+				"Size": sizeKB,
+			})
 		}
 	}
 
-	return s3Keys, nil
+	log.Printf("💖 Total image size: %d KB (%d MB)", sumKB, sumKB/1024)
+	return s3Objects, nil
 }
 
 // FindUnreferencedS3Objects finds S3 objects that are not referenced in the database.

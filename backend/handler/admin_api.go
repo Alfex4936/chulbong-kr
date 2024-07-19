@@ -43,6 +43,7 @@ func RegisterAdminRoutes(api fiber.Router, handler *AdminHandler, authMiddleware
 		adminGroup.Use(authMiddleware.CheckAdmin)
 		adminGroup.Get("/dead", handler.HandleListUnreferencedS3Objects)
 		adminGroup.Get("/fetch", handler.HandleListUpdatedMarkers)
+		adminGroup.Get("/unique-visitors/:date", handler.HandleListVisitors)
 	}
 }
 
@@ -54,12 +55,19 @@ func (h *AdminHandler) HandleListUnreferencedS3Objects(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "fetching URLs from database"})
 	}
 
-	s3Keys, err := h.AdminFacade.ListAllObjectsInS3()
+	s3Objects, err := h.AdminFacade.ListAllObjectsInS3()
 	if err != nil {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "fetching keys from S3"})
 	}
 
-	unreferenced := h.AdminFacade.FindUnreferencedS3Objects(dbURLs, s3Keys)
+	var keys []string
+	for _, obj := range s3Objects {
+		if key, ok := obj["Key"].(string); ok {
+			keys = append(keys, key)
+		}
+	}
+
+	unreferenced := h.AdminFacade.FindUnreferencedS3Objects(dbURLs, keys)
 
 	if killSwitch == "y" {
 		for _, unreferencedURL := range unreferenced {
@@ -195,4 +203,15 @@ func (h *AdminHandler) HandleListUpdatedMarkers(c *fiber.Ctx) error {
 	h.AdminFacade.ResetMarkerCache()
 
 	return c.JSON(markers)
+}
+
+// date := time.Now().Format("2006-01-02")
+func (h *AdminHandler) HandleListVisitors(c *fiber.Ctx) error {
+	date := c.Params("date")
+	count, err := h.AdminFacade.GetUniqueVisitorsDB(date)
+	if err != nil {
+		return c.Status(500).SendString("Internal Server Error")
+	}
+
+	return c.JSON(fiber.Map{"date": date, "unique_visitors": count})
 }

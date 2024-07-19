@@ -11,6 +11,137 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	getAllReportsQuery = `
+SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
+ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
+r.Description, r.CreatedAt, r.Status, r.DoesExist, COALESCE(p.PhotoURL, '')
+FROM Reports r
+LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
+ORDER BY r.CreatedAt DESC`
+
+	getAllReportsByQuery = `
+SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
+ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
+r.Description, r.CreatedAt, r.Status, m.Address, COALESCE(p.PhotoURL, '') AS PhotoURL
+FROM Reports r
+LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
+LEFT JOIN Markers m ON r.MarkerID = m.MarkerID
+WHERE r.MarkerID = ?
+ORDER BY r.CreatedAt DESC`
+
+	insertReportQuery      = "INSERT INTO Reports (MarkerID, UserID, Location, NewLocation, Description, DoesExist) VALUES (?, ?, ST_PointFromText(?, 4326), ST_PointFromText(?, 4326), ?, ?)"
+	insertReportPhotoQuery = "INSERT INTO ReportPhotos (ReportID, PhotoURL) VALUES (?, ?)"
+
+	// Use a derived table to avoid Error 1093
+	// SQL query tries to update a table (Reports) and simultaneously select from the same table within a subquery.
+	approveReportQuery = `
+UPDATE Reports
+SET Status = 'APPROVED'
+WHERE ReportID = ?
+AND (
+	MarkerID IN (
+		SELECT MarkerID
+		FROM (
+			SELECT MarkerID
+			FROM Markers
+			WHERE UserID = ? AND MarkerID IN (
+				SELECT MarkerID
+				FROM Reports
+				WHERE ReportID = ?
+			)
+		) AS subquery1
+	)
+	OR EXISTS (
+		SELECT 1
+		FROM (
+			SELECT UserID
+			FROM Users
+			WHERE UserID = ? AND Role = 'admin'
+		) AS subquery2
+	)
+)`
+
+	denyReportQuery = `
+UPDATE Reports
+SET Status = 'DENIED'
+WHERE ReportID = ?
+AND (
+	MarkerID IN (
+		SELECT MarkerID
+		FROM (
+			SELECT MarkerID
+			FROM Markers
+			WHERE UserID = ? AND MarkerID IN (
+				SELECT MarkerID
+				FROM Reports
+				WHERE ReportID = ?
+			)
+		) AS subquery1
+	)
+	OR EXISTS (
+		SELECT 1
+		FROM (
+			SELECT UserID
+			FROM Users
+			WHERE UserID = ? AND Role = 'admin'
+		) AS subquery2
+	)
+)`
+
+	// Update marker details based on the approved report
+	// CASE update statement to conditionally update the description only if the Reports.Description is not an empty string
+	updateMarkeryReportQuery = `
+UPDATE Markers 
+JOIN Reports ON Markers.MarkerID = Reports.MarkerID
+SET Markers.Location = COALESCE(Reports.NewLocation, Markers.Location),
+	Markers.Description = CASE WHEN Reports.Description != '' THEN COALESCE(Reports.Description, Markers.Description) ELSE Markers.Description END,
+	Markers.UpdatedAt = CURRENT_TIMESTAMP
+WHERE Reports.ReportID = ? AND Reports.Status = 'APPROVED'	`
+
+	updateReportPhotoQuery = `
+INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt)
+SELECT r.MarkerID, rp.PhotoURL, rp.UploadedAt
+FROM ReportPhotos rp
+JOIN Reports r ON rp.ReportID = r.ReportID
+WHERE r.ReportID = ? AND r.Status = 'APPROVED'
+`
+	deleteExcessPhotosQuery = `
+WITH OrderedPhotos AS (
+	SELECT PhotoID, ROW_NUMBER() OVER (PARTITION BY MarkerID ORDER BY UploadedAt ASC) AS RowNum
+	FROM Photos
+	WHERE MarkerID = (SELECT MarkerID FROM Reports WHERE ReportID = ?)
+)
+DELETE FROM Photos
+WHERE PhotoID IN (SELECT PhotoID FROM OrderedPhotos WHERE RowNum > 5)`
+	deleteReportPhotosQuery = "DELETE FROM ReportPhotos WHERE ReportID = ?"
+
+	checkAuthQuery = `
+SELECT EXISTS(
+	SELECT 1 FROM Reports
+	JOIN Markers ON Reports.MarkerID = Markers.MarkerID
+	LEFT JOIN Users ON Users.UserID = Reports.UserID
+	WHERE Reports.ReportID = ? AND (Reports.UserID = ? OR Markers.UserID = ? OR Users.Role = 'admin')
+)`
+	selectPhotosQuery = "SELECT PhotoURL FROM ReportPhotos WHERE ReportID = ?"
+
+	deleteReportQuery = "DELETE FROM Reports WHERE ReportID = ?"
+
+	getReportByIdQuery = "SELECT MarkerID FROM Reports WHERE ReportID = ?"
+
+	updateDbLocationQuery        = "SELECT ST_X(Location) as Latitude, ST_Y(Location) as Longitude FROM Markers WHERE MarkerID = ?"
+	updateMarkerAddressByIdQuery = "UPDATE Markers SET Address = ? WHERE MarkerID = ?"
+
+	getPendingReportsQuery = `
+SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
+ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
+r.Description, r.CreatedAt, r.Status, r.DoesExist, COALESCE(p.PhotoURL, '')
+FROM Reports r
+LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
+WHERE r.Status = 'PENDING'
+ORDER BY r.CreatedAt DESC`
+)
+
 type ReportService struct {
 	DB              *sqlx.DB
 	S3Service       *S3Service
@@ -27,15 +158,7 @@ func NewReportService(db *sqlx.DB, s3Service *S3Service, location *MarkerLocatio
 
 // GetAllReports retrieves reports for all markers from the database.
 func (s *ReportService) GetAllReports() ([]dto.MarkerReportResponse, error) {
-	const query = `
-    SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
-    ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
-    r.Description, r.CreatedAt, r.Status, r.DoesExist, COALESCE(p.PhotoURL, '')
-    FROM Reports r
-    LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
-    ORDER BY r.CreatedAt DESC
-    `
-	rows, err := s.DB.Queryx(query)
+	rows, err := s.DB.Queryx(getAllReportsQuery)
 	if err != nil {
 		return nil, fmt.Errorf("error querying reports: %w", err)
 	}
@@ -78,16 +201,7 @@ func (s *ReportService) GetAllReports() ([]dto.MarkerReportResponse, error) {
 }
 
 func (s *ReportService) GetAllReportsBy(markerID int) ([]dto.MarkerReportResponse, error) {
-	const query = `
-    SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
-    ST_X(r.NewLocation) AS NewLatitude, ST_Y(r.NewLocation) AS NewLongitude,
-    r.Description, r.CreatedAt, r.Status, COALESCE(p.PhotoURL, '')
-    FROM Reports r
-    LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
-    WHERE r.MarkerID = ?
-    ORDER BY r.CreatedAt DESC
-    `
-	rows, err := s.DB.Queryx(query, markerID)
+	rows, err := s.DB.Queryx(getAllReportsByQuery, markerID)
 	if err != nil {
 		return nil, fmt.Errorf("error querying reports by marker ID: %w", err)
 	}
@@ -100,7 +214,7 @@ func (s *ReportService) GetAllReportsBy(markerID int) ([]dto.MarkerReportRespons
 			url string
 		)
 		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
-			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &url); err != nil {
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.Address, &url); err != nil {
 			return nil, err
 		}
 		// Check if the URL is not empty before appending
@@ -139,8 +253,7 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 	defer tx.Rollback() // Ensure the transaction is rolled back in case of error
 
 	// Insert the main report record
-	const reportQuery = `INSERT INTO Reports (MarkerID, UserID, Location, NewLocation, Description, DoesExist) VALUES (?, ?, ST_PointFromText(?, 4326), ST_PointFromText(?, 4326), ?, ?)`
-	res, err := tx.Exec(reportQuery, report.MarkerID, report.UserID, fmt.Sprintf("POINT(%f %f)", report.Latitude, report.Longitude), fmt.Sprintf("POINT(%f %f)", report.NewLatitude, report.NewLongitude), report.Description, report.DoesExist)
+	res, err := tx.Exec(insertReportQuery, report.MarkerID, report.UserID, fmt.Sprintf("POINT(%f %f)", report.Latitude, report.Longitude), fmt.Sprintf("POINT(%f %f)", report.NewLatitude, report.NewLongitude), report.Description, report.DoesExist)
 	if err != nil {
 		return fmt.Errorf("failed to insert report: %w", err)
 	}
@@ -157,7 +270,6 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 		return fmt.Errorf("no photos to process")
 	}
 
-	const photoQuery = `INSERT INTO ReportPhotos (ReportID, PhotoURL) VALUES (?, ?)`
 	var wg sync.WaitGroup
 	errorChan := make(chan error, len(files))
 
@@ -170,7 +282,7 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 				errorChan <- fmt.Errorf("failed to upload file to S3: %w", err)
 				return
 			}
-			if _, err := tx.Exec(photoQuery, reportID, fileURL); err != nil {
+			if _, err := tx.Exec(insertReportPhotoQuery, reportID, fileURL); err != nil {
 				errorChan <- fmt.Errorf("failed to execute database operation: %w", err)
 				return
 			}
@@ -202,36 +314,7 @@ func (s *ReportService) ApproveReport(reportID, userID int) error {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Use a derived table to avoid Error 1093
-	// SQL query tries to update a table (Reports) and simultaneously select from the same table within a subquery.
-	const approveQuery = `
-    UPDATE Reports
-    SET Status = 'APPROVED'
-    WHERE ReportID = ?
-    AND (
-        MarkerID IN (
-            SELECT MarkerID
-            FROM (
-                SELECT MarkerID
-                FROM Markers
-                WHERE UserID = ? AND MarkerID IN (
-                    SELECT MarkerID
-                    FROM Reports
-                    WHERE ReportID = ?
-                )
-            ) AS subquery1
-        )
-        OR EXISTS (
-            SELECT 1
-            FROM (
-                SELECT UserID
-                FROM Users
-                WHERE UserID = ? AND Role = 'admin'
-            ) AS subquery2
-        )
-    )
-    `
-	res, err := tx.Exec(approveQuery, reportID, userID, reportID, userID)
+	res, err := tx.Exec(approveReportQuery, reportID, userID, reportID, userID)
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("error approving report: %w", err)
@@ -257,34 +340,7 @@ func (s *ReportService) ApproveReport(reportID, userID int) error {
 }
 
 func (s *ReportService) DenyReport(reportID, userID int) error {
-	const denyQuery = `
-	UPDATE Reports
-    SET Status = 'DENIED'
-    WHERE ReportID = ?
-    AND (
-        MarkerID IN (
-            SELECT MarkerID
-            FROM (
-                SELECT MarkerID
-                FROM Markers
-                WHERE UserID = ? AND MarkerID IN (
-                    SELECT MarkerID
-                    FROM Reports
-                    WHERE ReportID = ?
-                )
-            ) AS subquery1
-        )
-        OR EXISTS (
-            SELECT 1
-            FROM (
-                SELECT UserID
-                FROM Users
-                WHERE UserID = ? AND Role = 'admin'
-            ) AS subquery2
-        )
-    )
-	`
-	res, err := s.DB.Exec(denyQuery, reportID, userID, reportID, userID)
+	res, err := s.DB.Exec(denyReportQuery, reportID, userID, reportID, userID)
 	if err != nil {
 		return fmt.Errorf("error denying report: %w", err)
 	}
@@ -296,52 +352,21 @@ func (s *ReportService) DenyReport(reportID, userID int) error {
 }
 
 func (s *ReportService) UpdateMarkerWithReportDetailsTx(tx *sqlx.Tx, reportID int) error {
-	// Update marker details based on the approved report
-	// CASE update statement to conditionally update the description only if the Reports.Description is not an empty string
-	const updateMarkerQuery = `
-	UPDATE Markers 
-	JOIN Reports ON Markers.MarkerID = Reports.MarkerID
-	SET Markers.Location = COALESCE(Reports.NewLocation, Markers.Location),
-		Markers.Description = CASE WHEN Reports.Description != '' THEN COALESCE(Reports.Description, Markers.Description) ELSE Markers.Description END,
-		Markers.UpdatedAt = CURRENT_TIMESTAMP
-	WHERE Reports.ReportID = ? AND Reports.Status = 'APPROVED'	
-    `
 
-	if _, err := tx.Exec(updateMarkerQuery, reportID); err != nil {
+	if _, err := tx.Exec(updateMarkeryReportQuery, reportID); err != nil {
 		return fmt.Errorf("error updating marker with report details: %w", err)
 	}
 
 	// Move approved report photos to the Photos table
-	const insertPhotosQuery = `
-    INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt)
-    SELECT r.MarkerID, rp.PhotoURL, rp.UploadedAt
-    FROM ReportPhotos rp
-    JOIN Reports r ON rp.ReportID = r.ReportID
-    WHERE r.ReportID = ? AND r.Status = 'APPROVED'
-    `
-	if _, err := tx.Exec(insertPhotosQuery, reportID); err != nil {
+	if _, err := tx.Exec(updateReportPhotoQuery, reportID); err != nil {
 		return fmt.Errorf("error transferring report photos to marker photos: %w", err)
 	}
 
 	// Check and remove the oldest photos if the limit is exceeded
-	const deleteExcessPhotosQuery = `
-	WITH OrderedPhotos AS (
-	    SELECT PhotoID, ROW_NUMBER() OVER (PARTITION BY MarkerID ORDER BY UploadedAt ASC) AS RowNum
-	    FROM Photos
-	    WHERE MarkerID = (SELECT MarkerID FROM Reports WHERE ReportID = ?)
-	)
-	DELETE FROM Photos
-	WHERE PhotoID IN (SELECT PhotoID FROM OrderedPhotos WHERE RowNum > 5)
-	`
 	if _, err := tx.Exec(deleteExcessPhotosQuery, reportID); err != nil {
 		return fmt.Errorf("error removing excess photos: %w", err)
 	}
 
-	// Delete the moved photos from ReportPhotos
-	const deleteReportPhotosQuery = `
-    DELETE FROM ReportPhotos
-    WHERE ReportID = ?
-    `
 	if _, err := tx.Exec(deleteReportPhotosQuery, reportID); err != nil {
 		return fmt.Errorf("error deleting report photos after moving: %w", err)
 	}
@@ -358,17 +383,9 @@ func (s *ReportService) DeleteReport(reportID, userID, markerID int) error {
 	defer tx.Rollback()
 
 	// Check if the user is authorized to delete the report
-	const authQuery = `
-    SELECT EXISTS(
-        SELECT 1 FROM Reports
-        JOIN Markers ON Reports.MarkerID = Markers.MarkerID
-        LEFT JOIN Users ON Users.UserID = Reports.UserID
-        WHERE Reports.ReportID = ? AND (Reports.UserID = ? OR Markers.UserID = ? OR Users.Role = 'admin')
-    )`
-
 	// Prepare to check if the user has the right to delete the report
 	var authorized bool
-	if err := tx.Get(&authorized, authQuery, reportID, userID, userID); err != nil {
+	if err := tx.Get(&authorized, checkAuthQuery, reportID, userID, userID); err != nil {
 		return fmt.Errorf("error checking authorization: %w", err)
 	}
 
@@ -378,24 +395,17 @@ func (s *ReportService) DeleteReport(reportID, userID, markerID int) error {
 
 	// Delete report photos first
 	var photoURLs []string
-	const selectPhotosQuery = `
-    SELECT PhotoURL FROM ReportPhotos WHERE ReportID = ?
-    `
 	if err := tx.Select(&photoURLs, selectPhotosQuery, reportID); err != nil {
 		return fmt.Errorf("error deleting report photos: %w", err)
 	}
 
 	// Delete photos from database
-	const deletePhotosQuery = `DELETE FROM ReportPhotos WHERE ReportID = ?`
-	if _, err := tx.Exec(deletePhotosQuery, markerID); err != nil {
+	if _, err := tx.Exec(deleteReportPhotosQuery, markerID); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("deleting photos: %w", err)
 	}
 
 	// Then delete the report
-	const deleteReportQuery = `
-    DELETE FROM Reports WHERE ReportID = ?
-    `
 	if _, err := tx.Exec(deleteReportQuery, reportID); err != nil {
 		return fmt.Errorf("error deleting report: %w", err)
 	}
@@ -429,13 +439,13 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 		}
 		// Fetch the marker ID associated with the report
 		var markerID int64
-		mErr := s.DB.Get(&markerID, "SELECT MarkerID FROM Reports WHERE ReportID = ?", reportID)
+		mErr := s.DB.Get(&markerID, getReportByIdQuery, reportID)
 		if mErr != nil {
 			log.Printf("Failed to fetch marker %d: %v", markerID, mErr)
 			return
 		}
 
-		mErr = s.LocationService.DB.Get(&location, "SELECT ST_X(Location) as Latitude, ST_Y(Location) as Longitude FROM Markers WHERE MarkerID = ?", markerID)
+		mErr = s.LocationService.DB.Get(&location, updateDbLocationQuery, markerID)
 		if mErr != nil {
 			log.Printf("Failed to fetch location for marker %d: %v", markerID, mErr)
 			return
@@ -461,7 +471,7 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 			address2, _ := s.LocationService.FacilityService.FetchRegionFromAPI(location.Latitude, location.Longitude)
 			if address2 == "-2" {
 				// delete the marker 북한 or 일본
-				_, err = s.LocationService.DB.Exec("DELETE FROM Markers WHERE MarkerID = ?", markerID)
+				_, err = s.LocationService.DB.Exec(deleteMarkerQuery, markerID)
 				if err != nil {
 					log.Printf("Failed to update address for marker %d: %v", markerID, err)
 				}
@@ -482,18 +492,60 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 
 			url := fmt.Sprintf("%sd=%d&la=%f&lo=%f", s.LocationService.Config.ClientURL, markerID, location.Latitude, location.Longitude)
 
-			logFailureStmt := "INSERT INTO MarkerAddressFailures (MarkerID, ErrorMessage, URL) VALUES (?, ?, ?)"
-			if _, logErr := s.LocationService.DB.Exec(logFailureStmt, markerID, errMsg, url); logErr != nil {
+			if _, logErr := s.LocationService.DB.Exec(insertMarkerFailureQuery, markerID, errMsg, url); logErr != nil {
 				log.Printf("Failed to log address fetch failure for marker %d: %v", markerID, logErr)
 			}
 			return
 		}
 
 		// Update the marker's address in the database after successful fetch
-		_, err = s.LocationService.DB.Exec("UPDATE Markers SET Address = ? WHERE MarkerID = ?", address, markerID)
+		_, err = s.LocationService.DB.Exec(updateMarkerAddressByIdQuery, address, markerID)
 		if err != nil {
 			log.Printf("Failed to update address for marker %d: %v", markerID, err)
 		}
 
 	}(reportID)
+}
+
+func (s *ReportService) GetPendingReports() ([]dto.MarkerReportResponse, error) {
+	rows, err := s.DB.Queryx(getPendingReportsQuery)
+	if err != nil {
+		return nil, fmt.Errorf("error querying reports: %w", err)
+	}
+	defer rows.Close()
+
+	reportMap := make(map[int]*dto.MarkerReportResponse)
+	for rows.Next() {
+		var (
+			r   dto.MarkerReportResponse
+			url string
+		)
+		if err := rows.Scan(&r.ReportID, &r.MarkerID, &r.UserID, &r.Latitude, &r.Longitude,
+			&r.NewLatitude, &r.NewLongitude, &r.Description, &r.CreatedAt, &r.Status, &r.DoesExist, &url); err != nil {
+			return nil, err
+		}
+		// Check if the URL is not empty before appending
+		if url != "" {
+			if report, exists := reportMap[r.ReportID]; exists {
+				report.PhotoURLs = append(report.PhotoURLs, url)
+			} else {
+				r.PhotoURLs = []string{url}
+				reportMap[r.ReportID] = &r
+			}
+		} else {
+			// Ensure that PhotoURLs is initialized even if there are no photos
+			if _, exists := reportMap[r.ReportID]; !exists {
+				r.PhotoURLs = []string{} // Initialize with an empty slice
+				reportMap[r.ReportID] = &r
+			}
+		}
+	}
+
+	// Convert map to slice
+	reports := make([]dto.MarkerReportResponse, 0, len(reportMap))
+	for _, report := range reportMap {
+		reports = append(reports, *report)
+	}
+
+	return reports, nil
 }

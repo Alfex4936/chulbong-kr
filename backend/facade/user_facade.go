@@ -74,7 +74,7 @@ func (mfs *UserFacadeService) GetAllReportsByUser(userID int) ([]dto.MarkerRepor
 	return mfs.UserService.GetAllReportsByUser(userID)
 }
 
-func (mfs *UserFacadeService) GetAllReportsForMyMarkersByUser(userID int) ([]dto.MarkerReportResponse, error) {
+func (mfs *UserFacadeService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedReportsResponse, error) {
 	return mfs.UserService.GetAllReportsForMyMarkersByUser(userID)
 }
 

@@ -27,6 +27,113 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	// Simplified query to fetch only the marker IDs, latitudes, and longitudes
+	getAllSimpleMarkersQuery = `
+SELECT 
+	MarkerID, 
+	ST_X(Location) AS Latitude,
+	ST_Y(Location) AS Longitude
+FROM 
+	Markers;`
+
+	getAllNewMakersQuery = `
+SELECT 
+	MarkerID, 
+	ST_X(Location) AS Latitude,
+	ST_Y(Location) AS Longitude
+FROM 
+	Markers
+ORDER BY 
+	createdAt DESC
+LIMIT ? OFFSET ?;`
+
+	// access_type: const, query_cost: 1.00
+	getAmarkerQuery = `
+SELECT
+	M.MarkerID,
+	M.UserID,
+	ST_X(M.Location) AS Latitude,
+	ST_Y(M.Location) AS Longitude,
+	M.Description,
+	COALESCE(U.Username, '탈퇴한 사용자') AS Username,
+	M.CreatedAt,
+	M.UpdatedAt,
+	M.Address,
+	COALESCE(D.DislikeCount, 0) AS DislikeCount,
+	COALESCE(F.FavoriteCount, 0) AS FavoriteCount
+FROM Markers M
+LEFT JOIN Users U ON M.UserID = U.UserID
+LEFT JOIN (
+	SELECT
+		MarkerID,
+		COUNT(*) AS DislikeCount
+	FROM MarkerDislikes
+	WHERE MarkerID = ?
+	GROUP BY MarkerID
+) D ON M.MarkerID = D.MarkerID
+LEFT JOIN (
+	SELECT
+		MarkerID,
+		COUNT(*) AS FavoriteCount
+	FROM Favorites
+	WHERE MarkerID = ?
+	GROUP BY MarkerID
+) F ON M.MarkerID = F.MarkerID
+WHERE M.MarkerID = ?`
+
+	getAllPhotosForMarkerQuery = "SELECT * FROM Photos WHERE MarkerID = ? ORDER BY UploadedAt DESC"
+
+	// Query to select markers created by a specific user with LIMIT and OFFSET for pagination
+	getMarkersByUserQuery = `
+SELECT 
+    M.MarkerID,
+    ST_X(M.Location) AS Latitude, 
+    ST_Y(M.Location) AS Longitude, 
+    M.Description,
+    M.CreatedAt,
+	M.Address
+FROM 
+    Markers M
+WHERE 
+    M.UserID = ?
+ORDER BY 
+    M.CreatedAt DESC
+LIMIT ? OFFSET ?`
+
+	// Query to get the total count of markers for the user
+	getTotalCountofMarkerQuery = "SELECT COUNT(DISTINCT Markers.MarkerID) FROM Markers WHERE Markers.UserID = ?"
+
+	insertMarkerQuery = "INSERT INTO Markers (UserID, Location, Description, CreatedAt, UpdatedAt) VALUES (?, ST_PointFromText(?, 4326), ?, NOW(), NOW())"
+	insertPhotoQuery  = "INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())"
+
+	deleteMarkerQuery = "DELETE FROM Markers WHERE MarkerID = ?"
+
+	insertMarkerFailureQuery = "INSERT INTO MarkerAddressFailures (MarkerID, ErrorMessage, URL) VALUES (?, ?, ?)"
+
+	// UNION
+	//     SELECT PhotoURL FROM ReportPhotos WHERE PhotoURL
+	getAllPhotosQuery = "SELECT PhotoURL FROM Photos WHERE PhotoURL IS NOT NULL"
+
+	updateMarkerQuery     = "UPDATE Markers SET Latitude = ?, Longitude = ?, Description = ?, UpdatedAt = NOW() WHERE MarkerID = ?"
+	updateMarkerDescQuery = "UPDATE Markers SET Description = ?, UpdatedAt = NOW() WHERE MarkerID = ?"
+
+	getAllMarkersByUserQuery = "SELECT UserID FROM Markers WHERE MarkerID = ?"
+	getPhotosForMarkerQuery  = "SELECT PhotoURL FROM Photos WHERE MarkerID = ?"
+
+	deletePhotoQuery = "DELETE FROM Photos WHERE MarkerID = ?"
+
+	updateTimeMarkerQuery = "UPDATE Markers SET UpdatedAt = NOW() WHERE MarkerID = ?"
+
+	findCloseMarkersAdminQuery = `
+SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude, Description, ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance, Address
+FROM Markers
+WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
+ORDER BY distance ASC`
+
+	generateRSSQuery = "SELECT MarkerID, UpdatedAt, Address FROM Markers ORDER BY UpdatedAt DESC"
+)
+
 // MarkerManageService is a service for marker management operations.
 type MarkerManageService struct {
 	DB *sqlx.DB
@@ -115,17 +222,8 @@ func (s *MarkerManageService) ClearCache() {
 
 // GetAllMarkers now returns a simplified list of markers
 func (s *MarkerManageService) GetAllMarkers() ([]dto.MarkerSimple, error) {
-	// Simplified query to fetch only the marker IDs, latitudes, and longitudes
-	const markerQuery = `
-    SELECT 
-        MarkerID, 
-        ST_X(Location) AS Latitude,
-        ST_Y(Location) AS Longitude
-    FROM 
-        Markers;`
-
 	var markers []dto.MarkerSimple
-	err := s.DB.Select(&markers, markerQuery)
+	err := s.DB.Select(&markers, getAllSimpleMarkersQuery)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)
 	}
@@ -145,19 +243,8 @@ func (s *MarkerManageService) GetAllNewMarkers(page, pageSize int) ([]dto.Marker
 	}
 	offset := (page - 1) * pageSize
 
-	const markerQuery = `
-    SELECT 
-        MarkerID, 
-        ST_X(Location) AS Latitude,
-        ST_Y(Location) AS Longitude
-    FROM 
-        Markers
-    ORDER BY 
-        createdAt DESC
-    LIMIT ? OFFSET ?;`
-
 	var markers []dto.MarkerSimple
-	err := s.DB.Select(&markers, markerQuery, pageSize, offset)
+	err := s.DB.Select(&markers, getAllNewMakersQuery, pageSize, offset)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)
 	}
@@ -167,54 +254,20 @@ func (s *MarkerManageService) GetAllNewMarkers(page, pageSize int) ([]dto.Marker
 
 // GetMarker retrieves a single marker and its associated photo by the marker's ID
 func (s *MarkerManageService) GetMarker(markerID int) (*model.MarkerWithPhotos, error) {
-	const query = `
-	SELECT
-	M.MarkerID,
-	M.UserID,
-	ST_X(M.Location) AS Latitude,
-	ST_Y(M.Location) AS Longitude,
-	M.Description,
-	COALESCE(U.Username, '탈퇴한 사용자') AS Username,
-	M.CreatedAt,
-	M.UpdatedAt,
-	M.Address,
-	COALESCE(D.DislikeCount, 0) AS DislikeCount,
-	COALESCE(F.FavoriteCount, 0) AS FavoriteCount
-  FROM Markers M
-  LEFT JOIN Users U ON M.UserID = U.UserID
-  LEFT JOIN (
-	SELECT
-	  MarkerID,
-	  COUNT(*) AS DislikeCount
-	FROM MarkerDislikes
-	WHERE MarkerID = ?
-	GROUP BY MarkerID
-  ) D ON M.MarkerID = D.MarkerID
-  LEFT JOIN (
-	SELECT
-	  MarkerID,
-	  COUNT(*) AS FavoriteCount
-	FROM Favorites
-	WHERE MarkerID = ?
-	GROUP BY MarkerID
-  ) F ON M.MarkerID = F.MarkerID
-  WHERE M.MarkerID = ?`
-
 	var markersWithUsernames struct {
 		model.Marker
 		Username      string `db:"Username"`
 		DislikeCount  int    `db:"DislikeCount"`
 		FavoriteCount int    `db:"FavoriteCount"`
 	}
-	err := s.DB.Get(&markersWithUsernames, query, markerID, markerID, markerID)
+	err := s.DB.Get(&markersWithUsernames, getAmarkerQuery, markerID, markerID, markerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch all photos for this marker by descending order of upload time
-	const photoQuery = `SELECT * FROM Photos WHERE MarkerID = ? ORDER BY UploadedAt DESC`
 	var photos []model.Photo
-	err = s.DB.Select(&photos, photoQuery, markerID)
+	err = s.DB.Select(&photos, getAllPhotosForMarkerQuery, markerID)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching photos: %w", err)
 	}
@@ -233,31 +286,10 @@ func (s *MarkerManageService) GetMarker(markerID int) (*model.MarkerWithPhotos, 
 	return &markersWithPhotos, nil
 }
 
-func (s *MarkerManageService) GetAllMarkersProto() ([]*protos.Marker, error) {
-	// Simplified query to fetch only the marker IDs, latitudes, and longitudes
-	const markerQuery = `
-    SELECT 
-        MarkerID, 
-        ST_X(Location) AS Latitude,
-        ST_Y(Location) AS Longitude
-    FROM 
-        Markers;`
-
-	var markers []*protos.Marker
-	err := s.DB.Select(&markers, markerQuery)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching markers: %w", err)
-	}
-
-	return markers, nil
-}
-
 // GetAllMarkersWithAddr fetches all markers and returns only those with an address not found or empty.
 func (s *MarkerManageService) GetAllMarkersWithAddr() ([]dto.MarkerSimpleWithAddr, error) {
-	const markerQuery = `SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude FROM Markers;`
-
 	var markers []dto.MarkerSimpleWithAddr
-	err := s.DB.Select(&markers, markerQuery)
+	err := s.DB.Select(&markers, getAllSimpleMarkersQuery)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)
 	}
@@ -283,34 +315,14 @@ func (s *MarkerManageService) GetAllMarkersWithAddr() ([]dto.MarkerSimpleWithAdd
 func (s *MarkerManageService) GetAllMarkersByUserWithPagination(userID, page, pageSize int) ([]dto.MarkerSimpleWithDescrption, int, error) {
 	offset := (page - 1) * pageSize
 
-	// Query to select markers created by a specific user with LIMIT and OFFSET for pagination
-	markerQuery := `
-SELECT 
-    M.MarkerID,
-    ST_X(M.Location) AS Latitude, 
-    ST_Y(M.Location) AS Longitude, 
-    M.Description,
-    M.CreatedAt,
-	M.Address
-FROM 
-    Markers M
-WHERE 
-    M.UserID = ?
-ORDER BY 
-    M.CreatedAt DESC
-LIMIT ? OFFSET ?
-`
-
 	markersWithDescription := make([]dto.MarkerSimpleWithDescrption, 0)
-	err := s.DB.Select(&markersWithDescription, markerQuery, userID, pageSize, offset)
+	err := s.DB.Select(&markersWithDescription, getMarkersByUserQuery, userID, pageSize, offset)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Query to get the total count of markers for the user
-	countQuery := `SELECT COUNT(DISTINCT Markers.MarkerID) FROM Markers WHERE Markers.UserID = ?`
 	var total int
-	err = s.DB.Get(&total, countQuery, userID)
+	err = s.DB.Get(&total, getTotalCountofMarkerQuery, userID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -387,7 +399,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 
 	// Insert the marker into the database
 	res, err := tx.Exec(
-		"INSERT INTO Markers (UserID, Location, Description, CreatedAt, UpdatedAt) VALUES (?, ST_PointFromText(?, 4326), ?, NOW(), NOW())",
+		insertMarkerQuery,
 		userID, fmt.Sprintf("POINT(%f %f)", markerDto.Latitude, markerDto.Longitude), markerDto.Description,
 	)
 
@@ -419,7 +431,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 				errorChan <- err
 				return
 			}
-			if _, err := tx.Exec("INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())", markerID, fileURL); err != nil {
+			if _, err := tx.Exec(insertPhotoQuery, markerID, fileURL); err != nil {
 				errorChan <- err
 				return
 			}
@@ -466,7 +478,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 			address2, _ := s.MarkerLocationService.FacilityService.FetchRegionFromAPI(latitude, longitude)
 			if address2 == "-2" {
 				// delete the marker 북한 or 일본
-				_, err = s.DB.Exec("DELETE FROM Markers WHERE MarkerID = ?", markerID)
+				_, err = s.DB.Exec(deleteMarkerQuery, markerID)
 				if err != nil {
 					log.Printf("Failed to update address for marker %d: %v", markerID, err)
 				}
@@ -487,15 +499,14 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 
 			url := fmt.Sprintf("%sd=%d&la=%f&lo=%f", s.MarkerLocationService.Config.ClientURL, markerID, markerDto.Latitude, markerDto.Longitude)
 
-			logFailureStmt := "INSERT INTO MarkerAddressFailures (MarkerID, ErrorMessage, URL) VALUES (?, ?, ?)"
-			if _, logErr := s.DB.Exec(logFailureStmt, markerID, errMsg, url); logErr != nil {
+			if _, logErr := s.DB.Exec(insertMarkerFailureQuery, markerID, errMsg, url); logErr != nil {
 				log.Printf("Failed to log address fetch failure for marker %d: %v", markerID, logErr)
 			}
 			return
 		}
 
 		// Update the marker's address in the database after successful fetch
-		_, err = s.DB.Exec("UPDATE Markers SET Address = ? WHERE MarkerID = ?", address, markerID)
+		_, err = s.DB.Exec(updateAddressQuery, address, markerID)
 		if err != nil {
 			log.Printf("Failed to update address for marker %d: %v", markerID, err)
 		}
@@ -534,15 +545,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 }
 
 func (s *MarkerManageService) FetchAllPhotoURLsFromDB() ([]string, error) {
-	query := `
-        SELECT PhotoURL FROM Photos WHERE PhotoURL IS NOT NULL
-        UNION
-        SELECT URL FROM MarkerAddressFailures WHERE URL IS NOT NULL
-        UNION
-        SELECT ReportImageURL FROM Reports WHERE ReportImageURL IS NOT NULL
-    `
-	// Execute the query
-	rows, err := s.DB.Query(query)
+	rows, err := s.DB.Query(getAllPhotosQuery)
 	if err != nil {
 		return nil, fmt.Errorf("error querying database: %w", err)
 	}
@@ -566,16 +569,12 @@ func (s *MarkerManageService) FetchAllPhotoURLsFromDB() ([]string, error) {
 
 // UpdateMarker updates an existing marker's latitude, longitude, and description
 func (s *MarkerManageService) UpdateMarker(marker *model.Marker) error {
-	const query = `UPDATE Markers SET Latitude = ?, Longitude = ?, Description = ?, UpdatedAt = NOW() 
-                   WHERE MarkerID = ?`
-	_, err := s.DB.Exec(query, marker.Latitude, marker.Longitude, marker.Description, marker.MarkerID)
+	_, err := s.DB.Exec(updateMarkerQuery, marker.Latitude, marker.Longitude, marker.Description, marker.MarkerID)
 	return err
 }
 
 func (s *MarkerManageService) UpdateMarkerDescriptionOnly(markerID int, description string) error {
-	const query = `UPDATE Markers SET Description = ?, UpdatedAt = NOW() 
-                   WHERE MarkerID = ?`
-	_, err := s.DB.Exec(query, description, markerID)
+	_, err := s.DB.Exec(updateMarkerDescQuery, description, markerID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("no marker found with markerID %d", markerID)
@@ -590,10 +589,7 @@ func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string
 	// Precheck user authorization and fetch photo URLs before transaction
 	var ownerID int
 	var photoURLs []string
-	const checkOwnerQuery = `SELECT UserID FROM Markers WHERE MarkerID = ?`
-	const selectPhotosQuery = `SELECT PhotoURL FROM Photos WHERE MarkerID = ?`
-
-	err := s.DB.Get(&ownerID, checkOwnerQuery, markerID)
+	err := s.DB.Get(&ownerID, getAllMarkersByUserQuery, markerID)
 	if err != nil {
 		return fmt.Errorf("checking marker ownership: %w", err)
 	}
@@ -602,7 +598,7 @@ func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string
 		return fmt.Errorf("user %d is not authorized to delete marker %d", userID, markerID)
 	}
 
-	err = s.DB.Select(&photoURLs, selectPhotosQuery, markerID)
+	err = s.DB.Select(&photoURLs, getPhotosForMarkerQuery, markerID)
 	if err != nil {
 		return fmt.Errorf("fetching photos: %w", err)
 	}
@@ -614,14 +610,12 @@ func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string
 	}
 
 	// Delete photos from database
-	const deletePhotosQuery = `DELETE FROM Photos WHERE MarkerID = ?`
-	if _, err := tx.Exec(deletePhotosQuery, markerID); err != nil {
+	if _, err := tx.Exec(deletePhotoQuery, markerID); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("deleting photos: %w", err)
 	}
 
 	// Delete the marker
-	const deleteMarkerQuery = `DELETE FROM Markers WHERE MarkerID = ?`
 	if _, err := tx.Exec(deleteMarkerQuery, markerID); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("deleting marker: %w", err)
@@ -668,7 +662,7 @@ func (s *MarkerManageService) UploadMarkerPhotoToS3(markerID int, files []*multi
 		}
 		picUrls = append(picUrls, fileURL)
 		// Associate each photo with the marker in the database
-		if _, err := tx.Exec("INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())", markerID, fileURL); err != nil {
+		if _, err := tx.Exec(insertPhotoQuery, markerID, fileURL); err != nil {
 			// Attempt to delete the uploaded file from S3
 			if delErr := s.S3Service.DeleteDataFromS3(fileURL); delErr != nil {
 				fmt.Printf("Also failed to delete the file from S3: %v\n", delErr)
@@ -678,7 +672,7 @@ func (s *MarkerManageService) UploadMarkerPhotoToS3(markerID int, files []*multi
 	}
 
 	// Update Marker's UpdatedAt field
-	if _, err := tx.Exec("UPDATE Markers SET UpdatedAt = NOW() WHERE MarkerID = ?", markerID); err != nil {
+	if _, err := tx.Exec(updateTimeMarkerQuery, markerID); err != nil {
 		return nil, err
 	}
 
@@ -702,12 +696,7 @@ func (s *MarkerManageService) CheckNearbyMarkersInDB() ([]dto.MarkerGroup, error
 		point := fmt.Sprintf("POINT(%f %f)", marker.Latitude, marker.Longitude)
 
 		var nearbyMarkers []dto.MarkerWithDistance
-		err := s.DB.Select(&nearbyMarkers, `
-			SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude, Description, ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) AS distance, Address
-			FROM Markers
-			WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
-			ORDER BY distance ASC
-		`, point, point, 10)
+		err := s.DB.Select(&nearbyMarkers, findCloseMarkersAdminQuery, point, point, 10)
 		if err != nil {
 			return nil, fmt.Errorf("error checking for nearby markers: %w", err)
 		}
@@ -734,15 +723,23 @@ func (s *MarkerManageService) CheckNearbyMarkersInDB() ([]dto.MarkerGroup, error
 }
 
 func (s *MarkerManageService) GenerateRSS() (string, error) {
-	const markerQuery = `SELECT MarkerID, UpdatedAt, Address FROM Markers ORDER BY UpdatedAt DESC`
-
 	var markers []dto.MarkerRSS
-	err := s.DB.Select(&markers, markerQuery)
+	err := s.DB.Select(&markers, generateRSSQuery)
 	if err != nil {
 		return "", fmt.Errorf("error fetching markers: %w", err)
 	}
 
 	return generateRSS(markers)
+}
+
+func (s *MarkerManageService) GetAllMarkersProto() ([]*protos.Marker, error) {
+	var markers []*protos.Marker
+	err := s.DB.Select(&markers, getAllSimpleMarkersQuery)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching markers: %w", err)
+	}
+
+	return markers, nil
 }
 
 func generateRSS(markers []dto.MarkerRSS) (string, error) {
@@ -762,7 +759,7 @@ func generateRSS(markers []dto.MarkerRSS) (string, error) {
 		Channel: dto.RssChannel{
 			Title:         "k-pullup Markers",
 			Link:          "https://www.k-pullup.com",
-			Description:   "Latest markers of public pull-up bars",
+			Description:   fmt.Sprintf("Public pull-up bars in South Korea (%d)", len(markers)),
 			LastBuildDate: time.Now().Format(time.RFC1123Z),
 			Items:         items,
 		},

@@ -7,6 +7,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	insertDislikeQuery = "INSERT INTO MarkerDislikes (MarkerID, UserID) VALUES (?, ?) ON DUPLICATE KEY UPDATE DislikedAt=VALUES(DislikedAt)"
+	deleteDislikeQuery = "DELETE FROM MarkerDislikes WHERE UserID = ? AND MarkerID = ?"
+	checkDislikeQuery  = "SELECT EXISTS(SELECT 1 FROM MarkerDislikes WHERE UserID = ? AND MarkerID = ?)"
+	checkFavQuery      = "SELECT EXISTS(SELECT 1 FROM Favorites WHERE UserID = ? AND MarkerID = ?)"
+	// access_type: ref, query_cost: 0.95
+	countFavQuery         = "SELECT COUNT(*) FROM Favorites WHERE UserID = ?"
+	insertFavQuery        = "INSERT INTO Favorites (UserID, MarkerID) VALUES (?, ?)"
+	checkMarkerOwnerQuery = "SELECT UserID FROM Markers WHERE MarkerID = ?"
+	deleteFavQuery        = "DELETE FROM Favorites WHERE UserID = ? AND MarkerID = ?"
+)
+
 type MarkerInteractService struct {
 	DB *sqlx.DB
 }
@@ -20,7 +32,7 @@ func NewMarkerInteractService(db *sqlx.DB) *MarkerInteractService {
 // LeaveDislike user's dislike for a marker
 func (s *MarkerInteractService) LeaveDislike(userID int, markerID int) error {
 	_, err := s.DB.Exec(
-		"INSERT INTO MarkerDislikes (MarkerID, UserID) VALUES (?, ?) ON DUPLICATE KEY UPDATE DislikedAt=VALUES(DislikedAt)",
+		insertDislikeQuery,
 		markerID, userID,
 	)
 	if err != nil {
@@ -32,7 +44,7 @@ func (s *MarkerInteractService) LeaveDislike(userID int, markerID int) error {
 // UndoDislike nudo user's dislike for a marker
 func (s *MarkerInteractService) UndoDislike(userID int, markerID int) error {
 	result, err := s.DB.Exec(
-		"DELETE FROM MarkerDislikes WHERE UserID = ? AND MarkerID = ?",
+		deleteDislikeQuery,
 		userID, markerID,
 	)
 	if err != nil {
@@ -53,15 +65,13 @@ func (s *MarkerInteractService) UndoDislike(userID int, markerID int) error {
 // This service function checks if the given user has disliked the specified marker.
 func (s *MarkerInteractService) CheckUserDislike(userID, markerID int) (bool, error) {
 	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM MarkerDislikes WHERE UserID = ? AND MarkerID = ?)"
-	err := s.DB.Get(&exists, query, userID, markerID)
+	err := s.DB.Get(&exists, checkDislikeQuery, userID, markerID)
 	return exists, err
 }
 
 func (s *MarkerInteractService) CheckUserFavorite(userID, markerID int) (bool, error) {
 	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM Favorites WHERE UserID = ? AND MarkerID = ?)"
-	err := s.DB.Get(&exists, query, userID, markerID)
+	err := s.DB.Get(&exists, checkFavQuery, userID, markerID)
 	return exists, err
 }
 
@@ -69,7 +79,7 @@ func (s *MarkerInteractService) CheckUserFavorite(userID, markerID int) (bool, e
 func (s *MarkerInteractService) AddFavorite(userID, markerID int) error {
 	// First, count the existing favorites for the user
 	var count int
-	err := s.DB.QueryRowx("SELECT COUNT(*) FROM Favorites WHERE UserID = ?", userID).Scan(&count)
+	err := s.DB.QueryRowx(countFavQuery, userID).Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -80,7 +90,7 @@ func (s *MarkerInteractService) AddFavorite(userID, markerID int) error {
 	}
 
 	// If not, insert the new favorite
-	_, err = s.DB.Exec("INSERT INTO Favorites (UserID, MarkerID) VALUES (?, ?)", userID, markerID)
+	_, err = s.DB.Exec(insertFavQuery, userID, markerID)
 	if err != nil {
 		// Convert error to string and check if it contains the MySQL error code for duplicate entry
 		if strings.Contains(err.Error(), "1062") {
@@ -91,7 +101,7 @@ func (s *MarkerInteractService) AddFavorite(userID, markerID int) error {
 
 	// Retrieve the UserID (owner) of the marker
 	var ownerUserID int
-	err = s.DB.QueryRowx("SELECT UserID FROM Markers WHERE MarkerID = ?", markerID).Scan(&ownerUserID)
+	err = s.DB.QueryRowx(checkMarkerOwnerQuery, markerID).Scan(&ownerUserID)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve marker owner: %w", err)
 	}
@@ -117,7 +127,7 @@ func (s *MarkerInteractService) AddFavorite(userID, markerID int) error {
 
 func (s *MarkerInteractService) RemoveFavorite(userID, markerID int) error {
 	// Delete the specified favorite for the user
-	_, err := s.DB.Exec("DELETE FROM Favorites WHERE UserID = ? AND MarkerID = ?", userID, markerID)
+	_, err := s.DB.Exec(deleteFavQuery, userID, markerID)
 	if err != nil {
 		return fmt.Errorf("error removing favorite: %w", err)
 	}

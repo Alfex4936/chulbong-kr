@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	gounicode "unicode"
 
@@ -21,6 +23,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/token/unicodenorm"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	_ "github.com/blevesearch/bleve/v2/index/upsidedown/store/boltdb"
+	bleve_search "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/highlight/format/html"
 	"github.com/blevesearch/bleve/v2/search/query"
 
@@ -51,6 +54,29 @@ func loadEnv() error {
 	}
 	return nil
 }
+
+// Map of Hangul initial consonant Unicode values to their corresponding Korean consonants.
+var (
+	initialConsonantMap = map[rune]rune{
+		0x1100: 'ㄱ', 0x1101: 'ㄲ', 0x1102: 'ㄴ', 0x1103: 'ㄷ', 0x1104: 'ㄸ',
+		0x1105: 'ㄹ', 0x1106: 'ㅁ', 0x1107: 'ㅂ', 0x1108: 'ㅃ', 0x1109: 'ㅅ',
+		0x110A: 'ㅆ', 0x110B: 'ㅇ', 0x110C: 'ㅈ', 0x110D: 'ㅉ', 0x110E: 'ㅊ',
+		0x110F: 'ㅋ', 0x1110: 'ㅌ', 0x1111: 'ㅍ', 0x1112: 'ㅎ',
+	}
+
+	validInitialConsonants = map[rune]bool{
+		'ㄱ': true, 'ㄲ': true, 'ㄴ': true, 'ㄷ': true, 'ㄸ': true,
+		'ㄹ': true, 'ㅁ': true, 'ㅂ': true, 'ㅃ': true, 'ㅅ': true,
+		'ㅆ': true, 'ㅇ': true, 'ㅈ': true, 'ㅉ': true, 'ㅊ': true,
+		'ㅋ': true, 'ㅌ': true, 'ㅍ': true, 'ㅎ': true,
+	}
+
+	doubleConsonants = map[rune][]rune{
+		'ㄳ': {'ㄱ', 'ㅅ'}, 'ㄵ': {'ㄴ', 'ㅈ'}, 'ㄶ': {'ㄴ', 'ㅎ'}, 'ㄺ': {'ㄹ', 'ㄱ'},
+		'ㄻ': {'ㄹ', 'ㅁ'}, 'ㄼ': {'ㄹ', 'ㅂ'}, 'ㄽ': {'ㄹ', 'ㅅ'}, 'ㄾ': {'ㄹ', 'ㅌ'},
+		'ㄿ': {'ㄹ', 'ㅍ'}, 'ㅀ': {'ㄹ', 'ㅎ'}, 'ㅄ': {'ㅂ', 'ㅅ'},
+	}
+)
 
 func saveJson() error {
 	// Database connection parameters
@@ -114,6 +140,7 @@ func saveJson() error {
 	return nil
 }
 
+// TODO: 영문 주소 인덱싱
 func main() {
 	// Load environment variables
 	err := loadEnv()
@@ -177,35 +204,21 @@ func main() {
 	markerIDMapping := bleve.NewNumericFieldMapping()
 	markerMapping.AddFieldMappingsAt("markerId", markerIDMapping)
 
-	provinceMapping := bleve.NewTextFieldMapping()
-	provinceMapping.Analyzer = "koCJKEdgeNgram"
-	provinceMapping.Store = true
-	provinceMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("province", provinceMapping)
+	// korean address
+	addressFieldMapping := bleve.NewTextFieldMapping()
+	addressFieldMapping.Analyzer = "koCJKEdgeNgram"
+	addressFieldMapping.Store = true
+	addressFieldMapping.IncludeTermVectors = true
 
-	cityMapping := bleve.NewTextFieldMapping()
-	cityMapping.Analyzer = "koCJKEdgeNgram"
-	cityMapping.Store = true
-	cityMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("city", cityMapping)
+	// add mapping
+	markerMapping.AddFieldMappingsAt("initialConsonants", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("province", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("city", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("address", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("fullAddress", addressFieldMapping)
+	markerMapping.AddFieldMappingsAt("initialConsonants", addressFieldMapping)
 
-	addressMapping := bleve.NewTextFieldMapping()
-	addressMapping.Analyzer = "koCJKEdgeNgram"
-	addressMapping.Store = true
-	addressMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("address", addressMapping)
-
-	fullAddressMapping := bleve.NewTextFieldMapping()
-	fullAddressMapping.Store = true
-	fullAddressMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("fullAddress", fullAddressMapping)
-
-	initialConsonantsMapping := bleve.NewTextFieldMapping()
-	initialConsonantsMapping.Analyzer = "koCJKEdgeNgram"
-	initialConsonantsMapping.Store = true
-	initialConsonantsMapping.IncludeTermVectors = true
-	markerMapping.AddFieldMappingsAt("initialConsonants", initialConsonantsMapping)
-
+	// finalize
 	indexMapping.AddDocumentMapping("marker", markerMapping)
 
 	// Create a new Bleve index with custom settings
@@ -221,25 +234,54 @@ func main() {
 		log.Fatalf("Error creating index: %v", err)
 	}
 
-	// Index the markers
-	for i, marker := range markers {
-		province, city, rest := splitAddress(marker.Address)
-		marker.Province = province
-		marker.City = city
-		marker.FullAddress = marker.Address
-		marker.Address = rest
-		marker.InitialConsonants = extractInitialConsonants(marker.FullAddress)
-		if i == 10 {
-			log.Printf("🌍 address: %s (%s)", marker.FullAddress, marker.InitialConsonants)
-		}
-		err = index.Index(strconv.Itoa(marker.MarkerID), marker)
-		if err != nil {
-			log.Fatalf("Error indexing document: %v", err)
-		}
+	// Index markers in batches with concurrency
+	batchSize := 500
+	numWorkers := 4
+	markerChannel := make(chan Marker, len(markers))
+	for _, marker := range markers {
+		markerChannel <- marker
 	}
+	close(markerChannel)
+
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		go func() {
+			defer wg.Done()
+			batch := index.NewBatch()
+			count := 0
+			for marker := range markerChannel {
+				province, city, rest := splitAddress(marker.Address)
+				marker.Province = province
+				marker.City = city
+				marker.FullAddress = marker.Address
+				marker.Address = rest
+				marker.InitialConsonants = extractInitialConsonants(marker.FullAddress)
+				err = batch.Index(strconv.Itoa(marker.MarkerID), marker)
+				if err != nil {
+					log.Fatalf("Error indexing document: %v", err)
+				}
+				count++
+				if count >= batchSize {
+					err = index.Batch(batch)
+					if err != nil {
+						log.Fatalf("Error indexing batch: %v", err)
+					}
+					batch = index.NewBatch()
+					count = 0
+				}
+			}
+			if count > 0 {
+				err = index.Batch(batch)
+				if err != nil {
+					log.Fatalf("Error indexing batch: %v", err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
 
 	log.Println("Indexing completed")
-
 	index.Close()
 
 	// Perform a search using DisjunctionQuery for more comprehensive matching
@@ -247,7 +289,7 @@ func main() {
 
 }
 
-func search(t string) {
+func search2(t string) {
 	index, _ := bleve.Open("markers.bleve")
 	defer index.Close()
 
@@ -260,12 +302,6 @@ func search(t string) {
 	// Split the search term by spaces
 	terms := strings.Fields(t)
 	var queries []query.Query
-
-	// Add a phrase query for the full search term
-	// phraseQuery := query.NewMatchPhraseQuery(t)
-	// phraseQuery.SetBoost(3.0)
-	// phraseQuery.Analyzer = "koCJKEdgeNgram"
-	// queries = append(queries, phraseQuery)
 
 	for _, term := range terms {
 		// Add a MatchQuery for the full search term
@@ -414,6 +450,168 @@ func search(t string) {
 	log.Printf("📆Function runtime: %v", duration)
 }
 
+func search(t string) {
+	index, _ := bleve.Open("markers.bleve")
+	defer index.Close()
+
+	start := time.Now()
+
+	terms := strings.Fields(t)
+	results := make(chan *bleve_search.DocumentMatch, 100)
+	done := make(chan struct{})
+
+	workerCount := 5
+	var wg sync.WaitGroup
+	wg.Add(workerCount)
+	termChan := make(chan string, len(terms))
+
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			defer wg.Done()
+			for term := range termChan {
+				performSearch(index, term, results)
+			}
+		}()
+	}
+
+	for _, term := range terms {
+		termChan <- term
+	}
+	close(termChan)
+
+	go func() {
+		wg.Wait()
+		close(results)
+		done <- struct{}{}
+	}()
+
+	uniqueResults := make(map[string]*bleve_search.DocumentMatch)
+	for result := range results {
+		if result != nil {
+			key := result.ID
+			if existing, exists := uniqueResults[key]; exists {
+				existing.Score += result.Score
+			} else {
+				uniqueResults[key] = result
+			}
+		}
+	}
+	<-done
+
+	sortedResults := sortResultsByScore(uniqueResults)
+
+	if len(sortedResults) > 0 {
+		log.Printf("💖 found %d unique results", len(sortedResults))
+		for _, result := range sortedResults {
+			log.Printf("Search Result: %+v", result)
+			log.Printf("Document ID: %v", result.ID)
+			log.Printf("Document Score: %v", result.Score)
+			if fullAddress, ok := result.Fields["fullAddress"]; ok {
+				log.Printf("Full Address: %v", fullAddress)
+			}
+		}
+	} else {
+		log.Println("No search results found")
+	}
+
+	end := time.Now()
+	duration := end.Sub(start)
+	log.Printf("Function runtime: %v", duration)
+}
+
+func performSearch(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch) {
+	var queries []query.Query
+
+	// 초성 검색
+	brokenConsonants := segmentConsonants(term)
+
+	matchQuery := query.NewMatchQuery(brokenConsonants)
+	matchQuery.SetField("initialConsonants")
+	matchQuery.Analyzer = "koCJKEdgeNgram"
+	matchQuery.SetBoost(10.0)
+	queries = append(queries, matchQuery)
+
+	wildcardQuery := query.NewWildcardQuery("*" + brokenConsonants + "*")
+	wildcardQuery.SetField("initialConsonants")
+	wildcardQuery.SetBoost(5.0)
+	queries = append(queries, wildcardQuery)
+
+	standardizedProvince := standardizeProvince(term)
+	if standardizedProvince != term {
+		// If the term is a province, use a lower boost
+		matchQuery := query.NewMatchQuery(standardizedProvince)
+		matchQuery.SetField("province")
+		matchQuery.Analyzer = "koCJKEdgeNgram"
+		matchQuery.SetBoost(1.5)
+		queries = append(queries, matchQuery)
+	} else {
+		prefixQueryCity := query.NewPrefixQuery(term)
+		prefixQueryCity.SetField("city")
+		prefixQueryCity.SetBoost(10.0)
+		queries = append(queries, prefixQueryCity)
+
+		matchPhraseQueryFull := query.NewMatchPhraseQuery(term)
+		matchPhraseQueryFull.SetField("fullAddress")
+		matchPhraseQueryFull.Analyzer = "koCJKEdgeNgram"
+		matchPhraseQueryFull.SetBoost(5.0)
+		queries = append(queries, matchPhraseQueryFull)
+
+		wildcardQueryFull := query.NewWildcardQuery("*" + term + "*")
+		wildcardQueryFull.SetField("fullAddress")
+		wildcardQueryFull.SetBoost(2.0)
+		queries = append(queries, wildcardQueryFull)
+
+		prefixQueryAddr := query.NewPrefixQuery(term)
+		prefixQueryAddr.SetField("address")
+		prefixQueryAddr.SetBoost(5.0)
+		queries = append(queries, prefixQueryAddr)
+
+		wildcardQueryAddr := query.NewWildcardQuery("*" + term + "*")
+		wildcardQueryAddr.SetField("address")
+		wildcardQueryAddr.SetBoost(2.0)
+		queries = append(queries, wildcardQueryAddr)
+
+		matchQueryCity := query.NewMatchQuery(term)
+		matchQueryCity.SetField("city")
+		matchQueryCity.Analyzer = "koCJKEdgeNgram"
+		matchQueryCity.SetBoost(5.0)
+		queries = append(queries, matchQueryCity)
+
+		matchQueryDistrict := query.NewMatchQuery(term)
+		matchQueryDistrict.SetField("district")
+		matchQueryDistrict.Analyzer = "koCJKEdgeNgram"
+		matchQueryDistrict.SetBoost(5.0)
+		queries = append(queries, matchQueryDistrict)
+	}
+
+	disjunctionQuery := bleve.NewDisjunctionQuery(queries...)
+	searchRequest := bleve.NewSearchRequest(disjunctionQuery)
+	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
+	searchRequest.Size = 10
+	searchRequest.SortBy([]string{"_score", "markerId"})
+
+	searchResult, err := index.Search(searchRequest)
+	if err != nil {
+		log.Printf("Error performing search: %v", err)
+		return
+	}
+
+	for _, hit := range searchResult.Hits {
+		results <- hit
+	}
+}
+
+func sortResultsByScore(results map[string]*bleve_search.DocumentMatch) []*bleve_search.DocumentMatch {
+	sortedResults := make([]*bleve_search.DocumentMatch, 0, len(results))
+	for _, result := range results {
+		sortedResults = append(sortedResults, result)
+	}
+	sort.Slice(sortedResults, func(i, j int) bool {
+		return sortedResults[i].Score > sortedResults[j].Score
+	})
+	return sortedResults
+}
+
 func standardizeProvince(province string) string {
 	switch province {
 	case "경기", "경기도":
@@ -455,6 +653,25 @@ func standardizeProvince(province string) string {
 	}
 }
 
+func segmentConsonants(input string) string {
+	var result []rune
+
+	for _, r := range input {
+		// Check if the character is a valid initial consonant
+		if validInitialConsonants[r] {
+			result = append(result, r)
+		} else if components, found := doubleConsonants[r]; found {
+			// If it's a double consonant, break it into its components
+			result = append(result, components...)
+		} else {
+			// If it's not a valid consonant or double consonant, add it as is
+			result = append(result, r)
+		}
+	}
+
+	return string(result)
+}
+
 func splitAddress(address string) (string, string, string) {
 	parts := strings.Fields(address)
 	if len(parts) < 2 {
@@ -482,14 +699,6 @@ func getMarkersFromJson(filepath string) ([]Marker, error) {
 	}
 
 	return markerData, nil
-}
-
-// Map of Hangul initial consonant Unicode values to their corresponding Korean consonants.
-var initialConsonantMap = map[rune]rune{
-	0x1100: 'ㄱ', 0x1101: 'ㄲ', 0x1102: 'ㄴ', 0x1103: 'ㄷ', 0x1104: 'ㄸ',
-	0x1105: 'ㄹ', 0x1106: 'ㅁ', 0x1107: 'ㅂ', 0x1108: 'ㅃ', 0x1109: 'ㅅ',
-	0x110A: 'ㅆ', 0x110B: 'ㅇ', 0x110C: 'ㅈ', 0x110D: 'ㅉ', 0x110E: 'ㅊ',
-	0x110F: 'ㅋ', 0x1110: 'ㅌ', 0x1111: 'ㅍ', 0x1112: 'ㅎ',
 }
 
 // ExtractInitialConsonants extracts the initial consonants from a Korean string.

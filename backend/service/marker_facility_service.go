@@ -20,6 +20,19 @@ import (
 	"github.com/Alfex4936/chulbong-kr/util"
 )
 
+const (
+	// cost: 0.70, access_type: ref
+	getFacilitiesQuery = "SELECT FacilityID, MarkerID, Quantity FROM MarkerFacilities WHERE MarkerID = ?"
+
+	deleteFacilitiesQuery = "DELETE FROM MarkerFacilities WHERE MarkerID = ?"
+	insertFacilitiesQuery = "INSERT INTO MarkerFacilities (FacilityID, MarkerID, Quantity) VALUES (?, ?, ?)"
+
+	// cost: ~530.65, access_type: all
+	getAllMarkersQuery = "SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude FROM Markers"
+
+	updateAddressQuery = "UPDATE Markers SET Address = ? WHERE MarkerID = ?"
+)
+
 type MarkerFacilityService struct {
 	Config       *config.AppConfig
 	KakaoConfig  *config.KakaoConfig
@@ -46,8 +59,7 @@ func NewMarkerFacilityService(
 // GetFacilitiesByMarkerID retrieves facilities for a given marker ID.
 func (s *MarkerFacilityService) GetFacilitiesByMarkerID(markerID int) ([]model.Facility, error) {
 	facilities := make([]model.Facility, 0)
-	query := `SELECT FacilityID, MarkerID, Quantity FROM MarkerFacilities WHERE MarkerID = ?`
-	err := s.DB.Select(&facilities, query, markerID)
+	err := s.DB.Select(&facilities, getFacilitiesQuery, markerID)
 	if err != nil {
 		return nil, err
 	}
@@ -62,13 +74,13 @@ func (s *MarkerFacilityService) SetMarkerFacilities(markerID int, facilities []d
 	defer tx.Rollback()
 
 	// Remove existing facilities for the marker
-	if _, err := tx.Exec("DELETE FROM MarkerFacilities WHERE MarkerID = ?", markerID); err != nil {
+	if _, err := tx.Exec(deleteFacilitiesQuery, markerID); err != nil {
 		return err
 	}
 
 	// Insert new facilities with quantities for the marker
 	for _, fq := range facilities {
-		if _, err := tx.Exec("INSERT INTO MarkerFacilities (FacilityID, MarkerID, Quantity) VALUES (?, ?, ?)", fq.FacilityID, markerID, fq.Quantity); err != nil {
+		if _, err := tx.Exec(insertFacilitiesQuery, fq.FacilityID, markerID, fq.Quantity); err != nil {
 			return err
 		}
 	}
@@ -85,10 +97,8 @@ func (s *MarkerFacilityService) SetMarkerFacilities(markerID int, facilities []d
 
 // UpdateMarkersAddresses fetches all markers, updates their addresses using an external API, and returns the updated list.
 func (s *MarkerFacilityService) UpdateMarkersAddresses() ([]dto.MarkerSimpleWithAddr, error) {
-	const markerQuery = `SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude FROM Markers;`
-
 	var markers []dto.MarkerSimpleWithAddr
-	err := s.DB.Select(&markers, markerQuery)
+	err := s.DB.Select(&markers, getAllMarkersQuery)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)
 	}
@@ -113,8 +123,7 @@ func (s *MarkerFacilityService) UpdateMarkersAddresses() ([]dto.MarkerSimpleWith
 
 // UpdateMarkerAddress updates the address of a marker by its ID.
 func (s *MarkerFacilityService) UpdateMarkerAddress(markerID int, address string) error {
-	query := `UPDATE Markers SET Address = ? WHERE MarkerID = ?`
-	_, err := s.DB.Exec(query, address, markerID)
+	_, err := s.DB.Exec(updateAddressQuery, address, markerID)
 	return err
 }
 

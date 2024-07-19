@@ -5,3 +5,8 @@ backend/__pycache__/
 frontend/yarn.lock
 .env
 *.pem
+*.geojson
+*.json
+__pycache__
+chulbong-geopandas/
+*.png

@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	"github.com/iancoleman/orderedmap"
+)
 
 type MarkerReportRequest struct {
 	MarkerID     int     `json:"markerId"`
@@ -10,6 +14,7 @@ type MarkerReportRequest struct {
 	NewLatitude  float64 `json:"newLatitude,omitempty"`
 	NewLongitude float64 `json:"newLongitude,omitempty"`
 	Description  string  `json:"description"`
+	DoesExist    bool    `json:"doesExist,omitempty"`
 }
 
 type MarkerReportResponse struct {
@@ -24,6 +29,8 @@ type MarkerReportResponse struct {
 	PhotoURLs    []string  `json:"photoUrls,omitempty"` // Array to store multiple photo URLs
 	CreatedAt    time.Time `json:"createdAt" db:"CreatedAt"`
 	Status       string    `json:"status" db:"Status"`
+	DoesExist    bool      `json:"doesExist,omitempty" db:"DoesExist"`
+	Address      string    `json:"address,omitempty" db:"Address"`
 }
 
 // MarkerReports groups all reports for a specific marker.
@@ -39,8 +46,8 @@ type ReportsResponse struct {
 
 // GroupedReportsResponse represents the response structure for grouped reports by MarkerID
 type GroupedReportsResponse struct {
-	TotalReports int                        `json:"totalReports"`
-	Markers      map[int][]ReportWithPhotos `json:"markers"`
+	TotalReports int                    `json:"totalReports"`
+	Markers      *orderedmap.OrderedMap `json:"markers"`
 }
 
 // ReportWithPhotos is a data transfer object for reports including photos
@@ -50,4 +57,5 @@ type ReportWithPhotos struct {
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
 	Photos      []string  `json:"photos"`
+	Address     string    `json:"address,omitempty"`
 }

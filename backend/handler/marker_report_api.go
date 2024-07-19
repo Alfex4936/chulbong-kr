@@ -65,7 +65,7 @@ func (h *MarkerHandler) HandleGetMarkerReports(c *fiber.Ctx) error {
 
 	reports, err := h.MarkerFacadeService.GetAllReportsBy(markerID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get reports"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get reports " + err.Error()})
 	}
 	return c.JSON(reports)
 }
@@ -118,6 +118,18 @@ func (h *MarkerHandler) HandleCreateReport(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid marker ID"})
 	}
 
+	var doesExist bool
+	doesStr, doesOk := form.Value["doesExist"]
+	if !doesOk || len(doesStr[0]) == 0 {
+		doesExist = true
+	} else {
+		// Convert 'doesExist' field to boolean
+		doesExist, err = strconv.ParseBool(doesStr[0])
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("Invalid value for doesExist field")
+		}
+	}
+
 	userID, _ := c.Locals("userID").(int) // userID will be 0 if not logged in
 
 	err = h.MarkerFacadeService.CreateReport(&dto.MarkerReportRequest{
@@ -128,6 +140,7 @@ func (h *MarkerHandler) HandleCreateReport(c *fiber.Ctx) error {
 		NewLatitude:  newLatitude,
 		NewLongitude: newLongitude,
 		Description:  description,
+		DoesExist:    doesExist,
 	}, form)
 	if err != nil {
 		if strings.Contains(err.Error(), "an error during file") {
