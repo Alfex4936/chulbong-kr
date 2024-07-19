@@ -23,6 +23,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/token/unicodenorm"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	_ "github.com/blevesearch/bleve/v2/index/upsidedown/store/boltdb"
+	"github.com/blevesearch/bleve/v2/mapping"
 	bleve_search "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/highlight/format/html"
 	"github.com/blevesearch/bleve/v2/search/query"
@@ -30,6 +31,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 )
+
+const shardCount = 3
 
 // MarkerDB represents the structure of the marker data from DB.
 type MarkerDB struct {
@@ -148,17 +151,17 @@ func main() {
 		log.Fatalf("Error loading .env file: %v", err)
 	}
 
-	if len(os.Args) < 2 {
-		saveJson()
-		log.Println("Fetching completed.")
-	}
+	// if len(os.Args) < 2 {
+	// 	saveJson()
+	// 	log.Println("Fetching completed.")
+	// }
 
 	// Sample JSON data
 	markers, _ := getMarkersFromJson("markers.json")
 
 	// Create a new Bleve index
 	// Define index path
-	indexPath := "markers.bleve"
+	// indexPath := "markers.bleve"
 
 	// Define custom mapping
 	indexMapping := bleve.NewIndexMapping()
@@ -221,21 +224,27 @@ func main() {
 	// finalize
 	indexMapping.AddDocumentMapping("marker", markerMapping)
 
-	// Create a new Bleve index with custom settings
-	index, err := bleve.New(indexPath, indexMapping)
+	// Create shards
+	indexes, err := createShards(indexMapping)
 	if err != nil {
-		if len(os.Args) < 2 {
-			search("영통역")
-		} else {
-			searchTerm := strings.Join(os.Args[1:], " ")
-			search(searchTerm)
-		}
-
-		log.Fatalf("Error creating index: %v", err)
+		log.Fatalf("Error creating shards: %v", err)
 	}
 
+	// // Create a new Bleve index with custom settings
+	// index, err := bleve.New(indexPath, indexMapping)
+	// if err != nil {
+	// 	if len(os.Args) < 2 {
+	// 		search("영통역")
+	// 	} else {
+	// 		searchTerm := strings.Join(os.Args[1:], " ")
+	// 		search(searchTerm)
+	// 	}
+
+	// 	log.Fatalf("Error creating index: %v", err)
+	// }
+
 	// Index markers in batches with concurrency
-	batchSize := 500
+	batchSize := 1000
 	numWorkers := 4
 	markerChannel := make(chan Marker, len(markers))
 	for _, marker := range markers {
@@ -246,47 +255,68 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
 	for i := 0; i < numWorkers; i++ {
-		go func() {
+		go func(workerID int) {
 			defer wg.Done()
-			batch := index.NewBatch()
-			count := 0
+			batches := make([]*bleve.Batch, shardCount)
+			for j := range batches {
+				batches[j] = indexes[j].NewBatch()
+			}
+			counts := make([]int, shardCount)
 			for marker := range markerChannel {
+				shardIndex := marker.MarkerID % shardCount
 				province, city, rest := splitAddress(marker.Address)
 				marker.Province = province
 				marker.City = city
 				marker.FullAddress = marker.Address
 				marker.Address = rest
 				marker.InitialConsonants = extractInitialConsonants(marker.FullAddress)
-				err = batch.Index(strconv.Itoa(marker.MarkerID), marker)
+				err = batches[shardIndex].Index(strconv.Itoa(marker.MarkerID), marker)
 				if err != nil {
 					log.Fatalf("Error indexing document: %v", err)
 				}
-				count++
-				if count >= batchSize {
-					err = index.Batch(batch)
+				counts[shardIndex]++
+				if counts[shardIndex] >= batchSize {
+					err = indexes[shardIndex].Batch(batches[shardIndex])
 					if err != nil {
 						log.Fatalf("Error indexing batch: %v", err)
 					}
-					batch = index.NewBatch()
-					count = 0
+					batches[shardIndex] = indexes[shardIndex].NewBatch()
+					counts[shardIndex] = 0
 				}
 			}
-			if count > 0 {
-				err = index.Batch(batch)
-				if err != nil {
-					log.Fatalf("Error indexing batch: %v", err)
+			for j := range batches {
+				if counts[j] > 0 {
+					err = indexes[j].Batch(batches[j])
+					if err != nil {
+						log.Fatalf("Error indexing batch: %v", err)
+					}
 				}
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 
 	log.Println("Indexing completed")
-	index.Close()
+	for _, index := range indexes {
+		index.Close()
+	}
 
 	// Perform a search using DisjunctionQuery for more comprehensive matching
 	search("해운대")
 
+}
+
+func createShards(indexMapping *mapping.IndexMappingImpl) ([]bleve.Index, error) {
+	var indexes []bleve.Index
+	for i := 0; i < shardCount; i++ {
+		indexShardName := fmt.Sprintf("markers_shard_%d.bleve", i)
+		index, err := bleve.New(indexShardName, indexMapping)
+		if err != nil {
+			return nil, err
+		}
+		indexes = append(indexes, index)
+	}
+	return indexes, nil
 }
 
 func search2(t string) {
@@ -451,8 +481,20 @@ func search2(t string) {
 }
 
 func search(t string) {
-	index, _ := bleve.Open("markers.bleve")
-	defer index.Close()
+	// index, _ := bleve.Open("markers.bleve")
+	// defer index.Close()
+
+	searchShardHandler := bleve.NewIndexAlias()
+	for i := 0; i < shardCount; i++ {
+		indexShardName := fmt.Sprintf("markers_shard_%d.bleve", i)
+		index, err := bleve.Open(indexShardName)
+		if err != nil {
+			log.Fatalf("Error opening index shard: %v", err)
+		}
+		searchShardHandler.Add(index)
+		// defer index.Close()
+	}
+	log.Printf("❤️ %+v", searchShardHandler)
 
 	start := time.Now()
 
@@ -469,7 +511,7 @@ func search(t string) {
 		go func() {
 			defer wg.Done()
 			for term := range termChan {
-				performSearch(index, term, results)
+				performSearch(searchShardHandler, term, results)
 			}
 		}()
 	}
@@ -591,6 +633,8 @@ func performSearch(index bleve.Index, term string, results chan<- *bleve_search.
 	searchRequest.SortBy([]string{"_score", "markerId"})
 
 	searchResult, err := index.Search(searchRequest)
+
+	log.Printf("❤️ results: %v", searchResult)
 	if err != nil {
 		log.Printf("Error performing search: %v", err)
 		return
