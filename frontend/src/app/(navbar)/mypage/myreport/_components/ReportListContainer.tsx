@@ -6,7 +6,7 @@ interface Props {
 }
 
 const ReportListContainer = ({ data }: Props) => {
-  // TODO: 여기 주소랑 성명 data에 가끔 안보임
+  // TODO: 여기 주소랑 설명 data에 가끔 안보임
   const reportItems = Object.entries(data.markers).map(([key, reports]) => (
     <div key={key}>
       <ReportList
@@ -14,7 +14,7 @@ const ReportListContainer = ({ data }: Props) => {
         count={reports.length}
         reports={reports}
         address={reports[0].address || "주소 제공 안됨"}
-        desc={reports[0].description || "작성 된 설명이 없습니다"}
+        desc={`위치 id: ${key}` || "작성 된 설명이 없습니다"}
       />
     </div>
   ));

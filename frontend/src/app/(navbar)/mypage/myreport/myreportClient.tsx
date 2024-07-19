@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const MyreportClient = () => {
   const { data, isError, error, isLoading } = useMyMarkerReportData();
-  
+
   if (isError) {
     if (isAxiosError(error)) {
       if (error.response?.status === 404) {
