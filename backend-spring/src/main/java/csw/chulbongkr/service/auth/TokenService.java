@@ -3,21 +3,11 @@ package csw.chulbongkr.service.auth;
 import csw.chulbongkr.config.security.JwtTokenProvider;
 import csw.chulbongkr.entity.PasswordToken;
 import csw.chulbongkr.repository.auth.PasswordTokenRepository;
-import csw.chulbongkr.repository.auth.TokenRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import javax.crypto.SecretKey;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import java.nio.charset.StandardCharsets;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Date;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor

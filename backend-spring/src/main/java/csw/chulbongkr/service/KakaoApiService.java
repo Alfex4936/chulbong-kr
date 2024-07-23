@@ -42,7 +42,7 @@ public class KakaoApiService {
         // Make the request
         ResponseEntity<KakaoDTO.Weather> response = restTemplate.exchange(requestURL, HttpMethod.GET, entity, KakaoDTO.Weather.class);
 
-        if (response == null || response.getStatusCode() != HttpStatusCode.valueOf(200) || response.getBody() == null || !response.getBody().codes().resultCode().equals("OK")) {
+        if (response.getStatusCode() != HttpStatusCode.valueOf(200) || response.getBody() == null || !response.getBody().codes().resultCode().equals("OK")) {
             throw new RuntimeException("Failed to fetch weather data");
         }
 

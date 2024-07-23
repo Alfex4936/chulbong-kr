@@ -39,3 +39,4 @@ application-secret.yml
 
 badwords.txt
 *.txt
+*.json

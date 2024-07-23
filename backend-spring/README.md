@@ -18,11 +18,12 @@ chulbong-kr 을 Spring Boot 3을 이용해 만드는 과정
   - [x] JaCoCo/CodeCov 연동
   - [x] openjdk JMH 연동
   - [ ] Swagger 연동
-  - [ ] Zincsearch or Meilisearch 연동
+  - [x] Apache Lucene 연동
 - [ ] controller
   - [ ] marker
     - [x] GET /markers
     - [x] GET /markers/close
+    - [x] GET /markers/search
     - Location
       - [x] GET /markers/save-offline
       - [x] GET /markers/weather

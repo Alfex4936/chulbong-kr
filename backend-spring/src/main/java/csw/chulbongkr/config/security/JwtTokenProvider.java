@@ -1,16 +1,16 @@
 package csw.chulbongkr.config.security;
 
-import io.jsonwebtoken.*;
+import csw.chulbongkr.config.custom.AppConfig;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
-import lombok.RequiredArgsConstructor;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
-
-import csw.chulbongkr.config.custom.AppConfig;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;

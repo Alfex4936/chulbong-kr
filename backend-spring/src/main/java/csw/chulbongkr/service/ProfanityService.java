@@ -39,7 +39,7 @@ public class ProfanityService {
 
         trie.build(badWordsMap); // thread-safe after
 
-        assert trie != null;
+        assert (trie != null): "Trie should not be null.";
     }
 
     public boolean containsProfanity(String text) {
