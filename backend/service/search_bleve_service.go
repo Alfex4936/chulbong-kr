@@ -1,8 +1,10 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,6 +16,9 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	bleve_search "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
+
+	gocache "github.com/eko/gocache/lib/v4/cache"
+	ristretto_store "github.com/eko/gocache/store/ristretto/v4"
 )
 
 // Map of Hangul initial consonant Unicode values to their corresponding Korean consonants.
@@ -37,15 +42,27 @@ var (
 		'ㄻ': {'ㄹ', 'ㅁ'}, 'ㄼ': {'ㄹ', 'ㅂ'}, 'ㄽ': {'ㄹ', 'ㅅ'}, 'ㄾ': {'ㄹ', 'ㅌ'},
 		'ㄿ': {'ㄹ', 'ㅍ'}, 'ㅀ': {'ㄹ', 'ㅎ'}, 'ㅄ': {'ㅂ', 'ㅅ'},
 	}
+
+	documentMatchPool = &sync.Pool{
+		New: func() interface{} {
+			slice := make([]*bleve_search.DocumentMatch, 0, 100)
+			return &slice
+		},
+	}
 )
 
 type BleveSearchService struct {
-	Index bleve.Index
+	Index             bleve.Index
+	LocalCacheStorage *ristretto_store.RistrettoStore
 	// Path string
+
+	searchCache *gocache.Cache[dto.MarkerSearchResponse]
 }
 
-func NewBleveSearchService(index bleve.Index) *BleveSearchService {
-	return &BleveSearchService{Index: index}
+func NewBleveSearchService(index bleve.Index, localCacheStorage *ristretto_store.RistrettoStore) *BleveSearchService {
+	searchCache := gocache.New[dto.MarkerSearchResponse](localCacheStorage)
+
+	return &BleveSearchService{Index: index, searchCache: searchCache}
 }
 
 // SearchMarkerAddress calls bleve (Lucene-like) search
@@ -81,26 +98,43 @@ func NewBleveSearchService(index bleve.Index) *BleveSearchService {
 
 // SearchMarkerAddress calls bleve (Lucene-like) search
 func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResponse, error) {
-	// index.Index("test", Marker{Address: "석원", MarkerID: 123, FullAddress: "경기도 석원동 123-456"})
-	// index.Delete("test")
+	cacheKey := fmt.Sprintf("search:%s", t)
+	cachedResponse, err := s.searchCache.Get(context.Background(), cacheKey)
+	if err == nil {
+		return cachedResponse, nil
+	}
+
 	response := dto.MarkerSearchResponse{Markers: make([]dto.ZincMarker, 0)}
 
 	// Split the search term by spaces
 	terms := strings.Fields(t)
-	results := make(chan *bleve_search.DocumentMatch, 100)
-	done := make(chan struct{})
-	tookTimes := make(chan time.Duration, len(terms))
+	if len(terms) == 0 {
+		return response, nil
+	}
 
-	workerCount := 5
+	terms[0] = standardizeInitials(terms[0])
+
+	results := make(chan *bleve_search.DocumentMatch, len(terms)*10)
+	tookTimes := make(chan time.Duration, len(terms))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var wg sync.WaitGroup
-	wg.Add(workerCount)
 	termChan := make(chan string, len(terms))
 
+	// -- Use runtime.GOMAXPROCS(0) to determine the number of workers
+	workerCount := runtime.NumCPU() // Limit goroutines to number of CPU cores
 	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for term := range termChan {
-				performSearch(s.Index, term, results, tookTimes)
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					performSearch(s.Index, term, results, tookTimes)
+				}
 			}
 		}()
 	}
@@ -114,60 +148,54 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 		wg.Wait()
 		close(results)
 		close(tookTimes)
-		done <- struct{}{}
 	}()
 
-	var allResults []*bleve_search.DocumentMatch
+	// Get a pointer to a slice from the pool
+	allResultsPtr := documentMatchPool.Get().(*[]*bleve_search.DocumentMatch)
+	allResults := (*allResultsPtr)[:0] // Reset the slice
 	var totalTook time.Duration
-	for result := range results {
-		if result != nil {
-			allResults = append(allResults, result)
+
+	for {
+		select {
+		case result, ok := <-results:
+			if !ok {
+				results = nil
+			} else if result != nil {
+				allResults = append(allResults, result)
+			}
+		case took, ok := <-tookTimes:
+			if !ok {
+				tookTimes = nil
+			} else {
+				totalTook += took
+			}
+		}
+
+		if results == nil && tookTimes == nil {
+			break
 		}
 	}
-	for took := range tookTimes {
-		totalTook += took
-	}
-	<-done
 
 	// Sort and ensure diverse results
 	// diverseResults := ensureDiversity(allResults, 10)
 
-	sortResultsByScore(allResults)
-
-	// if len(searchResult.Hits) == 0 {
-	// 	return response, nil
-	// }
-
 	if len(allResults) == 0 {
 		// If no results, try fuzzy search with controlled fuzziness
-		for _, term := range terms {
-			fuzzyQuery := bleve.NewFuzzyQuery(term)
-			fuzzyQuery.Fuzziness = 1
-			searchRequest := bleve.NewSearchRequest(fuzzyQuery)
-			searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
-			searchRequest.Size = 10
-			searchResult, err := s.Index.Search(searchRequest)
-			if err != nil {
-				return response, fmt.Errorf("error fuzzy searching marker")
-			}
-
-			for _, hit := range searchResult.Hits {
-				allResults = append(allResults, hit)
-			}
-		}
-	} // end of if len(allResults) == 0
-
-	response.Took = int(totalTook.Milliseconds())
-	response.Markers = make([]dto.ZincMarker, 0, len(allResults))
-
-	// Extract relevant fields from search results
-	for _, hit := range allResults {
-		var marker dto.ZincMarker
-		intID, _ := strconv.Atoi(hit.ID)
-		marker.MarkerID = intID
-		marker.Address = hit.Fields["fullAddress"].(string)
-		response.Markers = append(response.Markers, marker)
+		fuzzyResults, fuzzyTook := performFuzzySearch(s.Index, terms)
+		allResults = fuzzyResults
+		totalTook += fuzzyTook
 	}
+
+	sortResultsByScore(allResults)
+	response.Took = int(totalTook.Milliseconds())
+	response.Markers = extractMarkers(allResults)
+
+	// Cache the response
+	s.searchCache.Set(context.Background(), cacheKey, response)
+
+	// Reset the slice and return the pointer to the pool
+	*allResultsPtr = allResults[:0]
+	documentMatchPool.Put(allResultsPtr)
 
 	return response, nil
 }
@@ -203,94 +231,155 @@ func (s *BleveSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error 
 	if err != nil {
 		return fmt.Errorf("error indexing marker")
 	}
+
+	// Invalidate search cache
+	s.invalidateCache()
+
 	return nil
 }
 
 func (s *BleveSearchService) DeleteMarkerIndex(markerId string) error {
-	return s.Index.Delete(markerId)
+	err := s.Index.Delete(markerId)
+	if err != nil {
+		return fmt.Errorf("error deleting marker: %v", err)
+	}
+
+	// Invalidate search cache
+	s.invalidateCache()
+
+	return nil
+}
+
+func (s *BleveSearchService) invalidateCache() {
+	s.searchCache.Clear(context.Background())
 }
 
 func performSearch(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
 	var queries []query.Query
+	const analyzer = "koCJKEdgeNgram"
+
+	// Use a buffer pool for reduced allocations
+	bufferPool := sync.Pool{
+		New: func() interface{} {
+			b := make([]byte, 0, 256) // Increased initial capacity
+			return &b
+		},
+	}
+
+	bufferPtr := bufferPool.Get().(*[]byte)
+	defer bufferPool.Put(bufferPtr)
+	buffer := (*bufferPtr)[:0]
+
+	// Helper function to reset and reuse the buffer
+	resetBuffer := func() {
+		buffer = buffer[:0]
+	}
+
+	// Helper function to append string to buffer and get string back
+	appendString := func(s string) string {
+		resetBuffer()
+		buffer = append(buffer, s...)
+		return string(buffer)
+	}
 
 	// Exact match queries with higher boosts
-	matchQueryFullAddress := query.NewMatchQuery(term)
+	matchQueryFullAddress := query.NewMatchQuery(appendString(term))
 	matchQueryFullAddress.SetField("fullAddress")
-	matchQueryFullAddress.Analyzer = "koCJKEdgeNgram"
+	matchQueryFullAddress.Analyzer = analyzer
 	matchQueryFullAddress.SetBoost(25.0)
 	queries = append(queries, matchQueryFullAddress)
 
 	// Phrase match query for exact phrases
-	matchPhraseQueryFullAddress := query.NewMatchPhraseQuery(term)
+	matchPhraseQueryFullAddress := query.NewMatchPhraseQuery(appendString(term))
 	matchPhraseQueryFullAddress.SetField("fullAddress")
-	matchPhraseQueryFullAddress.Analyzer = "koCJKEdgeNgram"
+	matchPhraseQueryFullAddress.Analyzer = analyzer
 	matchPhraseQueryFullAddress.SetBoost(20.0)
 	queries = append(queries, matchPhraseQueryFullAddress)
 
 	// Wildcard queries with lower boosts
-	wildcardQueryFullAddress := query.NewWildcardQuery("*" + term + "*")
+	resetBuffer()
+	buffer = append(buffer, '*')
+	buffer = append(buffer, term...)
+	buffer = append(buffer, '*')
+	wildcardQueryFullAddress := query.NewWildcardQuery(string(buffer))
 	wildcardQueryFullAddress.SetField("fullAddress")
-	wildcardQueryFullAddress.SetBoost(10.0)
+	wildcardQueryFullAddress.SetBoost(15.0)
 	queries = append(queries, wildcardQueryFullAddress)
 
+	prefixQueryFullAddress := query.NewPrefixQuery(appendString(term))
+	prefixQueryFullAddress.SetField("fullAddress")
+	prefixQueryFullAddress.SetBoost(35.0)
+	queries = append(queries, prefixQueryFullAddress)
+
 	// Additional fields and queries
-	brokenConsonants := SegmentConsonants(term)
+	brokenConsonants := appendString(SegmentConsonants(term))
 	matchQueryInitialConsonants := query.NewMatchQuery(brokenConsonants)
 	matchQueryInitialConsonants.SetField("initialConsonants")
-	matchQueryInitialConsonants.Analyzer = "koCJKEdgeNgram"
+	matchQueryInitialConsonants.Analyzer = analyzer
 	matchQueryInitialConsonants.SetBoost(15.0)
 	queries = append(queries, matchQueryInitialConsonants)
 
-	wildcardQueryInitialConsonants := query.NewWildcardQuery("*" + brokenConsonants + "*")
+	resetBuffer()
+	buffer = append(buffer, '*')
+	buffer = append(buffer, brokenConsonants...)
+	buffer = append(buffer, '*')
+	wildcardQueryInitialConsonants := query.NewWildcardQuery(string(buffer))
 	wildcardQueryInitialConsonants.SetField("initialConsonants")
-	wildcardQueryInitialConsonants.SetBoost(5.0)
+	wildcardQueryInitialConsonants.SetBoost(7.0)
 	queries = append(queries, wildcardQueryInitialConsonants)
 
-	standardizedProvince := standardizeProvince(term)
+	prefixQueryInitialConsonants := query.NewPrefixQuery(appendString(brokenConsonants))
+	prefixQueryInitialConsonants.SetField("initialConsonants")
+	prefixQueryInitialConsonants.SetBoost(25.0)
+	queries = append(queries, prefixQueryInitialConsonants)
+
+	standardizedProvince := appendString(standardizeProvince(term))
 	if standardizedProvince != term {
-		matchQueryProvince := query.NewMatchQuery(standardizedProvince)
+		matchQueryProvince := query.NewPrefixQuery(standardizedProvince)
 		matchQueryProvince.SetField("province")
-		matchQueryProvince.Analyzer = "koCJKEdgeNgram"
-		matchQueryProvince.SetBoost(1.5)
+		matchQueryProvince.SetBoost(3.0)
 		queries = append(queries, matchQueryProvince)
 	} else {
-		prefixQueryCity := query.NewPrefixQuery(term)
+		prefixQueryCity := query.NewPrefixQuery(appendString(term))
 		prefixQueryCity.SetField("city")
 		prefixQueryCity.SetBoost(10.0)
 		queries = append(queries, prefixQueryCity)
 
-		matchQueryCity := query.NewMatchQuery(term)
+		matchQueryCity := query.NewMatchQuery(appendString(term))
 		matchQueryCity.SetField("city")
-		matchQueryCity.Analyzer = "koCJKEdgeNgram"
+		matchQueryCity.Analyzer = analyzer
 		matchQueryCity.SetBoost(10.0)
 		queries = append(queries, matchQueryCity)
 
-		matchQueryDistrict := query.NewMatchQuery(term)
+		matchQueryDistrict := query.NewMatchQuery(appendString(term))
 		matchQueryDistrict.SetField("district")
-		matchQueryDistrict.Analyzer = "koCJKEdgeNgram"
+		matchQueryDistrict.Analyzer = analyzer
 		matchQueryDistrict.SetBoost(5.0)
 		queries = append(queries, matchQueryDistrict)
 
-		prefixQueryAddr := query.NewPrefixQuery(term)
+		prefixQueryAddr := query.NewPrefixQuery(appendString(term))
 		prefixQueryAddr.SetField("address")
-		prefixQueryAddr.SetBoost(5.0)
+		prefixQueryAddr.SetBoost(10.0)
 		queries = append(queries, prefixQueryAddr)
 
-		wildcardQueryAddr := query.NewWildcardQuery("*" + term + "*")
+		resetBuffer()
+		buffer = append(buffer, '*')
+		buffer = append(buffer, term...)
+		buffer = append(buffer, '*')
+		wildcardQueryAddr := query.NewWildcardQuery(string(buffer))
 		wildcardQueryAddr.SetField("address")
-		wildcardQueryAddr.SetBoost(2.0)
+		wildcardQueryAddr.SetBoost(5.0)
 		queries = append(queries, wildcardQueryAddr)
 	}
 
 	disjunctionQuery := bleve.NewDisjunctionQuery(queries...)
-	searchRequest := bleve.NewSearchRequest(disjunctionQuery)
+	searchRequest := bleve.NewSearchRequestOptions(disjunctionQuery, 15, 0, false)
 	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
 	searchRequest.Size = 10
 	searchRequest.SortBy([]string{"_score", "markerId"})
 
 	searchResult, err := index.Search(searchRequest)
 	if err != nil {
-		log.Printf("Error performing search: %v", err)
 		return
 	}
 
@@ -405,6 +494,40 @@ func performSearchFacet(index bleve.Index, term string, results chan<- *bleve_se
 	}
 }
 
+func performFuzzySearch(index bleve.Index, terms []string) ([]*bleve_search.DocumentMatch, time.Duration) {
+	var allResults []*bleve_search.DocumentMatch
+	var totalTook time.Duration
+
+	for _, term := range terms {
+		fuzzyQuery := bleve.NewFuzzyQuery(term)
+		fuzzyQuery.Fuzziness = 1
+		searchRequest := bleve.NewSearchRequest(fuzzyQuery)
+		searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
+		searchRequest.Size = 10
+		searchResult, err := index.Search(searchRequest)
+		if err != nil {
+			log.Printf("Error fuzzy searching marker: %v", err)
+			continue
+		}
+		allResults = append(allResults, searchResult.Hits...)
+		totalTook += searchResult.Took
+	}
+
+	return allResults, totalTook
+}
+
+func extractMarkers(allResults []*bleve_search.DocumentMatch) []dto.ZincMarker {
+	markers := make([]dto.ZincMarker, 0, len(allResults))
+	for _, hit := range allResults {
+		intID, _ := strconv.Atoi(hit.ID)
+		markers = append(markers, dto.ZincMarker{
+			MarkerID: intID,
+			Address:  hit.Fields["fullAddress"].(string),
+		})
+	}
+	return markers
+}
+
 // extractInitialConsonants extracts the initial consonants from a Korean string.
 //
 // ex) "부산 해운대구 좌동 1395" -> "ㅂㅅㅎㅇㄷㄱㅈㄷ"
@@ -445,17 +568,17 @@ func SegmentConsonants(input string) string {
 
 func standardizeProvince(province string) string {
 	switch province {
-	case "경기", "경기도":
+	case "경기", "경기도", "ㄱㄱㄷ":
 		return "경기도"
-	case "서울", "서울특별시":
+	case "서울", "서울특별시", "ㅅㅇ", "ㅅㅇㅌㅂㅅ":
 		return "서울특별시"
-	case "부산", "부산광역시":
+	case "부산", "부산광역시", "ㅄ":
 		return "부산광역시"
-	case "대구", "대구광역시":
+	case "대구", "대구광역시", "ㄷㄱ":
 		return "대구광역시"
-	case "인천", "인천광역시":
+	case "인천", "인천광역시", "ㅇㅊ":
 		return "인천광역시"
-	case "제주", "제주특별자치도", "제주도":
+	case "제주", "제주특별자치도", "제주도", "ㅈㅈㄷ":
 		return "제주특별자치도"
 	case "대전", "대전광역시":
 		return "대전광역시"
@@ -465,7 +588,7 @@ func standardizeProvince(province string) string {
 		return "광주광역시"
 	case "세종", "세종특별자치시":
 		return "세종특별자치시"
-	case "강원", "강원도", "강원특별자치도":
+	case "강원", "강원도", "강원특별자치도", "ㄱㅇㄷ":
 		return "강원특별자치도"
 	case "경남", "경상남도":
 		return "경상남도"
@@ -481,6 +604,47 @@ func standardizeProvince(province string) string {
 		return "전라남도"
 	default:
 		return province
+	}
+}
+
+func standardizeInitials(initials string) string {
+	switch initials {
+	case "ㄱㄱ":
+		return "ㄱㄱㄷ"
+	case "ㅅㅇ", "ㅅㅇㅅ":
+		return "ㅅㅇㅌㅂㅅ"
+	case "ㅄ", "ㅄㅅ", "ㅂㅅ":
+		return "ㅂㅅㄱㅇㅅ"
+	case "ㄷㄱ":
+		return "ㄷㄱㄱㅇㅅ"
+	case "ㅇㅊㅅ":
+		return "ㅇㅊㄱㅇㅅ"
+	case "ㅈㅈㄷ", "ㅈㅈ":
+		return "ㅈㅈㅌㅂㅈㅊㄷ"
+	case "ㄷㅈ":
+		return "ㄷㅈㄱㅇㅅ"
+	case "ㅇㅅ":
+		return "ㅇㅅㄱㅇㅅ"
+	case "ㄱㅈ":
+		return "ㄱㅈㄱㅇㅅ"
+	case "ㅅㅈㅅ":
+		return "ㅅㅈㅌㅂㅈㅊㅅ"
+	case "ㄱㅇㄷ":
+		return "ㄱㅇㅌㅂㅈㅊㄷ"
+	case "ㄳㄴㄷ", "ㄱㅅㄴㄷ":
+		return "ㄱㅅㄴㄷ"
+	case "ㄳㅂㄷ", "ㄱㅅㅂㄷ":
+		return "ㄱㅅㅂㄷ"
+	case "ㅈㅂ":
+		return "ㅈㅂㅌㅂㅈㅊㄷ"
+	case "ㅊㄴ":
+		return "ㅊㅊㄴㄷ"
+	case "ㅊㅂ":
+		return "ㅊㅊㅂㄷ"
+	case "ㅈㄴ":
+		return "ㅈㄹㄴㄷ"
+	default:
+		return initials
 	}
 }
 

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -10,7 +11,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/goccy/go-json"
+	sonic "github.com/bytedance/sonic"
 	"github.com/redis/rueidis"
 )
 
@@ -61,7 +62,7 @@ func (s *NotificationService) PostNotification(userID, notificationType, title, 
 		Message:          message,
 		Metadata:         metadata,
 	}
-	jsonData, err := json.Marshal(notificationData)
+	jsonData, err := sonic.Marshal(notificationData)
 	if err != nil {
 		return err
 	}
@@ -197,7 +198,7 @@ func (s *NotificationService) SubscribeNotification(userID string, handleMessage
 
 func HandleNotification(data []byte) {
 	var notification NotificationRedis
-	if err := json.Unmarshal(data, &notification); err != nil {
+	if err := sonic.Unmarshal(data, &notification); err != nil {
 		fmt.Printf("Error decoding notification: %v\n", err)
 		return
 	}

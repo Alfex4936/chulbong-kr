@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"encoding/xml"
 	"fmt"
-	"log"
 	"mime/multipart"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +23,7 @@ import (
 	ristretto_store "github.com/eko/gocache/store/ristretto/v4"
 
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -132,6 +133,8 @@ WHERE ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
 ORDER BY distance ASC`
 
 	generateRSSQuery = "SELECT MarkerID, UpdatedAt, Address FROM Markers ORDER BY UpdatedAt DESC"
+
+	getNewTop10PicturesQuery = "SELECT DISTINCT(MarkerID), PhotoURL FROM chulbong.Photos ORDER BY UploadedAt DESC LIMIT 10"
 )
 
 // MarkerManageService is a service for marker management operations.
@@ -147,6 +150,8 @@ type MarkerManageService struct {
 	MapUtil           *util.MapUtil
 	BadWordUtil       *util.BadWordUtil
 	LocalCacheStorage *ristretto_store.RistrettoStore
+
+	Logger *zap.Logger
 
 	// markersLocalCache cache to store encoded marker data
 	// markersLocalCache []byte // 400 kb is fine here
@@ -167,6 +172,7 @@ type MarkerManageServiceParams struct {
 	MapUtil               *util.MapUtil
 	BadWordUtil           *util.BadWordUtil
 	LocalCacheStorage     *ristretto_store.RistrettoStore
+	Logger                *zap.Logger
 }
 
 // NewMarkerManageService creates a new instance of MarkerManageService.
@@ -182,6 +188,7 @@ func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
 		RedisService:          p.RedisService,
 		MapUtil:               p.MapUtil,
 		BadWordUtil:           p.BadWordUtil,
+		Logger:                p.Logger,
 		byteCache:             byteCache,
 	}
 }
@@ -462,7 +469,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 
 		for attempt := 0; attempt < maxRetries; attempt++ {
 			if attempt > 0 {
-				log.Printf("Retrying to fetch address for marker %d, attempt %d", markerID, attempt)
+				s.Logger.Warn("Retrying to fetch address", zap.Int64("markerID", markerID), zap.Int("attempt", attempt))
 				time.Sleep(retryDelay) // Wait before retrying
 			}
 
@@ -471,7 +478,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 				break // Success, exit the retry loop
 			}
 
-			log.Printf("Attempt %d failed to fetch address for marker %d: %v", attempt, markerID, err)
+			s.Logger.Warn("Failed to fetch address", zap.Int("attempt", attempt), zap.Int64("markerID", markerID), zap.Error(err))
 		}
 
 		if err != nil || address == "" {
@@ -480,7 +487,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 				// delete the marker 북한 or 일본
 				_, err = s.DB.Exec(deleteMarkerQuery, markerID)
 				if err != nil {
-					log.Printf("Failed to update address for marker %d: %v", markerID, err)
+					s.Logger.Error("Failed to delete marker", zap.Int64("markerID", markerID), zap.Error(err))
 				}
 				return // no need to insert in failures
 			}
@@ -492,23 +499,26 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 				errMsg = fmt.Sprintf("No address found for marker %d after %d attempts", markerID, maxRetries)
 			}
 
-			water, _ := s.MarkerLocationService.FacilityService.FetchRegionWaterInfo(latitude, longitude)
-			if water {
-				errMsg = fmt.Sprintf("The marker (%d) might be above on water", markerID)
-			}
+			// water, _ := s.MarkerLocationService.FacilityService.FetchRegionWaterInfo(latitude, longitude)
+			// if water {
+			// 	errMsg = fmt.Sprintf("The marker (%d) might be above on water", markerID)
+			// }
 
 			url := fmt.Sprintf("%sd=%d&la=%f&lo=%f", s.MarkerLocationService.Config.ClientURL, markerID, markerDto.Latitude, markerDto.Longitude)
 
 			if _, logErr := s.DB.Exec(insertMarkerFailureQuery, markerID, errMsg, url); logErr != nil {
-				log.Printf("Failed to log address fetch failure for marker %d: %v", markerID, logErr)
+				s.Logger.Error("Failed to log address fetch failure", zap.Int64("markerID", markerID), zap.Error(logErr))
 			}
 			return
 		}
 
+		// Standardize the address
+		standardizedAddress := standardizeAddress(address)
+
 		// Update the marker's address in the database after successful fetch
-		_, err = s.DB.Exec(updateAddressQuery, address, markerID)
+		_, err = s.DB.Exec(updateAddressQuery, standardizedAddress, markerID)
 		if err != nil {
-			log.Printf("Failed to update address for marker %d: %v", markerID, err)
+			s.Logger.Error("Failed to update address", zap.Int64("markerID", markerID), zap.Error(err))
 		}
 
 		go s.BleveSearchService.InsertMarkerIndex(dto.MarkerIndexData{MarkerID: int(markerID), Address: address})
@@ -587,14 +597,14 @@ func (s *MarkerManageService) UpdateMarkerDescriptionOnly(markerID int, descript
 
 func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string) error {
 	// Precheck user authorization and fetch photo URLs before transaction
-	var ownerID int
+	var ownerID sql.NullInt64
 	var photoURLs []string
 	err := s.DB.Get(&ownerID, getAllMarkersByUserQuery, markerID)
 	if err != nil {
 		return fmt.Errorf("checking marker ownership: %w", err)
 	}
 
-	if userRole != "admin" && ownerID != userID {
+	if userRole != "admin" && int(ownerID.Int64) != userID {
 		return fmt.Errorf("user %d is not authorized to delete marker %d", userID, markerID)
 	}
 
@@ -630,7 +640,7 @@ func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string
 	go func(photoURLs []string) {
 		for _, photoURL := range photoURLs {
 			if err := s.S3Service.DeleteDataFromS3(photoURL); err != nil {
-				log.Printf("Failed to delete photo from S3: %s, error: %v", photoURL, err)
+				s.Logger.Error("Failed to delete photo from S3", zap.String("photoURL", photoURL), zap.Error(err))
 			}
 		}
 	}(photoURLs)
@@ -742,6 +752,16 @@ func (s *MarkerManageService) GetAllMarkersProto() ([]*protos.Marker, error) {
 	return markers, nil
 }
 
+func (s *MarkerManageService) GetNewTop10Pictures() ([]dto.MarkerNewPicture, error) {
+	var markers []dto.MarkerNewPicture
+	err := s.DB.Select(&markers, getNewTop10PicturesQuery)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching markers: %w", err)
+	}
+
+	return markers, nil
+}
+
 func generateRSS(markers []dto.MarkerRSS) (string, error) {
 	items := []dto.RssItem{}
 	for _, marker := range markers {
@@ -774,4 +794,104 @@ func generateRSS(markers []dto.MarkerRSS) (string, error) {
 
 func saveRSSToFile(content, filePath string) error {
 	return os.WriteFile(filePath, []byte(content), 0644)
+}
+
+// 대한민국의 행정 구역
+// https://ko.wikipedia.org/wiki/%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98_%ED%96%89%EC%A0%95_%EA%B5%AC%EC%97%AD
+func standardizeProvinceForDB(province string) string {
+	provinceMap := map[string]string{
+		// 1
+		"서울":    "서울특별시",
+		"서울특별시": "서울특별시",
+		"서울시":   "서울특별시",
+
+		// 2
+		"부산":    "부산광역시",
+		"부산광역시": "부산광역시",
+		"부산시":   "부산광역시",
+
+		// 3
+		"대구":    "대구광역시",
+		"대구광역시": "대구광역시",
+		"대구시":   "대구광역시",
+
+		// 4
+		"인천":    "인천광역시",
+		"인천광역시": "인천광역시",
+		"인천시":   "인천광역시",
+
+		// 5
+		"광주":    "광주광역시",
+		"광주광역시": "광주광역시",
+		"광주시":   "광주광역시",
+
+		// 6
+		"대전":    "대전광역시",
+		"대전광역시": "대전광역시",
+		"대전시":   "대전광역시",
+
+		// 7
+		"울산":    "울산광역시",
+		"울산광역시": "울산광역시",
+		"울산시":   "울산광역시",
+		// 8
+		"세종":      "세종특별자치시",
+		"세종특별자치시": "세종특별자치시",
+		"세종시":     "세종특별자치시",
+
+		// 9
+		"경기":  "경기도",
+		"경기도": "경기도",
+
+		// 10
+		"강원":      "강원특별자치도",
+		"강원도":     "강원특별자치도",
+		"강원특별자치도": "강원특별자치도",
+
+		// 11
+		"충북":   "충청북도",
+		"충청북도": "충청북도",
+
+		// 12
+		"충남":   "충청남도",
+		"충청남도": "충청남도",
+
+		// 13
+		"전북":      "전북특별자치도",
+		"전북특별자치도": "전북특별자치도",
+
+		// 14
+		"전남":   "전라남도",
+		"전라남도": "전라남도",
+
+		// 15
+		"경북":   "경상북도",
+		"경상북도": "경상북도",
+		// 16
+		"경남":   "경상남도",
+		"경상남도": "경상남도",
+
+		// 17
+		"제주도":     "제주특별자치도",
+		"제주":      "제주특별자치도",
+		"제주특별자치도": "제주특별자치도",
+	}
+
+	if standardized, exists := provinceMap[province]; exists {
+		return standardized
+	}
+	return province
+}
+
+// standardizeAddress standardizes the first part of the address.
+func standardizeAddress(address string) string {
+	addressParts := strings.Fields(address)
+	if len(addressParts) > 0 {
+		province := addressParts[0]
+		standardizedProvince := standardizeProvinceForDB(province)
+		if province != standardizedProvince {
+			addressParts[0] = standardizedProvince
+		}
+	}
+	return strings.Join(addressParts, " ")
 }

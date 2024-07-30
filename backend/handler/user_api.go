@@ -7,7 +7,6 @@ import (
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/facade"
 	"github.com/Alfex4936/chulbong-kr/middleware"
-	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -31,11 +30,12 @@ func RegisterUserRoutes(api fiber.Router, handler *UserHandler, authMiddleware *
 
 	// Route to serve the gallery
 	api.Get("/gallery", handler.HandleGalleryView)
+	api.Get("/login-home", handler.HandleServerLogin)
 
 	userGroup := api.Group("/users")
 	{
 		userGroup.Use(authMiddleware.Verify)
-		userGroup.Get("/me", handler.HandleProfile)
+		userGroup.Get("/me", authMiddleware.VerifySoft, handler.HandleProfile)
 		userGroup.Get("/favorites", handler.HandleGetFavorites)
 		userGroup.Get("/reports", handler.HandleGetMyReports)                          // getting reports that I made
 		userGroup.Get("/reports/for-my-markers", handler.HandleGetReportsForMyMarkers) // getting reports for my markers
@@ -89,9 +89,11 @@ func (h *UserHandler) HandleProfile(c *fiber.Ctx) error {
 		return err // fiber err
 	}
 
+	chulbong, _ := c.Locals("chulbong").(bool)
+
 	userProfileKey := h.UserFacadeService.GetUserProfileKey(userData.UserID)
 
-	var cachedUser *model.User
+	var cachedUser *dto.UserResponse
 	// Try to get the user profile from the cache first
 	cacheErr := h.UserFacadeService.GetUserCache(userProfileKey, &cachedUser)
 	if cacheErr == nil && cachedUser != nil {
@@ -104,6 +106,11 @@ func (h *UserHandler) HandleProfile(c *fiber.Ctx) error {
 	user, err := h.UserFacadeService.GetUserById(userData.UserID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Check adminship
+	if chulbong {
+		user.Chulbong = true
 	}
 
 	// After fetching from the database
@@ -214,4 +221,8 @@ func (h *UserHandler) HandleGalleryView(c *fiber.Ctx) error {
 		"Title":  "Photo Gallery",
 		"Photos": photos,
 	})
+}
+
+func (h *UserHandler) HandleServerLogin(c *fiber.Ctx) error {
+	return c.Render("login", fiber.Map{})
 }

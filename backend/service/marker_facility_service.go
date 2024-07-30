@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	sonic "github.com/bytedance/sonic"
 	"github.com/goccy/go-json"
 	"github.com/jmoiron/sqlx"
 
@@ -31,6 +32,9 @@ const (
 	getAllMarkersQuery = "SELECT MarkerID, ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude FROM Markers"
 
 	updateAddressQuery = "UPDATE Markers SET Address = ? WHERE MarkerID = ?"
+
+	// userAgent
+	userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
 
 type MarkerFacilityService struct {
@@ -267,6 +271,8 @@ func (s *MarkerFacilityService) FetchRegionFromAPI(latitude, longitude float64) 
 	}
 
 	req.Header.Add("Authorization", "KakaoAK "+s.KakaoConfig.KakaoAK)
+	req.Header.Add("User-Agent", userAgent)
+
 	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
 		return "-1", fmt.Errorf("executing request: %w", err)
@@ -308,7 +314,7 @@ func (s *MarkerFacilityService) FetchEnglishAddress(koreanAddress string) (strin
 		return "", fmt.Errorf("creating request: %w", err)
 	}
 
-	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+	req.Header.Add("User-Agent", userAgent)
 	// Create a new HTTP request
 
 	resp, err := s.HTTPClient.Do(req)
@@ -351,6 +357,8 @@ func (s *MarkerFacilityService) FetchWeatherFromAddress(latitude, longitude floa
 	}
 
 	req.Header.Add("Referer", reqURL)
+	req.Header.Add("User-Agent", userAgent)
+
 	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
@@ -413,13 +421,13 @@ type CustomString string
 
 func (cs *CustomString) UnmarshalJSON(data []byte) error {
 	var asFloat float64
-	if err := json.Unmarshal(data, &asFloat); err == nil {
+	if err := sonic.Unmarshal(data, &asFloat); err == nil {
 		*cs = CustomString(fmt.Sprintf("%f", asFloat))
 		return nil
 	}
 
 	var asString string
-	if err := json.Unmarshal(data, &asString); err == nil {
+	if err := sonic.Unmarshal(data, &asString); err == nil {
 		*cs = CustomString(asString)
 		return nil
 	}
@@ -472,4 +480,43 @@ func (s *MarkerFacilityService) FetchLatestMarkers(thresholdDate time.Time) ([]D
 	}
 
 	return filteredData, nil
+}
+
+func (s *MarkerFacilityService) FetchRoadViewPicDate(latitude, longitude float64) (time.Time, error) {
+	wcong := util.ConvertWGS84ToWCONGNAMUL(latitude, longitude)
+	url := s.KakaoConfig.KakaoRoadViewAPI + "&PX=" + fmt.Sprintf("%f", wcong.X) + "&PY=" + fmt.Sprintf("%f", wcong.Y)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Add("User-Agent", userAgent)
+
+	resp, err := s.HTTPClient.Do(req)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return time.Time{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var apiResp kakao.StreetViewData
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return time.Time{}, fmt.Errorf("unmarshalling response: %w", err)
+	}
+
+	if len(apiResp.StreetView.StreetList) == 0 {
+		return time.Time{}, fmt.Errorf("no street view data available")
+	}
+
+	shotDateStr := apiResp.StreetView.StreetList[0].ShotDate
+	shotDate, err := time.Parse("2006-01-02 15:04:05", shotDateStr)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parsing shot date: %w", err)
+	}
+
+	return shotDate, nil
 }

@@ -11,13 +11,13 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/fx"
 
-	"github.com/goccy/go-json"
 	"github.com/gofiber/contrib/websocket"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
 	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/redis/rueidis"
 	"github.com/zeebo/xxh3"
 
+	sonic "github.com/bytedance/sonic"
 	"github.com/google/uuid"
 )
 
@@ -180,7 +180,7 @@ func (s *ChatService) BroadcastMessageToRoom(roomID, message, userNickname, user
 	}
 
 	// Serialize the message struct to JSON
-	msgJSON, err := json.Marshal(broadcastMsg)
+	msgJSON, err := sonic.Marshal(broadcastMsg)
 	if err != nil {
 		log.Printf("Error marshalling message to JSON: %v", err)
 		return err
@@ -216,7 +216,7 @@ func (s *ChatService) BroadcastMessage(message []byte, userID, roomId, userNickn
 		Timestamp:    time.Now().UnixMilli(),
 	}
 	// Serialize the message struct to JSON
-	msgJSON, err := json.Marshal(broadcastMsg)
+	msgJSON, err := sonic.Marshal(broadcastMsg)
 	if err != nil {
 		log.Printf("Error marshalling message to JSON: %v", err)
 		return

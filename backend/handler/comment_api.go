@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/middleware"
@@ -53,6 +54,9 @@ func (h *CommentHandler) HandlePostComment(c *fiber.Ctx) error {
 
 	comment, err := h.CommentService.CreateComment(req.MarkerID, userID, req.CommentText)
 	if err != nil {
+		if strings.Contains(err.Error(), "already commented") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "you have already commented 3 times on this marker"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create comment"})
 	}
 	return c.Status(fiber.StatusOK).JSON(comment)
@@ -96,7 +100,7 @@ func (h *CommentHandler) HandleRemoveComment(c *fiber.Ctx) error {
 	err = h.CommentService.RemoveComment(commentID, userID)
 	if err != nil {
 		if err.Error() == "comment not found or already deleted" {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "comment might not exist"})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to remove comment"})
 	}

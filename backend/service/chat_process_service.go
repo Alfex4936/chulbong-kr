@@ -8,13 +8,13 @@ import (
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 
-	"github.com/goccy/go-json"
+	sonic "github.com/bytedance/sonic"
 )
 
 // ProcessMessageFromSubscription processes a message from a Redis subscription
 func (s *ChatService) ProcessMessageFromSubscription(msg []byte) {
 	var broadcastMsg dto.BroadcastMessage
-	err := json.Unmarshal(msg, &broadcastMsg)
+	err := sonic.Unmarshal(msg, &broadcastMsg)
 	if err != nil {
 		log.Printf("Error unmarshalling message: %v", err)
 		return

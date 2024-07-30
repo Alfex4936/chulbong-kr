@@ -9,7 +9,7 @@ import (
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 
-	"github.com/goccy/go-json"
+	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/google/uuid"
 	"github.com/redis/rueidis"
@@ -84,7 +84,7 @@ func (s *ChatService) AddConnectionRoomToRedis(markerID, userID, username string
 		ConnID:   connID,
 	}
 
-	jsonConnInfo, err := json.Marshal(connInfo)
+	jsonConnInfo, err := sonic.Marshal(connInfo)
 	if err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func (s *ChatService) GetAllRedisConnectionsFromRoom(markerID string) ([]dto.Con
 	connections := make([]dto.ConnectionInfo, 0, len(result))
 	for _, jsonConnInfo := range result {
 		var connInfo dto.ConnectionInfo
-		if err := json.Unmarshal([]byte(jsonConnInfo), &connInfo); err != nil {
+		if err := sonic.Unmarshal([]byte(jsonConnInfo), &connInfo); err != nil {
 			log.Printf("Error unmarshaling connection info: %v", err)
 			continue
 		}

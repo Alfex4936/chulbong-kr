@@ -10,7 +10,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/config"
 	"github.com/Alfex4936/chulbong-kr/dto"
 
-	"github.com/goccy/go-json"
+	sonic "github.com/bytedance/sonic"
 	"github.com/redis/rueidis"
 )
 
@@ -42,7 +42,7 @@ func NewRedisService(redisConfig *config.RedisConfig, redis *RedisClient) *Redis
 // TODO: cannot use Generic as Fx doesn't support it directly maybe
 // SetCacheEntry sets a cache entry with the given key and value, with an expiration time.
 func (s *RedisService) SetCacheEntry(key string, value interface{}, expiration time.Duration) error {
-	jsonValue, err := json.Marshal(value)
+	jsonValue, err := sonic.Marshal(value)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (s *RedisService) GetCacheEntry(key string, target interface{}) error {
 		return err
 	}
 	if resp != "" {
-		err = json.Unmarshal([]byte(resp), target)
+		err = sonic.Unmarshal([]byte(resp), target)
 	}
 	return err
 }

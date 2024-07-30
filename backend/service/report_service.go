@@ -2,13 +2,13 @@ package service
 
 import (
 	"fmt"
-	"log"
 	"mime/multipart"
 	"sync"
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 )
 
 const (
@@ -146,13 +146,15 @@ type ReportService struct {
 	DB              *sqlx.DB
 	S3Service       *S3Service
 	LocationService *MarkerLocationService
+	Logger          *zap.Logger
 }
 
-func NewReportService(db *sqlx.DB, s3Service *S3Service, location *MarkerLocationService) *ReportService {
+func NewReportService(db *sqlx.DB, s3Service *S3Service, location *MarkerLocationService, logger *zap.Logger) *ReportService {
 	return &ReportService{
 		DB:              db,
 		S3Service:       s3Service,
 		LocationService: location,
+		Logger:          logger,
 	}
 }
 
@@ -419,7 +421,7 @@ func (s *ReportService) DeleteReport(reportID, userID, markerID int) error {
 	go func(photoURLs []string) {
 		for _, photoURL := range photoURLs {
 			if err := s.S3Service.DeleteDataFromS3(photoURL); err != nil {
-				log.Printf("Failed to delete photo from S3: %s, error: %v", photoURL, err)
+				s.Logger.Error("Failed to delete photo from S3", zap.String("photoURL", photoURL), zap.Error(err))
 			}
 		}
 	}(photoURLs)
@@ -441,13 +443,13 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 		var markerID int64
 		mErr := s.DB.Get(&markerID, getReportByIdQuery, reportID)
 		if mErr != nil {
-			log.Printf("Failed to fetch marker %d: %v", markerID, mErr)
+			s.Logger.Error("Failed to fetch marker ID for report", zap.Int("reportID", reportID), zap.Error(mErr))
 			return
 		}
 
 		mErr = s.LocationService.DB.Get(&location, updateDbLocationQuery, markerID)
 		if mErr != nil {
-			log.Printf("Failed to fetch location for marker %d: %v", markerID, mErr)
+			s.Logger.Error("Failed to fetch location for marker", zap.Int64("markerID", markerID), zap.Error(mErr))
 			return
 		}
 
@@ -456,7 +458,7 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 
 		for attempt := 0; attempt < maxRetries; attempt++ {
 			if attempt > 0 {
-				log.Printf("Retrying to fetch address for marker %d, attempt %d", markerID, attempt)
+				s.Logger.Info("Retrying to fetch address for marker", zap.Int64("markerID", markerID), zap.Int("attempt", attempt))
 				time.Sleep(retryDelay) // Wait before retrying
 			}
 			address, err = s.LocationService.FacilityService.FetchAddressFromMap(location.Latitude, location.Longitude)
@@ -464,7 +466,10 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 				break // Success, exit the retry loop
 			}
 
-			log.Printf("Attempt %d failed to fetch address for marker %d: %v", attempt, markerID, err)
+			s.Logger.Warn("Attempt to fetch address failed",
+				zap.Int("attempt", attempt),
+				zap.Int64("markerID", markerID),
+				zap.Error(err))
 		}
 
 		if err != nil || address == "" {
@@ -473,7 +478,7 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 				// delete the marker 북한 or 일본
 				_, err = s.LocationService.DB.Exec(deleteMarkerQuery, markerID)
 				if err != nil {
-					log.Printf("Failed to update address for marker %d: %v", markerID, err)
+					s.Logger.Error("Failed to delete marker", zap.Int64("markerID", markerID), zap.Error(err))
 				}
 				return // no need to insert in failures
 			}
@@ -493,15 +498,17 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 			url := fmt.Sprintf("%sd=%d&la=%f&lo=%f", s.LocationService.Config.ClientURL, markerID, location.Latitude, location.Longitude)
 
 			if _, logErr := s.LocationService.DB.Exec(insertMarkerFailureQuery, markerID, errMsg, url); logErr != nil {
-				log.Printf("Failed to log address fetch failure for marker %d: %v", markerID, logErr)
+				s.Logger.Error("Failed to log address fetch failure for marker", zap.Int64("markerID", markerID), zap.Error(logErr))
 			}
 			return
 		}
 
+		standardizedAddress := standardizeAddress(address)
+
 		// Update the marker's address in the database after successful fetch
-		_, err = s.LocationService.DB.Exec(updateMarkerAddressByIdQuery, address, markerID)
+		_, err = s.LocationService.DB.Exec(updateMarkerAddressByIdQuery, standardizedAddress, markerID)
 		if err != nil {
-			log.Printf("Failed to update address for marker %d: %v", markerID, err)
+			s.Logger.Error("Failed to update address for marker", zap.Int64("markerID", markerID), zap.Error(err))
 		}
 
 	}(reportID)

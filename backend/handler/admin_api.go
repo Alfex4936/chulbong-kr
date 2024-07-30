@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log"
 	"mime/multipart"
 	"strconv"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 type AdminHandler struct {
@@ -19,6 +19,7 @@ type AdminHandler struct {
 	UserService *service.UserService
 
 	TokenUtil *util.TokenUtil
+	Logger    *zap.Logger
 }
 
 // NewAdminHandler creates a new AdminHandler with dependencies injected
@@ -26,11 +27,13 @@ func NewAdminHandler(
 	admin *facade.AdminFacadeService,
 	user *service.UserService,
 	tutil *util.TokenUtil,
+	logger *zap.Logger,
 ) *AdminHandler {
 	return &AdminHandler{
 		AdminFacade: admin,
 		UserService: user,
 		TokenUtil:   tutil,
+		Logger:      logger,
 	}
 }
 
@@ -52,7 +55,7 @@ func (h *AdminHandler) HandleListUnreferencedS3Objects(c *fiber.Ctx) error {
 
 	dbURLs, err := h.AdminFacade.FetchAllPhotoURLsFromDB()
 	if err != nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "fetching URLs from database"})
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "fetching URLs from database:" + err.Error()})
 	}
 
 	s3Objects, err := h.AdminFacade.ListAllObjectsInS3()
@@ -110,8 +113,6 @@ func (h *AdminHandler) HandleBanUser(c *fiber.Ctx) error {
 	// Call the BanUser method on the manager instance
 	err := h.AdminFacade.BanUser(markerID, userID, duration)
 	if err != nil {
-		// Log the error or handle it as needed
-		// log.Printf("Error banning user %s from room %s: %v", userID, markerID, err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to ban user",
 		})
@@ -139,16 +140,18 @@ func (h *AdminHandler) HandleListUpdatedMarkers(c *fiber.Ctx) error {
 		for _, m := range markers {
 			latitude, err := strconv.ParseFloat(string(m.Latitude), 64)
 			if err != nil {
+				h.Logger.Warn("Failed to parse latitude", zap.String("latitude", string(m.Latitude)), zap.Error(err))
 				continue
 			}
 
 			longitude, err := strconv.ParseFloat(string(m.Longitude), 64)
 			if err != nil {
+				h.Logger.Warn("Failed to parse longitude", zap.String("longitude", string(m.Longitude)), zap.Error(err))
 				continue
 			}
 
 			if fErr := h.AdminFacade.CheckMarkerValidity(latitude, longitude, ""); fErr != nil {
-				log.Printf("➡️ Skipping: %s\n", fErr.Message)
+				h.Logger.Info("Skipping marker", zap.String("reason", fErr.Message))
 				continue
 			}
 
@@ -172,14 +175,14 @@ func (h *AdminHandler) HandleListUpdatedMarkers(c *fiber.Ctx) error {
 				Description: "",
 			}, userID, form)
 			if err != nil {
-				log.Println("Error creating marker:", err)
+				h.Logger.Error("Error creating marker", zap.Error(err))
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error creating marker"})
 			}
 
 			newMarkerID := marker.MarkerID
 
 			if newMarkerID == 0 {
-				log.Println("Error creating marker with 0:", err)
+				h.Logger.Error("Error creating marker with ID 0", zap.Error(err))
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error creating marker"})
 			}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -355,7 +354,6 @@ func (s *MarkerLocationService) SaveOfflineMap2(lat, lng float64) (string, error
 	// Predefine capacity for slices based on known limits to avoid multiple allocations
 	// 1280*720 500m
 	nearbyMarkers, total, err := s.FindClosestNMarkersWithinDistance(lat, lng, 700, 30, 0) // meter, pageSize, offset
-	log.Printf("🎙️ Found %+v markers", nearbyMarkers)
 	if err != nil {
 		return "", fmt.Errorf("failed to find nearby markers")
 	}
@@ -418,7 +416,6 @@ func (s *MarkerLocationService) TestDynamic(latitude, longitude, zoomScale float
 	mapWcon := util.ConvertWGS84ToWCONGNAMUL(latitude, longitude)
 	baseImageFile := fmt.Sprintf("base_map-%s.png", uuid.New().String())
 	baseImageFilePath := path.Join("./tests", baseImageFile)
-	log.Printf("📆 %s", baseImageFilePath)
 
 	static := fmt.Sprintf("https://spi.maps.daum.net/map2/map/imageservice?IW=%d&IH=%d&SCALE=%f&service=open", width, height, zoomScale)
 	util.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f", static, mapWcon.X, mapWcon.Y), baseImageFilePath)

@@ -9,11 +9,11 @@ import (
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 
-	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/zeebo/xxh3"
 
+	sonic "github.com/bytedance/sonic"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
 )
 
@@ -66,7 +66,7 @@ func (s *MqService) PublishMessageToAMQP(ctx context.Context, roomID, message, u
 	}
 
 	// Serialize the message struct to JSON
-	msgJSON, err := json.Marshal(broadcastMsg)
+	msgJSON, err := sonic.Marshal(broadcastMsg)
 	if err != nil {
 		log.Printf("Error marshalling message to JSON: %v", err)
 		return

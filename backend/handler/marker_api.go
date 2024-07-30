@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"mime/multipart"
@@ -10,10 +9,14 @@ import (
 	"strings"
 	"time"
 
+	sonic "github.com/bytedance/sonic"
+
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/facade"
 	"github.com/Alfex4936/chulbong-kr/middleware"
 	"github.com/Alfex4936/chulbong-kr/model"
+	"github.com/Alfex4936/chulbong-kr/protos"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -36,6 +39,7 @@ func NewMarkerHandler(authMiddleware *middleware.AuthMiddleware, facade *facade.
 
 func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddleware *middleware.AuthMiddleware) {
 	api.Get("/markers", handler.HandleGetAllMarkersLocal)
+	api.Get("/markers-proto", handler.HandleGetAllMarkersProto)
 	api.Get("/markers/new", handler.HandleGetAllNewMarkers)
 
 	api.Get("/markers/:markerId/details", authMiddleware.VerifySoft, handler.HandleGetMarker)
@@ -53,6 +57,9 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 	api.Get("/markers/save-offline", authMiddleware.Verify, handler.HandleSaveOfflineMap2)
 
 	api.Get("/markers/rss", handler.HandleRSS)
+	api.Get("/markers/roadview-date", handler.HandleGetRoadViewPicDate)
+
+	api.Get("/markers/new-pictures", handler.HandleGet10NewPictures)
 
 	api.Post("/markers/upload", authMiddleware.CheckAdmin, handler.HandleUploadMarkerPhotoToS3)
 	api.Post("/markers/refresh", authMiddleware.CheckAdmin, handler.HandleRefreshMarkerCache)
@@ -76,12 +83,40 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 		markerGroup.Delete("/:markerID/dislike", handler.HandleUndoDislike)
 		markerGroup.Delete("/:markerID/favorites", handler.HandleRemoveFavorite)
 	}
+}
 
+func (h *MarkerHandler) HandleGetAllMarkersProto(c *fiber.Ctx) error {
+	markers, err := h.MarkerFacadeService.GetAllMarkersProto()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	markerList := &protos.MarkerList{
+		Markers: markers,
+	}
+
+	data, err := proto.Marshal(markerList)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+
+	c.Type("application/protobuf")
+	return c.Send(data)
 }
 
 // HandleGetAllMarkers handles the HTTP request to get all markers
 func (h *MarkerHandler) HandleGetAllMarkers(c *fiber.Ctx) error {
 	markers, err := h.MarkerFacadeService.GetAllMarkers()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to fetch markers",
+		})
+	}
+	return c.JSON(markers)
+}
+
+func (h *MarkerHandler) HandleGet10NewPictures(c *fiber.Ctx) error {
+	markers, err := h.MarkerFacadeService.GetNew10Pictures()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to fetch markers",
@@ -112,7 +147,7 @@ func (h *MarkerHandler) HandleGetAllMarkersLocal(c *fiber.Ctx) error {
 	}
 
 	// Marshal the markers to JSON for caching and response
-	markersJSON, err := json.Marshal(markers)
+	markersJSON, err := sonic.Marshal(markers)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode markers"})
 	}
@@ -157,7 +192,7 @@ func (h *MarkerHandler) HandleGetMarker(c *fiber.Ctx) error {
 
 	marker, err := h.MarkerFacadeService.GetMarker(markerID)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Marker not found: " + err.Error()})
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Marker not found"})
 	}
 
 	if userOK {
@@ -230,6 +265,10 @@ func (h *MarkerHandler) HandleCreateMarkerWithPhotos(c *fiber.Ctx) error {
 func (h *MarkerHandler) HandleUpdateMarker(c *fiber.Ctx) error {
 	markerID, _ := strconv.Atoi(c.Params("markerID"))
 	description := c.FormValue("description")
+
+	if profanity, _ := h.MarkerFacadeService.CheckBadWord(description); profanity {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Description contains profanity"})
+	}
 
 	if err := h.MarkerFacadeService.UpdateMarkerDescriptionOnly(markerID, description); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -511,8 +550,6 @@ func (h *MarkerHandler) HandleSetMarkerFacilities(c *fiber.Ctx) error {
 func (h *MarkerHandler) HandleUpdateMarkersAddresses(c *fiber.Ctx) error {
 	updatedMarkers, err := h.MarkerFacadeService.UpdateMarkersAddresses()
 	if err != nil {
-		// Log the error and return a generic error message to the client
-		fmt.Printf("Error updating marker addresses: %v\n", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update marker addresses",
 		})
@@ -550,7 +587,7 @@ func (h *MarkerHandler) HandleRefreshMarkerCache(c *fiber.Ctx) error {
 	}
 
 	// Marshal the markers to JSON for caching and response
-	markersJSON, err := json.Marshal(markers)
+	markersJSON, err := sonic.Marshal(markers)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode markers"})
 	}
@@ -558,6 +595,28 @@ func (h *MarkerHandler) HandleRefreshMarkerCache(c *fiber.Ctx) error {
 	// Update cache
 	h.MarkerFacadeService.SetMarkerCache(markersJSON)
 	return c.SendString("refreshed")
+}
+
+func (h *MarkerHandler) HandleGetRoadViewPicDate(c *fiber.Ctx) error {
+	latParam := c.Query("latitude")
+	longParam := c.Query("longitude")
+
+	lat, err := strconv.ParseFloat(latParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+	}
+
+	long, err := strconv.ParseFloat(longParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+
+	date, err := h.MarkerFacadeService.FacilityService.FetchRoadViewPicDate(lat, long)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch road view date"})
+	}
+
+	return c.JSON(fiber.Map{"shot_date": date.Format(time.RFC3339)})
 }
 
 // helpers

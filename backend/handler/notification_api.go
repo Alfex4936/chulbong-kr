@@ -8,7 +8,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/middleware"
 	"github.com/Alfex4936/chulbong-kr/service"
 
-	"github.com/goccy/go-json"
+	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/rueidis"
@@ -83,7 +83,7 @@ func (h *NotificationHandler) WsNotificationHandler(c *websocket.Conn, userID st
 		return
 	}
 	for _, notification := range unviewedNotifications {
-		jsonData, err := json.Marshal(notification)
+		jsonData, err := sonic.Marshal(notification)
 		if err != nil {
 			log.Printf("Error marshaling notification: %v", err)
 			continue
@@ -104,7 +104,7 @@ func (h *NotificationHandler) WsNotificationHandler(c *websocket.Conn, userID st
 			log.Printf("Error sending message to WebSocket: %v", err)
 		} else {
 			var notification notification.NotificationRedis
-			json.Unmarshal([]byte(msg.Message), &notification)
+			sonic.Unmarshal([]byte(msg.Message), &notification)
 			h.NotiService.MarkNotificationAsViewed(notification.NotificationId, notification.NotificationType, userID)
 		}
 	})

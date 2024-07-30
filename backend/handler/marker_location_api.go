@@ -106,7 +106,7 @@ func (h *MarkerHandler) HandleGetCurrentAreaMarkerRanking(c *fiber.Ctx) error {
 
 	markers, err := h.MarkerFacadeService.FindRankedMarkersInCurrentArea(lat, long, currentAreaDistance, limit)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve markers " + err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve markers"})
 	}
 
 	if markers == nil {

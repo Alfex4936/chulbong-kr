@@ -2,7 +2,6 @@ package handler
 
 import (
 	"database/sql"
-	"log"
 	"os"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -22,6 +22,7 @@ type AuthHandler struct {
 	SmtpService  *service.SmtpService
 
 	TokenUtil *util.TokenUtil
+	Logger    *zap.Logger
 }
 
 // NewAuthHandler creates a new AuthHandler with dependencies injected
@@ -31,6 +32,7 @@ func NewAuthHandler(
 	token *service.TokenService,
 	smtp *service.SmtpService,
 	tutil *util.TokenUtil,
+	logger *zap.Logger,
 ) *AuthHandler {
 	return &AuthHandler{
 		AuthService:  auth,
@@ -38,6 +40,7 @@ func NewAuthHandler(
 		TokenService: token,
 		SmtpService:  smtp,
 		TokenUtil:    tutil,
+		Logger:       logger,
 	}
 }
 
@@ -128,17 +131,19 @@ func (h *AuthHandler) HandleSignUp(c *fiber.Ctx) error {
 func (h *AuthHandler) HandleLogin(c *fiber.Ctx) error {
 	var request dto.LoginRequest
 	if err := c.BodyParser(&request); err != nil {
+		h.Logger.Error("Failed to parse login request body", zap.Error(err))
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	user, err := h.AuthService.Login(request.Email, request.Password)
 	if err != nil {
-		log.Printf("Error logging in: %v", err)
+		h.Logger.Warn("Login failed", zap.Error(err))
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
 	}
 
 	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
 	if err != nil {
+		h.Logger.Error("Failed to generate token", zap.Error(err))
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
 	}
 
@@ -151,6 +156,8 @@ func (h *AuthHandler) HandleLogin(c *fiber.Ctx) error {
 	cookie := h.TokenUtil.GenerateLoginCookie(token)
 	c.Cookie(&cookie)
 
+	h.Logger.Info("User logged in successfully", zap.Int("userID", user.UserID))
+
 	return c.JSON(response)
 }
 
@@ -160,7 +167,7 @@ func (h *AuthHandler) HandleLogout(c *fiber.Ctx) error {
 	if !ok {
 		// If user ID is missing, continue with logout without error
 		// Log the occurrence for internal tracking
-		log.Println("LogoutHandler: UserID missing in session. Proceeding with client-side logout.")
+		h.Logger.Warn("UserID missing in session during logout")
 	}
 
 	token := c.Cookies("token")
@@ -169,13 +176,15 @@ func (h *AuthHandler) HandleLogout(c *fiber.Ctx) error {
 		// Attempt to delete the token from the database
 		if err := h.TokenService.DeleteOpaqueToken(userID, token); err != nil {
 			// Log the error but do not disrupt the logout process
-			log.Printf("LogoutHandler: Failed to delete session token for user ID %d: %v\n", userID, err)
+			h.Logger.Warn("Failed to delete session token", zap.Int("userID", userID), zap.Error(err))
 		}
 	}
 
 	// Clear the authentication cookie
 	cookie := h.TokenUtil.ClearLoginCookie()
 	c.Cookie(&cookie)
+
+	h.Logger.Info("User logged out successfully", zap.Int("userID", userID))
 
 	// Return a logout success response regardless of server-side token deletion status
 	return c.JSON(fiber.Map{"message": "Logged out successfully"})
@@ -208,6 +217,7 @@ func (h *AuthHandler) HandleSendVerificationEmail(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already registered"})
 	} else if err != sql.ErrNoRows {
 		// if db couldn't find a user, then it's valid. other errors are bad.
+		h.Logger.Error("Unexpected error occurred while checking email", zap.Error(err))
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "An unexpected error occurred"})
 	}
 
@@ -231,19 +241,19 @@ func (h *AuthHandler) HandleSendVerificationEmail(c *fiber.Ctx) error {
 		if strings.HasSuffix(email, "@naver.com") { // endsWith
 			exist, _ := h.AuthService.VerifyNaverEmail(email)
 			if !exist {
-				log.Printf("No such email: %s\n", email)
+				h.Logger.Warn("No such email found on Naver", zap.String("email", email))
 				return
 			}
 		}
 		token, err := h.TokenService.GenerateAndSaveSignUpToken(email)
 		if err != nil {
-			log.Printf("Failed to generate token: %v\n", err)
+			h.Logger.Error("Failed to generate token", zap.String("email", email), zap.Error(err))
 			return
 		}
 
 		err = h.SmtpService.SendVerificationEmail(email, token)
 		if err != nil {
-			log.Printf("Failed to send verification email: %v\n", err)
+			h.Logger.Error("Failed to send verification email", zap.String("email", email), zap.Error(err))
 			return
 		}
 	}(userEmail)
@@ -317,8 +327,8 @@ func (h *AuthHandler) HandleRequestResetPassword(c *fiber.Ctx) error {
 		// Send the reset email
 		err = h.SmtpService.SendPasswordResetEmail(email, token)
 		if err != nil {
-			// Log the error; cannot respond to the client at this point
-			log.Printf("Error sending reset email to %s: %v", email, err)
+			// cannot respond to the client at this point
+			h.Logger.Error("Error sending reset email", zap.String("email", email), zap.Error(err))
 			return
 		}
 	}(email)

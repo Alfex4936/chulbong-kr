@@ -9,8 +9,9 @@ import (
 
 	"github.com/Alfex4936/chulbong-kr/config"
 	"github.com/Alfex4936/chulbong-kr/dto"
-
 	"github.com/goccy/go-json"
+
+	sonic "github.com/bytedance/sonic"
 )
 
 type ZincSearchService struct {
@@ -45,7 +46,7 @@ func (s *ZincSearchService) SearchMarkerAddress(term string) (dto.MarkerSearchRe
 	}
 
 	// Marshal the value to JSON
-	jsonByte, err := json.Marshal(body)
+	jsonByte, err := sonic.Marshal(body)
 	if err != nil {
 		return apiResponse, err
 	}
@@ -78,7 +79,7 @@ func (s *ZincSearchService) SearchMarkerAddress(term string) (dto.MarkerSearchRe
 // not bulk action
 func (s *ZincSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error {
 	// Marshal the value to JSON
-	jsonByte, err := json.Marshal(indexBody)
+	jsonByte, err := sonic.Marshal(indexBody)
 	if err != nil {
 		return err
 	}

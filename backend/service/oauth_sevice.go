@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/goccy/go-json"
+	sonic "github.com/bytedance/sonic"
 )
 
 type GooglePayload struct {
@@ -38,7 +38,7 @@ func ConvertGoogleToken(accessToken string) (*GooglePayload, error) {
 
 	// Directly unmarshal into GooglePayload struct
 	var data GooglePayload
-	if err := json.Unmarshal(respBody, &data); err != nil {
+	if err := sonic.Unmarshal(respBody, &data); err != nil {
 		return nil, fmt.Errorf("error unmarshalling response into GooglePayload: %w", err)
 	}
 
