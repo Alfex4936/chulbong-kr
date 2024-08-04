@@ -1,7 +1,7 @@
 # chulbong- :kr:
 <p align="center">
   <img width="100" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/6236863a-11e1-45d5-b2e2-9bcf40363e1d" alt="k-pullup logo"/></br>
-  <img width="1024" alt="2024-07-28 pullupbars" src="https://github.com/user-attachments/assets/7dca2827-d6fe-4100-ae14-fcc509b1153e" />
+  <img width="1024" alt="2024-08-04 pullupbars" src="https://github.com/user-attachments/assets/ad9a7a61-d0b7-4f2e-8b8b-b4f4e3077d3d" />
   <img alt="GitHub commit activity (branch)" src="https://img.shields.io/github/commit-activity/w/Alfex4936/chulbong-kr/main">
 </p>
 
