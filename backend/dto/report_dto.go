@@ -52,10 +52,12 @@ type GroupedReportsResponse struct {
 
 // ReportWithPhotos is a data transfer object for reports including photos
 type ReportWithPhotos struct {
-	ReportID    int       `json:"reportID"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"createdAt"`
-	Photos      []string  `json:"photos"`
-	Address     string    `json:"address,omitempty"`
+	ReportID     int       `json:"reportID"`
+	Description  string    `json:"description"`
+	Status       string    `json:"status"`
+	CreatedAt    time.Time `json:"createdAt"`
+	Photos       []string  `json:"photos"`
+	Address      string    `json:"address,omitempty"`
+	NewLatitude  float64   `json:"newLatitude,omitempty"`
+	NewLongitude float64   `json:"newLongitude,omitempty"`
 }

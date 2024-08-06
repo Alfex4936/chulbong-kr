@@ -67,6 +67,12 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 			level = zap.WarnLevel
 		}
 
+		// Include error details if an error occurred
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		}
+
 		// Construct the structured log
 		logger.Check(level, "HTTP request processed").
 			Write(
@@ -77,8 +83,8 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 				zap.String("user_agent", userAgent),
 				zap.String("referer", referer),
 				zap.Duration("duration", duration),
-				// zap.String("error", err.Error()),
-				zap.Error(err), // Include the error if present
+				zap.String("error", errMsg), // Log the error message
+				// zap.Error(err), // Include the error if present
 			)
 
 		return err

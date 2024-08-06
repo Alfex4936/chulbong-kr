@@ -1,51 +1,85 @@
 package service
 
 import (
-	"errors"
-	"fmt"
+	"context"
 	"io"
 	"net/http"
-	"time"
 
+	"github.com/Alfex4936/chulbong-kr/model"
 	sonic "github.com/bytedance/sonic"
+	"github.com/gofiber/fiber/v2"
 )
 
-type GooglePayload struct {
-	SUB           string `json:"sub"`
-	Name          string `json:"name"`
-	GivenName     string `json:"given_name"`
-	FamilyName    string `json:"family_name"`
-	Picture       string `json:"picture"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
-	Locale        string `json:"locale"`
+func (s *AuthService) GoogleCallback(c *fiber.Ctx) (*model.User, error) {
+	code := c.Query("code")
+	token, err := s.OAuthConfig.GoogleOAuth.Exchange(context.TODO(), code)
+	if err != nil {
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	client := s.OAuthConfig.GoogleOAuth.Client(context.TODO(), token)
+	response, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	userInfo := struct {
+		ID      string `json:"id"`
+		Email   string `json:"email"`
+		Name    string `json:"name"`
+		Picture string `json:"picture"`
+	}{}
+	if err := sonic.Unmarshal(body, &userInfo); err != nil {
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	user, err := s.SaveOAuthUser("google", userInfo.ID, userInfo.Email, userInfo.Name)
+	if err != nil {
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	return user, nil
 }
 
-func ConvertGoogleToken(accessToken string) (*GooglePayload, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-	resp, err := client.Get(fmt.Sprintf("https://www.googleapis.com/oauth2/v3/userinfo?access_token=%s", accessToken))
+func (s *AuthService) KakaoCallback(c *fiber.Ctx) (*model.User, error) {
+	code := c.Query("code")
+	token, err := s.OAuthConfig.KakaoOAuth.Exchange(context.TODO(), code)
 	if err != nil {
-		return nil, fmt.Errorf("error making request to Google API: %w", err)
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
-	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	client := s.OAuthConfig.KakaoOAuth.Client(context.TODO(), token)
+	response, err := client.Get("https://kapi.kakao.com/v2/user/me")
 	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w", err)
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	// Directly unmarshal into GooglePayload struct
-	var data GooglePayload
-	if err := sonic.Unmarshal(respBody, &data); err != nil {
-		return nil, fmt.Errorf("error unmarshalling response into GooglePayload: %w", err)
+	userInfo := struct {
+		ID       string `json:"id"`
+		Email    string `json:"email"`
+		Nickname string `json:"properties.nickname"`
+	}{}
+	if err := sonic.Unmarshal(body, &userInfo); err != nil {
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	// Check if the response contains an error field
-	if data.Email == "" {
-		return nil, errors.New("invalid token: missing user email")
+	user, err := s.SaveOAuthUser("kakao", userInfo.ID, userInfo.Email, userInfo.Nickname)
+	if err != nil {
+		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
+
 	}
 
-	return &data, nil
+	return user, nil
 }

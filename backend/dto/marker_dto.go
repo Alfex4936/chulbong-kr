@@ -98,3 +98,8 @@ type WaterAPIResponse struct {
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
 }
+
+type MarkerNewPicture struct {
+	MarkerID int    `json:"markerId" db:"MarkerID"`
+	PhotoURL string `json:"photoURL" db:"PhotoURL"`
+}

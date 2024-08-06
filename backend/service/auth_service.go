@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -25,11 +26,11 @@ const (
     WHERE ot.OpaqueToken = ?`
 	profileQuery                  = "SELECT Username, Email FROM Users WHERE UserID = ?"
 	deletePasswordTokenQuery      = "DELETE FROM PasswordTokens WHERE Email = ? AND Verified = TRUE"
-	loginGetQuery                 = "SELECT UserID, Username, Email, PasswordHash, Provider FROM Users WHERE Email = ?"
+	loginGetQuery                 = "SELECT UserID, Username, Email, PasswordHash, Provider FROM Users WHERE Email = ? AND Provider = 'website'"
 	checkExpiredTokenQuery        = "SELECT UserID FROM PasswordResetTokens WHERE Token = ? AND ExpiresAt > NOW()"
 	updatePasswordQuery           = "UPDATE Users SET PasswordHash = ? WHERE UserID = ?"
 	deleteResetTokenQuery         = "DELETE FROM PasswordResetTokens WHERE Token = ?"
-	getUserEmailQuery             = "SELECT UserID FROM Users WHERE Email = ?"
+	getUserEmailQuery             = "SELECT UserID FROM Users WHERE Email = ? AND Provider = 'website'"
 	insertPasswordResetTokenQuery = `
 INSERT INTO PasswordResetTokens (UserID, Token, ExpiresAt)
 VALUES (?, ?, ?)
@@ -47,18 +48,20 @@ type UserDetails struct {
 }
 
 type AuthService struct {
-	DB         *sqlx.DB
-	Config     *config.AppConfig
-	TokenUtil  *util.TokenUtil
-	HTTPClient *http.Client
+	DB          *sqlx.DB
+	Config      *config.AppConfig
+	OAuthConfig *config.OAuthConfig
+	TokenUtil   *util.TokenUtil
+	HTTPClient  *http.Client
 }
 
-func NewAuthService(db *sqlx.DB, config *config.AppConfig, tokenUtil *util.TokenUtil, httpClient *http.Client) *AuthService {
+func NewAuthService(db *sqlx.DB, config *config.AppConfig, oconfig *config.OAuthConfig, tokenUtil *util.TokenUtil, httpClient *http.Client) *AuthService {
 	return &AuthService{
-		DB:         db,
-		Config:     config,
-		TokenUtil:  tokenUtil,
-		HTTPClient: httpClient,
+		DB:          db,
+		Config:      config,
+		OAuthConfig: oconfig,
+		TokenUtil:   tokenUtil,
+		HTTPClient:  httpClient,
 	}
 }
 
@@ -159,6 +162,75 @@ func (s *AuthService) Login(email, password string) (*model.User, error) {
 	if err != nil {
 		// Password does not match
 		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	return user, nil
+}
+
+// SaveOAuthUser saves or updates a user after OAuth2 authentication
+func (s *AuthService) SaveOAuthUser(provider string, providerID string, email string, username string) (*model.User, error) {
+	if email == "" {
+		return nil, fmt.Errorf("email and username are required")
+	}
+
+	tx, err := s.DB.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if username == "" {
+		username = strings.Split(email, "@")[0]
+	}
+
+	// Ensure unique username
+	uniqueUsername := username
+	for {
+		var count int
+		err = tx.Get(&count, "SELECT COUNT(*) FROM Users WHERE Username = ?", uniqueUsername)
+		if err != nil {
+			return nil, err
+		}
+		if count == 0 {
+			break
+		}
+
+		uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
+	}
+
+	user := &model.User{}
+	err = tx.Get(user, "SELECT * FROM Users WHERE Email = ? AND Provider = ?", email, provider)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	if err == sql.ErrNoRows {
+		// New user
+		_, err = tx.Exec("INSERT INTO Users (Username, Email, Provider, ProviderID, Role) VALUES (?, ?, ?, ?, 'user')",
+			uniqueUsername, email, provider, providerID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Existing user
+		_, err = tx.Exec("UPDATE Users SET Username = ?, ProviderID = ? WHERE Email = ? AND Provider = ?",
+			uniqueUsername, providerID, email, provider)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = tx.Get(user, "SELECT * FROM Users WHERE Email = ? AND Provider = ?", email, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
 	}
 
 	return user, nil

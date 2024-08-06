@@ -12,8 +12,9 @@ import (
 const DELAY_THRESHOLD = 10.0
 
 var (
-	SLACK_BOT_TOKEN  = os.Getenv("SLACK_BOT_TOKEN")
-	SLACK_CHANNEL_ID = os.Getenv("SLACK_CHANNEL_ID")
+	SLACK_BOT_TOKEN          = os.Getenv("SLACK_BOT_TOKEN")
+	SLACK_CHANNEL_ID         = os.Getenv("SLACK_CHANNEL_ID")
+	SLACK_CHANNEL_PENDING_ID = os.Getenv("SLACK_CHANNEL_PENDING_ID")
 )
 
 func SendSlackNotification(duration time.Duration, statusCode int, clientIP, method, path, userAgent, queryParams, referer string) {
@@ -80,5 +81,32 @@ func SendDeploymentSuccessNotification(serverName, environment string) {
 	_, _, err := client.PostMessage(SLACK_CHANNEL_ID, msg)
 	if err != nil {
 		log.Printf("Error sending deployment success message to Slack: %v\n", err)
+	}
+}
+
+func SendSlackReportNotification(reportDetails string) {
+	client := slack.New(SLACK_BOT_TOKEN)
+
+	currentTime := time.Now().Format("2006-01-02 (Mon) 15:04:05")
+
+	// Header section with bold text and information emoji
+	headerText := slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("(`%s`) *Daily Pending Reports* :information_source:", currentTime), false, false)
+	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+
+	// Divider to separate header from body
+	dividerSection := slack.NewDividerBlock()
+
+	// Fields for detailed information
+	fields := make([]*slack.TextBlockObject, 0)
+	fields = append(fields, slack.NewTextBlockObject("mrkdwn", reportDetails, false, false))
+	bodySection := slack.NewSectionBlock(nil, fields, nil)
+
+	// Combine the message blocks
+	msg := slack.MsgOptionBlocks(headerSection, dividerSection, bodySection)
+
+	// Post the message to Slack
+	_, _, err := client.PostMessage(SLACK_CHANNEL_PENDING_ID, msg)
+	if err != nil {
+		log.Printf("Error sending message to Slack: %v\n", err)
 	}
 }

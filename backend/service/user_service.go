@@ -20,7 +20,8 @@ import (
 
 const (
 	getUserById               = "SELECT UserID, Username, Email FROM Users WHERE UserID = ?"
-	getManyDetailsUserByEmail = "SELECT UserID, Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE Email = ?"
+	checkWebsiteUserById      = "SELECT EXISTS(SELECT 1 FROM Users WHERE UserID = ? AND Provider = 'website')"
+	getManyDetailsUserByEmail = "SELECT UserID, Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE Email = ? AND Provider = 'website'"
 	getUserByUsernameQuery    = "SELECT UserID FROM Users WHERE Username = ?"
 	getAllReportsByUserQuery  = `
 SELECT r.ReportID, r.MarkerID, r.UserID, ST_X(r.Location) AS Latitude, ST_Y(r.Location) AS Longitude,
@@ -132,6 +133,13 @@ func (s *UserService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserReq
 		return nil, err
 	}
 	defer tx.Rollback()
+
+	// Check if the user is registered within the website
+	var exists bool
+	err = tx.Get(&exists, checkWebsiteUserById, userID)
+	if err != nil || !exists {
+		return nil, fmt.Errorf("no user found with userID %d registered on the website", userID)
+	}
 
 	if updateReq.Username != nil {
 		normalizedUsername := strings.TrimSpace(SegmentConsonants(*updateReq.Username))

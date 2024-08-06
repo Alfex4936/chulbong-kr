@@ -38,3 +38,11 @@ type UserMarkers struct {
 	TotalPages        int                          `json:"totalPages"`
 	TotalMarkers      int                          `json:"totalMarkers"`
 }
+
+// User corresponds to the Users table in the database
+type UserResponse struct {
+	UserID   int    `json:"userId" db:"UserID"`
+	Username string `json:"username" db:"Username"`
+	Email    string `json:"email" db:"Email"`
+	Chulbong bool   `json:"chulbong,omitempty"`
+}

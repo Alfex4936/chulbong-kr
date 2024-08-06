@@ -15,6 +15,7 @@ var (
 			config.NewS3Config,
 			config.NewSmtpConfig,
 			config.NewTossPayConfig,
+			config.NewOAuthConfig,
 		),
 	)
 )

@@ -5,6 +5,10 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/kakao"
 )
 
 type AppConfig struct {
@@ -44,6 +48,7 @@ type KakaoConfig struct {
 	KakaoCoord2Region string
 	KakaoWeather      string
 	KakaoAddressInfo  string
+	KakaoRoadViewAPI  string
 }
 
 func NewKakaoConfig() *KakaoConfig {
@@ -55,6 +60,7 @@ func NewKakaoConfig() *KakaoConfig {
 		KakaoCoord2Region: "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json",
 		KakaoWeather:      "https://map.kakao.com/api/dapi/point/weather?inputCoordSystem=WCONGNAMUL&outputCoordSystem=WCONGNAMUL&version=2&service=map.daum.net",
 		KakaoAddressInfo:  "https://map.kakao.com/etc/areaAddressInfo.json?output=JSON&inputCoordSystem=WCONGNAMUL&outputCoordSystem=WCONGNAMUL",
+		KakaoRoadViewAPI:  os.Getenv("KAKAO_ROADVIEW_API"),
 	}
 }
 
@@ -129,5 +135,50 @@ func NewTossPayConfig() *TossPayConfig {
 		SecretKey:  "Basic " + base64.StdEncoding.EncodeToString([]byte(os.Getenv("TOSS_SECRET_KEY_TEST")+":")),
 		ConfirmAPI: "https://api.tosspayments.com/v1/payments/confirm",
 		PaymentAPI: "https://api.tosspayments.com/v1/payments/",
+	}
+}
+
+type OAuthConfig struct {
+	GoogleOAuth *oauth2.Config
+	KakaoOAuth  *oauth2.Config
+	NaverOAuth  *oauth2.Config
+
+	FrontendURL string
+}
+
+func NewOAuthConfig() *OAuthConfig {
+
+	return &OAuthConfig{
+		GoogleOAuth: &oauth2.Config{
+			// RedirectURL: "http://localhost:8080/api/v1/auth/google",
+			RedirectURL:  "https://api.k-pullup.com/api/v1/auth/google",
+			ClientID:     os.Getenv("OAUTH_GOOGLE_CLIENT_ID"),
+			ClientSecret: os.Getenv("OAUTH_GOOGLE_CLIENT_SECRET"),
+			Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
+			Endpoint:     google.Endpoint,
+		},
+
+		KakaoOAuth: &oauth2.Config{
+			// RedirectURL: "http://localhost:8080/api/v1/auth/kakao",
+			RedirectURL:  "https://api.k-pullup.com/api/v1/auth/kakao",
+			ClientID:     os.Getenv("OAUTH_KAKAO_CLIENT_ID"),
+			ClientSecret: os.Getenv("OAUTH_KAKAO_CLIENT_SECRET"),
+			Scopes:       []string{"profile_nickname,account_email,profile_image"},
+			Endpoint:     kakao.Endpoint,
+		},
+
+		NaverOAuth: &oauth2.Config{
+			// RedirectURL:  "http://localhost:8080/api/v1/auth/naver",
+			RedirectURL:  "https://api.k-pullup.com/api/v1/auth/naver",
+			ClientID:     os.Getenv("OAUTH_NAVER_CLIENT_ID"),
+			ClientSecret: os.Getenv("OAUTH_NAVER_CLIENT_SECRET"),
+			Scopes:       []string{"name,email,profile_image"},
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  "https://nid.naver.com/oauth2.0/authorize",
+				TokenURL: "https://nid.naver.com/oauth2.0/token",
+			},
+		},
+
+		FrontendURL: "https://test.k-pullup.com",
 	}
 }
