@@ -23,11 +23,10 @@ type Meta struct {
 type Document struct {
 	Address     *Address     `json:"address"`
 	RoadAddress *RoadAddress `json:"road_address"`
-
-	AddressName *string `json:"address_name"`
-	AddressType *string `json:"address_type"`
-	X           *string `json:"x"`
-	Y           *string `json:"y"`
+	AddressName *string      `json:"address_name"`
+	AddressType *string      `json:"address_type"`
+	X           *string      `json:"x"`
+	Y           *string      `json:"y"`
 }
 
 // Address contains detailed info about the 지번 address
@@ -58,6 +57,8 @@ type RoadAddress struct {
 
 // GeoDocument represents the structure of a geographical location document.
 type GeoDocument struct {
+	X                float64 `json:"x"`                  // X 좌표값, 경위도인 경우 경도(longitude)
+	Y                float64 `json:"y"`                  // Y 좌표값, 경위도인 경우 위도(latitude)
 	RegionType       string  `json:"region_type"`        // H(행정동) 또는 B(법정동)
 	AddressName      string  `json:"address_name"`       // 전체 지역 명칭
 	Region1DepthName string  `json:"region_1depth_name"` // 지역 1Depth, 시도 단위. 바다 영역은 존재하지 않음
@@ -65,6 +66,4 @@ type GeoDocument struct {
 	Region3DepthName string  `json:"region_3depth_name"` // 지역 3Depth, 동 단위. 바다 영역은 존재하지 않음
 	Region4DepthName string  `json:"region_4depth_name"` // 지역 4Depth, region_type이 법정동이며, 리 영역인 경우만 존재
 	Code             string  `json:"code"`               // region 코드
-	X                float64 `json:"x"`                  // X 좌표값, 경위도인 경우 경도(longitude)
-	Y                float64 `json:"y"`                  // Y 좌표값, 경위도인 경우 위도(latitude)
 }

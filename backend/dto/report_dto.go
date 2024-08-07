@@ -7,30 +7,30 @@ import (
 )
 
 type MarkerReportRequest struct {
-	MarkerID     int     `json:"markerId"`
-	UserID       int     `json:"userId"`
 	Latitude     float64 `json:"latitude"`
 	Longitude    float64 `json:"longitude"`
 	NewLatitude  float64 `json:"newLatitude,omitempty"`
 	NewLongitude float64 `json:"newLongitude,omitempty"`
+	MarkerID     int     `json:"markerId"`
+	UserID       int     `json:"userId"`
 	Description  string  `json:"description"`
 	DoesExist    bool    `json:"doesExist,omitempty"`
 }
 
 type MarkerReportResponse struct {
-	ReportID     int       `json:"reportId" db:"ReportID"`
-	MarkerID     int       `json:"markerId" db:"MarkerID"`
-	UserID       *int      `json:"userId,omitempty" db:"UserID"` // Pointer to handle nullable UserID
 	Latitude     float64   `json:"latitude" db:"Latitude"`
 	Longitude    float64   `json:"longitude" db:"Longitude"`
 	NewLatitude  float64   `json:"newLatitude,omitempty" db:"NewLatitude"`
 	NewLongitude float64   `json:"newLongitude,omitempty" db:"NewLongitude"`
+	CreatedAt    time.Time `json:"createdAt" db:"CreatedAt"`
+	ReportID     int       `json:"reportId" db:"ReportID"`
+	MarkerID     int       `json:"markerId" db:"MarkerID"`
+	UserID       *int      `json:"userId,omitempty" db:"UserID"` // Pointer to handle nullable UserID
 	Description  string    `json:"description" db:"Description"`
 	PhotoURLs    []string  `json:"photoUrls,omitempty"` // Array to store multiple photo URLs
-	CreatedAt    time.Time `json:"createdAt" db:"CreatedAt"`
 	Status       string    `json:"status" db:"Status"`
-	DoesExist    bool      `json:"doesExist,omitempty" db:"DoesExist"`
 	Address      string    `json:"address,omitempty" db:"Address"`
+	DoesExist    bool      `json:"doesExist,omitempty" db:"DoesExist"`
 }
 
 // MarkerReports groups all reports for a specific marker.
@@ -52,12 +52,22 @@ type GroupedReportsResponse struct {
 
 // ReportWithPhotos is a data transfer object for reports including photos
 type ReportWithPhotos struct {
+	NewLatitude  float64   `json:"newLatitude,omitempty"`
+	NewLongitude float64   `json:"newLongitude,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
 	ReportID     int       `json:"reportID"`
 	Description  string    `json:"description"`
 	Status       string    `json:"status"`
-	CreatedAt    time.Time `json:"createdAt"`
 	Photos       []string  `json:"photos"`
 	Address      string    `json:"address,omitempty"`
-	NewLatitude  float64   `json:"newLatitude,omitempty"`
-	NewLongitude float64   `json:"newLongitude,omitempty"`
+}
+
+type MarkerWithLatestReport struct {
+	MarkerID   int
+	LatestDate time.Time
+}
+
+type Location struct {
+	Latitude  float64 `db:"Latitude"`
+	Longitude float64 `db:"Longitude"`
 }

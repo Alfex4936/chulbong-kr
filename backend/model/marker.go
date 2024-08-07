@@ -4,13 +4,13 @@ import "time"
 
 // Marker corresponds to the Markers table in the database
 type Marker struct {
-	MarkerID    int       `json:"markerId" db:"MarkerID"`
-	UserID      *int      `json:"userId" db:"UserID"`
 	Latitude    float64   `json:"latitude" db:"Latitude"`
 	Longitude   float64   `json:"longitude" db:"Longitude"`
-	Description string    `json:"description" db:"Description"`
 	CreatedAt   time.Time `json:"createdAt" db:"CreatedAt"`
 	UpdatedAt   time.Time `json:"updatedAt" db:"UpdatedAt"`
+	MarkerID    int       `json:"markerId" db:"MarkerID"`
+	UserID      *int      `json:"userId" db:"UserID"`
+	Description string    `json:"description" db:"Description"`
 	Address     *string   `json:"address" db:"Address"`
 }
 
@@ -22,11 +22,11 @@ type MarkerWithPhoto struct {
 
 type MarkerWithPhotos struct {
 	Marker
-	IsChulbong    bool    `json:"isChulbong,omitempty"`
-	Username      string  `json:"username,omitempty"`
 	Photos        []Photo `json:"photos,omitempty"`
+	Username      string  `json:"username,omitempty"`
 	DislikeCount  int     `json:"dislikeCount,omitempty"`
 	FavoriteCount int     `json:"favCount,omitempty"`
+	IsChulbong    bool    `json:"isChulbong,omitempty"`
 	Disliked      bool    `json:"disliked"`
 	Favorited     bool    `json:"favorited,omitempty"`
 }

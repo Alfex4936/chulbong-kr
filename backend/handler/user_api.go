@@ -108,6 +108,13 @@ func (h *UserHandler) HandleProfile(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	contributions, creations, err := h.UserFacadeService.UserService.GetUserStatistics(userData.UserID)
+
+	if err == nil {
+		user.ReportCount = contributions
+		user.MarkerCount = creations
+	}
+
 	// Check adminship
 	if chulbong {
 		user.Chulbong = true

@@ -40,11 +40,11 @@ ON DUPLICATE KEY UPDATE Token = VALUES(Token), ExpiresAt = VALUES(ExpiresAt)
 )
 
 type UserDetails struct {
+	ExpiresAt time.Time
 	UserID    int
 	Username  string
 	Email     string
 	Role      string
-	ExpiresAt time.Time
 }
 
 type AuthService struct {
@@ -187,21 +187,6 @@ func (s *AuthService) SaveOAuthUser(provider string, providerID string, email st
 		username = strings.Split(email, "@")[0]
 	}
 
-	// Ensure unique username
-	uniqueUsername := username
-	for {
-		var count int
-		err = tx.Get(&count, "SELECT COUNT(*) FROM Users WHERE Username = ?", uniqueUsername)
-		if err != nil {
-			return nil, err
-		}
-		if count == 0 {
-			break
-		}
-
-		uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
-	}
-
 	user := &model.User{}
 	err = tx.Get(user, "SELECT * FROM Users WHERE Email = ? AND Provider = ?", email, provider)
 	if err != nil && err != sql.ErrNoRows {
@@ -210,6 +195,18 @@ func (s *AuthService) SaveOAuthUser(provider string, providerID string, email st
 
 	if err == sql.ErrNoRows {
 		// New user
+		uniqueUsername := username
+		for {
+			var count int
+			err = tx.Get(&count, "SELECT COUNT(*) FROM Users WHERE Username = ?", uniqueUsername)
+			if err != nil {
+				return nil, err
+			}
+			if count == 0 {
+				break
+			}
+			uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
+		}
 		_, err = tx.Exec("INSERT INTO Users (Username, Email, Provider, ProviderID, Role) VALUES (?, ?, ?, ?, 'user')",
 			uniqueUsername, email, provider, providerID)
 		if err != nil {
@@ -217,10 +214,38 @@ func (s *AuthService) SaveOAuthUser(provider string, providerID string, email st
 		}
 	} else {
 		// Existing user
-		_, err = tx.Exec("UPDATE Users SET Username = ?, ProviderID = ? WHERE Email = ? AND Provider = ?",
-			uniqueUsername, providerID, email, provider)
-		if err != nil {
-			return nil, err
+		// Check if the current nickname is different from the new one
+		currentUsername := user.Username
+		baseUsername := currentUsername
+		if idx := strings.LastIndex(currentUsername, "_"); idx != -1 {
+			baseUsername = currentUsername[:idx]
+		}
+
+		if baseUsername != username {
+			uniqueUsername := username
+			for {
+				var count int
+				err = tx.Get(&count, "SELECT COUNT(*) FROM Users WHERE Username = ?", uniqueUsername)
+				if err != nil {
+					return nil, err
+				}
+				if count == 0 {
+					break
+				}
+				uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
+			}
+			_, err = tx.Exec("UPDATE Users SET Username = ?, ProviderID = ? WHERE Email = ? AND Provider = ?",
+				uniqueUsername, providerID, email, provider)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// Just update the ProviderID if the username doesn't need to change
+			_, err = tx.Exec("UPDATE Users SET ProviderID = ? WHERE Email = ? AND Provider = ?",
+				providerID, email, provider)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

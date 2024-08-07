@@ -435,10 +435,7 @@ func (s *ReportService) UpdateDbLocation(reportID int) {
 		retryDelay := 5 * time.Second // Delay between retries
 
 		// Fetch latitude and longitude from the database
-		var location struct {
-			Latitude  float64 `db:"Latitude"`
-			Longitude float64 `db:"Longitude"`
-		}
+		var location dto.Location
 		// Fetch the marker ID associated with the report
 		var markerID int64
 		mErr := s.DB.Get(&markerID, getReportByIdQuery, reportID)

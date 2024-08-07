@@ -2,10 +2,10 @@ package dto
 
 // ElasticsearchResponse represents the entire JSON response structure
 type ElasticsearchResponse struct {
+	Hits     HitsData `json:"hits"`
+	Shards   Shards   `json:"_shards"`
 	Took     int      `json:"took"`
 	TimedOut bool     `json:"timed_out"`
-	Shards   Shards   `json:"_shards"`
-	Hits     HitsData `json:"hits"`
 }
 
 // Shards struct represents the "_shards" JSON object
@@ -18,8 +18,8 @@ type Shards struct {
 
 // HitsData struct represents the "hits" JSON object
 type HitsData struct {
-	Total    TotalValue  `json:"total"`
 	MaxScore float64     `json:"max_score"`
+	Total    TotalValue  `json:"total"`
 	Hits     []HitDetail `json:"hits"`
 }
 
@@ -30,10 +30,10 @@ type TotalValue struct {
 
 // HitDetail struct represents each element in the "hits" array
 type HitDetail struct {
+	Score     float64    `json:"_score"`
 	Index     string     `json:"_index"`
 	Type      string     `json:"_type"`
 	ID        string     `json:"_id"`
-	Score     float64    `json:"_score"`
 	Timestamp string     `json:"@timestamp"`
 	Source    ZincMarker `json:"_source"`
 }
@@ -47,11 +47,11 @@ type ZincMarker struct {
 
 // FuzzSearch represents the structure of the search
 type FuzzMarkerSearch struct {
-	SearchType   string   `json:"search_type"`
 	Query        Query    `json:"query"`
+	SourceFields []string `json:"_source"`
+	SearchType   string   `json:"search_type"`
 	From         int      `json:"from"`
 	MaxResults   int      `json:"max_results"`
-	SourceFields []string `json:"_source"`
 }
 
 // Query represents the "query" part of the search request
@@ -60,8 +60,8 @@ type Query struct {
 }
 
 type MarkerSearchResponse struct {
-	Took    int          `json:"took"`
 	Markers []ZincMarker `json:"markers"`
+	Took    int          `json:"took"`
 }
 
 type MarkerIndexData struct {

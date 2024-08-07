@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
@@ -19,7 +18,7 @@ import (
 )
 
 const (
-	getUserById               = "SELECT UserID, Username, Email FROM Users WHERE UserID = ?"
+	getUserById               = "SELECT UserID, Username, Email, Provider FROM Users WHERE UserID = ?"
 	checkWebsiteUserById      = "SELECT EXISTS(SELECT 1 FROM Users WHERE UserID = ? AND Provider = 'website')"
 	getManyDetailsUserByEmail = "SELECT UserID, Username, Email, PasswordHash, Provider, ProviderID, CreatedAt, UpdatedAt FROM Users WHERE Email = ? AND Provider = 'website'"
 	getUserByUsernameQuery    = "SELECT UserID FROM Users WHERE Username = ?"
@@ -78,6 +77,11 @@ ORDER BY Markers.CreatedAt DESC` // Order by CreatedAt in descending order
 	updateMarkersQuery        = "UPDATE Markers SET UserID = NULL WHERE UserID = ?" // Set UserID to NULL for Markers instead of deleting
 	deleteUserQuery           = "DELETE FROM Users WHERE UserID = ?"
 	getNewUserQuery           = "SELECT UserID, Username, Email, Provider, ProviderID, Role, CreatedAt, UpdatedAt FROM Users WHERE UserID = ?"
+
+	// Count query to get how many reports a user makes for any marker by UserID
+	countQueryHowManyReportsAUserMakesQuery = "SELECT COUNT(*) As ReportCount FROM Reports WHERE UserID = ?"
+	// Count query to get how many markers a user makes by UserID
+	countQueryHowManyMarkersAUserMakesQuery = "SELECT COUNT(*) AS MarkerCount FROM Markers WHERE UserID = ?"
 )
 
 type UserService struct {
@@ -308,16 +312,10 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedRe
 		})
 	}
 
-	// Create a slice of marker IDs to sort by the most recent report date
-	type MarkerWithLatestReport struct {
-		MarkerID   int
-		LatestDate time.Time
-	}
-
-	markersWithLatestReports := make([]MarkerWithLatestReport, 0, len(groupedReports))
+	markersWithLatestReports := make([]dto.MarkerWithLatestReport, 0, len(groupedReports))
 	for markerID, reports := range groupedReports {
 		if len(reports) > 0 {
-			markersWithLatestReports = append(markersWithLatestReports, MarkerWithLatestReport{
+			markersWithLatestReports = append(markersWithLatestReports, dto.MarkerWithLatestReport{
 				MarkerID:   markerID,
 				LatestDate: reports[0].CreatedAt,
 			})
@@ -421,6 +419,24 @@ func (s *UserService) GetUserFromContext(c *fiber.Ctx) (*dto.UserData, error) {
 		UserID:   userID,
 		Username: username,
 	}, nil
+}
+
+func (s *UserService) GetUserStatistics(userID int) (int, int, error) {
+	var reportCount, markerCount int
+
+	// Execute the query for reports count
+	err := s.DB.Get(&reportCount, countQueryHowManyReportsAUserMakesQuery, userID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("error fetching report count for userID %d: %w", userID, err)
+	}
+
+	// Execute the query for markers count
+	err = s.DB.Get(&markerCount, countQueryHowManyMarkersAUserMakesQuery, userID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("error fetching marker count for userID %d: %w", userID, err)
+	}
+
+	return reportCount, markerCount, nil
 }
 
 func fetchNewUser(tx *sqlx.Tx, userID int64) (*model.User, error) {

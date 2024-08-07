@@ -7,17 +7,17 @@ import (
 )
 
 type MarkerRequest struct {
-	MarkerID    int     `json:"markerId,omitempty"`
 	Latitude    float64 `json:"latitude"`
 	Longitude   float64 `json:"longitude"`
+	MarkerID    int     `json:"markerId,omitempty"`
 	Description string  `json:"description"`
 	PhotoURL    string  `json:"photoUrl,omitempty"`
 }
 
 type MarkerResponse struct {
-	MarkerID    int     `json:"markerId"`
 	Latitude    float64 `json:"latitude"`
 	Longitude   float64 `json:"longitude"`
+	MarkerID    int     `json:"markerId"`
 	Description string  `json:"description"`
 	// Username    string   `json:"username"`
 	// UserID      int      `json:"userId"`
@@ -34,42 +34,42 @@ type QueryParams struct {
 
 type MarkerWithDistance struct {
 	MarkerSimple
-	Description string  `json:"description" db:"Description"`
 	Distance    float64 `json:"distance" db:"distance"` // Distance in meters
+	Description string  `json:"description" db:"Description"`
 	Address     *string `json:"address,omitempty" db:"Address"`
 }
 
 type MarkerWithDislike struct {
 	model.Marker
-	Username     string `db:"Username"`
 	DislikeCount int    `db:"DislikeCount"`
+	Username     string `db:"Username"`
 }
 
 type MarkerSimple struct {
-	MarkerID  int     `json:"markerId" db:"MarkerID"`
 	Latitude  float64 `json:"latitude" db:"Latitude"`
 	Longitude float64 `json:"longitude" db:"Longitude"`
+	MarkerID  int     `json:"markerId" db:"MarkerID"`
 }
 
 type MarkerSimpleWithDescrption struct {
-	MarkerID    int       `json:"markerId" db:"MarkerID"`
 	Latitude    float64   `json:"latitude" db:"Latitude"`
 	Longitude   float64   `json:"longitude" db:"Longitude"`
-	Description string    `json:"description" db:"Description"`
+	MarkerID    int       `json:"markerId" db:"MarkerID"`
 	CreatedAt   time.Time `json:"-" db:"CreatedAt"`
+	Description string    `json:"description" db:"Description"`
 	Address     string    `json:"address,omitempty" db:"Address"`
 }
 
 type MarkerSimpleWithAddr struct {
-	MarkerID  int     `json:"markerId" db:"MarkerID"`
 	Latitude  float64 `json:"latitude" db:"Latitude"`
 	Longitude float64 `json:"longitude" db:"Longitude"`
+	MarkerID  int     `json:"markerId" db:"MarkerID"`
 	Address   string  `json:"address,omitempty" db:"Address"`
 }
 
 type MarkerRSS struct {
-	MarkerID  int       `json:"markerId" db:"MarkerID"`
 	UpdatedAt time.Time `json:"updatedAt" db:"UpdatedAt"`
+	MarkerID  int       `json:"markerId" db:"MarkerID"`
 	Address   string    `json:"address,omitempty" db:"Address"`
 }
 
@@ -84,8 +84,8 @@ type FacilityRequest struct {
 }
 
 type MarkerRank struct {
-	MarkerID string
 	Clicks   int
+	MarkerID string
 }
 
 type MarkerGroup struct {
@@ -94,12 +94,19 @@ type MarkerGroup struct {
 }
 
 type WaterAPIResponse struct {
-	Water     bool    `json:"water"`
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
+	Water     bool    `json:"water"`
 }
 
 type MarkerNewPicture struct {
-	MarkerID int    `json:"markerId" db:"MarkerID"`
 	PhotoURL string `json:"photoURL" db:"PhotoURL"`
+	MarkerID int    `json:"markerId" db:"MarkerID"`
+}
+
+type MarkersWithUsernames struct {
+	model.Marker
+	Username      string `db:"Username"`
+	DislikeCount  int    `db:"DislikeCount"`
+	FavoriteCount int    `db:"FavoriteCount"`
 }

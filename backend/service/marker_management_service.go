@@ -261,12 +261,7 @@ func (s *MarkerManageService) GetAllNewMarkers(page, pageSize int) ([]dto.Marker
 
 // GetMarker retrieves a single marker and its associated photo by the marker's ID
 func (s *MarkerManageService) GetMarker(markerID int) (*model.MarkerWithPhotos, error) {
-	var markersWithUsernames struct {
-		model.Marker
-		Username      string `db:"Username"`
-		DislikeCount  int    `db:"DislikeCount"`
-		FavoriteCount int    `db:"FavoriteCount"`
-	}
+	var markersWithUsernames dto.MarkersWithUsernames
 	err := s.DB.Get(&markersWithUsernames, getAmarkerQuery, markerID, markerID, markerID)
 	if err != nil {
 		return nil, err

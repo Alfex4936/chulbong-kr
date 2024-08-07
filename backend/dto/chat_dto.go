@@ -9,17 +9,17 @@ type ConnectionInfo struct {
 }
 
 type BroadcastMessage struct {
+	Timestamp    int64  `json:"timestamp"` // Unix timestamp
 	UID          string `json:"uid"`
 	Message      string `json:"message"`
 	UserID       string `json:"userId"`
 	UserNickname string `json:"userNickname"`
 	RoomID       string `json:"roomID"`
-	Timestamp    int64  `json:"timestamp"` // Unix timestamp
 	// IsOwner      bool   `json:"isOwner,omitempty"`
 }
 
 type BroadcastRoomInfoMessage struct {
+	Timestamp  int64  `json:"timestamp"`
 	RoomID     string `json:"roomID"`
 	TotalUsers string `json:"totalUsers"`
-	Timestamp  int64  `json:"timestamp"`
 }

@@ -7,12 +7,15 @@ type WeatherResponse struct {
 }
 
 type Codes struct {
-	ResultCode string `json:"resultCode"`
 	Hcode      Code   `json:"hcode"`
 	Bcode      Code   `json:"bcode"`
+	ResultCode string `json:"resultCode"`
 }
 
 type Code struct {
+	Childcount float64 `json:"childcount"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
 	Type       string  `json:"type"`
 	Code       string  `json:"code"`
 	Name       string  `json:"name"`
@@ -25,9 +28,6 @@ type Code struct {
 	Name2      string  `json:"name2"`
 	Code3      string  `json:"code3"`
 	Name3      string  `json:"name3"`
-	Childcount float64 `json:"childcount"`
-	X          float64 `json:"x"`
-	Y          float64 `json:"y"`
 }
 
 type WeatherInfos struct {

@@ -3,11 +3,11 @@ package dto
 import "github.com/Alfex4936/chulbong-kr/model"
 
 type SignUpRequest struct {
-	Username   *string `json:"username,omitempty"` // Optional for traditional, used if provided for OAuth2
 	Email      string  `json:"email"`
 	Password   string  `json:"password,omitempty"`   // Optional, not used for OAuth2 sign-ups
 	Provider   string  `json:"provider,omitempty"`   // e.g., "google", "kakao", empty for traditional sign-ups
 	ProviderID string  `json:"providerId,omitempty"` // Unique ID from the provider, empty for traditional sign-ups
+	Username   *string `json:"username,omitempty"`   // Optional for traditional, used if provided for OAuth2
 }
 
 type LoginRequest struct {
@@ -41,8 +41,11 @@ type UserMarkers struct {
 
 // User corresponds to the Users table in the database
 type UserResponse struct {
-	UserID   int    `json:"userId" db:"UserID"`
-	Username string `json:"username" db:"Username"`
-	Email    string `json:"email" db:"Email"`
-	Chulbong bool   `json:"chulbong,omitempty"`
+	Username    string `json:"username" db:"Username"`
+	Email       string `json:"email" db:"Email"`
+	Provider    string `json:"provider,omitempty" db:"Provider"`
+	UserID      int    `json:"userId" db:"UserID"`
+	ReportCount int    `json:"reportCount,omitempty" db:"ReportCount"`
+	MarkerCount int    `json:"markerCount,omitempty" db:"MarkerCount"`
+	Chulbong    bool   `json:"chulbong,omitempty"`
 }

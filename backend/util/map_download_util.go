@@ -154,7 +154,7 @@ func PlaceMarkersOnImage(baseImageFile string, markers []WCONGNAMULCoord, center
 	// Create an alpha mask for the watermark image with the desired transparency
 	temp := 255 * 0.1
 	alpha := uint8(temp) // 10% opacity
-	alphaMask := image.NewUniform(color.Alpha{alpha})
+	alphaMask := image.NewUniform(color.Alpha{A: alpha})
 
 	// Draw the watermark image with the alpha mask at the center position
 	draw.DrawMask(resultImg, image.Rect(centerX, centerY, centerX+int(newWatermarkWidth), centerY+int(newWatermarkHeight)), resizedWatermarkImg, image.Point{}, alphaMask, image.Point{}, draw.Over)
@@ -365,7 +365,7 @@ func PlaceMarkersOnImageDynamic(baseImageFile string, markers []WCONGNAMULCoord,
 	// Create an alpha mask for the watermark image with the desired transparency
 	temp := 255 * 0.1
 	alpha := uint8(temp) // 10% opacity
-	alphaMask := image.NewUniform(color.Alpha{alpha})
+	alphaMask := image.NewUniform(color.Alpha{A: alpha})
 
 	// Draw the watermark image with the alpha mask at the center position
 	draw.DrawMask(resultImg, image.Rect(centerX, centerY, centerX+int(newWatermarkWidth), centerY+int(newWatermarkHeight)), resizedWatermarkImg, image.Point{}, alphaMask, image.Point{}, draw.Over)
