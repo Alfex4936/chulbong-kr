@@ -122,6 +122,12 @@ sequenceDiagram
 - **커뮤니티 포럼**: 사용자들이 운동 팁, 턱걸이 바 추천 등을 공유할 수 있는 커뮤니티 공간.
 - **이벤트 및 챌린지**: 사용자들이 참여할 수 있는 운동 관련 이벤트 및 챌린지 개최.
 
+### pullup/dips bar detection
+
+"A nimble AI model, trained on 300 images in August 2024, striving to expertly detect bars with precision."
+
+![image](https://github.com/user-attachments/assets/d822d93a-9985-480f-acfc-ba44eb4e96dc)
+
 ### 기술 스택
 
 ![image](https://github.com/Alfex4936/chulbong-kr/assets/2356749/f82e2295-ce31-4b48-af92-20a8471b7155)
@@ -132,6 +138,7 @@ https://github.com/Alfex4936/chulbong-kr/assets/2356749/913b113c-4a8d-4df1-bb5a-
   - 메인: Go, 서브: Java (전체 프로젝트 자바로도 작성 중)
 - **프론트엔드**: React -> NextJS (TypeScript)
 - **개발 & 운영 효율성**: pprof, flamegraph, Uber's zap logger, Swagger OpenAPI, Prometheus+Grafana
+- **AI**: YOLO v8, gpt-4o mini
 - **협업**: Slack (+ Slack API)
 
 ### 🚀 Project Roles 🚀
