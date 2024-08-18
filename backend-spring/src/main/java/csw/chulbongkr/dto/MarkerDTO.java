@@ -61,9 +61,7 @@ public class MarkerDTO {
 
     public record MarkerSimpleWithAddr(
             Integer markerId,
-            double latitude,
-            double longitude,
-            Optional<String> address
+            String address
     ) {}
 
     public record FindMarkerNearbyQuery(

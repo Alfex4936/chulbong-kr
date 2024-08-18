@@ -31,15 +31,24 @@ class ProfanityServiceBenchmarkTest {
     /*
     20240516 (DAT)
 
+    String.contains()
     Average input text length: 1368812.2
     Average duration: 225100.0 ns (0.2251 ms, 2.251E-4 s)
 
-    My DAT
+    Average input text length: 1509207.3
+    Average duration: 3.755286E7 ns (37.55286 ms, 0.03755286 s)
+    Average memory used: 40.0 bytes
+
+    My DAT, roughly 180times faster than String.contains()
     Average input text length: 1424660.8
     Average duration: 210940.0 ns (0.21094 ms, 2.1094E-4 s)
 
     Average input text length: 1663676.6
     Average duration: 239500.0 ns (0.2395 ms, 2.395E-4 s)
+
+    Average input text length: 1546078.7
+    Average duration: 207390.0 ns (0.20739 ms, 2.0739E-4 s)
+    Average memory used: 744.8 bytes
      */
     @Test
     void benchmarkContainsProfanity() {

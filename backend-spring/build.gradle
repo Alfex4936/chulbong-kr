@@ -15,8 +15,10 @@ group = 'csw'
 version = '1.0.0'
 
 java {
-    sourceCompatibility = '17'
+    sourceCompatibility = '21'
+    targetCompatibility = '21'
 }
+
 
 repositories {
     mavenCentral()

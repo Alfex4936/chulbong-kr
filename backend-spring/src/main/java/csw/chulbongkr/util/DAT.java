@@ -13,7 +13,7 @@ import java.util.*;
  */
 public class DAT<V> implements Serializable {
     @Serial
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     /**
      * Check array of the Double Array Trie structure
@@ -122,7 +122,9 @@ public class DAT<V> implements Serializable {
      */
     public Hit<V> findFirst(CharSequence text) {
         int currentState = 0;
-        for (int position = 0; position < text.length(); ++position) {
+        int textLength = text.length();
+
+        for (int position = 0; position < textLength; ++position) {
             currentState = getState(currentState, text.charAt(position));
             int[] hitArray = output[currentState];
             if (hitArray != null) {
@@ -155,6 +157,7 @@ public class DAT<V> implements Serializable {
      * @throws IOException            If can't read the file from path
      * @throws ClassNotFoundException If the class doesn't exist or match
      */
+    @SuppressWarnings("unchecked")
     public void load(ObjectInputStream in) throws IOException, ClassNotFoundException {
         base = (int[]) in.readObject();
         check = (int[]) in.readObject();
@@ -332,8 +335,8 @@ public class DAT<V> implements Serializable {
      * A builder to build the AhoCorasickDoubleArrayTrie
      */
     private class Builder {
-        private State rootState = new State();
-        private boolean[] used;
+        private final State rootState = new State();
+        private BitSet used;
         private int allocSize;
         private int progress;
         private int nextCheckPos;
@@ -351,7 +354,6 @@ public class DAT<V> implements Serializable {
             buildDoubleArrayTrie(keySet.size());
             used = null;
             constructFailureStates();
-            rootState = null;
             reduceSize();
         }
 
@@ -379,40 +381,37 @@ public class DAT<V> implements Serializable {
             base[0] = 1;
             nextCheckPos = 0;
 
-            List<Map.Entry<Integer, State>> siblings = new ArrayList<>(rootState.getSuccess().entrySet().size());
+            var siblings = new ArrayList<Map.Entry<Integer, State>>(rootState.getSuccess().size());
             fetch(rootState, siblings);
             if (!siblings.isEmpty()) {
                 insert(siblings);
             }
         }
 
-        private int resize(int newSize) {
+        private void resize(int newSize) {
             int[] newBase = new int[newSize];
             int[] newCheck = new int[newSize];
-            boolean[] newUsed = new boolean[newSize];
+
             if (allocSize > 0) {
                 System.arraycopy(base, 0, newBase, 0, allocSize);
                 System.arraycopy(check, 0, newCheck, 0, allocSize);
-                System.arraycopy(used, 0, newUsed, 0, allocSize);
             }
-
             base = newBase;
             check = newCheck;
-            used = newUsed;
-
-            return allocSize = newSize;
+            used = new BitSet(newSize);
+            allocSize = newSize;
         }
 
         private void insert(List<Map.Entry<Integer, State>> siblings) {
-            Queue<Map.Entry<Integer, List<Map.Entry<Integer, State>>>> queue = new ArrayDeque<>();
+            var queue = new ArrayDeque<Map.Entry<Integer, List<Map.Entry<Integer, State>>>>();
             queue.add(new AbstractMap.SimpleEntry<>(null, siblings));
 
             while (!queue.isEmpty()) {
-                Map.Entry<Integer, List<Map.Entry<Integer, State>>> entry = queue.remove();
-                List<Map.Entry<Integer, State>> currentSiblings = entry.getValue();
+                var entry = queue.remove();
+                var currentSiblings = entry.getValue();
 
                 int begin = 0;
-                int pos = Math.max(currentSiblings.get(0).getKey() + 1, nextCheckPos) - 1;
+                int pos = Math.max(currentSiblings.getFirst().getKey() + 1, nextCheckPos) - 1;
                 int nonzeroCount = 0;
                 int first = 0;
 
@@ -420,7 +419,6 @@ public class DAT<V> implements Serializable {
                     resize(pos + 1);
                 }
 
-                outer:
                 while (true) {
                     pos++;
                     if (allocSize <= pos) {
@@ -435,18 +433,19 @@ public class DAT<V> implements Serializable {
                         first = 1;
                     }
 
-                    begin = pos - currentSiblings.get(0).getKey();
-                    if (allocSize <= (begin + currentSiblings.get(currentSiblings.size() - 1).getKey())) {
+                    begin = pos - currentSiblings.getFirst().getKey();
+                    if (allocSize <= (begin + currentSiblings.getLast().getKey())) {
                         double toSize = Math.max(1.05, 1.0 * keySize / (progress + 1)) * allocSize;
                         int maxSize = (int) (Integer.MAX_VALUE * 0.95);
                         if (allocSize >= maxSize) throw new RuntimeException("Double array trie is too big.");
                         resize((int) Math.min(toSize, maxSize));
                     }
 
-                    if (used[begin]) continue;
+                    if (used.get(begin)) continue;
 
-                    for (int i = 1; i < currentSiblings.size(); i++) {
-                        if (check[begin + currentSiblings.get(i).getKey()] != 0) continue outer;
+                    int finalBegin1 = begin;
+                    if (currentSiblings.stream().anyMatch(sibling -> check[finalBegin1 + sibling.getKey()] != 0)) {
+                        continue;
                     }
 
                     break;
@@ -455,16 +454,15 @@ public class DAT<V> implements Serializable {
                 if (1.0 * nonzeroCount / (pos - nextCheckPos + 1) >= 0.95) {
                     nextCheckPos = pos;
                 }
-                used[begin] = true;
+                used.set(begin);
 
-                size = Math.max(size, begin + currentSiblings.get(currentSiblings.size() - 1).getKey() + 1);
+                size = Math.max(size, begin + currentSiblings.getLast().getKey() + 1);
 
-                for (Map.Entry<Integer, State> sibling : currentSiblings) {
-                    check[begin + sibling.getKey()] = begin;
-                }
+                int finalBegin = begin;
+                currentSiblings.forEach(sibling -> check[finalBegin + sibling.getKey()] = finalBegin);
 
-                for (Map.Entry<Integer, State> sibling : currentSiblings) {
-                    List<Map.Entry<Integer, State>> newSiblings = new ArrayList<>(sibling.getValue().getSuccess().entrySet().size() + 1);
+                for (var sibling : currentSiblings) {
+                    var newSiblings = new ArrayList<Map.Entry<Integer, State>>(sibling.getValue().getSuccess().size() + 1);
 
                     if (fetch(sibling.getValue(), newSiblings) == 0) {
                         base[begin + sibling.getKey()] = -sibling.getValue().getLargestValueId() - 1;
@@ -482,16 +480,17 @@ public class DAT<V> implements Serializable {
             }
         }
 
+
         private void constructFailureStates() {
             fail = new int[size + 1];
             output = new int[size + 1][];
-            Queue<State> queue = new ArrayDeque<>();
+            var queue = new ArrayDeque<State>();
 
-            for (State depthOneState : rootState.getStates()) {
+            rootState.getStates().forEach(depthOneState -> {
                 depthOneState.setFailure(rootState, fail);
                 queue.add(depthOneState);
                 constructOutput(depthOneState);
-            }
+            });
 
             while (!queue.isEmpty()) {
                 State currentState = queue.remove();
@@ -535,9 +534,7 @@ public class DAT<V> implements Serializable {
                 fakeNode.addEmit(parent.getLargestValueId());
                 siblings.add(new AbstractMap.SimpleEntry<>(0, fakeNode));
             }
-            for (Map.Entry<Character, State> entry : parent.getSuccess().entrySet()) {
-                siblings.add(new AbstractMap.SimpleEntry<>(entry.getKey() + 1, entry.getValue()));
-            }
+            parent.getSuccess().forEach((key, value) -> siblings.add(new AbstractMap.SimpleEntry<>(key + 1, value)));
             return siblings.size();
         }
     }
@@ -565,12 +562,7 @@ public class DAT<V> implements Serializable {
         }
 
         public State addState(Character character) {
-            State nextState = success.get(character);
-            if (nextState == null) {
-                nextState = new State(depth + 1);
-                success.put(character, nextState);
-            }
-            return nextState;
+            return success.computeIfAbsent(character, c -> new State(depth + 1));
         }
 
         public State nextState(Character character) {

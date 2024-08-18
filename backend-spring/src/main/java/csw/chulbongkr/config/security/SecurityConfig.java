@@ -3,6 +3,7 @@ package csw.chulbongkr.config.security;
 import csw.chulbongkr.service.auth.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -38,7 +39,10 @@ import static org.springframework.security.web.util.matcher.AntPathRequestMatche
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailService;
+
+    @Qualifier("corsConfigurationSource")
     private final CorsConfigurationSource corsConfigurationSource;
+
     private final JwtTokenProvider jwtTokenProvider;
 
     @Bean

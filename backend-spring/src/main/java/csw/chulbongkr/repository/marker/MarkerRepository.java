@@ -10,5 +10,6 @@ import java.util.List;
 @Repository
 public interface MarkerRepository extends JpaRepository<Marker, Integer>, MarkerRepositoryCustom {
     List<MarkerDTO.MarkerSimple> findAllSimplifiedMarkers();
+    List<MarkerDTO.MarkerSimpleWithAddr> findAllSimplifiedMarkersWithAddress();
     List<MarkerDTO.MarkerWithDistance> findMarkersWithinDistance(double latitude, double longitude, double distance, int pageSize, int offset);
 }
