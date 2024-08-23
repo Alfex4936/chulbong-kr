@@ -4,21 +4,29 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/Alfex4936/chulbong-kr/model"
 	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
 )
 
+const (
+	GOOGLE_USER_INFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+)
+
 func (s *AuthService) GoogleCallback(c *fiber.Ctx) (*model.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	code := c.Query("code")
-	token, err := s.OAuthConfig.GoogleOAuth.Exchange(context.TODO(), code)
+	token, err := s.OAuthConfig.GoogleOAuth.Exchange(ctx, code)
 	if err != nil {
 		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	client := s.OAuthConfig.GoogleOAuth.Client(context.TODO(), token)
-	response, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	client := s.OAuthConfig.GoogleOAuth.Client(ctx, token)
+	response, err := client.Get(GOOGLE_USER_INFO_URL)
 	if err != nil {
 		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
@@ -48,13 +56,16 @@ func (s *AuthService) GoogleCallback(c *fiber.Ctx) (*model.User, error) {
 }
 
 func (s *AuthService) KakaoCallback(c *fiber.Ctx) (*model.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	code := c.Query("code")
-	token, err := s.OAuthConfig.KakaoOAuth.Exchange(context.TODO(), code)
+	token, err := s.OAuthConfig.KakaoOAuth.Exchange(ctx, code)
 	if err != nil {
 		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	client := s.OAuthConfig.KakaoOAuth.Client(context.TODO(), token)
+	client := s.OAuthConfig.KakaoOAuth.Client(ctx, token)
 	response, err := client.Get("https://kapi.kakao.com/v2/user/me")
 	if err != nil {
 		return nil, c.Status(http.StatusInternalServerError).SendString(err.Error())

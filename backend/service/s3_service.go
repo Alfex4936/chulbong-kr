@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 
 	myconfig "github.com/Alfex4936/chulbong-kr/config"
 
@@ -37,10 +38,11 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader) (s
 	}
 	defer fileData.Close()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	// Load the AWS credentials
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(s.Config.AwsRegion),
-	)
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(s.Config.AwsRegion))
 	if err != nil {
 		return "", fmt.Errorf("could not load AWS credentials: %w", err)
 	}
@@ -59,7 +61,7 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader) (s
 	key := fmt.Sprintf("%s/%s%s", folder, randomName, fileExtension)
 
 	// Upload the file to S3
-	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: &s.Config.S3BucketName,
 		Key:    &key,
 		Body:   fileData,
@@ -102,8 +104,12 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 	// 	s.Redis.ResetCache("image:" + key)
 	// }
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	// Load the AWS credentials
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+	cfg, err := config.LoadDefaultConfig(
+		ctx,
 		config.WithRegion(s.Config.AwsRegion),
 	)
 	if err != nil {
@@ -114,7 +120,7 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 	s3Client := s3.NewFromConfig(cfg)
 
 	// Delete the object
-	_, err = s3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+	_, err = s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &bucketName,
 		Key:    &key,
 	})
@@ -127,8 +133,11 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 }
 
 func (s *S3Service) ListAllObjectsInS3() ([]map[string]interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	// Load the AWS credentials
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(s.Config.AwsRegion),
 	)
 	if err != nil {
@@ -189,8 +198,11 @@ func (s *S3Service) FindUnreferencedS3Objects(dbURLs []string, s3Keys []string) 
 }
 
 func (s *S3Service) MoveFileInS3(sourceKey string, destinationKey string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	// Load the AWS configuration
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(s.Config.AwsRegion),
 	)
 	if err != nil {
@@ -203,7 +215,7 @@ func (s *S3Service) MoveFileInS3(sourceKey string, destinationKey string) error 
 	copySource := url.PathEscape(s.Config.S3BucketName + "/" + sourceKey)
 
 	// Copy the object to the new location
-	_, err = s3Client.CopyObject(context.TODO(), &s3.CopyObjectInput{
+	_, err = s3Client.CopyObject(ctx, &s3.CopyObjectInput{
 		Bucket:     aws.String(s.Config.S3BucketName),
 		CopySource: aws.String(copySource),
 		Key:        aws.String(destinationKey),
@@ -213,7 +225,7 @@ func (s *S3Service) MoveFileInS3(sourceKey string, destinationKey string) error 
 	}
 
 	// Delete the original object
-	_, err = s3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+	_, err = s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.Config.S3BucketName),
 		Key:    aws.String(sourceKey),
 	})

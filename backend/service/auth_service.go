@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/fx"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -53,22 +55,49 @@ type AuthService struct {
 	OAuthConfig *config.OAuthConfig
 	TokenUtil   *util.TokenUtil
 	HTTPClient  *http.Client
+
+	fetchTokenStmt  *sqlx.Stmt
+	profileStmt     *sqlx.Stmt
+	verifyTokenStmt *sqlx.Stmt
 }
 
 func NewAuthService(db *sqlx.DB, config *config.AppConfig, oconfig *config.OAuthConfig, tokenUtil *util.TokenUtil, httpClient *http.Client) *AuthService {
+	// Prepare the statements
+	fetchTokenStmt, _ := db.Preparex(fetchTokenQuery)
+	profileStmt, _ := db.Preparex(profileQuery)
+	verifyTokenStmt, _ := db.Preparex(verifyOpaqueTokenQuery)
+
 	return &AuthService{
 		DB:          db,
 		Config:      config,
 		OAuthConfig: oconfig,
 		TokenUtil:   tokenUtil,
 		HTTPClient:  httpClient,
+
+		fetchTokenStmt:  fetchTokenStmt,
+		profileStmt:     profileStmt,
+		verifyTokenStmt: verifyTokenStmt,
 	}
+}
+
+func RegisterAuthLifecycle(lifecycle fx.Lifecycle, service *AuthService) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			service.fetchTokenStmt.Close()
+			service.profileStmt.Close()
+			service.verifyTokenStmt.Close()
+			return nil
+		},
+	})
 }
 
 func (s *AuthService) VerifyOpaqueToken(token string) (int, time.Time, error) {
 	var userID int
 	var expiresAt time.Time
-	err := s.DB.QueryRow(verifyOpaqueTokenQuery, token).Scan(&userID, &expiresAt)
+	err := s.verifyTokenStmt.QueryRow(token).Scan(&userID, &expiresAt)
 	if err != nil {
 		return 0, time.Time{}, err
 	}
@@ -81,7 +110,7 @@ func (s *AuthService) FetchUserDetails(jwtCookie string, fetchProfile bool) (Use
 	// Fetch user ID, role, and expiration based on the opaque token
 	/// MYSQL
 	/// access_type: const, query_cost: 1.00
-	err := s.DB.QueryRow(fetchTokenQuery, jwtCookie).Scan(&details.UserID, &details.Role, &details.ExpiresAt)
+	err := s.fetchTokenStmt.QueryRow(jwtCookie).Scan(&details.UserID, &details.Role, &details.ExpiresAt)
 	if err != nil {
 		return UserDetails{}, err
 	}
@@ -90,7 +119,7 @@ func (s *AuthService) FetchUserDetails(jwtCookie string, fetchProfile bool) (Use
 	if fetchProfile {
 		/// MYSQL
 		/// access_type: const, query_cost: 1.00
-		err = s.DB.QueryRow(profileQuery, details.UserID).Scan(&details.Username, &details.Email)
+		err = s.profileStmt.QueryRow(details.UserID).Scan(&details.Username, &details.Email)
 		if err != nil {
 			return UserDetails{}, err
 		}

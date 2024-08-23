@@ -42,6 +42,7 @@ func RegisterCommentRoutes(api fiber.Router, handler *CommentHandler, authMiddle
 // postCommentHandler creates a new comment
 func (h *CommentHandler) HandlePostComment(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(int)
+	userName := c.Locals("username").(string)
 	var req dto.CommentRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
@@ -52,7 +53,7 @@ func (h *CommentHandler) HandlePostComment(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment contains inappropriate content."})
 	}
 
-	comment, err := h.CommentService.CreateComment(req.MarkerID, userID, req.CommentText)
+	comment, err := h.CommentService.CreateComment(req.MarkerID, userID, userName, req.CommentText)
 	if err != nil {
 		if strings.Contains(err.Error(), "already commented") {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "you have already commented 3 times on this marker"})

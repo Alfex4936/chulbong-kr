@@ -115,6 +115,12 @@ func (h *UserHandler) HandleProfile(c *fiber.Ctx) error {
 		user.MarkerCount = creations
 	}
 
+	contributions, level, err := h.UserFacadeService.UserService.GetUserContributionScores(userData.UserID)
+	if err == nil {
+		user.ContributionCount = contributions
+		user.ContributionLevel = level
+	}
+
 	// Check adminship
 	if chulbong {
 		user.Chulbong = true

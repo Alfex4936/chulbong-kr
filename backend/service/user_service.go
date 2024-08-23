@@ -82,7 +82,26 @@ ORDER BY Markers.CreatedAt DESC` // Order by CreatedAt in descending order
 	countQueryHowManyReportsAUserMakesQuery = "SELECT COUNT(*) As ReportCount FROM Reports WHERE UserID = ?"
 	// Count query to get how many markers a user makes by UserID
 	countQueryHowManyMarkersAUserMakesQuery = "SELECT COUNT(*) AS MarkerCount FROM Markers WHERE UserID = ?"
+
+	sumContributionScoresForAUserQuery = "SELECT SUM(Points) AS TotalPoints FROM UserContributions WHERE UserID = ?"
 )
+
+var ContributionLevelNames = []struct {
+	MinPoints int
+	MaxPoints int
+	LevelName string
+}{
+	{0, 99, "초보 운동자"},
+	{100, 299, "운동 길잡이"},
+	{300, 699, "철봉 탐험가"},
+	{700, 1499, "스트릿 워리어"},
+	{1500, 2999, "피트니스 전도시"},
+	{3000, 4999, "철봉 레인저"},
+	{5000, 7999, "철봉 매버릭"},
+	{8000, 11999, "거장"},
+	{12000, 19999, "명인"},
+	{20000, int(^uint(0) >> 1), "철봉 신화"}, // Max int value for the upper bound
+}
 
 type UserService struct {
 	DB        *sqlx.DB
@@ -439,6 +458,22 @@ func (s *UserService) GetUserStatistics(userID int) (int, int, error) {
 	return reportCount, markerCount, nil
 }
 
+// GetUserContributionScores returns the total score and the corresponding level name
+func (s *UserService) GetUserContributionScores(userID int) (int, string, error) {
+	var contributions int
+
+	// Execute the query for total contribution scores
+	err := s.DB.Get(&contributions, sumContributionScoresForAUserQuery, userID)
+	if err != nil {
+		return 0, "", fmt.Errorf("error fetching contribution scores for userID %d: %w", userID, err)
+	}
+
+	// Determine the level name based on the contribution score
+	levelName := getLevelName(contributions)
+
+	return contributions, levelName, nil
+}
+
 func fetchNewUser(tx *sqlx.Tx, userID int64) (*model.User, error) {
 	var newUser model.User
 	err := tx.QueryRowx(getNewUserQuery, userID).StructScan(&newUser)
@@ -446,4 +481,14 @@ func fetchNewUser(tx *sqlx.Tx, userID int64) (*model.User, error) {
 		return nil, fmt.Errorf("error fetching newly created user: %w", err)
 	}
 	return &newUser, nil
+}
+
+// getLevelName determines the level name based on the points
+func getLevelName(points int) string {
+	for _, level := range ContributionLevelNames {
+		if points >= level.MinPoints && points <= level.MaxPoints {
+			return level.LevelName
+		}
+	}
+	return "병아리" // In case something goes wrong
 }

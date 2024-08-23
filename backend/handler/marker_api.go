@@ -143,7 +143,7 @@ func (h *MarkerHandler) HandleGetAllMarkersLocal(c *fiber.Ctx) error {
 	// Fetch markers if cache is empty
 	markers, err := h.MarkerFacadeService.GetAllMarkers() // []dto.MarkerSimple, err
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get markers"})
 	}
 
 	// Marshal the markers to JSON for caching and response
@@ -519,7 +519,6 @@ func (h *MarkerHandler) HandleGetFacilities(c *fiber.Ctx) error {
 		c.Append("X-Cache", "hit")
 		// Cache hit, return cached facilities
 		return c.JSON(facilities)
-
 	}
 
 	facilities, err = h.MarkerFacadeService.GetFacilitiesByMarkerID(markerID)
@@ -528,7 +527,7 @@ func (h *MarkerHandler) HandleGetFacilities(c *fiber.Ctx) error {
 	}
 
 	// Cache the result for future requests
-	go h.MarkerFacadeService.SetRedisCache(cacheKey, facilities, 1*time.Hour)
+	go h.MarkerFacadeService.SetRedisCache(cacheKey, facilities, 3*time.Hour)
 
 	return c.JSON(facilities)
 }

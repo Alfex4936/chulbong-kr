@@ -131,7 +131,7 @@ func (cu *ChatUtil) GetUserIP(c *fiber.Ctx) string {
 	}
 
 	// If X-Forwarded-For is also empty, use c.IP() as the last resort
-	if c != nil && clientIP == "" {
+	if clientIP == "" {
 		clientIP = c.IP()
 	}
 

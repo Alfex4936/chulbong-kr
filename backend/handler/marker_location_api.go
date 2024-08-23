@@ -1,12 +1,19 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
+	"github.com/Alfex4936/chulbong-kr/dto/kakao"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gofiber/fiber/v2"
 )
+
+const WEATHER_MINUTES = 15 * time.Minute
 
 // Find Close Markers godoc
 //
@@ -144,13 +151,31 @@ func (h *MarkerHandler) HandleGetWeatherByWGS84(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
 	}
 
+	// Generate a short cache key by hashing the lat/long combination
+	coordinateStr := fmt.Sprintf("%f,%f", lat, long)
+	hash := sha256.New()
+	hash.Write([]byte(coordinateStr))
+	cacheKey := fmt.Sprintf("markers:weather:%s", hex.EncodeToString(hash.Sum(nil))[:16])
+
+	var weather *kakao.WeatherRequest
+	cacheErr := h.MarkerFacadeService.GetRedisCache(cacheKey, &weather)
+	if cacheErr == nil && weather != nil {
+		c.Append("X-Cache", "hit")
+		// Cache hit, return cached weather (10mins)
+		return c.JSON(weather)
+	}
+
 	result, err := h.MarkerFacadeService.FetchWeatherFromAddress(lat, long)
 	if err != nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Failed to fetch weather from address: " + err.Error()})
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Failed to fetch weather from address"})
 	}
+
+	// Cache the result for future requests
+	go h.MarkerFacadeService.SetRedisCache(cacheKey, result, WEATHER_MINUTES)
 
 	return c.JSON(result)
 }
+
 func (h *MarkerHandler) HandleConvertWGS84ToWCONGNAMUL(c *fiber.Ctx) error {
 	latParam := c.Query("latitude")
 	longParam := c.Query("longitude")

@@ -10,6 +10,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	processMsg         = "HTTP request processed"
+	insertVisitorQuery = "INSERT IGNORE INTO Visitors (IPAddress, VisitDate) VALUES (?, ?)"
+)
+
 type LogMiddleware struct {
 	ChatUtil *util.ChatUtil
 	DB       *sqlx.DB
@@ -39,17 +44,20 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 		path := c.OriginalURL()
 
 		clientIP := l.ChatUtil.GetUserIP(c)
-		visitDate := time.Now().Format("2006-01-02")
+		//visitDate := time.Now().Format("2006-01-02")
 
 		// Perform the database logging in a goroutine
-		go func() {
-			if clientIP != "" {
-				check, err := l.ChatUtil.IsIPFromSouthKorea(clientIP)
-				if check || err != nil {
-					l.DB.Exec("INSERT IGNORE INTO Visitors (IPAddress, VisitDate) VALUES (?, ?)", clientIP, visitDate)
-				}
-			}
-		}()
+		// go func() {
+		// 	if clientIP != "" {
+		// 		// Check if the clientIP is a well-formed IP address
+		// 		if ip := net.ParseIP(clientIP); ip != nil {
+		// 			check, err := l.ChatUtil.IsIPFromSouthKorea(clientIP)
+		// 			if check || err != nil {
+		// 				l.DB.Exec(insertVisitorQuery, clientIP, visitDate)
+		// 			}
+		// 		}
+		// 	}
+		// }()
 
 		userAgent := c.Get(fiber.HeaderUserAgent)
 		referer := c.Get(fiber.HeaderReferer)
@@ -74,7 +82,7 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 		}
 
 		// Construct the structured log
-		logger.Check(level, "HTTP request processed").
+		logger.Check(level, processMsg).
 			Write(
 				zap.Int("status", statusCode),
 				zap.String("method", method),
@@ -84,6 +92,7 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 				zap.String("referer", referer),
 				zap.Duration("duration", duration),
 				zap.String("error", errMsg), // Log the error message
+				// zap.Stack("stacktrace"),
 				// zap.Error(err), // Include the error if present
 			)
 

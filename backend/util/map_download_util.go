@@ -61,14 +61,14 @@ func RegisterPdfInitLifecycle(lifecycle fx.Lifecycle) {
 		OnStart: func(context.Context) error {
 
 			// Load watermark image once
-			watermarkImagePath := "fonts/logo-text.png"
+			watermarkImagePath := "resource/logo-text.png"
 			watermarkImg, _, _ = loadImage(watermarkImagePath) // ignore error
 			watermarkBounds := watermarkImg.Bounds()
 			watermarkWidth = watermarkBounds.Dx()
 			watermarkHeight = watermarkBounds.Dy()
 
 			// Load marker icon once
-			markerIconPath := "fonts/marker_40x40.webp"
+			markerIconPath := "resource/marker_40x40.webp"
 			markerIcon, _ = LoadWebP(markerIconPath)
 			markerBounds := markerIcon.Bounds()
 			markerWidth = markerBounds.Dx()
@@ -222,7 +222,7 @@ func GenerateMapPDF(imagePath, tempDir, title string, markerId int) (string, err
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 
-	pdf.AddUTF8Font("NanumGothic", "", "fonts/nanum.ttf")
+	pdf.AddUTF8Font("NanumGothic", "", "resource/nanum.ttf")
 	// Set the Korean font
 	pdf.SetFont("NanumGothic", "", 10)
 	totalWidth := 190.0 // the full width of the page area used

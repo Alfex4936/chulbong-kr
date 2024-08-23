@@ -257,7 +257,7 @@ func (s *MarkerRankService) ResetAndRandomizeClickRanking() {
 		markers[i], markers[j] = markers[j], markers[i]
 	})
 
-	numMarkers := rand.IntN(10) + 10
+	numMarkers := rand.IntN(100) + 10
 
 	selectedMarkers := markers[:numMarkers]
 
@@ -272,7 +272,7 @@ func (s *MarkerRankService) ResetAndRandomizeClickRanking() {
 		// Re-populate "marker_clicks" with the selected markers
 		zaddCmd := c.B().Zadd().Key("marker_clicks").ScoreMember()
 		for _, marker := range selectedMarkers {
-			score := float64(10 + rand.IntN(6)) // Random score between 10 and 15
+			score := float64(30 + rand.IntN(6)) // Random score between 30 and 35
 			zaddCmd = zaddCmd.ScoreMember(score, strconv.Itoa(marker.MarkerID))
 		}
 		c.Do(ctx, zaddCmd.Build())

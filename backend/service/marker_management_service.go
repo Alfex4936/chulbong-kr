@@ -38,6 +38,22 @@ SELECT
 FROM 
 	Markers;`
 
+	getAllSimpleMarkersPhotoExistenceQuery = `
+SELECT 
+    m.MarkerID, 
+    ST_X(m.Location) AS Latitude,
+    ST_Y(m.Location) AS Longitude,
+    CASE 
+        WHEN COUNT(p.PhotoID) > 0 THEN TRUE 
+        ELSE FALSE 
+    END AS HasPhoto
+FROM 
+    Markers m
+LEFT JOIN 
+    Photos p ON m.MarkerID = p.MarkerID
+GROUP BY 
+    m.MarkerID;`
+
 	getAllNewMakersQuery = `
 SELECT 
 	MarkerID, 
@@ -158,6 +174,10 @@ type MarkerManageService struct {
 	// cacheMutex        sync.RWMutex
 
 	byteCache *gocache.Cache[[]byte]
+
+	GetMarkerStmt             *sqlx.Stmt
+	GetAllPhotosForMarkerStmt *sqlx.Stmt
+	GetNewTop10PicturesStmt   *sqlx.Stmt
 }
 
 type MarkerManageServiceParams struct {
@@ -179,6 +199,11 @@ type MarkerManageServiceParams struct {
 func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
 	byteCache := gocache.New[[]byte](p.LocalCacheStorage)
 
+	// Prepare query parameters
+	getMarkerStmt, _ := p.DB.Preparex(getAmarkerQuery)
+	getAllPhotosForMarkerStmt, _ := p.DB.Preparex(getAllPhotosForMarkerQuery)
+	getNewTop10PicturesStmt, _ := p.DB.Preparex(getNewTop10PicturesQuery)
+
 	return &MarkerManageService{
 		DB:                    p.DB,
 		MarkerLocationService: p.MarkerLocationService,
@@ -190,6 +215,10 @@ func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
 		BadWordUtil:           p.BadWordUtil,
 		Logger:                p.Logger,
 		byteCache:             byteCache,
+
+		GetMarkerStmt:             getMarkerStmt,
+		GetAllPhotosForMarkerStmt: getAllPhotosForMarkerStmt,
+		GetNewTop10PicturesStmt:   getNewTop10PicturesStmt,
 	}
 }
 
@@ -201,6 +230,9 @@ func RegisterMarkerLifecycle(lifecycle fx.Lifecycle, service *MarkerManageServic
 			return nil
 		},
 		OnStop: func(context.Context) error {
+			service.GetAllPhotosForMarkerStmt.Close()
+			service.GetMarkerStmt.Close()
+			service.GetNewTop10PicturesStmt.Close()
 			return nil
 		},
 	})
@@ -230,7 +262,7 @@ func (s *MarkerManageService) ClearCache() {
 // GetAllMarkers now returns a simplified list of markers
 func (s *MarkerManageService) GetAllMarkers() ([]dto.MarkerSimple, error) {
 	var markers []dto.MarkerSimple
-	err := s.DB.Select(&markers, getAllSimpleMarkersQuery)
+	err := s.DB.Select(&markers, getAllSimpleMarkersPhotoExistenceQuery)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)
 	}
@@ -262,14 +294,14 @@ func (s *MarkerManageService) GetAllNewMarkers(page, pageSize int) ([]dto.Marker
 // GetMarker retrieves a single marker and its associated photo by the marker's ID
 func (s *MarkerManageService) GetMarker(markerID int) (*model.MarkerWithPhotos, error) {
 	var markersWithUsernames dto.MarkersWithUsernames
-	err := s.DB.Get(&markersWithUsernames, getAmarkerQuery, markerID, markerID, markerID)
+	err := s.GetMarkerStmt.Get(&markersWithUsernames, markerID, markerID, markerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch all photos for this marker by descending order of upload time
 	var photos []model.Photo
-	err = s.DB.Select(&photos, getAllPhotosForMarkerQuery, markerID)
+	err = s.GetAllPhotosForMarkerStmt.Select(&photos, markerID)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching photos: %w", err)
 	}
@@ -334,56 +366,69 @@ func (s *MarkerManageService) GetAllMarkersByUserWithPagination(userID, page, pa
 
 func (s *MarkerManageService) CheckMarkerValidity(latitude, longitude float64, description string) *fiber.Error {
 	var wg sync.WaitGroup
-	errorChan := make(chan *fiber.Error, 3) // Buffered channel based on number of goroutines
+	errorChan := make(chan *fiber.Error, 1) // Buffer size 1 since we only care about the first error
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel() // Ensure all paths cancel the context to prevent context leak
 
-	wg.Add(3) //three goroutines
-
-	// South Korea check goroutine
-	go func() {
-		defer wg.Done()
-		if inSKorea := s.MarkerLocationService.MapUtil.IsInSouthKoreaPrecisely(latitude, longitude); !inSKorea {
-			select {
-			case errorChan <- fiber.NewError(fiber.StatusForbidden, "operation is only allowed within South Korea"):
-			case <-ctx.Done():
+	checks := []func(){
+		// South Korea check goroutine (403)
+		func() {
+			if inSKorea := s.MarkerLocationService.MapUtil.IsInSouthKoreaPrecisely(latitude, longitude); !inSKorea {
+				select {
+				case errorChan <- fiber.NewError(fiber.StatusForbidden, "operation is only allowed within South Korea"):
+					cancel() // Cancel other goroutines
+				case <-ctx.Done():
+				}
 			}
-			cancel() // Cancel other goroutines
-		}
-	}()
-
-	// Marker proximity check goroutine
-	go func() {
-		defer wg.Done()
-		if nearby, _ := s.MarkerLocationService.IsMarkerNearby(latitude, longitude, 10); nearby {
-			select {
-			case errorChan <- fiber.NewError(fiber.StatusConflict, "there is a marker already nearby"):
-			case <-ctx.Done():
+		},
+		// Marker proximity check goroutine (409)
+		func() {
+			if nearby, _ := s.MarkerLocationService.IsMarkerNearby(latitude, longitude, 10); nearby {
+				select {
+				case errorChan <- fiber.NewError(fiber.StatusConflict, "there is a marker already nearby"):
+					cancel() // Cancel other goroutines
+				case <-ctx.Done():
+				}
 			}
-			cancel() // Cancel other goroutines
-		}
-	}()
-
-	// Bad words check goroutine
-	go func() {
-		defer wg.Done()
-		if containsBadWord, _ := s.BadWordUtil.CheckForBadWordsUsingTrie(description); containsBadWord {
-			select {
-			case errorChan <- fiber.NewError(fiber.StatusBadRequest, "comment contains inappropriate content"):
-			case <-ctx.Done():
+		},
+		// Bad words check goroutine (400)
+		func() {
+			if containsBadWord, _ := s.BadWordUtil.CheckForBadWordsUsingTrie(description); containsBadWord {
+				select {
+				case errorChan <- fiber.NewError(fiber.StatusBadRequest, "comment contains inappropriate content"):
+					cancel() // Cancel other goroutines
+				case <-ctx.Done():
+				}
 			}
-			cancel() // Cancel other goroutines
-		}
-	}()
+		},
+		// Restricted area check goroutine (422)
+		func() {
+			if name, restricted, _ := s.MarkerLocationService.IsMarkerInRestrictedArea(latitude, longitude); restricted {
+				select {
+				case errorChan <- fiber.NewError(fiber.StatusUnprocessableEntity, "marker is in restricted area: "+name):
+					cancel() // Cancel other goroutines
+				case <-ctx.Done():
+				}
+			}
+		},
+	}
 
-	// Wait for all goroutines to finish
+	for _, check := range checks {
+		wg.Add(1)
+		go func(c func()) {
+			defer wg.Done()
+			c()
+		}(check)
+	}
+
+	// Wait for all goroutines to finish in a separate goroutine to close the channel safely
 	go func() {
 		wg.Wait()
-		close(errorChan) // Close channel safely after all sends are done
+		close(errorChan)
 	}()
 
-	// Process errors as they come in
-	for err := range errorChan {
+	// Process the first error encountered
+	if err := <-errorChan; err != nil {
 		return err
 	}
 
@@ -516,7 +561,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 			s.Logger.Error("Failed to update address", zap.Int64("markerID", markerID), zap.Error(err))
 		}
 
-		go s.BleveSearchService.InsertMarkerIndex(dto.MarkerIndexData{MarkerID: int(markerID), Address: address})
+		s.BleveSearchService.InsertMarkerIndex(dto.MarkerIndexData{MarkerID: int(markerID), Address: address})
 		// userIDstr := strconv.Itoa(userID)
 		// updateMsg := fmt.Sprintf("새로운 철봉이 [ %s ]에 등록되었습니다!", address)
 		// metadata := notification.NotificationMarkerMetadata{
@@ -641,7 +686,7 @@ func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string
 	}(photoURLs)
 
 	s.ClearCache()
-	go s.BleveSearchService.DeleteMarkerIndex(strconv.Itoa(markerID))
+	s.BleveSearchService.DeleteMarkerIndex(strconv.Itoa(markerID))
 
 	return nil
 }
@@ -749,7 +794,7 @@ func (s *MarkerManageService) GetAllMarkersProto() ([]*protos.Marker, error) {
 
 func (s *MarkerManageService) GetNewTop10Pictures() ([]dto.MarkerNewPicture, error) {
 	var markers []dto.MarkerNewPicture
-	err := s.DB.Select(&markers, getNewTop10PicturesQuery)
+	err := s.GetNewTop10PicturesStmt.Select(&markers)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)
 	}

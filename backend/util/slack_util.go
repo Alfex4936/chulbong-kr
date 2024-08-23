@@ -9,7 +9,10 @@ import (
 	"github.com/slack-go/slack"
 )
 
-const DELAY_THRESHOLD = 10.0
+const (
+	DELAY_THRESHOLD = 10.0
+	TIME_FORMAT_STR = "2006-01-02 (Mon) 15:04:05"
+)
 
 var (
 	SLACK_BOT_TOKEN          = os.Getenv("SLACK_BOT_TOKEN")
@@ -20,7 +23,7 @@ var (
 func SendSlackNotification(duration time.Duration, statusCode int, clientIP, method, path, userAgent, queryParams, referer string) {
 	client := slack.New(SLACK_BOT_TOKEN)
 
-	currentTime := time.Now().Format("2006-01-02 (Mon) 15:04:05")
+	currentTime := time.Now().Format(TIME_FORMAT_STR)
 
 	// Header section with bold text and warning emoji
 	headerText := slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Performance Alert* (threshold: %.2f s) :warning:", DELAY_THRESHOLD), false, false)
@@ -58,7 +61,7 @@ func SendSlackNotification(duration time.Duration, statusCode int, clientIP, met
 func SendDeploymentSuccessNotification(serverName, environment string) {
 	client := slack.New(SLACK_BOT_TOKEN)
 
-	currentTime := time.Now().Format("2006-01-02 (Mon) 15:04:05")
+	currentTime := time.Now().Format(TIME_FORMAT_STR)
 
 	// Header section with bold text and celebration emoji
 	headerText := slack.NewTextBlockObject("mrkdwn", "*Deployment Success* :tada:", false, false)
@@ -87,7 +90,7 @@ func SendDeploymentSuccessNotification(serverName, environment string) {
 func SendSlackReportNotification(reportDetails string) {
 	client := slack.New(SLACK_BOT_TOKEN)
 
-	currentTime := time.Now().Format("2006-01-02 (Mon) 15:04:05")
+	currentTime := time.Now().Format(TIME_FORMAT_STR)
 
 	// Header section with bold text and information emoji
 	headerText := slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("(`%s`) *Daily Pending Reports* :information_source:", currentTime), false, false)

@@ -6,7 +6,6 @@ import (
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 
-	"log"
 	"strings"
 	"time"
 
@@ -146,7 +145,7 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 		// Then, replace bad words with asterisks in the message string
 		cleanMessage, err := h.BadWordUtil.ReplaceBadWords(messageWithoutURLs)
 		if err != nil {
-			log.Printf("Error replacing bad words: %v", err)
+			// log.Printf("Error replacing bad words: %v", err)
 			continue
 		}
 

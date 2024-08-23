@@ -11,15 +11,25 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+const (
+	getUserRoleQuery = "SELECT Username, Email, Role FROM Users WHERE UserID = ?"
+)
+
 type AuthMiddleware struct {
 	AuthService *service.AuthService
 	Config      *config.AppConfig
 	TokenUtil   *util.TokenUtil
+
+	getUserRoleStmt *sql.Stmt
 }
 
 func NewAuthMiddleware(authService *service.AuthService, config *config.AppConfig, token *util.TokenUtil) *AuthMiddleware {
+	getUserRoleStmt, _ := authService.DB.Prepare(getUserRoleQuery)
+
 	return &AuthMiddleware{
 		AuthService: authService, Config: config, TokenUtil: token,
+
+		getUserRoleStmt: getUserRoleStmt,
 	}
 }
 
@@ -35,21 +45,24 @@ func (m *AuthMiddleware) Verify(c *fiber.Ctx) error {
 	userID, expiresAt, err := m.AuthService.VerifyOpaqueToken(jwtCookie)
 
 	// Token is invalid or expired, delete the cookie
-	if err == sql.ErrNoRows || time.Now().After(expiresAt) {
+	if err != nil {
 		cookie := m.TokenUtil.ClearLoginCookie()
 		c.Cookie(&cookie)
 		if err == sql.ErrNoRows {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
 		}
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token expired"})
-	} else if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
 	}
 
+	if time.Now().After(expiresAt) {
+		cookie := m.TokenUtil.ClearLoginCookie()
+		c.Cookie(&cookie)
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token expired"})
+	}
+
 	// Fetch UserID and Username based on Email
-	userQuery := `SELECT Username, Email, Role FROM Users WHERE UserID = ?`
 	var username, email, role string
-	err = m.AuthService.DB.QueryRow(userQuery, userID).Scan(&username, &email, &role)
+	err = m.getUserRoleStmt.QueryRow(userID).Scan(&username, &email, &role)
 
 	if err != nil {
 		cookie := m.TokenUtil.ClearLoginCookie()

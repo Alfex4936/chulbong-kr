@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -30,6 +31,14 @@ SELECT EXISTS (
     FROM Markers
     WHERE ST_Within(Location, ST_Buffer(ST_GeomFromText(?, 4326), ?))
 ) AS Nearby;
+`
+
+	isInRestrictedAreaQuery = `
+SELECT Name 
+FROM RestrictedAreas 
+WHERE MBRContains(Polygon, ST_GeomFromText(?, 4326))
+AND ST_Contains(Polygon, ST_GeomFromText(?, 4326))
+LIMIT 1;
 `
 
 	// Using the optimized query with bounding box
@@ -97,6 +106,25 @@ func (s *MarkerLocationService) IsMarkerNearby(lat, long float64, bufferDistance
 	}
 
 	return nearby, nil
+}
+
+// IsMarkerNearby checks if there's a marker within n meters of the given latitude and longitude
+func (s *MarkerLocationService) IsMarkerInRestrictedArea(lat, long float64) (string, bool, error) {
+	point := fmt.Sprintf("POINT(%f %f)", lat, long)
+
+	var name string
+	err := s.DB.Get(&name, isInRestrictedAreaQuery, point, point)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// No rows were found
+			return "", false, nil
+		}
+		// Some other error occurred
+		return "", false, fmt.Errorf("error checking for nearby markers: %w", err)
+	}
+
+	// Row was found, return the name and true
+	return name, true, nil
 }
 
 // FindClosestNMarkersWithinDistance

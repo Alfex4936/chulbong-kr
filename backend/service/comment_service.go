@@ -50,7 +50,7 @@ func NewMarkerCommentService(db *sqlx.DB) *MarkerCommentService {
 type Comment = model.Comment
 
 // CreateComment inserts a new comment into the database
-func (s *MarkerCommentService) CreateComment(markerID, userID int, commentText string) (*Comment, error) {
+func (s *MarkerCommentService) CreateComment(markerID, userID int, userName, commentText string) (*dto.CommentWithUsername, error) {
 	// First, check if the marker exists
 	var exists bool
 	err := s.DB.Get(&exists, markerCheckQuery, markerID)
@@ -72,13 +72,13 @@ func (s *MarkerCommentService) CreateComment(markerID, userID int, commentText s
 	}
 
 	// Create the comment instance
-	comment := Comment{
+	comment := dto.CommentWithUsername{
 		MarkerID:    markerID,
 		UserID:      userID,
 		CommentText: commentText,
 		PostedAt:    time.Now(),
 		UpdatedAt:   time.Now(),
-		DeletedAt:   nil,
+		Username:    userName,
 	}
 
 	// Insert into database

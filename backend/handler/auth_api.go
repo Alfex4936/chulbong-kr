@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/middleware"
@@ -14,6 +15,12 @@ import (
 	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
+)
+
+const (
+	GOOGLE_USER_INFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+	KAKAO_USER_INFO_URL  = "https://kapi.kakao.com/v2/user/me"
+	NAVER_USER_INFO_URL  = "https://openapi.naver.com/v1/nid/me"
 )
 
 type AuthHandler struct {
@@ -47,18 +54,13 @@ func NewAuthHandler(
 
 // RegisterAuthRoutes sets up the routes for auth handling within the application.
 func RegisterAuthRoutes(api fiber.Router, handler *AuthHandler, authMiddleaware *middleware.AuthMiddleware) {
-	// app.Get("/auth/google/login", googleLogin)
-	//     app.Get("/auth/google/callback", googleCallback)
-
-	//     app.Get("/auth/kakao/login", kakaoLogin)
-	//     app.Get("/auth/kakao/callback", kakaoCallback)
-
 	authGroup := api.Group("/auth")
 	{
 		// OAuth2
 		authGroup.Get("/google", handler.HandleGoogleOAuth)
 		authGroup.Get("/naver", handler.HandleNaverOAuth)
 		authGroup.Get("/kakao", handler.HandleKakaoOAuth)
+		authGroup.Get("/github", handler.HandleGitHubOAuth)
 
 		authGroup.Post("/signup", handler.HandleSignUp)
 		authGroup.Post("/login", handler.HandleLogin)
@@ -215,14 +217,17 @@ func (h *AuthHandler) HandleGoogleOAuth(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).SendString("Invalid state parameter")
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	// Exchange the code for a token
-	otoken, err := h.AuthService.OAuthConfig.GoogleOAuth.Exchange(context.TODO(), code)
+	otoken, err := h.AuthService.OAuthConfig.GoogleOAuth.Exchange(ctx, code)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 
-	client := h.AuthService.OAuthConfig.GoogleOAuth.Client(context.TODO(), otoken)
-	response, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	client := h.AuthService.OAuthConfig.GoogleOAuth.Client(ctx, otoken)
+	response, err := client.Get(GOOGLE_USER_INFO_URL)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
@@ -266,9 +271,6 @@ func (h *AuthHandler) HandleGoogleOAuth(c *fiber.Ctx) error {
 	} else {
 		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + customRedirectUrl) // should be like "/pullup/1234"
 	}
-
-	// Redirect to the frontend with a token
-	// return c.Redirect("https://test.k-pullup.com?token=" + token)
 }
 
 func (h *AuthHandler) HandleKakaoOAuth(c *fiber.Ctx) error {
@@ -300,14 +302,17 @@ func (h *AuthHandler) HandleKakaoOAuth(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).SendString("Invalid state parameter")
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	// Exchange the code for a token
-	otoken, err := h.AuthService.OAuthConfig.KakaoOAuth.Exchange(context.TODO(), code)
+	otoken, err := h.AuthService.OAuthConfig.KakaoOAuth.Exchange(ctx, code)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 
-	client := h.AuthService.OAuthConfig.KakaoOAuth.Client(context.TODO(), otoken)
-	response, err := client.Get("https://kapi.kakao.com/v2/user/me")
+	client := h.AuthService.OAuthConfig.KakaoOAuth.Client(ctx, otoken)
+	response, err := client.Get(KAKAO_USER_INFO_URL)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
@@ -380,7 +385,7 @@ func (h *AuthHandler) HandleNaverOAuth(c *fiber.Ctx) error {
 	}
 
 	client := h.AuthService.OAuthConfig.NaverOAuth.Client(context.Background(), otoken)
-	response, err := client.Get("https://openapi.naver.com/v1/nid/me")
+	response, err := client.Get(NAVER_USER_INFO_URL)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
@@ -413,6 +418,125 @@ func (h *AuthHandler) HandleNaverOAuth(c *fiber.Ctx) error {
 
 	h.Logger.Info("Naver user logged in successfully", zap.Int("userID", user.UserID))
 
+	customRedirectUrl := c.Query("returnUrl")
+	if customRedirectUrl == "" {
+		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + "/mypage")
+	} else {
+		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + customRedirectUrl) // should be like "/pullup/1234"
+	}
+}
+
+func (h *AuthHandler) HandleGitHubOAuth(c *fiber.Ctx) error {
+	// Check if the state and code are present in the query params
+	state := c.Query("state")
+	code := c.Query("code")
+
+	if state == "" || code == "" {
+		// Start the OAuth flow
+		state, err := h.TokenUtil.GenerateOpaqueToken(16)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
+		}
+
+		// Store the state value in the session or a temporary store
+		c.Cookie(&fiber.Cookie{
+			Name:  "oauth_state",
+			Value: state,
+		})
+
+		url := h.AuthService.OAuthConfig.GitHubOAuth.AuthCodeURL(state)
+		c.Status(fiber.StatusSeeOther)
+		return c.Redirect(url)
+	}
+
+	// Validate the state parameter
+	storedState := c.Cookies("oauth_state")
+	if state != storedState {
+		return c.Status(fiber.StatusUnauthorized).SendString("Invalid state parameter")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Exchange the code for a token
+	otoken, err := h.AuthService.OAuthConfig.GitHubOAuth.Exchange(ctx, code)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+
+	client := h.AuthService.OAuthConfig.GitHubOAuth.Client(ctx, otoken)
+
+	// Fetch user information from GitHub API
+	response, err := client.Get("https://api.github.com/user")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+
+	var userInfo struct {
+		ID        int64  `json:"id"`
+		Login     string `json:"login"`
+		AvatarURL string `json:"avatar_url"`
+		Email     string `json:"email"`
+	}
+	if err := sonic.Unmarshal(body, &userInfo); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+
+	// If Email is empty, we may need to fetch it separately because GitHub doesn't always include it in the main user profile response.
+	if userInfo.Email == "" {
+		emailResp, err := client.Get("https://api.github.com/user/emails")
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		defer emailResp.Body.Close()
+
+		emailBody, err := io.ReadAll(emailResp.Body)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+
+		var emails []struct {
+			Email    string `json:"email"`
+			Primary  bool   `json:"primary"`
+			Verified bool   `json:"verified"`
+		}
+		if err := sonic.Unmarshal(emailBody, &emails); err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+
+		// Look for the primary and verified email
+		for _, email := range emails {
+			if email.Primary && email.Verified {
+				userInfo.Email = email.Email
+				break
+			}
+		}
+	}
+
+	user, err := h.AuthService.SaveOAuthUser("github", strconv.FormatInt(userInfo.ID, 10), userInfo.Email, userInfo.Login)
+	if err != nil {
+		h.Logger.Warn("OAuth GitHub Login failed", zap.Error(err))
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Failed to login with GitHub"})
+	}
+
+	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
+	if err != nil {
+		h.Logger.Error("Failed to generate token for GitHub login", zap.Error(err))
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
+	}
+
+	cookie := h.TokenUtil.GenerateLoginCookie(token)
+	c.Cookie(&cookie)
+
+	h.Logger.Info("GitHub user logged in successfully", zap.Int("userID", user.UserID))
+
+	// Redirect to the frontend with a token
 	customRedirectUrl := c.Query("returnUrl")
 	if customRedirectUrl == "" {
 		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + "/mypage")
