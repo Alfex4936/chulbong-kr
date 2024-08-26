@@ -1,0 +1,24 @@
+[project]
+name = "chulbong-fastapi"
+version = "0.1.0"
+description = "k-pullup in Python FastAPI"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ruff>=0.6.2",
+    "fastapi[standard]>=0.112.1",
+    "hypercorn>=0.17.3",
+    "trio>=0.26.2",
+    "sqlalchemy>=2.0.32",
+    "aiomysql>=0.2.0",
+    "databases>=0.9.0",
+    "pydantic>=2.8.2",
+    "geoalchemy2>=0.15.2",
+    "shapely>=2.0.6",
+    "structlog>=24.4.0",
+    "python-dotenv>=1.0.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
