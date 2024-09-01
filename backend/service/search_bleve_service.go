@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
+	"github.com/Alfex4936/dkssud"
 	"github.com/blevesearch/bleve/v2"
 	bleve_search "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
@@ -44,17 +45,24 @@ var (
 	}
 
 	documentMatchPool = &sync.Pool{
-		New: func() interface{} {
+		New: func() any {
 			slice := make([]*bleve_search.DocumentMatch, 0, 100)
 			return &slice
 		},
 	}
 
 	termsPool = &sync.Pool{
-		New: func() interface{} {
+		New: func() any {
 			slice := make([]string, 0, 30)
 			return &slice
 		},
+	}
+
+	// Map of English characters to Korean characters based on the QWERTY keyboard layout.
+	engToKor = map[rune]rune{
+		'q': 'ㅂ', 'w': 'ㅈ', 'e': 'ㄷ', 'r': 'ㄱ', 't': 'ㅅ', 'y': 'ㅛ', 'u': 'ㅕ', 'i': 'ㅑ', 'o': 'ㅐ', 'p': 'ㅔ',
+		'a': 'ㅁ', 's': 'ㄴ', 'd': 'ㅇ', 'f': 'ㄹ', 'g': 'ㅎ', 'h': 'ㅗ', 'j': 'ㅓ', 'k': 'ㅏ', 'l': 'ㅣ',
+		'z': 'ㅋ', 'x': 'ㅌ', 'c': 'ㅊ', 'v': 'ㅍ', 'b': 'ㅠ', 'n': 'ㅜ', 'm': 'ㅡ',
 	}
 )
 
@@ -105,10 +113,16 @@ func NewBleveSearchService(index bleve.Index, localCacheStorage *ristretto_store
 
 // SearchMarkerAddress calls bleve (Lucene-like) search
 func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResponse, error) {
+	// t is already trimmed
 	cacheKey := fmt.Sprintf("search:%s", t)
 	cachedResponse, err := s.searchCache.Get(context.Background(), cacheKey)
 	if err == nil {
 		return cachedResponse, nil
+	}
+
+	// 쿼티 한글? -> 한글로 변환 (ex. "rudrleh" -> "경기도")
+	if dkssud.IsQwertyHangul(t) {
+		t = dkssud.QwertyToHangul(t)
 	}
 
 	response := dto.MarkerSearchResponse{Markers: make([]dto.ZincMarker, 0)}
@@ -580,6 +594,18 @@ func SegmentConsonants(input string) string {
 	}
 
 	return string(result)
+}
+
+func convertToKorean(input string) string {
+	var result strings.Builder
+	for _, r := range input {
+		if converted, ok := engToKor[r]; ok {
+			result.WriteRune(converted)
+		} else {
+			result.WriteRune(r) // If character is not found in the map, keep it as is.
+		}
+	}
+	return result.String()
 }
 
 func standardizeProvince(province string) string {

@@ -273,7 +273,7 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 	}
 
 	var wg sync.WaitGroup
-	errorChan := make(chan error, len(files))
+	errorChan := make(chan error, 1)
 
 	for _, file := range files {
 		wg.Add(1)
@@ -281,11 +281,17 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 			defer wg.Done()
 			fileURL, err := s.S3Service.UploadFileToS3("reports", file)
 			if err != nil {
-				errorChan <- fmt.Errorf("failed to upload file to S3: %w", err)
+				select {
+				case errorChan <- fmt.Errorf("failed to upload file to S3: %w", err):
+				default: // Do nothing if the channel is already full
+				}
 				return
 			}
 			if _, err := tx.Exec(insertReportPhotoQuery, reportID, fileURL); err != nil {
-				errorChan <- fmt.Errorf("failed to execute database operation: %w", err)
+				select {
+				case errorChan <- fmt.Errorf("failed to execute database operation: %w", err):
+				default: // Do nothing if the channel is already full
+				}
 				return
 			}
 		}(file)
@@ -296,10 +302,8 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 	close(errorChan)
 
 	// Check for errors in the error channel
-	for err := range errorChan {
-		if err != nil {
-			return err // Return the first error encountered
-		}
+	if err, ok := <-errorChan; ok {
+		return err // Return the first error encountered
 	}
 
 	// Commit the transaction after all operations succeed

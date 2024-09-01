@@ -49,6 +49,7 @@ require (
 )
 
 require (
+	github.com/Alfex4936/dkssud v1.0.3 // indirect
 	github.com/Alfex4936/kakao v1.0.9 // indirect
 	github.com/bytedance/sonic/loader v0.2.0 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect

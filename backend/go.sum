@@ -13,6 +13,12 @@ cloud.google.com/go/longrunning v0.6.0 h1:mM1ZmaNsQsnb+5n1DNPeL0KwQd9jQRqSqSDEkB
 cloud.google.com/go/longrunning v0.6.0/go.mod h1:uHzSZqW89h7/pasCWNYdUpwGz3PcVWhrWupreVPYLts=
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+github.com/Alfex4936/dkssud v1.0.0 h1:AvhIGOb8uOt0fuAgBdchXbIHbned3QCvNm+eJgi1fLg=
+github.com/Alfex4936/dkssud v1.0.0/go.mod h1:Y5YPcBLkTbJiP+JOmFvAsHaZUyH/KGXOfmR4koKM4ik=
+github.com/Alfex4936/dkssud v1.0.2 h1:7M5jN+/yZdoX/HvKfh85ed0B7hcNfXTOaBgixc0h/uI=
+github.com/Alfex4936/dkssud v1.0.2/go.mod h1:Y5YPcBLkTbJiP+JOmFvAsHaZUyH/KGXOfmR4koKM4ik=
+github.com/Alfex4936/dkssud v1.0.3 h1:vycli5IlMPnQVtA+rKjp8t5ON3GS2X2l7vjDhHwci1E=
+github.com/Alfex4936/dkssud v1.0.3/go.mod h1:Y5YPcBLkTbJiP+JOmFvAsHaZUyH/KGXOfmR4koKM4ik=
 github.com/Alfex4936/kakao v1.0.9 h1:ghJEtCAlbckMPzHS2oksCZ91dThLWHSHhMN96BGerSE=
 github.com/Alfex4936/kakao v1.0.9/go.mod h1:sDNV3xYRL1/Hl//m1py/IG5BkM+wv2h20r4DOmFUUG8=
 github.com/Alfex4936/tzf v1.0.6 h1:isNrAziTDqTDQjZium8/Ag12TulqPurRhWQRQbIaMd8=
