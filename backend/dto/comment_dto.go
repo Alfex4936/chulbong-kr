@@ -13,7 +13,7 @@ type CommentLoadParams struct {
 }
 
 type CommentWithUsername struct {
-	CommentID   int       `json:"commentId" db:"CommentID"`
+	CommentID   int       `json:"commentId,omitempty" db:"CommentID"`
 	MarkerID    int       `json:"markerId" db:"MarkerID"`
 	UserID      int       `json:"userId" db:"UserID"`
 	PostedAt    time.Time `json:"postedAt" db:"PostedAt"`

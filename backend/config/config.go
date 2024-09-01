@@ -7,25 +7,31 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/kakao"
 )
 
 type AppConfig struct {
+	TokenExpirationTime time.Duration
 	AwsRegion           string
 	S3BucketName        string
 	LoginTokenCookie    string
-	TokenExpirationTime time.Duration
 	IsProduction        string
 	IsWaterURL          string
 	IsWaterKEY          string
 	CkURL               string // to fetch new ones from external
 	NaverEmailVerifyURL string
 	ClientURL           string
+	TestValue           string
 }
 
 func NewAppConfig() *AppConfig {
-	expiration, _ := strconv.Atoi(os.Getenv("TOKEN_EXPIRATION_INTERVAL"))
+	expiration, err := strconv.Atoi(os.Getenv("TOKEN_EXPIRATION_INTERVAL"))
+	if err != nil {
+		expiration = 24 // default to 24 hour if not set or error occurs
+	}
+
 	return &AppConfig{
 		AwsRegion:           os.Getenv("AWS_REGION"),
 		S3BucketName:        os.Getenv("AWS_BUCKET_NAME"),
@@ -37,6 +43,7 @@ func NewAppConfig() *AppConfig {
 		CkURL:               os.Getenv("CK_URL"),
 		NaverEmailVerifyURL: os.Getenv("NAVER_EMAIL_VERIFY_URL"),
 		ClientURL:           os.Getenv("CLIENT_ADDR"),
+		TestValue:           os.Getenv("TEST_VALUE"),
 	}
 }
 
@@ -93,9 +100,9 @@ func NewZincSearchConfig() *ZincSearchConfig {
 }
 
 type S3Config struct {
+	ImageCacheExpirationTime time.Duration
 	AwsRegion                string
 	S3BucketName             string
-	ImageCacheExpirationTime time.Duration
 }
 
 func NewS3Config() *S3Config {
@@ -139,15 +146,14 @@ func NewTossPayConfig() *TossPayConfig {
 }
 
 type OAuthConfig struct {
+	FrontendURL string
 	GoogleOAuth *oauth2.Config
 	KakaoOAuth  *oauth2.Config
 	NaverOAuth  *oauth2.Config
-
-	FrontendURL string
+	GitHubOAuth *oauth2.Config
 }
 
 func NewOAuthConfig() *OAuthConfig {
-
 	return &OAuthConfig{
 		GoogleOAuth: &oauth2.Config{
 			// RedirectURL: "http://localhost:8080/api/v1/auth/google",
@@ -178,7 +184,14 @@ func NewOAuthConfig() *OAuthConfig {
 				TokenURL: "https://nid.naver.com/oauth2.0/token",
 			},
 		},
+		GitHubOAuth: &oauth2.Config{
+			RedirectURL:  "https://api.k-pullup.com/api/v1/auth/github",
+			ClientID:     os.Getenv("OAUTH_GITHUB_CLIENT_ID"),
+			ClientSecret: os.Getenv("OAUTH_GITHUB_CLIENT_SECRET"),
+			Scopes:       []string{"user:email"},
+			Endpoint:     github.Endpoint,
+		},
 
-		FrontendURL: "https://test.k-pullup.com",
+		FrontendURL: "https://k-pullup.com",
 	}
 }

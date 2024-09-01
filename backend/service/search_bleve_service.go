@@ -49,6 +49,13 @@ var (
 			return &slice
 		},
 	}
+
+	termsPool = &sync.Pool{
+		New: func() interface{} {
+			slice := make([]string, 0, 30)
+			return &slice
+		},
+	}
 )
 
 type BleveSearchService struct {
@@ -106,9 +113,14 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 
 	response := dto.MarkerSearchResponse{Markers: make([]dto.ZincMarker, 0)}
 
-	// Split the search term by spaces
-	terms := strings.Fields(t)
+	// Get a pointer to a slice from the pool
+	termsPtr := termsPool.Get().(*[]string)
+	terms := (*termsPtr)[:0] // Reset the slice
+
+	// Split the search term by spaces and append to the pooled slice
+	terms = append(terms, strings.Fields(t)...)
 	if len(terms) == 0 {
+		termsPool.Put(termsPtr)
 		return response, nil
 	}
 
@@ -196,6 +208,10 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 	// Reset the slice and return the pointer to the pool
 	*allResultsPtr = allResults[:0]
 	documentMatchPool.Put(allResultsPtr)
+
+	// Return terms slice to the pool
+	*termsPtr = terms[:0]
+	termsPool.Put(termsPtr)
 
 	return response, nil
 }

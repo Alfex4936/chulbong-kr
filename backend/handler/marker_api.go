@@ -39,6 +39,7 @@ func NewMarkerHandler(authMiddleware *middleware.AuthMiddleware, facade *facade.
 
 func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddleware *middleware.AuthMiddleware) {
 	api.Get("/markers", handler.HandleGetAllMarkersLocal)
+	api.Get("/markers2", handler.HandleGetAllMarkersLocalMsgp)
 	api.Get("/markers-proto", handler.HandleGetAllMarkersProto)
 	api.Get("/markers/new", handler.HandleGetAllNewMarkers)
 
@@ -156,6 +157,36 @@ func (h *MarkerHandler) HandleGetAllMarkersLocal(c *fiber.Ctx) error {
 	h.MarkerFacadeService.SetMarkerCache(markersJSON)
 
 	return c.Send(markersJSON)
+}
+
+func (h *MarkerHandler) HandleGetAllMarkersLocalMsgp(c *fiber.Ctx) error {
+	cached := h.MarkerFacadeService.GetMarkerCache()
+	c.Set("Content-type", "application/json")
+
+	if cached != nil || len(cached) != 0 {
+		// If cache is not empty, directly return the cached binary data as JSON
+		c.Append("X-Cache", "hit")
+		return c.Send(cached)
+	}
+
+	// Fetch markers if cache is empty
+	markers, err := h.MarkerFacadeService.GetAllMarkers() // []dto.MarkerSimple, err
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get markers"})
+	}
+
+	// Marshal the markers to JSON for caching and response
+	markerSlice := dto.MarkerSimpleSlice(markers)
+
+	markersBin, err := markerSlice.MarshalMsg(nil)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode markers"})
+	}
+
+	// Update cache
+	h.MarkerFacadeService.SetMarkerCache(markersBin)
+
+	return c.Send(markersBin)
 }
 
 // HandleGetAllNewMarkers handles requests to fetch a paginated list of newly added markers.

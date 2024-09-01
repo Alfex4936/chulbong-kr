@@ -41,7 +41,7 @@ func (s *MarkerInteractService) LeaveDislike(userID int, markerID int) error {
 	return nil
 }
 
-// UndoDislike nudo user's dislike for a marker
+// UndoDislike undo user's dislike for a marker
 func (s *MarkerInteractService) UndoDislike(userID int, markerID int) error {
 	result, err := s.DB.Exec(
 		deleteDislikeQuery,

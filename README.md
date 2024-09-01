@@ -1,7 +1,7 @@
 # chulbong- :kr:
 <p align="center">
   <img width="100" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/6236863a-11e1-45d5-b2e2-9bcf40363e1d" alt="k-pullup logo"/></br>
-  <img width="1024" alt="2024-08-18 pullupbars" src="https://github.com/user-attachments/assets/614f96ac-3909-4f99-bc3d-a7863d67d241" />
+  <img width="1024" alt="2024-09-01 pullupbars" src="https://github.com/user-attachments/assets/eceb488a-8db1-46bb-96c7-1db6bfbcf7a4" />
   <img alt="GitHub commit activity (branch)" src="https://img.shields.io/github/commit-activity/w/Alfex4936/chulbong-kr/main">
 </p>
 
@@ -105,12 +105,12 @@ sequenceDiagram
     MarkerService-->>User: Edit Suggestion Submitted
 ```
 
-- **회원가입 및 로그인**: 사용자 인증을 위한 기본적인 회원가입 및 로그인 기능. (이메일 인증 필요)
+- **회원가입 및 로그인**: 사용자 인증을 위한 기본적인 회원가입 및 로그인 기능. (이메일 인증 or 소셜 로그인)
 - **마커 추가**: 턱걸이 바의 위치를 지도에 마커로 표시. 사진과 간단한 설명을 포함할 수 있음.
 - **댓글 기능**: 로그인한 사용자는 각 마커에 댓글을 남길 수 있어 정보 공유가 가능.
 - **마커 공유**: 특정 마커 공유 버튼을 눌러서 링크를 공유가 가능.
 - **근처 턱걸이 바 검색**: 현재 화면 중앙 위치에서 가까운 턱걸이 바를 찾을 수 있는 기능.
-- **관리자**: 자동 1차 필터링 (주소가 없는 경우 db에 기록) + 싫어요 n개 이상 마커들 확인
+- **관리자**: 자동 1차 필터링 (주소가 없는 경우 db에 기록) + 싫어요 n개 이상 마커들 확인 + 사진 AI 모델 + 추가 제한 구역
 - **채팅**: 각 마커마다 채팅 방 + 지역별 채팅 방 (익명)
 - **인기 장소 확인**: 사용자들이 실시간 자주 방문하는 인기 턱걸이 바 위치 확인 기능. (현재 위치 기준 + 전국)
 - **정적 이미지 오프라인**: 오프라인 용도로 철봉 위치들을 저장할 수 있는 기능. (카카오맵 정적 이미지 보완)

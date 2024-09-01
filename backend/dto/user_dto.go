@@ -41,11 +41,13 @@ type UserMarkers struct {
 
 // User corresponds to the Users table in the database
 type UserResponse struct {
-	Username    string `json:"username" db:"Username"`
-	Email       string `json:"email" db:"Email"`
-	Provider    string `json:"provider,omitempty" db:"Provider"`
-	UserID      int    `json:"userId" db:"UserID"`
-	ReportCount int    `json:"reportCount,omitempty" db:"ReportCount"`
-	MarkerCount int    `json:"markerCount,omitempty" db:"MarkerCount"`
-	Chulbong    bool   `json:"chulbong,omitempty"`
+	Username          string `json:"username" db:"Username"`
+	Email             string `json:"email" db:"Email"`
+	Provider          string `json:"provider,omitempty" db:"Provider"`
+	ContributionLevel string `json:"contributionLevel,omitempty"`
+	UserID            int    `json:"userId" db:"UserID"`
+	ReportCount       int    `json:"reportCount,omitempty" db:"ReportCount"`
+	MarkerCount       int    `json:"markerCount,omitempty" db:"MarkerCount"`
+	ContributionCount int    `json:"contributionCount,omitempty"`
+	Chulbong          bool   `json:"chulbong,omitempty"`
 }

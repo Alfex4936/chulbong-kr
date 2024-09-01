@@ -6,10 +6,11 @@ import (
 	"mime/multipart"
 	"time"
 
-	"github.com/goccy/go-json"
+	sonic "github.com/bytedance/sonic"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
+	"github.com/Alfex4936/chulbong-kr/protos"
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gofiber/fiber/v2"
@@ -89,8 +90,20 @@ func (mfs *MarkerFacadeService) GetAllMarkers() ([]dto.MarkerSimple, error) {
 	return mfs.ManageService.GetAllMarkers()
 }
 
-func (mfs *MarkerFacadeService) GetAllNewMarkers(page, pageSize int) ([]dto.MarkerSimple, error) {
+func (mfs *MarkerFacadeService) GetAllNewMarkers(page, pageSize int) ([]dto.MarkerNewResponse, error) {
 	return mfs.ManageService.GetAllNewMarkers(page, pageSize)
+}
+
+func (mfs *MarkerFacadeService) GetAllMarkersProto() ([]*protos.Marker, error) {
+	return mfs.ManageService.GetAllMarkersProto()
+}
+
+func (mfs *MarkerFacadeService) GetNew10Pictures() ([]dto.MarkerNewPicture, error) {
+	return mfs.ManageService.GetNewTop10Pictures()
+}
+
+func (mfs *MarkerFacadeService) GetNew10PicturesWithExtra() ([]dto.MarkerNewPictureExtra, error) {
+	return mfs.ManageService.GetNewTop10PicturesWithExtra()
 }
 
 func (mfs *MarkerFacadeService) GetAllMarkersWithAddr() ([]dto.MarkerSimpleWithAddr, error) {
@@ -203,11 +216,11 @@ func (mfs *MarkerFacadeService) SetMarkerCache(mjson []byte) {
 
 func (mfs *MarkerFacadeService) SetWcongCache(latitude, longitude float64, coord util.WCONGNAMULCoord) {
 	key := generateCacheKey(latitude, longitude)
-	data, err := json.Marshal(coord)
+	data, err := sonic.Marshal(coord)
 	if err != nil {
 		return
 	}
-	mfs.wcongCache.Set(context.TODO(), key, data)
+	mfs.wcongCache.Set(context.TODO(), key, data) // TODO: Update context to expire
 }
 
 func (mfs *MarkerFacadeService) GetWcongCache(latitude, longitude float64) (*util.WCONGNAMULCoord, error) {
@@ -221,7 +234,7 @@ func (mfs *MarkerFacadeService) GetWcongCache(latitude, longitude float64) (*uti
 	}
 
 	var coord util.WCONGNAMULCoord
-	err = json.Unmarshal(value, &coord)
+	err = sonic.Unmarshal(value, &coord)
 	if err != nil {
 		return nil, err
 	}

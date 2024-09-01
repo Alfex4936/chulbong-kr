@@ -62,6 +62,10 @@ func (mfs *AdminFacadeService) FetchLatestMarkers(thresholdDate time.Time) ([]se
 	return mfs.MarkerFacility.FetchLatestMarkers(thresholdDate)
 }
 
+func (mfs *AdminFacadeService) FetchRoadViewPicDate(latitude, longitude float64) (time.Time, error) {
+	return mfs.MarkerFacility.FetchRoadViewPicDate(latitude, longitude)
+}
+
 func (mfs *AdminFacadeService) CheckMarkerValidity(latitude, longitude float64, description string) *fiber.Error {
 	return mfs.MarkerManage.CheckMarkerValidity(latitude, longitude, description)
 }

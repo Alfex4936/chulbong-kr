@@ -45,10 +45,23 @@ type MarkerWithDislike struct {
 	Username     string `db:"Username"`
 }
 
+type MarkerSimpleSlice []MarkerSimple
+
+// go:generate msgp
 type MarkerSimple struct {
 	Latitude  float64 `json:"latitude" db:"Latitude"`
 	Longitude float64 `json:"longitude" db:"Longitude"`
 	MarkerID  int     `json:"markerId" db:"MarkerID"`
+	HasPhoto  bool    `json:"hasPhoto,omitempty" db:"HasPhoto"`
+}
+
+type MarkerNewResponse struct {
+	Latitude  float64 `json:"latitude" db:"Latitude"`
+	Longitude float64 `json:"longitude" db:"Longitude"`
+	Address   string  `json:"address,omitempty" db:"Address"`
+	Username  int     `json:"username" db:"Username"`
+	MarkerID  int     `json:"markerId" db:"MarkerID"`
+	HasPhoto  bool    `json:"hasPhoto,omitempty" db:"HasPhoto"`
 }
 
 type MarkerSimpleWithDescrption struct {
@@ -102,6 +115,15 @@ type WaterAPIResponse struct {
 type MarkerNewPicture struct {
 	PhotoURL string `json:"photoURL" db:"PhotoURL"`
 	MarkerID int    `json:"markerId" db:"MarkerID"`
+}
+
+type MarkerNewPictureExtra struct {
+	PhotoURL  string  `json:"photoURL" db:"PhotoURL"`
+	Address   string  `json:"address,omitempty" db:"Address"`
+	Weather   string  `json:"weather"`
+	Latitude  float64 `json:"latitude" db:"Latitude"`
+	Longitude float64 `json:"longitude" db:"Longitude"`
+	MarkerID  int     `json:"markerId" db:"MarkerID"`
 }
 
 type MarkersWithUsernames struct {

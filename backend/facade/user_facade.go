@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
-	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/gofiber/fiber/v2"
 )
@@ -36,7 +35,7 @@ func (mfs *UserFacadeService) GetUserFromContext(c *fiber.Ctx) (*dto.UserData, e
 	return mfs.UserService.GetUserFromContext(c)
 }
 
-func (mfs *UserFacadeService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*model.User, error) {
+func (mfs *UserFacadeService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserRequest) (*dto.UserResponse, error) {
 	return mfs.UserService.UpdateUserProfile(userID, updateReq)
 }
 
@@ -58,8 +57,12 @@ func (mfs *UserFacadeService) GetUserCache(key string, value interface{}) error 
 	return mfs.RedisService.GetCacheEntry(key, value)
 }
 
-func (mfs *UserFacadeService) GetUserById(userID int) (*model.User, error) {
+func (mfs *UserFacadeService) GetUserById(userID int) (*dto.UserResponse, error) {
 	return mfs.UserService.GetUserById(userID)
+}
+
+func (mfs *UserFacadeService) GetUserStatistics(userID int) (int, int, error) {
+	return mfs.UserService.GetUserStatistics(userID)
 }
 
 func (mfs *UserFacadeService) SetRedisCache(key string, value interface{}, expiration time.Duration) error {

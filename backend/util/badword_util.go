@@ -235,7 +235,7 @@ func (b *BadWordUtil) LoadBadWordsByte(filePath string) error {
 	}
 	defer file.Close()
 
-	const estimatedWords = 1000
+	const estimatedWords = 600
 	b.BadWordsListByte = make([][]byte, 0, estimatedWords)
 
 	scanner := bufio.NewScanner(file)

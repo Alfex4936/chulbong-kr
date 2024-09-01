@@ -42,6 +42,10 @@ type SchedulerService struct {
 	ReportService       *ReportService
 	cron                *cron.Cron
 	adminEmail          string
+
+	GetOrphanedPhotosStmt         *sqlx.Stmt
+	GetOrphanedPhotosByReportStmt *sqlx.Stmt
+	DeleteViewedNotificationsStmt *sqlx.Stmt
 }
 
 func NewSchedulerService(
@@ -51,6 +55,11 @@ func NewSchedulerService(
 	smtpService *SmtpService, reportService *ReportService,
 
 ) *SchedulerService {
+	// Prepare query parameters
+	GetOrphanedPhotosStmt, _ := db.Preparex(getOrphanedPhotosQuery)
+	GetOrphanedPhotosByReportStmt, _ := db.Preparex(getOrphanedPhotosByReportQuery)
+	DeleteViewedNotificationsStmt, _ := db.Preparex(deleteViewedNotificationsQuery)
+
 	return &SchedulerService{
 		DB:                  db,
 		TokenService:        tokenService,
@@ -63,7 +72,10 @@ func NewSchedulerService(
 		cron: cron.New(cron.WithChain(
 			cron.Recover(cron.DefaultLogger),
 		)),
-		adminEmail: os.Getenv("SMTP_PRIVATE_EMAIL"),
+		adminEmail:                    os.Getenv("SMTP_PRIVATE_EMAIL"),
+		GetOrphanedPhotosStmt:         GetOrphanedPhotosStmt,
+		GetOrphanedPhotosByReportStmt: GetOrphanedPhotosByReportStmt,
+		DeleteViewedNotificationsStmt: DeleteViewedNotificationsStmt,
 	}
 }
 
@@ -76,6 +88,9 @@ func RegisterSchedulerLifecycle(lifecycle fx.Lifecycle, scheduler *SchedulerServ
 			return nil
 		},
 		OnStop: func(context.Context) error {
+			scheduler.GetOrphanedPhotosStmt.Close()
+			scheduler.GetOrphanedPhotosByReportStmt.Close()
+			scheduler.DeleteViewedNotificationsStmt.Close()
 			return nil
 		},
 	})
@@ -328,7 +343,7 @@ func cleanTempDir(dir string, maxAge time.Duration) error {
 // deleteOrphanedPhotos checks for photos without a corresponding marker and deletes them.
 func (s *SchedulerService) deleteOrphanedPhotos() error {
 	// Find photos with no corresponding marker.
-	rows, err := s.DB.Query(getOrphanedPhotosQuery)
+	rows, err := s.GetOrphanedPhotosStmt.Query()
 	if err != nil {
 		return fmt.Errorf("querying orphaned photos: %w", err)
 	}
@@ -380,7 +395,7 @@ func (s *SchedulerService) deleteOrphanedPhotos() error {
 
 func (s *SchedulerService) deleteOrphanedReportPhotos() error {
 	// Find photos with no corresponding marker.
-	rows, err := s.DB.Query(getOrphanedPhotosByReportQuery)
+	rows, err := s.GetOrphanedPhotosByReportStmt.Query()
 	if err != nil {
 		return fmt.Errorf("querying orphaned photos: %w", err)
 	}

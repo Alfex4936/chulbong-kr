@@ -58,11 +58,13 @@ GROUP BY
 SELECT 
 	MarkerID, 
 	ST_X(Location) AS Latitude,
-	ST_Y(Location) AS Longitude
+	ST_Y(Location) AS Longitude,
+	Address,
+	UserID
 FROM 
 	Markers
 ORDER BY 
-	createdAt DESC
+	CreatedAt DESC
 LIMIT ? OFFSET ?;`
 
 	// access_type: const, query_cost: 1.00
@@ -150,7 +152,18 @@ ORDER BY distance ASC`
 
 	generateRSSQuery = "SELECT MarkerID, UpdatedAt, Address FROM Markers ORDER BY UpdatedAt DESC"
 
-	getNewTop10PicturesQuery = "SELECT DISTINCT(MarkerID), PhotoURL FROM chulbong.Photos ORDER BY UploadedAt DESC LIMIT 10"
+	getNewTop10PicturesQuery      = "SELECT DISTINCT(MarkerID), PhotoURL FROM chulbong.Photos ORDER BY UploadedAt DESC LIMIT 10"
+	getNewTop10PicturesExtraQuery = `
+SELECT p.MarkerID, p.PhotoURL, m.Address, ST_X(m.Location) AS Latitude, ST_Y(m.Location) AS Longitude
+FROM Photos p
+JOIN (
+    SELECT MarkerID, MAX(UploadedAt) AS LatestUpload
+    FROM Photos
+    GROUP BY MarkerID
+) sub ON p.MarkerID = sub.MarkerID AND p.UploadedAt = sub.LatestUpload
+LEFT JOIN Markers m ON p.MarkerID = m.MarkerID
+ORDER BY p.UploadedAt DESC
+LIMIT 10`
 )
 
 // MarkerManageService is a service for marker management operations.
@@ -159,9 +172,9 @@ type MarkerManageService struct {
 
 	MarkerLocationService *MarkerLocationService
 	S3Service             *S3Service
-	ZincSearchService     *ZincSearchService
-	BleveSearchService    *BleveSearchService
-	RedisService          *RedisService
+	// ZincSearchService     *ZincSearchService
+	BleveSearchService *BleveSearchService
+	RedisService       *RedisService
 
 	MapUtil           *util.MapUtil
 	BadWordUtil       *util.BadWordUtil
@@ -178,6 +191,7 @@ type MarkerManageService struct {
 	GetMarkerStmt             *sqlx.Stmt
 	GetAllPhotosForMarkerStmt *sqlx.Stmt
 	GetNewTop10PicturesStmt   *sqlx.Stmt
+	GenerateRSSQueryStmt      *sqlx.Stmt
 }
 
 type MarkerManageServiceParams struct {
@@ -186,13 +200,13 @@ type MarkerManageServiceParams struct {
 	DB                    *sqlx.DB
 	MarkerLocationService *MarkerLocationService
 	S3Service             *S3Service
-	ZincSearchService     *ZincSearchService
-	BleveSearchService    *BleveSearchService
-	RedisService          *RedisService
-	MapUtil               *util.MapUtil
-	BadWordUtil           *util.BadWordUtil
-	LocalCacheStorage     *ristretto_store.RistrettoStore
-	Logger                *zap.Logger
+	// ZincSearchService     *ZincSearchService
+	BleveSearchService *BleveSearchService
+	RedisService       *RedisService
+	MapUtil            *util.MapUtil
+	BadWordUtil        *util.BadWordUtil
+	LocalCacheStorage  *ristretto_store.RistrettoStore
+	Logger             *zap.Logger
 }
 
 // NewMarkerManageService creates a new instance of MarkerManageService.
@@ -203,22 +217,24 @@ func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
 	getMarkerStmt, _ := p.DB.Preparex(getAmarkerQuery)
 	getAllPhotosForMarkerStmt, _ := p.DB.Preparex(getAllPhotosForMarkerQuery)
 	getNewTop10PicturesStmt, _ := p.DB.Preparex(getNewTop10PicturesQuery)
+	generateRSSQueryStmt, _ := p.DB.Preparex(generateRSSQuery)
 
 	return &MarkerManageService{
 		DB:                    p.DB,
 		MarkerLocationService: p.MarkerLocationService,
 		S3Service:             p.S3Service,
-		ZincSearchService:     p.ZincSearchService,
-		BleveSearchService:    p.BleveSearchService,
-		RedisService:          p.RedisService,
-		MapUtil:               p.MapUtil,
-		BadWordUtil:           p.BadWordUtil,
-		Logger:                p.Logger,
-		byteCache:             byteCache,
+		// ZincSearchService:     p.ZincSearchService,
+		BleveSearchService: p.BleveSearchService,
+		RedisService:       p.RedisService,
+		MapUtil:            p.MapUtil,
+		BadWordUtil:        p.BadWordUtil,
+		Logger:             p.Logger,
+		byteCache:          byteCache,
 
 		GetMarkerStmt:             getMarkerStmt,
 		GetAllPhotosForMarkerStmt: getAllPhotosForMarkerStmt,
 		GetNewTop10PicturesStmt:   getNewTop10PicturesStmt,
+		GenerateRSSQueryStmt:      generateRSSQueryStmt,
 	}
 }
 
@@ -233,6 +249,7 @@ func RegisterMarkerLifecycle(lifecycle fx.Lifecycle, service *MarkerManageServic
 			service.GetAllPhotosForMarkerStmt.Close()
 			service.GetMarkerStmt.Close()
 			service.GetNewTop10PicturesStmt.Close()
+			service.GenerateRSSQueryStmt.Close()
 			return nil
 		},
 	})
@@ -273,7 +290,7 @@ func (s *MarkerManageService) GetAllMarkers() ([]dto.MarkerSimple, error) {
 }
 
 // GetAllNewMarkers returns a paginated, simplified list of the most recently added markers.
-func (s *MarkerManageService) GetAllNewMarkers(page, pageSize int) ([]dto.MarkerSimple, error) {
+func (s *MarkerManageService) GetAllNewMarkers(page, pageSize int) ([]dto.MarkerNewResponse, error) {
 	if page < 1 {
 		page = 1 // Ensure page starts at 1
 	}
@@ -282,7 +299,7 @@ func (s *MarkerManageService) GetAllNewMarkers(page, pageSize int) ([]dto.Marker
 	}
 	offset := (page - 1) * pageSize
 
-	var markers []dto.MarkerSimple
+	var markers []dto.MarkerNewResponse
 	err := s.DB.Select(&markers, getAllNewMakersQuery, pageSize, offset)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)
@@ -774,7 +791,7 @@ func (s *MarkerManageService) CheckNearbyMarkersInDB() ([]dto.MarkerGroup, error
 
 func (s *MarkerManageService) GenerateRSS() (string, error) {
 	var markers []dto.MarkerRSS
-	err := s.DB.Select(&markers, generateRSSQuery)
+	err := s.GenerateRSSQueryStmt.Select(&markers)
 	if err != nil {
 		return "", fmt.Errorf("error fetching markers: %w", err)
 	}
@@ -798,6 +815,42 @@ func (s *MarkerManageService) GetNewTop10Pictures() ([]dto.MarkerNewPicture, err
 	if err != nil {
 		return nil, fmt.Errorf("error fetching markers: %w", err)
 	}
+
+	return markers, nil
+}
+
+func (s *MarkerManageService) GetNewTop10PicturesWithExtra() ([]dto.MarkerNewPictureExtra, error) {
+	var markers []dto.MarkerNewPictureExtra
+	err := s.DB.Select(&markers, getNewTop10PicturesExtraQuery)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching markers: %w", err)
+	}
+
+	var wg sync.WaitGroup
+
+	for i := range markers {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+
+			weather, err := s.MarkerLocationService.FacilityService.FetchWeatherFromAddress(markers[i].Latitude, markers[i].Longitude)
+			if err != nil {
+				return
+			}
+
+			var sb strings.Builder
+			sb.WriteString(weather.Temperature)
+			sb.WriteString("도 ")
+			sb.WriteString(weather.Desc)
+			sb.WriteString(" (강수량 ")
+			sb.WriteString(weather.Rainfall)
+			sb.WriteString("%)")
+
+			markers[i].Weather = sb.String()
+		}(i)
+	}
+
+	wg.Wait()
 
 	return markers, nil
 }

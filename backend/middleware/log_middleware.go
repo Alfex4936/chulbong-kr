@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"runtime"
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/util"
@@ -20,7 +21,8 @@ type LogMiddleware struct {
 	DB       *sqlx.DB
 }
 
-func NewLogMiddleware(chatUtil *util.ChatUtil, db *sqlx.DB) *LogMiddleware {
+func NewLogMiddleware(chatUtil *util.ChatUtil, db *sqlx.DB, logger *zap.Logger) *LogMiddleware {
+
 	return &LogMiddleware{
 		ChatUtil: chatUtil,
 		DB:       db,
@@ -97,5 +99,37 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 			)
 
 		return err
+	}
+}
+
+func logRuntimeMetrics(logger *zap.Logger) {
+	var memStats runtime.MemStats
+
+	for {
+		// Pause before logging again
+		time.Sleep(10 * time.Minute)
+
+		// Capture current memory stats
+		runtime.ReadMemStats(&memStats)
+
+		// Log runtime statistics
+		logger.Info("Runtime metrics",
+			zap.Int("goroutines", runtime.NumGoroutine()),                     // Number of goroutines
+			zap.Uint64("alloc", memStats.Alloc),                               // Allocated memory
+			zap.Uint64("total_alloc", memStats.TotalAlloc),                    // Total allocated memory
+			zap.Uint64("sys", memStats.Sys),                                   // System memory
+			zap.Uint64("heap_alloc", memStats.HeapAlloc),                      // Heap memory allocated
+			zap.Uint64("heap_sys", memStats.HeapSys),                          // Heap memory in use
+			zap.Uint64("heap_idle", memStats.HeapIdle),                        // Heap memory idle
+			zap.Uint64("heap_inuse", memStats.HeapInuse),                      // Heap memory in use
+			zap.Uint64("heap_released", memStats.HeapReleased),                // Heap memory released
+			zap.Uint64("heap_objects", memStats.HeapObjects),                  // Number of heap objects
+			zap.Uint64("stack_inuse", memStats.StackInuse),                    // Stack memory in use
+			zap.Uint64("stack_sys", memStats.StackSys),                        // Stack memory system
+			zap.Uint64("gc_sys", memStats.GCSys),                              // GC system memory
+			zap.Uint64("next_gc", memStats.NextGC),                            // Next GC will happen after this amount of heap allocation
+			zap.Uint32("gc_cpu_fraction", uint32(memStats.GCCPUFraction*100)), // GC CPU fraction
+			zap.Uint64("last_gc", memStats.LastGC),                            // Last GC time in nanoseconds
+		)
 	}
 }

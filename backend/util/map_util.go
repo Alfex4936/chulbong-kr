@@ -150,27 +150,36 @@ func transformWGS84ToKoreaTM(d, e, h, f, c, l, m, lat, lon float64) (float64, fl
 	lRad := l * radiansPerDegree
 	mRad := m * radiansPerDegree
 
+	sinLat := math.Sin(latRad)
+	cosLat := math.Cos(latRad)
+
 	w := 1 / e
 	if e > 1 {
 		w = e
 	}
 
 	z := d * (w - 1) / w
-	G := 1 - (z*z)/(d*d)
-	w = (d*d - z*z) / (z * z)
+	zSquared := z * z
+	dSquared := d * d
+	G := 1 - zSquared/dSquared
+	w = (dSquared - zSquared) / zSquared
 	z = (d - z) / (d + z)
 
-	E := d * (1 - z + 5*(z*z-z*z*z)/4 + 81*(z*z*z*z-z*z*z*z*z)/64)
-	I := 3 * d * (z - z*z + 7*(z*z*z-z*z*z*z)/8 + 55*z*z*z*z*z/64) / 2
-	J := 15 * d * (z*z - z*z*z + 3*(z*z*z*z-z*z*z*z*z)/4) / 16
-	L := 35 * d * (z*z*z - z*z*z*z + 11*z*z*z*z*z/16) / 48
-	M := 315 * d * (z*z*z*z - z*z*z*z*z) / 512
+	// Precompute powers of z
+	z2 := z * z
+	z3 := z2 * z
+	z4 := z3 * z
+	z5 := z4 * z
+
+	E := d * (1 - z + 5*(z2-z3)/4 + 81*(z4-z5)/64)
+	I := 3 * d * (z - z2 + 7*(z3-z4)/8 + 55*z5/64) / 2
+	J := 15 * d * (z2 - z3 + 3*(z4-z5)/4) / 16
+	L := 35 * d * (z3 - z4 + 11*z5/16) / 48
+	M := 315 * d * (z4 - z5) / 512
 
 	D := lonRad - mRad
 	u := E*lRad - I*math.Sin(2*lRad) + J*math.Sin(4*lRad) - L*math.Sin(6*lRad) + M*math.Sin(8*lRad)
 	z = u * c
-	sinLat := math.Sin(latRad)
-	cosLat := math.Cos(latRad)
 	t := sinLat / cosLat
 	G = d / math.Sqrt(1-G*sinLat*sinLat)
 
