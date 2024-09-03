@@ -1,4 +1,0 @@
-User-Agent: *
-Allow: /
-Host: https://www.k-pullup.com
-Sitemap: https://www.k-pullup.com/sitemap.xml
