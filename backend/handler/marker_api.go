@@ -16,6 +16,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/middleware"
 	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/Alfex4936/chulbong-kr/protos"
+	"github.com/Alfex4936/chulbong-kr/util"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/gofiber/fiber/v2"
@@ -273,6 +274,8 @@ func (h *MarkerHandler) HandleCreateMarkerWithPhotos(c *fiber.Ctx) error {
 	if fErr := h.MarkerFacadeService.CheckMarkerValidity(latitude, longitude, description); fErr != nil {
 		return c.Status(fErr.Code).JSON(fiber.Map{"error": fErr.Message})
 	}
+
+	description = util.RemoveURLs(description)
 
 	// no errors
 	userID := c.Locals("userID").(int)

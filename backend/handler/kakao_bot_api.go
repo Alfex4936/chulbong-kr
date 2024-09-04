@@ -68,12 +68,17 @@ func (h *KakaoBotHandler) HandleKakaoRecentWithPhotos(c *fiber.Ctx) error {
 
 		card.Title = fmt.Sprintf("%s - %d", addresses[0], marker.MarkerID)
 
-		address := strings.Split(marker.Address, ",")[1]
-
 		var descBuilder strings.Builder
 		descBuilder.WriteString("날씨: ")
 		descBuilder.WriteString(marker.Weather)
-		descBuilder.WriteString("\n" + address)
+
+		// Safely handle the address component
+		var address string
+		if len(addresses) > 1 {
+			address = addresses[1]
+			descBuilder.WriteString("\n" + address)
+		}
+
 		card.Desc = descBuilder.String()
 
 		thumbnail := k.ThumbNail{}.New(marker.PhotoURL)

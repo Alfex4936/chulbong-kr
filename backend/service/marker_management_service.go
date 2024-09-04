@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"mime/multipart"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -428,6 +427,8 @@ func (s *MarkerManageService) CheckMarkerValidity(latitude, longitude float64, d
 				}
 			}
 		},
+
+		// TODO: http link check
 	}
 
 	for _, check := range checks {
@@ -578,7 +579,11 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 			s.Logger.Error("Failed to update address", zap.Int64("markerID", markerID), zap.Error(err))
 		}
 
-		s.BleveSearchService.InsertMarkerIndex(dto.MarkerIndexData{MarkerID: int(markerID), Address: address})
+		err = s.BleveSearchService.InsertMarkerIndex(dto.MarkerIndexData{MarkerID: int(markerID), Address: address})
+		if err != nil {
+			s.Logger.Error("Failed to index address", zap.Int64("markerID", markerID), zap.Error(err))
+		}
+
 		// userIDstr := strconv.Itoa(userID)
 		// updateMsg := fmt.Sprintf("새로운 철봉이 [ %s ]에 등록되었습니다!", address)
 		// metadata := notification.NotificationMarkerMetadata{
@@ -703,7 +708,7 @@ func (s *MarkerManageService) DeleteMarker(userID, markerID int, userRole string
 	}(photoURLs)
 
 	s.ClearCache()
-	s.BleveSearchService.DeleteMarkerIndex(strconv.Itoa(markerID))
+	s.BleveSearchService.DeleteMarkerIndex(markerID)
 
 	return nil
 }

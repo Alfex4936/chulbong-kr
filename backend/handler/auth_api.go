@@ -645,6 +645,7 @@ func (h *AuthHandler) HandleSendVerificationEmail(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
+// godoc
 // Validate Token godoc
 //
 // @Summary		Validate token

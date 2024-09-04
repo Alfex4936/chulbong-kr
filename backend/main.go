@@ -70,6 +70,10 @@ import (
 	"go.uber.org/zap"
 )
 
+type BleveSearchService struct {
+	Shards []bleve.Index    // Store individual shard indexes
+	Alias  bleve.IndexAlias // Keep the alias for querying
+}
 
 func logRuntimeMetrics(logger *zap.Logger) {
 	var memStats runtime.MemStats
@@ -628,16 +632,22 @@ func NewTimeZoneFinder(logger *zap.Logger) (tzf.F, error) {
 	return finder, nil
 }
 
-func NewBleveIndex() (bleve.Index, error) {
-	// return bleve.Open("markers.bleve")
+// Create a new Bleve index service with sharding
+func NewBleveIndex() ([]bleve.Index, bleve.Index, error) {
+	var shards []bleve.Index
 	searchShardHandler := bleve.NewIndexAlias()
+
 	for i := 0; i < 3; i++ {
 		indexShardName := fmt.Sprintf("markers_shard_%d.bleve", i)
-		index, _ := bleve.Open(indexShardName)
-		searchShardHandler.Add(index)
-		// defer index.Close()
+		index, err := bleve.Open(indexShardName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to open shard %d: %v", i, err)
+		}
+		shards = append(shards, index) // Store each shard
+		searchShardHandler.Add(index)  // Add to alias for querying
 	}
-	return searchShardHandler, nil
+
+	return shards, searchShardHandler, nil
 }
 
 // MAIN Fx
@@ -745,6 +755,7 @@ func registerHooks(lc fx.Lifecycle,
 				safeClient.Client.Close()
 			}
 
+			logger.Sync()
 			return app.Shutdown()
 		},
 	})

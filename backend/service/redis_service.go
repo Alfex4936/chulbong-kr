@@ -41,6 +41,7 @@ func NewRedisService(redisConfig *config.RedisConfig, redis *RedisClient) *Redis
 
 // TODO: cannot use Generic as Fx doesn't support it directly maybe
 // SetCacheEntry sets a cache entry with the given key and value, with an expiration time.
+// func (s *RedisService[T])...
 func (s *RedisService) SetCacheEntry(key string, value interface{}, expiration time.Duration) error {
 	jsonValue, err := sonic.Marshal(value)
 	if err != nil {

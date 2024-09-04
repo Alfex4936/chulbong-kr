@@ -17,6 +17,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	bleve_search "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"go.uber.org/zap"
 
 	gocache "github.com/eko/gocache/lib/v4/cache"
 	ristretto_store "github.com/eko/gocache/store/ristretto/v4"
@@ -57,27 +58,25 @@ var (
 			return &slice
 		},
 	}
-
-	// Map of English characters to Korean characters based on the QWERTY keyboard layout.
-	engToKor = map[rune]rune{
-		'q': 'ㅂ', 'w': 'ㅈ', 'e': 'ㄷ', 'r': 'ㄱ', 't': 'ㅅ', 'y': 'ㅛ', 'u': 'ㅕ', 'i': 'ㅑ', 'o': 'ㅐ', 'p': 'ㅔ',
-		'a': 'ㅁ', 's': 'ㄴ', 'd': 'ㅇ', 'f': 'ㄹ', 'g': 'ㅎ', 'h': 'ㅗ', 'j': 'ㅓ', 'k': 'ㅏ', 'l': 'ㅣ',
-		'z': 'ㅋ', 'x': 'ㅌ', 'c': 'ㅊ', 'v': 'ㅍ', 'b': 'ㅠ', 'n': 'ㅜ', 'm': 'ㅡ',
-	}
 )
 
 type BleveSearchService struct {
-	Index             bleve.Index
+	Index  bleve.Index
+	Shards []bleve.Index
+
 	LocalCacheStorage *ristretto_store.RistrettoStore
+	Logger            *zap.Logger
 	// Path string
 
 	searchCache *gocache.Cache[dto.MarkerSearchResponse]
 }
 
-func NewBleveSearchService(index bleve.Index, localCacheStorage *ristretto_store.RistrettoStore) *BleveSearchService {
+func NewBleveSearchService(
+	index bleve.Index, shards []bleve.Index,
+	localCacheStorage *ristretto_store.RistrettoStore, logger *zap.Logger) *BleveSearchService {
 	searchCache := gocache.New[dto.MarkerSearchResponse](localCacheStorage)
 
-	return &BleveSearchService{Index: index, searchCache: searchCache}
+	return &BleveSearchService{Index: index, Shards: shards, searchCache: searchCache, Logger: logger}
 }
 
 // SearchMarkerAddress calls bleve (Lucene-like) search
@@ -251,25 +250,39 @@ func (s *BleveSearchService) AutoComplete(term string) ([]string, error) {
 }
 
 func (s *BleveSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error {
+	defer s.Logger.Info("InsertMarkerIndex called", zap.Int("markerID", indexBody.MarkerID))
+
+	// Compute which shard to use based on the marker ID (or any other key)
+	shardIndex := indexBody.MarkerID % len(s.Shards)
+	selectedShard := s.Shards[shardIndex]
+
 	province, city, rest := splitAddress(indexBody.Address)
 	indexBody.Province = province
 	indexBody.City = city
 	indexBody.FullAddress = indexBody.Address
 	indexBody.Address = rest
 	indexBody.InitialConsonants = ExtractInitialConsonants(indexBody.FullAddress)
-	err := s.Index.Index(strconv.Itoa(indexBody.MarkerID), indexBody)
+
+	err := selectedShard.Index(strconv.Itoa(indexBody.MarkerID), indexBody)
 	if err != nil {
-		return fmt.Errorf("error indexing marker")
+		return fmt.Errorf("error indexing marker: %v", err)
 	}
 
 	// Invalidate search cache
 	s.invalidateCache()
 
+	defer s.Logger.Info("🐔 [DEBUG] InsertMarkerIndex worked?", zap.String("addr", indexBody.FullAddress))
+
 	return nil
 }
 
-func (s *BleveSearchService) DeleteMarkerIndex(markerId string) error {
-	err := s.Index.Delete(markerId)
+func (s *BleveSearchService) DeleteMarkerIndex(markerId int) error {
+	// Compute which shard to use based on the marker ID (same as in InsertMarkerIndex)
+	shardIndex := markerId % len(s.Shards)
+	selectedShard := s.Shards[shardIndex]
+
+	// Perform the deletion operation on the selected shard
+	err := selectedShard.Delete(strconv.Itoa(markerId))
 	if err != nil {
 		return fmt.Errorf("error deleting marker: %v", err)
 	}
@@ -406,6 +419,7 @@ func performSearch(index bleve.Index, term string, results chan<- *bleve_search.
 	searchRequest := bleve.NewSearchRequestOptions(disjunctionQuery, 15, 0, false)
 	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
 	searchRequest.Size = 10
+	searchRequest.Highlight = bleve.NewHighlightWithStyle("html")
 	searchRequest.SortBy([]string{"_score", "markerId"})
 
 	searchResult, err := index.Search(searchRequest)
@@ -494,6 +508,7 @@ func performSearchFacet(index bleve.Index, term string, results chan<- *bleve_se
 
 	disjunctionQuery := bleve.NewDisjunctionQuery(queries...)
 	searchRequest := bleve.NewSearchRequest(disjunctionQuery)
+	searchRequest.Highlight = bleve.NewHighlightWithStyle("html")
 	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
 	searchRequest.Size = 10
 	searchRequest.SortBy([]string{"_score", "markerId"})
@@ -534,6 +549,7 @@ func performFuzzySearch(index bleve.Index, terms []string) ([]*bleve_search.Docu
 		searchRequest := bleve.NewSearchRequest(fuzzyQuery)
 		searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
 		searchRequest.Size = 10
+		searchRequest.Highlight = bleve.NewHighlightWithStyle("html")
 		searchResult, err := index.Search(searchRequest)
 		if err != nil {
 			log.Printf("Error fuzzy searching marker: %v", err)
@@ -594,18 +610,6 @@ func SegmentConsonants(input string) string {
 	}
 
 	return string(result)
-}
-
-func convertToKorean(input string) string {
-	var result strings.Builder
-	for _, r := range input {
-		if converted, ok := engToKor[r]; ok {
-			result.WriteRune(converted)
-		} else {
-			result.WriteRune(r) // If character is not found in the map, keep it as is.
-		}
-	}
-	return result.String()
 }
 
 func standardizeProvince(province string) string {

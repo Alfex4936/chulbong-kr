@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,7 +82,7 @@ func RegisterSchedulerLifecycle(lifecycle fx.Lifecycle, scheduler *SchedulerServ
 	lifecycle.Append(fx.Hook{
 		OnStart: func(context.Context) error {
 			scheduler.cron.Start()
-			scheduler.RunAllCrons()
+			scheduler.RunAllCrons(logger)
 			logger.Info("Scheduler! words loaded successfully")
 			return nil
 		},
@@ -96,15 +95,15 @@ func RegisterSchedulerLifecycle(lifecycle fx.Lifecycle, scheduler *SchedulerServ
 	})
 }
 
-func (s *SchedulerService) RunAllCrons() {
-	s.CronCleanUpToken()
-	s.CronUpdateRSS()
-	s.CronCleanUpPasswordTokens()
-	s.CronResetClickRanking()
-	s.CronOrphanedPhotosCleanup()
-	s.CronCleanUpOldDirs()
-	s.CronProcessClickEventsBatch(RankUpdateTime)
-	s.CronSendPendingReportsEmail()
+func (s *SchedulerService) RunAllCrons(logger *zap.Logger) {
+	s.CronCleanUpToken(logger)
+	s.CronUpdateRSS(logger)
+	s.CronCleanUpPasswordTokens(logger)
+	s.CronResetClickRanking(logger)
+	s.CronOrphanedPhotosCleanup(logger)
+	s.CronCleanUpOldDirs(logger)
+	s.CronProcessClickEventsBatch(RankUpdateTime, logger)
+	s.CronSendPendingReportsEmail(logger)
 
 	// reports, err := s.ReportService.GetPendingReports()
 	// if err != nil {
@@ -129,24 +128,24 @@ func (s *SchedulerService) Schedule(spec string, cmd func()) (cron.EntryID, erro
 	return s.cron.AddJob(spec, job)
 }
 
-func (s *SchedulerService) CronCleanUpPasswordTokens() {
+func (s *SchedulerService) CronCleanUpPasswordTokens(logger *zap.Logger) {
 	_, err := s.Schedule("@daily", func() {
 		if err := s.TokenService.DeleteExpiredPasswordTokens(); err != nil {
 			// Log the error
-			fmt.Printf("Error deleting expired tokens: %v\n", err)
+			logger.Error("Error deleting expired tokens", zap.Error(err))
 		} else {
-			fmt.Println("Expired password tokens cleanup executed successfully")
+			logger.Info("Expired password tokens cleanup executed successfully")
 		}
 	})
 	if err != nil {
 		// Handle the error
-		fmt.Printf("Error scheduling the token cleanup job: %v\n", err)
+		logger.Error("Error scheduling the token cleanup job", zap.Error(err))
 		return
 	}
 
 }
 
-func (s *SchedulerService) CronResetClickRanking() {
+func (s *SchedulerService) CronResetClickRanking(logger *zap.Logger) {
 	_, err := s.Schedule("0 2 * * 1", func() { // 2 AM every Monday
 
 		// handlers.CacheMutex.Lock()
@@ -165,37 +164,38 @@ func (s *SchedulerService) CronResetClickRanking() {
 		// }
 	})
 	if err != nil {
-		fmt.Printf("Error scheduling the marker ranking cleanup job: %v\n", err)
+		logger.Error("Error scheduling the marker ranking cleanup job", zap.Error(err))
 		return
 	}
 }
 
-func (s *SchedulerService) CronSendPendingReportsEmail() {
+func (s *SchedulerService) CronSendPendingReportsEmail(logger *zap.Logger) {
 	// Convert 12 PM KST to UTC (3 AM UTC)
 	_, err := s.Schedule("0 3 * * *", func() {
 		reports, err := s.ReportService.GetPendingReports()
 		if err != nil {
 			// Log the error
-			fmt.Printf("Error fetching pending reports: %v\n", err)
+			logger.Error("Error fetching pending reports", zap.Error(err))
 			return
 		}
 
 		if len(reports) > 0 {
 			if err := s.SmtpService.SendPendingReportsEmail(s.adminEmail, reports); err != nil {
 				// Log the error
-				fmt.Printf("Error sending pending reports email: %v\n", err)
+				logger.Error("Error sending pending reports email", zap.Error(err))
 			} else {
-				fmt.Println("Pending reports email sent successfully")
+				logger.Info("Pending reports email sent successfully")
 			}
 		}
 	})
+
 	if err != nil {
-		fmt.Printf("Error scheduling the pending reports email job: %v\n", err)
+		logger.Error("Error scheduling the pending reports email job", zap.Error(err))
 		return
 	}
 }
 
-func (s *SchedulerService) CronProcessClickEventsBatch(interval time.Duration) {
+func (s *SchedulerService) CronProcessClickEventsBatch(interval time.Duration, logger *zap.Logger) {
 	var spec string
 
 	switch {
@@ -219,91 +219,90 @@ func (s *SchedulerService) CronProcessClickEventsBatch(interval time.Duration) {
 		// clickEventBuffer.Clear()
 	})
 	if err != nil {
-		fmt.Printf("Error setting up cron job: %v\n", err)
+		logger.Error("Error setting up cron job: %v\n", zap.Error(err))
 		return
 	}
 }
 
-func (s *SchedulerService) CronCleanUpToken() {
+func (s *SchedulerService) CronCleanUpToken(logger *zap.Logger) {
 	_, err := s.Schedule("@daily", func() {
 		if err := s.TokenService.DeleteExpiredTokens(); err != nil {
 			// Log the error
-			fmt.Printf("Error deleting expired tokens: %v\n", err)
+			logger.Error("Error deleting expired tokens", zap.Error(err))
 		} else {
-			fmt.Println("Expired tokens cleanup executed successfully")
+			logger.Info("Expired tokens cleanup executed successfully")
 		}
 	})
 	if err != nil {
 		// Handle the error
-		fmt.Printf("Error scheduling the token cleanup job: %v\n", err)
+		logger.Error("Error scheduling the token cleanup job", zap.Error(err))
 		return
 	}
 }
 
-func (s *SchedulerService) CronUpdateRSS() {
+func (s *SchedulerService) CronUpdateRSS(logger *zap.Logger) {
 	_, err := s.Schedule("@daily", func() {
 		rss, _ := s.MarkerManageService.GenerateRSS()
 
 		err := saveRSSToFile(rss, "marker_rss.xml")
 		if err != nil {
-			log.Printf("Error saving RSS to file: %v\n", err)
+			logger.Error("Error saving RSS to file", zap.Error(err))
 		}
 
 	})
 	if err != nil {
-		// Handle the error
-		fmt.Printf("Error scheduling the token cleanup job: %v\n", err)
+		logger.Error("Error scheduling the token cleanup job", zap.Error(err))
 		return
 	}
 }
 
 // CronOrphanedPhotosCleanup starts the cron job for cleaning up orphaned photos.
-func (s *SchedulerService) CronOrphanedPhotosCleanup() {
+func (s *SchedulerService) CronOrphanedPhotosCleanup(logger *zap.Logger) {
 	_, err := s.Schedule("@daily", func() {
 		if err := s.deleteOrphanedPhotos(); err != nil {
-			fmt.Printf("Error cleaning up orphaned photos: %v\n", err)
+			logger.Error("Error cleaning up orphaned photos", zap.Error(err))
 		} else {
-			fmt.Println("Orphaned photos cleanup executed successfully")
+			logger.Info("Orphaned photos cleanup executed successfully")
 		}
 
 		if err := s.deleteOrphanedReportPhotos(); err != nil {
-			fmt.Printf("Error cleaning up orphaned report photos: %v\n", err)
+			logger.Error("Error cleaning up orphaned report photos", zap.Error(err))
 		} else {
-			fmt.Println("Orphaned report photos cleanup executed successfully")
+			logger.Info("Orphaned report photos cleanup executed successfully")
 		}
-
 	})
+
 	if err != nil {
-		fmt.Printf("Error scheduling the orphaned photos cleanup job: %v\n", err)
+		logger.Error("Error scheduling the orphaned photos cleanup job", zap.Error(err))
 		return
 	}
 }
 
-func (s *SchedulerService) CronNotificationCleanup() {
+func (s *SchedulerService) CronNotificationCleanup(logger *zap.Logger) {
 	// Schedules the cleanup job to run daily at midnight.
 	_, err := s.Schedule("@daily", func() {
 		if err := s.cleanUpViewedNotifications(); err != nil {
-			fmt.Printf("Error cleaning up viewed notifcations: %v\n", err)
+			logger.Error("Error cleaning up viewed notifcations", zap.Error(err))
 		}
 	})
 	if err != nil {
-		fmt.Printf("Error scheduling the notification cleanup job: %v\n", err)
+		logger.Error("Error scheduling the notification cleanup job", zap.Error(err))
 		return
 	}
 }
 
 // CronCleanUpOldDirs periodically checks and removes directories older than maxAge.
-func (s *SchedulerService) CronCleanUpOldDirs() {
+func (s *SchedulerService) CronCleanUpOldDirs(logger *zap.Logger) {
 	tempDir := os.TempDir()
 	maxAge := 2 * time.Minute
 
 	_, err := s.Schedule("*/15 * * * *", func() { // every 15 minutes
 		if err := cleanTempDir(tempDir, maxAge); err != nil {
-			fmt.Printf("Error cleaning up orphaned photos: %v\n", err)
+			logger.Error("Error cleaning up orphaned photos: %v\n", zap.Error(err))
 		}
 	})
 	if err != nil {
-		fmt.Printf("Error scheduling the orphaned photos cleanup job: %v\n", err)
+		logger.Error("Error scheduling the orphaned photos cleanup job: %v\n", zap.Error(err))
 		return
 	}
 }
