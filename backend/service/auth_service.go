@@ -19,6 +19,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var (
+	nameReplacements = map[string]string{
+		"chulbong-kr": "user",
+		"k-pullup":    "user",
+		"admin":       "user",
+	}
+)
+
 const (
 	verifyOpaqueTokenQuery = "SELECT UserID, ExpiresAt FROM OpaqueTokens WHERE OpaqueToken = ?"
 	fetchTokenQuery        = `
@@ -146,6 +154,9 @@ func (s *AuthService) SaveUser(signUpReq *dto.SignUpRequest) (*model.User, error
 	if err != nil {
 		return nil, err
 	}
+
+	// change admin, k-pullup, chulbong-kr to user
+	normalizeUsername(signUpReq)
 
 	userID, err := s.insertUserWithRetry(tx, signUpReq, hashedPassword)
 	if err != nil {
@@ -426,4 +437,21 @@ func (s *AuthService) insertUserWithRetry(tx *sqlx.Tx, signUpReq *dto.SignUpRequ
 		return userID, nil
 	}
 	return 0, fmt.Errorf("failed to insert user after retries")
+}
+
+func normalizeUsername(signUpReq *dto.SignUpRequest) {
+	if signUpReq.Username == nil {
+		return
+	}
+
+	// Normalize the username to lowercase for case-insensitive comparison
+	username := strings.ToLower(*signUpReq.Username)
+
+	// Replace if any of the patterns match
+	for pattern, replacement := range nameReplacements {
+		if strings.Contains(username, pattern) {
+			*signUpReq.Username = strings.ReplaceAll(*signUpReq.Username, pattern, replacement)
+			break // stop after the first replacement
+		}
+	}
 }

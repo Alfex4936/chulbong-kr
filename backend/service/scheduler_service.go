@@ -39,6 +39,7 @@ type SchedulerService struct {
 	RedisService        *RedisService
 	SmtpService         *SmtpService
 	ReportService       *ReportService
+	BleveSearchService  *BleveSearchService
 	cron                *cron.Cron
 	adminEmail          string
 
@@ -52,6 +53,7 @@ func NewSchedulerService(
 	s3Service *S3Service, rankService *MarkerRankService,
 	markerService *MarkerManageService, redisService *RedisService,
 	smtpService *SmtpService, reportService *ReportService,
+	bleveService *BleveSearchService,
 
 ) *SchedulerService {
 	// Prepare query parameters
@@ -68,6 +70,7 @@ func NewSchedulerService(
 		RedisService:        redisService,
 		SmtpService:         smtpService,
 		ReportService:       reportService,
+		BleveSearchService:  bleveService,
 		cron: cron.New(cron.WithChain(
 			cron.Recover(cron.DefaultLogger),
 		)),
@@ -104,6 +107,7 @@ func (s *SchedulerService) RunAllCrons(logger *zap.Logger) {
 	s.CronCleanUpOldDirs(logger)
 	s.CronProcessClickEventsBatch(RankUpdateTime, logger)
 	s.CronSendPendingReportsEmail(logger)
+	s.CronCheckMarkerIndex(logger)
 
 	// reports, err := s.ReportService.GetPendingReports()
 	// if err != nil {
@@ -299,6 +303,21 @@ func (s *SchedulerService) CronCleanUpOldDirs(logger *zap.Logger) {
 	_, err := s.Schedule("*/15 * * * *", func() { // every 15 minutes
 		if err := cleanTempDir(tempDir, maxAge); err != nil {
 			logger.Error("Error cleaning up orphaned photos: %v\n", zap.Error(err))
+		}
+	})
+	if err != nil {
+		logger.Error("Error scheduling the orphaned photos cleanup job: %v\n", zap.Error(err))
+		return
+	}
+}
+
+// CronCheckMarkerIndex periodically checks and removes indexes of bleve.
+func (s *SchedulerService) CronCheckMarkerIndex(logger *zap.Logger) {
+	_, err := s.Schedule("0 17 * * *", func() { // UTC 17pm
+		if err := s.BleveSearchService.CheckIndexes(); err != nil {
+			logger.Error("Error cleaning up orphaned photos: %v\n", zap.Error(err))
+		} else {
+			s.BleveSearchService.InvalidateCache()
 		}
 	})
 	if err != nil {

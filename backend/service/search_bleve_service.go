@@ -17,6 +17,8 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	bleve_search "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/jmoiron/sqlx"
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 
 	gocache "github.com/eko/gocache/lib/v4/cache"
@@ -66,49 +68,37 @@ type BleveSearchService struct {
 
 	LocalCacheStorage *ristretto_store.RistrettoStore
 	Logger            *zap.Logger
-	// Path string
+	DB                *sqlx.DB
+	GetAllMarkersStmt *sqlx.Stmt
 
 	searchCache *gocache.Cache[dto.MarkerSearchResponse]
 }
 
 func NewBleveSearchService(
 	index bleve.Index, shards []bleve.Index,
-	localCacheStorage *ristretto_store.RistrettoStore, logger *zap.Logger) *BleveSearchService {
+	localCacheStorage *ristretto_store.RistrettoStore, logger *zap.Logger,
+	db *sqlx.DB) *BleveSearchService {
 	searchCache := gocache.New[dto.MarkerSearchResponse](localCacheStorage)
 
-	return &BleveSearchService{Index: index, Shards: shards, searchCache: searchCache, Logger: logger}
+	getMarkerStmt, _ := db.Preparex("SELECT MarkerID, Address FROM Markers")
+
+	return &BleveSearchService{Index: index, Shards: shards,
+		searchCache: searchCache, Logger: logger, DB: db,
+		GetAllMarkersStmt: getMarkerStmt,
+	}
 }
 
-// SearchMarkerAddress calls bleve (Lucene-like) search
-// func (s *BleveSearchService) SearchMarkerAddress(term string) (dto.MarkerSearchResponse, error) {
-// 	var response dto.MarkerSearchResponse
-// 	searchQuery := bleve.NewFuzzyQuery(term)
-// 	searchRequest := bleve.NewSearchRequest(searchQuery)
-// 	searchRequest.From = 0
-// 	searchRequest.Size = 10
-// 	searchRequest.Fields = []string{"address"} // or *
-
-// 	searchResults, err := s.Index.Search(searchRequest)
-// 	if err != nil {
-// 		return response, fmt.Errorf("error searching index")
-// 	}
-
-// 	response = MarkerSearchResponse{
-// 		Took:    int(searchResults.Took.Milliseconds()),
-// 		Markers: make([]dto.ZincMarker, 0, len(searchResults.Hits)),
-// 	}
-
-// 	// Extract relevant fields from search results
-// 	for _, hit := range searchResults.Hits {
-// 		var marker dto.ZincMarker
-// 		intID, _ := strconv.Atoi(hit.ID)
-// 		marker.MarkerID = intID
-// 		marker.Address = hit.Fields["address"].(string)
-// 		response.Markers = append(response.Markers, marker)
-// 	}
-
-// 	return response, nil
-// }
+func RegisteBleveLifecycle(lifecycle fx.Lifecycle, service *BleveSearchService) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			service.GetAllMarkersStmt.Close()
+			return nil
+		},
+	})
+}
 
 // SearchMarkerAddress calls bleve (Lucene-like) search
 func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResponse, error) {
@@ -250,8 +240,6 @@ func (s *BleveSearchService) AutoComplete(term string) ([]string, error) {
 }
 
 func (s *BleveSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error {
-	defer s.Logger.Info("InsertMarkerIndex called", zap.Int("markerID", indexBody.MarkerID))
-
 	// Compute which shard to use based on the marker ID (or any other key)
 	shardIndex := indexBody.MarkerID % len(s.Shards)
 	selectedShard := s.Shards[shardIndex]
@@ -269,9 +257,9 @@ func (s *BleveSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error 
 	}
 
 	// Invalidate search cache
-	s.invalidateCache()
+	s.InvalidateCache()
 
-	defer s.Logger.Info("🐔 [DEBUG] InsertMarkerIndex worked?", zap.String("addr", indexBody.FullAddress))
+	defer s.Logger.Info("New Marker indexed", zap.Int("markerID", indexBody.MarkerID), zap.String("address", indexBody.FullAddress))
 
 	return nil
 }
@@ -288,13 +276,114 @@ func (s *BleveSearchService) DeleteMarkerIndex(markerId int) error {
 	}
 
 	// Invalidate search cache
-	s.invalidateCache()
+	s.InvalidateCache()
 
 	return nil
 }
 
-func (s *BleveSearchService) invalidateCache() {
+func (s *BleveSearchService) InvalidateCache() {
 	s.searchCache.Clear(context.Background())
+}
+
+func (s *BleveSearchService) CheckIndexes() error {
+	// Step 1: Fetch all valid marker IDs from the database along with their addresses
+	markers, err := s.GetAllMarkers()
+	if err != nil {
+		return fmt.Errorf("error fetching valid marker IDs from database: %v", err)
+	}
+
+	// Convert marker data to a map for quick lookup by MarkerID
+	markerDataMap := make(map[int]dto.MarkerIndexData, len(markers))
+	for _, marker := range markers {
+		markerDataMap[marker.MarkerID] = dto.MarkerIndexData{
+			MarkerID: marker.MarkerID,
+			Address:  marker.Address,
+		}
+	}
+
+	// Step 2: Execute a MatchAllQuery to retrieve all documents from the index
+	query := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(query)
+	searchRequest.Size = 10000
+
+	searchResult, err := s.Index.Search(searchRequest)
+	if err != nil {
+		return fmt.Errorf("error executing search: %v", err)
+	}
+
+	// Step 3: Iterate through all hits (documents) in the result
+	for _, hit := range searchResult.Hits {
+		markerID, err := strconv.Atoi(hit.ID)
+		if err != nil {
+			s.Logger.Error("Failed to convert document ID to markerID", zap.String("docID", hit.ID), zap.Error(err))
+			continue
+		}
+
+		// Check if this marker exists in the database
+		if _, existsInDB := markerDataMap[markerID]; !existsInDB {
+			// Step 4: If the MarkerID doesn't exist in the database, delete it from the index
+			err = s.DeleteMarkerIndex(markerID)
+			if err != nil {
+				s.Logger.Error("Failed to delete orphaned index", zap.Int("markerID", markerID), zap.Error(err))
+			} else {
+				s.Logger.Info("Orphaned index deleted", zap.Int("markerID", markerID))
+			}
+		}
+	}
+
+	// Step 5: Check if each valid marker from the database exists in the index, and index it if missing
+	for markerID, markerData := range markerDataMap {
+		exists, err := s.MarkerExists(markerID)
+		if err != nil {
+			s.Logger.Error("Error checking marker existence in index", zap.Int("markerID", markerID), zap.Error(err))
+			continue
+		}
+
+		// If the marker doesn't exist in the index but is in the database, index it
+		if !exists {
+			err = s.InsertMarkerIndex(markerData)
+			if err != nil {
+				s.Logger.Error("Failed to index marker", zap.Int("markerID", markerID), zap.Error(err))
+			} else {
+				s.Logger.Info("Marker indexed", zap.Int("markerID", markerID))
+			}
+		}
+	}
+
+	return nil
+}
+
+// GetAllMarkers now returns a simplified list of markers
+func (s *BleveSearchService) GetAllMarkers() ([]dto.MarkerOnlyWithAddr, error) {
+	var markers []dto.MarkerOnlyWithAddr
+
+	err := s.GetAllMarkersStmt.Select(&markers)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching markers: %w", err)
+	}
+
+	// go s.MarkerLocationService.Redis.AddGeoMarkers(markers)
+
+	return markers, nil
+}
+
+func (s *BleveSearchService) MarkerExists(markerID int) (bool, error) {
+	// Iterate over all shards
+	for _, shard := range s.Shards {
+		// Fetch the document from the shard
+		document, err := shard.Document(strconv.Itoa(markerID))
+		if err != nil {
+			return false, fmt.Errorf("error fetching document for markerID %d: %v", markerID, err)
+		}
+
+		// If the document is found, return true
+		if document != nil {
+			return true, nil
+		}
+	}
+
+	// If no document was found in any shard, return false
+	return false, nil
 }
 
 func performSearch(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
