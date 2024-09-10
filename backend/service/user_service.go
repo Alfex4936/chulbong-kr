@@ -10,6 +10,7 @@ import (
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
+	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/iancoleman/orderedmap"
 
 	"github.com/gofiber/fiber/v2"
@@ -196,12 +197,12 @@ func (s *UserService) UpdateUserProfile(userID int, updateReq *dto.UpdateUserReq
 	}
 
 	if updateReq.Password != nil {
-		hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(*updateReq.Password), bcrypt.DefaultCost)
+		hashedPassword, hashErr := bcrypt.GenerateFromPassword(util.StringToBytes(*updateReq.Password), bcrypt.DefaultCost)
 		if hashErr != nil {
 			return nil, hashErr
 		}
 		setParts = append(setParts, "PasswordHash = ?")
-		args = append(args, string(hashedPassword))
+		args = append(args, util.BytesToString(hashedPassword)) // Use BytesToString to avoid extra allocation
 	}
 
 	if len(setParts) > 0 {

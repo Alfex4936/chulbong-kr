@@ -72,16 +72,20 @@ func NewKakaoConfig() *KakaoConfig {
 }
 
 type RedisConfig struct {
-	AllMarkersKey  string
-	UserProfileKey string
-	UserFavKey     string
+	AllMarkersKey         string
+	UserProfileKey        string
+	UserFavKey            string
+	KakaoRecentMarkersKey string
+	KakaoSearchMarkersKey string
 }
 
 func NewRedisConfig() *RedisConfig {
 	return &RedisConfig{
-		AllMarkersKey:  "all_markers",
-		UserProfileKey: "user_profile",
-		UserFavKey:     "user_fav",
+		AllMarkersKey:         "all_markers",
+		UserProfileKey:        "user_profile",
+		UserFavKey:            "user_fav",
+		KakaoRecentMarkersKey: "kakaobot:recent-markers",
+		KakaoSearchMarkersKey: "kakaobot:search-markers:",
 	}
 }
 

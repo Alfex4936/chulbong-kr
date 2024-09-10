@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/rrethy/ahocorasick"
 	"go.uber.org/fx"
@@ -264,6 +265,45 @@ func (b *BadWordUtil) CheckForBadWordsUsingTrie(input string) (bool, error) {
 	}
 	matches := b.Matcher.FindAllString(input)
 	return len(matches) > 0, nil
+}
+
+// - fasthttp
+
+// BytesToString converts a byte slice to a string without making a copy.
+//
+// Warning: This method uses unsafe operations. The conversion is safe as long as the original
+// byte slice is not modified after conversion, as the resulting string will reference
+// the same underlying memory.
+//
+// Example:
+//
+//	b := []byte("Hello")
+//	s := BytesToString(b) // Converts []byte to string without memory allocation
+//	fmt.Println(s)        // Prints: Hello
+//
+// Important: Do not modify the byte slice `b` after calling this function, as the string `s`
+// references the same memory, and changes to `b` will lead to undefined behavior.
+func BytesToString(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
+}
+
+// StringToBytes converts a string to a byte slice without making a copy.
+//
+// Warning: This method uses unsafe operations. The conversion is safe as long as the
+// resulting byte slice is not modified. Since strings in Go are immutable, modifying
+// the byte slice will result in undefined behavior.
+//
+// Example:
+//
+//	s := "Hello"
+//	b := StringToBytes(s) // Converts string to []byte without memory allocation
+//	fmt.Println(b)        // Prints: [72 101 108 108 111] (ASCII values of "Hello")
+//
+// Important: Do not modify the byte slice `b` after calling this function, as strings in Go
+// are immutable, and modifying the byte slice can lead to undefined behavior.
+func StringToBytes(s string) []byte {
+	stringData := unsafe.StringData(s)
+	return unsafe.Slice(stringData, len(s))
 }
 
 // Precompute rune indices for the whole string to avoid recalculating repeatedly

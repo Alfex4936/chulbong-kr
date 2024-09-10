@@ -167,6 +167,8 @@ type NordAPIResponse struct {
 	ISP         string `json:"isp"`
 }
 
+// TODO: alternative: ip-api.com
+// TODO: https://github.com/oschwald/geoip2-golang
 func (cu *ChatUtil) IsIPFromSouthKorea(ip string) (bool, error) {
 	url := fmt.Sprintf("https://nordvpn.com/wp-admin/admin-ajax.php?action=get_user_info_data&ip=%s", ip)
 

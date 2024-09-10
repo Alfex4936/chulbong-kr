@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 	"mime/multipart"
 	"net/url"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	myconfig "github.com/Alfex4936/chulbong-kr/config"
+	"go.uber.org/zap"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -21,12 +21,15 @@ import (
 type S3Service struct {
 	Config *myconfig.S3Config
 	Redis  *RedisService
+
+	logger *zap.Logger
 }
 
-func NewS3Service(config *myconfig.S3Config, redis *RedisService) *S3Service {
+func NewS3Service(config *myconfig.S3Config, redis *RedisService, logger *zap.Logger) *S3Service {
 	return &S3Service{
 		Config: config,
 		Redis:  redis,
+		logger: logger,
 	}
 }
 
@@ -169,7 +172,11 @@ func (s *S3Service) ListAllObjectsInS3() ([]map[string]interface{}, error) {
 		}
 	}
 
-	log.Printf("💖 Total image size: %d KB (%d MB)", sumKB, sumKB/1024)
+	s.logger.Info("💖 Total image size",
+		zap.Int("number_of_images", len(s3Objects)),
+		zap.Int64("total_size_kb", sumKB),
+		zap.Int64("total_size_mb", sumKB/1024),
+	)
 	return s3Objects, nil
 }
 

@@ -82,14 +82,20 @@ func NewMapUtil(finder tzf.F) *MapUtil {
 	}
 }
 
-// Haversine formula
+// CalculateDistanceApproximately optimizes the Haversine formula for small distances
 func CalculateDistanceApproximately(lat1, long1, lat2, long2 float64) float64 {
-	lat1Rad := lat1 * (math.Pi / 180)
-	lat2Rad := lat2 * (math.Pi / 180)
-	deltaLat := (lat2 - lat1) * (math.Pi / 180)
-	deltaLong := (long2 - long1) * (math.Pi / 180)
-	x := deltaLong * math.Cos((lat1Rad+lat2Rad)/2)
+	// Convert degrees to radians
+	const degToRad = math.Pi / 180
+	lat1Rad := lat1 * degToRad
+	lat2Rad := lat2 * degToRad
+	deltaLat := (lat2 - lat1) * degToRad
+	deltaLong := (long2 - long1) * degToRad
+
+	// Calculate components
+	x := deltaLong * math.Cos((lat1Rad+lat2Rad)*0.5)
 	y := deltaLat
+
+	// Approximate distance using the optimized formula
 	return math.Sqrt(x*x+y*y) * RadiusOfEarthMeters
 }
 
@@ -152,7 +158,9 @@ func transformWGS84ToKoreaTM(d, e, h, f, c, l, m, lat, lon float64) (float64, fl
 
 	sinLat := math.Sin(latRad)
 	cosLat := math.Cos(latRad)
+	tanLat := sinLat / cosLat
 
+	// Handle w calculation and ensure proper calculation for different e values
 	w := 1 / e
 	if e > 1 {
 		w = e
@@ -163,40 +171,53 @@ func transformWGS84ToKoreaTM(d, e, h, f, c, l, m, lat, lon float64) (float64, fl
 	dSquared := d * d
 	G := 1 - zSquared/dSquared
 	w = (dSquared - zSquared) / zSquared
-	z = (d - z) / (d + z)
 
-	// Precompute powers of z
+	// Simplify z calculation
+	z = (d - z) / (d + z)
 	z2 := z * z
 	z3 := z2 * z
 	z4 := z3 * z
 	z5 := z4 * z
 
-	E := d * (1 - z + 5*(z2-z3)/4 + 81*(z4-z5)/64)
-	I := 3 * d * (z - z2 + 7*(z3-z4)/8 + 55*z5/64) / 2
-	J := 15 * d * (z2 - z3 + 3*(z4-z5)/4) / 16
-	L := 35 * d * (z3 - z4 + 11*z5/16) / 48
-	M := 315 * d * (z4 - z5) / 512
+	// Precompute coefficients to avoid redundant calculations
+	E := d * (1 - z + (5.0/4.0)*(z2-z3) + (81.0/64.0)*(z4-z5))
+	I := (3.0 / 2.0) * d * (z - z2 + (7.0/8.0)*(z3-z4) + (55.0/64.0)*z5)
+	J := (15.0 / 16.0) * d * (z2 - z3 + (3.0/4.0)*(z4-z5))
+	L := (35.0 / 48.0) * d * (z3 - z4 + (11.0/16.0)*z5)
+	M := (315.0 / 512.0) * d * (z4 - z5)
 
 	D := lonRad - mRad
+
+	// u and o terms
 	u := E*lRad - I*math.Sin(2*lRad) + J*math.Sin(4*lRad) - L*math.Sin(6*lRad) + M*math.Sin(8*lRad)
 	z = u * c
-	t := sinLat / cosLat
+
+	// More optimizations on G
 	G = d / math.Sqrt(1-G*sinLat*sinLat)
 
 	u = E*latRad - I*math.Sin(2*latRad) + J*math.Sin(4*latRad) - L*math.Sin(6*latRad) + M*math.Sin(8*latRad)
 	o := u * c
 
-	E = G * sinLat * cosLat * c * 0.5                                                                                                                                                       // G * sinLat * cosLat * c / 2
-	I = G * sinLat * math.Pow(cosLat, 3) * c * (5 - t*t + 9*w + 4*w*w) * (1.0 / 24)                                                                                                         // G * sinLat * cosLat^3 * c * (5 - t^2 + 9w + 4w^2) / 24
-	J = G * sinLat * math.Pow(cosLat, 5) * c * (61 - 58*t*t + t*t*t*t + 270*w - 330*t*t*w + 445*w*w + 324*w*w*w - 680*t*t*w*w + 88*w*w*w*w - 600*t*t*w*w*w - 192*t*t*w*w*w*w) * (1.0 / 720) // G * sinLat * cosLat^5 * c * (61 - 58t^2 + t^4 + 270w - 330t^2w + 445w^2 + 324w^3 - 680t^2w^2 + 88w^4 - 600t^2w^3 - 192t^2w^4) / 720
-	H := G * sinLat * math.Pow(cosLat, 7) * c * (1385 - 3111*t*t + 543*t*t*t*t - t*t*t*t*t*t) * (1.0 / 40320)                                                                               // G * sinLat * cosLat^7 * c * (1385 - 3111t^2 + 543t^4 - t^6) / 40320
+	// Precompute powers of cosLat for reuse
+	cosLat3 := cosLat * cosLat * cosLat
+	cosLat5 := cosLat3 * cosLat * cosLat
+	cosLat7 := cosLat5 * cosLat * cosLat
+
+	// Calculate E, I, J, H using optimized expressions
+	E = G * sinLat * cosLat * c * 0.5
+	I = G * sinLat * cosLat3 * c * (5 - tanLat*tanLat + 9*w + 4*w*w) / 24
+	J = G * sinLat * cosLat5 * c * (61 - 58*tanLat*tanLat + tanLat*tanLat*tanLat*tanLat + 270*w - 330*tanLat*tanLat*w + 445*w*w + 324*w*w*w - 680*tanLat*tanLat*w*w + 88*w*w*w*w - 600*tanLat*tanLat*w*w*w - 192*tanLat*tanLat*w*w*w*w) / 720
+	H := G * sinLat * cosLat7 * c * (1385 - 3111*tanLat*tanLat + 543*tanLat*tanLat*tanLat*tanLat - tanLat*tanLat*tanLat*tanLat*tanLat*tanLat) / 40320
+
 	o += D*D*E + D*D*D*I + D*D*D*D*D*J + D*D*D*D*D*D*D*H
 	y := o - z + h
 
+	// Calculate x using optimized terms
 	o = G * cosLat * c
-	z = G * math.Pow(cosLat, 3) * c * (1 - t*t + w) * (1.0 / 6)                                                                             // G * cosLat^3 * c * (1 - t^2 + w) / 6
-	w = G * math.Pow(cosLat, 5) * c * (5 - 18*t*t + t*t*t*t + 14*w - 58*t*t*w + 13*w*w + 4*w*w*w - 64*t*t*w*w - 25*t*t*w*w*w) * (1.0 / 120) // G * cosLat^5 * c * (5 - 18t^2 + t^4 + 14w - 58t^2w + 13w^2 + 4w^3 - 64t^2w^2 - 25t^2w^3) / 120
-	u = G * math.Pow(cosLat, 7) * c * (61 - 479*t*t + 179*t*t*t*t - t*t*t*t*t*t) * (1.0 / 5040)                                             // G * cosLat^7 * c * (61 - 479t^2 + 179t^4 - t^6) / 5040
+	z = G * cosLat3 * c * (1 - tanLat*tanLat + w) / 6
+	w = G * cosLat5 * c * (5 - 18*tanLat*tanLat + tanLat*tanLat*tanLat*tanLat + 14*w - 58*tanLat*tanLat*w + 13*w*w + 4*w*w*w - 64*tanLat*tanLat*w*w - 25*tanLat*tanLat*w*w*w) / 120
+	u = G * cosLat7 * c * (61 - 479*tanLat*tanLat + 179*tanLat*tanLat*tanLat*tanLat - tanLat*tanLat*tanLat*tanLat*tanLat*tanLat) / 5040
+
 	x := f + D*o + D*D*D*z + D*D*D*D*D*w + D*D*D*D*D*D*D*u
 
 	return x, y

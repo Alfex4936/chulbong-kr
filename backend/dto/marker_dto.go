@@ -39,6 +39,16 @@ type MarkerWithDistance struct {
 	Address     *string `json:"address,omitempty" db:"Address"`
 }
 
+type MarkerWithDistanceAndPhoto struct {
+	Latitude    float64 `db:"Latitude" json:"latitude"`
+	Longitude   float64 `db:"Longitude" json:"longitude"`
+	Distance    float64 `db:"Distance" json:"distance"`
+	MarkerID    int     `db:"MarkerID" json:"markerId"`
+	Description string  `db:"Description" json:"description"`
+	Address     string  `db:"Address" json:"address"`
+	Thumbnail   *string `db:"Thumbnail" json:"thumbnail,omitempty"`
+}
+
 type MarkerWithDislike struct {
 	model.Marker
 	DislikeCount int    `db:"DislikeCount"`
@@ -76,8 +86,13 @@ type MarkerSimpleWithDescrption struct {
 type MarkerSimpleWithAddr struct {
 	Latitude  float64 `json:"latitude" db:"Latitude"`
 	Longitude float64 `json:"longitude" db:"Longitude"`
-	MarkerID  int     `json:"markerId" db:"MarkerID"`
 	Address   string  `json:"address,omitempty" db:"Address"`
+	MarkerID  int     `json:"markerId" db:"MarkerID"`
+}
+
+type MarkerOnlyWithAddr struct {
+	Address  string `json:"address,omitempty" db:"Address"`
+	MarkerID int    `json:"markerId" db:"MarkerID"`
 }
 
 type MarkerRSS struct {
@@ -131,4 +146,11 @@ type MarkersWithUsernames struct {
 	Username      string `db:"Username"`
 	DislikeCount  int    `db:"DislikeCount"`
 	FavoriteCount int    `db:"FavoriteCount"`
+}
+
+type MarkersClose struct {
+	Markers      []MarkerWithDistanceAndPhoto `json:"markers"`
+	CurrentPage  int                          `json:"currentPage"`
+	TotalPages   int                          `json:"totalPages"`
+	TotalMarkers int                          `json:"totalMarkers"`
 }

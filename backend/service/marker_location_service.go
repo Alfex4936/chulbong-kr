@@ -20,6 +20,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/fx"
 )
 
 const (
@@ -64,15 +65,50 @@ WHERE MBRContains(
     Location)
   AND ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
 ORDER BY distance ASC`
+
+	findClosestMarkersWithThumbnailQuery = `
+SELECT m.MarkerID, 
+       ST_X(m.Location) AS Latitude, 
+       ST_Y(m.Location) AS Longitude, 
+       m.Description, 
+       ST_Distance_Sphere(m.Location, ST_GeomFromText(?, 4326)) AS Distance, 
+       m.Address,
+	   MAX(p.PhotoURL) AS Thumbnail
+FROM Markers m
+LEFT JOIN (
+    SELECT p1.MarkerID, p1.PhotoURL
+    FROM Photos p1
+    WHERE p1.UploadedAt = (
+        SELECT MAX(p2.UploadedAt) 
+        FROM Photos p2 
+        WHERE p1.MarkerID = p2.MarkerID
+    )
+) p ON m.MarkerID = p.MarkerID
+WHERE MBRContains(
+    ST_SRID(
+        ST_GeomFromText(
+            CONCAT('POLYGON((',
+                   ?, ' ', ?, ',', 
+                   ?, ' ', ?, ',', 
+                   ?, ' ', ?, ',', 
+                   ?, ' ', ?, ',', 
+                   ?, ' ', ?, 
+                   '))')), 
+        4326), 
+    Location)
+AND ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
+GROUP BY m.MarkerID
+ORDER BY distance ASC`
 )
 
 type MarkerLocationService struct {
-	DB              *sqlx.DB
-	Config          *config.AppConfig
-	KakaoConfig     *config.KakaoConfig
-	Redis           *RedisService
-	MapUtil         *util.MapUtil
-	FacilityService *MarkerFacilityService
+	DB                   *sqlx.DB
+	Config               *config.AppConfig
+	KakaoConfig          *config.KakaoConfig
+	Redis                *RedisService
+	MapUtil              *util.MapUtil
+	FacilityService      *MarkerFacilityService
+	FindCloseMarkersStmt *sqlx.Stmt
 }
 
 func NewMarkerLocationService(
@@ -83,14 +119,28 @@ func NewMarkerLocationService(
 	mapUtil *util.MapUtil,
 	facilityService *MarkerFacilityService,
 ) *MarkerLocationService {
+	findCloseMarkersStmt, _ := db.Preparex(findClosestMarkersWithThumbnailQuery)
 	return &MarkerLocationService{
-		DB:              db,
-		Config:          config,
-		KakaoConfig:     kakaoConfig,
-		Redis:           redis,
-		MapUtil:         mapUtil,
-		FacilityService: facilityService,
+		DB:                   db,
+		Config:               config,
+		KakaoConfig:          kakaoConfig,
+		Redis:                redis,
+		MapUtil:              mapUtil,
+		FacilityService:      facilityService,
+		FindCloseMarkersStmt: findCloseMarkersStmt,
 	}
+}
+
+func RegisterMarkerLocationLifecycle(lifecycle fx.Lifecycle, service *MarkerLocationService) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			service.FindCloseMarkersStmt.Close()
+			return nil
+		},
+	})
 }
 
 // meters_per_degree = 40075000 / 360 / 1000
@@ -127,8 +177,9 @@ func (s *MarkerLocationService) IsMarkerInRestrictedArea(lat, long float64) (str
 	return name, true, nil
 }
 
+// TODO cache
 // FindClosestNMarkersWithinDistance
-func (s *MarkerLocationService) FindClosestNMarkersWithinDistance(lat, long float64, distance, pageSize, offset int) ([]dto.MarkerWithDistance, int, error) {
+func (s *MarkerLocationService) FindClosestNMarkersWithinDistance(lat, long float64, distance, pageSize, offset int) ([]dto.MarkerWithDistanceAndPhoto, int, error) {
 	// Calculate bounding box
 	radLat := lat * math.Pi / 180
 	radDist := float64(distance) / earthRadius
@@ -139,8 +190,8 @@ func (s *MarkerLocationService) FindClosestNMarkersWithinDistance(lat, long floa
 
 	point := fmt.Sprintf("POINT(%f %f)", lat, long)
 
-	var allMarkers []dto.MarkerWithDistance
-	err := s.DB.Select(&allMarkers, findClosestMarkersQuery, point, minLon, minLat, maxLon, minLat, maxLon, maxLat, minLon, maxLat, minLon, minLat, point, distance)
+	var allMarkers []dto.MarkerWithDistanceAndPhoto
+	err := s.FindCloseMarkersStmt.Select(&allMarkers, point, minLon, minLat, maxLon, minLat, maxLon, maxLat, minLon, maxLat, minLon, minLat, point, distance)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error checking for nearby markers: %w", err)
 	}
@@ -152,7 +203,7 @@ func (s *MarkerLocationService) FindClosestNMarkersWithinDistance(lat, long floa
 	return markers, total, nil
 }
 
-func (s *MarkerLocationService) FindRankedMarkersInCurrentArea(lat, long float64, distance, limit int) ([]dto.MarkerWithDistance, error) {
+func (s *MarkerLocationService) FindRankedMarkersInCurrentArea(lat, long float64, distance, limit int) ([]dto.MarkerWithDistanceAndPhoto, error) {
 	// Predefine capacity for slices based on known limits to avoid multiple allocations
 	nearbyMarkers, total, err := s.FindClosestNMarkersWithinDistance(lat, long, distance, limit, 0)
 	if err != nil {
@@ -171,7 +222,7 @@ func (s *MarkerLocationService) FindRankedMarkersInCurrentArea(lat, long float64
 	floatMin := float64(MinClickRank)
 
 	result, _ := s.Redis.Core.Client.Do(ctx, s.Redis.Core.Client.B().Zmscore().Key("marker_clicks").Member(markerIDs...).Build()).AsFloatSlice()
-	rankedMarkers := make([]dto.MarkerWithDistance, 0, len(result))
+	rankedMarkers := make([]dto.MarkerWithDistanceAndPhoto, 0, len(result))
 	for i, score := range result {
 		if score > floatMin { // Include markers with score > minScore
 			nearbyMarkers[i].Distance = score
@@ -304,7 +355,7 @@ func (s *MarkerLocationService) SaveOfflineMap(lat, lng float64) (string, error)
 
 	for i, marker := range nearbyMarkers {
 		wg.Add(1)
-		go func(i int, marker dto.MarkerWithDistance) {
+		go func(i int, marker dto.MarkerWithDistanceAndPhoto) {
 			defer wg.Done()
 			markerWcon := util.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
 			markerFile := path.Join(tempImagePath, fmt.Sprintf("marker-%d.png", i))
@@ -412,7 +463,7 @@ func (s *MarkerLocationService) SaveOfflineMap2(lat, lng float64) (string, error
 }
 
 // Simple pagination helper function
-func paginateMarkers(markers []dto.MarkerWithDistance, pageSize, offset int) []dto.MarkerWithDistance {
+func paginateMarkers(markers []dto.MarkerWithDistanceAndPhoto, pageSize, offset int) []dto.MarkerWithDistanceAndPhoto {
 	if offset >= len(markers) {
 		// Calculate the starting index of the last possible page
 		lastPageOffset := len(markers) - pageSize

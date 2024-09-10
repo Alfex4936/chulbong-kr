@@ -74,7 +74,7 @@ func SendDeploymentSuccessNotification(serverName, environment string) {
 	fields := make([]*slack.TextBlockObject, 0)
 	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Server:*\n`%s`", serverName), false, false))
 	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Environment:*\n`%s`", environment), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Deployed At:*\n`%s`", currentTime), false, false))
+	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Deployed At:*\n`%s` (UTC+9)", currentTime), false, false))
 	bodySection := slack.NewSectionBlock(nil, fields, nil)
 
 	// Combine the message blocks

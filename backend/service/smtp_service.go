@@ -23,7 +23,7 @@ func NewSmtpService(config *config.SmtpConfig) *SmtpService {
 var emailTemplate = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <title>Email verification for k-pullup.com</title>
+    <title>k-pullup.com 이메일 인증</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
@@ -57,7 +57,7 @@ var emailTemplate = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//
 var emailTemplateForReset = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <title>Password Reset request for k-pullup.com</title>
+    <title>k-pullup.com 비밀번호 초기화 요청</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
@@ -69,11 +69,13 @@ var emailTemplateForReset = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transi
                 <tr>
                     <td style="padding-bottom: 20px;" align="center">
                         <h1 style="color: #e5b000;">Password Reset Request</h1>
+                        <h1 style="color: #e5b000;">비밀번호 초기화 요청</h1>
                     </td>
                 </tr>
                 <tr>
                     <td style="padding-bottom: 20px;" align="center">
                         <p>You have requested to reset your password. Please click the link below to proceed:</p>
+                        <p>비밀번호 초기화를 요청하셨습니다. 아래 링크를 들어가 계속하세요!:</p>
                     </td>
                 </tr>
                 <tr>
@@ -121,13 +123,18 @@ var emailTemplateForPendingReports = `<!DOCTYPE html>
 func (s *SmtpService) SendVerificationEmail(to, token string) error {
 
 	// Define email headers including content type for HTML
-	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: k-pullup Email Verification\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", s.Config.SmtpUsername, to)
+	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: k-pullup 이메일 인증\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", s.Config.SmtpUsername, to)
 
 	// Replace the {{TOKEN}} placeholder in the template with the actual token
 	htmlBody := strings.Replace(emailTemplate, "{{TOKEN}}", token, -1)
 
-	// Combine headers and HTML body into a single raw email message
-	message := []byte(headers + htmlBody)
+	// Preallocate the byte slice with the combined length of headers and htmlBody
+	totalLength := len(headers) + len(htmlBody)
+	message := make([]byte, totalLength)
+
+	// Use copy to avoid creating intermediate allocations
+	copy(message, headers)                 // Copy headers into message
+	copy(message[len(headers):], htmlBody) // Append htmlBody after headers
 
 	// Connect to the SMTP server and send the email
 	auth := smtp.PlainAuth("", s.Config.SmtpUsername, s.Config.SmtpPassword, s.Config.SmtpServer)
@@ -140,14 +147,20 @@ func (s *SmtpService) SendVerificationEmail(to, token string) error {
 
 func (s *SmtpService) SendPasswordResetEmail(to, token string) error {
 	// Define email headers
-	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: Password Reset for k-pullup\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", s.Config.SmtpUsername, to)
+	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: k-pullup 비밀번호 초기화\r\nMIME-Version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n", s.Config.SmtpUsername, to)
 
 	// Replace the {{RESET_LINK}} placeholder with the actual reset link
 	clientURL := fmt.Sprintf("%s?token=%s&email=%s", s.Config.FrontendResetRouter, token, to)
 	htmlBody := strings.Replace(emailTemplateForReset, "{{RESET_LINK}}", clientURL, -1)
 
 	// Combine headers and HTML body into a single raw email message
-	message := []byte(headers + htmlBody)
+	// Preallocate the byte slice with the combined length of headers and htmlBody
+	totalLength := len(headers) + len(htmlBody)
+	message := make([]byte, totalLength)
+
+	// Use copy to avoid creating intermediate allocations
+	copy(message, headers)                 // Copy headers into message
+	copy(message[len(headers):], htmlBody) // Append htmlBody after headers
 
 	// Connect to the SMTP server and send the email
 	auth := smtp.PlainAuth("", s.Config.SmtpUsername, s.Config.SmtpPassword, s.Config.SmtpServer)
@@ -175,7 +188,13 @@ func (s *SmtpService) SendPendingReportsEmail(to string, reports []dto.MarkerRep
 	htmlBody := strings.Replace(emailTemplateForPendingReports, "{{REPORTS}}", reportRows, -1)
 
 	// Combine headers and HTML body into a single raw email message
-	message := []byte(headers + htmlBody)
+	// Preallocate the byte slice with the combined length of headers and htmlBody
+	totalLength := len(headers) + len(htmlBody)
+	message := make([]byte, totalLength)
+
+	// Use copy to avoid creating intermediate allocations
+	copy(message, headers)                 // Copy headers into message
+	copy(message[len(headers):], htmlBody) // Append htmlBody after headers
 
 	// Connect to the SMTP server and send the email
 	auth := smtp.PlainAuth("", s.Config.SmtpUsername, s.Config.SmtpPassword, s.Config.SmtpServer)

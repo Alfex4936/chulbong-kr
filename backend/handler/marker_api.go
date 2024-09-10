@@ -10,31 +10,44 @@ import (
 	"time"
 
 	sonic "github.com/bytedance/sonic"
+	"go.uber.org/zap"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/facade"
 	"github.com/Alfex4936/chulbong-kr/middleware"
-	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/Alfex4936/chulbong-kr/protos"
+	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 )
 
 type MarkerHandler struct {
 	MarkerFacadeService *facade.MarkerFacadeService
 
+	CacheService *service.MarkerCacheService
+
 	AuthMiddleware *middleware.AuthMiddleware
+
+	logger *zap.Logger
 }
 
 // NewMarkerHandler creates a new MarkerHandler with dependencies injected
-func NewMarkerHandler(authMiddleware *middleware.AuthMiddleware, facade *facade.MarkerFacadeService,
+func NewMarkerHandler(
+	authMiddleware *middleware.AuthMiddleware,
+	facade *facade.MarkerFacadeService,
+	c *service.MarkerCacheService,
+	logger *zap.Logger,
 ) *MarkerHandler {
 	return &MarkerHandler{
 		MarkerFacadeService: facade,
 
 		AuthMiddleware: authMiddleware,
+		CacheService:   c,
+
+		logger: logger,
 	}
 }
 
@@ -56,7 +69,22 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 	api.Get("/markers/weather", handler.HandleGetWeatherByWGS84)
 
 	api.Get("/markers/save-offline-test", handler.HandleTestDynamic)
-	api.Get("/markers/save-offline", authMiddleware.Verify, handler.HandleSaveOfflineMap2)
+	api.Get("/markers/save-offline", authMiddleware.Verify, limiter.New(limiter.Config{
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return handler.MarkerFacadeService.ChatUtil.GetUserIP(c)
+		},
+		Max:               5,
+		Expiration:        1 * time.Minute,
+		LimiterMiddleware: limiter.SlidingWindow{},
+		// LimiterMiddleware: middleware.SlidingWindow{},
+		LimitReached: func(c *fiber.Ctx) error {
+			// Custom response when rate limit is exceeded
+			c.Set(fiber.HeaderContentType, fiber.MIMETextPlainCharsetUTF8)
+			c.Status(429).SendString("Too many requests, please try again later.")
+			return nil
+		},
+		SkipFailedRequests: false,
+	}), handler.HandleSaveOfflineMap2)
 
 	api.Get("/markers/rss", handler.HandleRSS)
 	api.Get("/markers/roadview-date", handler.HandleGetRoadViewPicDate)
@@ -106,17 +134,6 @@ func (h *MarkerHandler) HandleGetAllMarkersProto(c *fiber.Ctx) error {
 	return c.Send(data)
 }
 
-// HandleGetAllMarkers handles the HTTP request to get all markers
-func (h *MarkerHandler) HandleGetAllMarkers(c *fiber.Ctx) error {
-	markers, err := h.MarkerFacadeService.GetAllMarkers()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to fetch markers",
-		})
-	}
-	return c.JSON(markers)
-}
-
 func (h *MarkerHandler) HandleGet10NewPictures(c *fiber.Ctx) error {
 	markers, err := h.MarkerFacadeService.GetNew10Pictures()
 	if err != nil {
@@ -132,18 +149,18 @@ func (h *MarkerHandler) HandleGetAllMarkersLocal(c *fiber.Ctx) error {
 	// if !strings.HasSuffix(c.Get("Referer"), ".k-pullup.com") || c.Get("Referer") != "https://www.k-pullup.com/" {
 	// 	return c.Redirect("https://k-pullup.com", fiber.StatusFound) // Use HTTP 302 for standard redirection
 	// }
-
-	cached := h.MarkerFacadeService.GetMarkerCache()
 	c.Set("Content-type", "application/json")
 
-	if cached != nil || len(cached) != 0 {
-		// If cache is not empty, directly return the cached binary data as JSON
+	// Attempt to fetch cached data first
+	cached, _ := h.CacheService.GetAllMarkers() // from Redis, on error will proceed to fetch from DB
+	if len(cached) > 0 {
+		// Cache hit, return the cached byte array
 		c.Append("X-Cache", "hit")
 		return c.Send(cached)
 	}
 
-	// Fetch markers if cache is empty
-	markers, err := h.MarkerFacadeService.GetAllMarkers() // []dto.MarkerSimple, err
+	// Cache miss: Fetch markers from DB
+	markers, err := h.MarkerFacadeService.GetAllMarkers() // Fetch from DB
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get markers"})
 	}
@@ -154,8 +171,11 @@ func (h *MarkerHandler) HandleGetAllMarkersLocal(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode markers"})
 	}
 
-	// Update cache
-	h.MarkerFacadeService.SetMarkerCache(markersJSON)
+	// Cache the full list of markers
+	err = h.CacheService.SetFullMarkersCache(markersJSON)
+	if err != nil {
+		h.logger.Error("Failed to cache full markers", zap.Error(err))
+	}
 
 	return c.Send(markersJSON)
 }
@@ -330,11 +350,11 @@ func (h *MarkerHandler) HandleDeleteMarker(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete marker"})
 	}
 
-	h.MarkerFacadeService.SetMarkerCache(nil)
 	h.MarkerFacadeService.RemoveMarkerClick(markerID)
-	// go services.ResetCache(services.ALL_MARKERS_KEY)
-	h.MarkerFacadeService.ResetRedisCache(fmt.Sprintf("facilities:%d", markerID))
-	h.MarkerFacadeService.ResetAllRedisCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
+
+	h.CacheService.SetFullMarkersCache(nil)
+	h.CacheService.InvalidateFacilities(markerID)
+	h.CacheService.RemoveUserMarker(userID, markerID)
 
 	return c.SendStatus(fiber.StatusOK)
 }
@@ -426,21 +446,30 @@ func (h *MarkerHandler) HandleGetUserMarkers(c *fiber.Ctx) error {
 		pageSize = 5
 	}
 
-	// Construct a unique cache key using userID and page
-	cacheKey := fmt.Sprintf("userMarkers:%d:page:%d", userID, page)
-	var cachedResponse fiber.Map
+	// Try to get markers from cache
+	cachedMarkers, err := h.CacheService.GetUserMarkersPageCache(userID, page)
+	if err == nil && len(cachedMarkers) > 0 {
+		// If cache hit, calculate total markers and total pages and return the cached response
+		totalMarkers := len(cachedMarkers)
+		totalPages := int(math.Ceil(float64(totalMarkers) / float64(pageSize)))
 
-	// Attempt to retrieve from cache
-	err = h.MarkerFacadeService.GetRedisCache(cacheKey, &cachedResponse)
+		// Prepare the response from the cached data
+		response := dto.UserMarkers{
+			MarkersWithPhotos: cachedMarkers,
+			CurrentPage:       page,
+			TotalPages:        totalPages,
+			TotalMarkers:      totalMarkers,
+		}
 
-	if err == nil {
-		// Cache hit, return cached response
-		return c.JSON(cachedResponse)
+		// Return cached response
+		c.Append("X-Cache", "hit")
+		return c.JSON(response)
 	}
 
+	// If no cache, fetch markers from database
 	markersWithPhotos, total, err := h.MarkerFacadeService.GetAllMarkersByUserWithPagination(userID, page, pageSize)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "check if you have added markers"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get markers"})
 	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
@@ -454,7 +483,9 @@ func (h *MarkerHandler) HandleGetUserMarkers(c *fiber.Ctx) error {
 	}
 
 	// Cache the response for future requests
-	go h.MarkerFacadeService.SetRedisCache(cacheKey, response, 30*time.Minute)
+	go func() {
+		h.CacheService.AddUserMarkersPageCache(userID, page, markersWithPhotos)
+	}()
 
 	// Return the response
 	return c.JSON(response)
@@ -505,7 +536,7 @@ func (h *MarkerHandler) HandleAddFavorite(c *fiber.Ctx) error {
 		})
 	}
 
-	h.MarkerFacadeService.ResetFavCache(userData.Username, userData.UserID)
+	go h.CacheService.RemoveMarkerFromFavorites(userData.UserID, markerID)
 
 	// Successfully added the favorite
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -518,10 +549,6 @@ func (h *MarkerHandler) HandleRemoveFavorite(c *fiber.Ctx) error {
 	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
 	}
-	username, ok := c.Locals("username").(string)
-	if !ok {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username not found"})
-	}
 
 	markerID, err := strconv.Atoi(c.Params("markerID"))
 	if err != nil {
@@ -533,7 +560,7 @@ func (h *MarkerHandler) HandleRemoveFavorite(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	go h.MarkerFacadeService.ResetFavCache(username, userID)
+	go h.CacheService.RemoveMarkerFromFavorites(userID, markerID)
 
 	return c.SendStatus(fiber.StatusNoContent) // 204 No Content is appropriate for a DELETE success with no response body
 }
@@ -546,22 +573,19 @@ func (h *MarkerHandler) HandleGetFacilities(c *fiber.Ctx) error {
 	}
 
 	// Attempt to retrieve from cache first
-	var facilities []model.Facility
-	cacheKey := fmt.Sprintf("facilities:%d", markerID)
-	cacheErr := h.MarkerFacadeService.GetRedisCache(cacheKey, &facilities)
-	if cacheErr == nil && facilities != nil {
+	cachedFacilities, cacheErr := h.CacheService.GetFacilitiesCache(markerID)
+	if cacheErr == nil && cachedFacilities != nil {
 		c.Append("X-Cache", "hit")
-		// Cache hit, return cached facilities
-		return c.JSON(facilities)
+		return c.JSON(cachedFacilities)
 	}
 
-	facilities, err = h.MarkerFacadeService.GetFacilitiesByMarkerID(markerID)
+	facilities, err := h.MarkerFacadeService.GetFacilitiesByMarkerID(markerID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve facilities"})
 	}
 
 	// Cache the result for future requests
-	go h.MarkerFacadeService.SetRedisCache(cacheKey, facilities, 3*time.Hour)
+	go h.CacheService.AddFacilitiesCache(markerID, facilities)
 
 	return c.JSON(facilities)
 }

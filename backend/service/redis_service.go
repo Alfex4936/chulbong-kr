@@ -9,6 +9,7 @@ import (
 
 	"github.com/Alfex4936/chulbong-kr/config"
 	"github.com/Alfex4936/chulbong-kr/dto"
+	"github.com/Alfex4936/chulbong-kr/util"
 
 	sonic "github.com/bytedance/sonic"
 	"github.com/redis/rueidis"
@@ -64,7 +65,8 @@ func (s *RedisService) GetCacheEntry(key string, target interface{}) error {
 		return err
 	}
 	if resp != "" {
-		err = sonic.Unmarshal([]byte(resp), target)
+		// Use StringToBytes to avoid unnecessary allocation
+		err = sonic.Unmarshal(util.StringToBytes(resp), target)
 	}
 	return err
 }
@@ -118,6 +120,34 @@ func (s *RedisService) ResetAllCache(pattern string) error {
 	}
 
 	return nil
+}
+
+// GetMembersOfSet retrieves all members of a Redis set
+func (s *RedisService) GetMembersOfSet(key string) ([]string, error) {
+	ctx := context.Background()
+	membersCmd := s.Core.Client.B().Smembers().Key(key).Build()
+
+	// Execute the SMEMBERS command and return the list of members
+	members, err := s.Core.Client.Do(ctx, membersCmd).AsStrSlice()
+	if err != nil {
+		return nil, err
+	}
+
+	return members, nil
+}
+
+// AddToSet adds a member to a Redis set
+func (s *RedisService) AddToSet(key string, member string) error {
+	ctx := context.Background()
+	addCmd := s.Core.Client.B().Sadd().Key(key).Member(member).Build()
+	return s.Core.Client.Do(ctx, addCmd).Error()
+}
+
+// RemoveFromSet removes a member from a Redis set
+func (s *RedisService) RemoveFromSet(key string, member string) error {
+	ctx := context.Background()
+	removeCmd := s.Core.Client.B().Srem().Key(key).Member(member).Build()
+	return s.Core.Client.Do(ctx, removeCmd).Error()
 }
 
 // REDIS GEO

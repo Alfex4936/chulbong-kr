@@ -47,6 +47,7 @@ func RegisterAdminRoutes(api fiber.Router, handler *AdminHandler, authMiddleware
 		adminGroup.Get("/dead", handler.HandleListUnreferencedS3Objects)
 		adminGroup.Get("/fetch", handler.HandleListUpdatedMarkers)
 		adminGroup.Get("/unique-visitors/:date", handler.HandleListVisitors)
+		adminGroup.Get("/s3-list", handler.HandleListS3)
 	}
 }
 
@@ -79,6 +80,15 @@ func (h *AdminHandler) HandleListUnreferencedS3Objects(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(unreferenced)
+}
+
+func (h *AdminHandler) HandleListS3(c *fiber.Ctx) error {
+	s3Objects, err := h.AdminFacade.ListAllObjectsInS3()
+	if err != nil {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "fetching keys from S3"})
+	}
+
+	return c.JSON(s3Objects)
 }
 
 func (h *AdminHandler) HandleBanUser(c *fiber.Ctx) error {

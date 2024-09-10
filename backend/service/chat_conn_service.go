@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
+	"github.com/Alfex4936/chulbong-kr/util"
 
 	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/contrib/websocket"
@@ -311,7 +312,10 @@ func (s *ChatService) GetAllRedisConnectionsFromRoom(markerID string) ([]dto.Con
 	connections := make([]dto.ConnectionInfo, 0, len(result))
 	for _, jsonConnInfo := range result {
 		var connInfo dto.ConnectionInfo
-		if err := sonic.Unmarshal([]byte(jsonConnInfo), &connInfo); err != nil {
+		// Use StringToBytes to avoid unnecessary memory allocation
+		jsonBytes := util.StringToBytes(jsonConnInfo)
+
+		if err := sonic.Unmarshal(jsonBytes, &connInfo); err != nil {
 			log.Printf("Error unmarshaling connection info: %v", err)
 			continue
 		}

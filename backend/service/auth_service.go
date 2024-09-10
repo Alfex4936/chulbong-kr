@@ -47,6 +47,13 @@ VALUES (?, ?, ?)
 ON DUPLICATE KEY UPDATE Token = VALUES(Token), ExpiresAt = VALUES(ExpiresAt)
 	`
 	insertUserQuery = "INSERT INTO Users (Username, Email, PasswordHash, Provider, ProviderID, Role, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, 'user', NOW(), NOW())"
+
+	selectUserByEmailAndProviderQuery    = "SELECT * FROM Users WHERE Email = ? AND Provider = ?"
+	selectCountByUsernameQuery           = "SELECT COUNT(*) FROM Users WHERE Username = ?"
+	insertNewUserQuery                   = "INSERT INTO Users (Username, Email, Provider, ProviderID, Role) VALUES (?, ?, ?, ?, 'user')"
+	updateUserProviderIDAndUsernameQuery = "UPDATE Users SET Username = ?, ProviderID = ? WHERE Email = ? AND Provider = ?"
+	updateUserProviderIDQuery            = "UPDATE Users SET ProviderID = ? WHERE Email = ? AND Provider = ?"
+	selectUserAfterUpdateQuery           = "SELECT * FROM Users WHERE Email = ? AND Provider = ?"
 )
 
 type UserDetails struct {
@@ -198,7 +205,8 @@ func (s *AuthService) Login(email, password string) (*model.User, error) {
 		return nil, fmt.Errorf("external provider login not supported here")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(password)) // heavy
+	// Use StringToBytes to avoid unnecessary allocation
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), util.StringToBytes(password)) // optimized
 	if err != nil {
 		// Password does not match
 		return nil, fmt.Errorf("invalid credentials")
@@ -228,7 +236,7 @@ func (s *AuthService) SaveOAuthUser(provider string, providerID string, email st
 	}
 
 	user := &model.User{}
-	err = tx.Get(user, "SELECT * FROM Users WHERE Email = ? AND Provider = ?", email, provider)
+	err = tx.Get(user, selectUserByEmailAndProviderQuery, email, provider)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
@@ -238,7 +246,7 @@ func (s *AuthService) SaveOAuthUser(provider string, providerID string, email st
 		uniqueUsername := username
 		for {
 			var count int
-			err = tx.Get(&count, "SELECT COUNT(*) FROM Users WHERE Username = ?", uniqueUsername)
+			err = tx.Get(&count, selectCountByUsernameQuery, uniqueUsername)
 			if err != nil {
 				return nil, err
 			}
@@ -247,14 +255,13 @@ func (s *AuthService) SaveOAuthUser(provider string, providerID string, email st
 			}
 			uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
 		}
-		_, err = tx.Exec("INSERT INTO Users (Username, Email, Provider, ProviderID, Role) VALUES (?, ?, ?, ?, 'user')",
-			uniqueUsername, email, provider, providerID)
+		_, err = tx.Exec(insertNewUserQuery, uniqueUsername, email, provider, providerID)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		// Existing user
-		// Check if the current nickname is different from the new one
+		// Check if the current username is different from the new one
 		currentUsername := user.Username
 		baseUsername := currentUsername
 		if idx := strings.LastIndex(currentUsername, "_"); idx != -1 {
@@ -265,7 +272,7 @@ func (s *AuthService) SaveOAuthUser(provider string, providerID string, email st
 			uniqueUsername := username
 			for {
 				var count int
-				err = tx.Get(&count, "SELECT COUNT(*) FROM Users WHERE Username = ?", uniqueUsername)
+				err = tx.Get(&count, selectCountByUsernameQuery, uniqueUsername)
 				if err != nil {
 					return nil, err
 				}
@@ -274,22 +281,20 @@ func (s *AuthService) SaveOAuthUser(provider string, providerID string, email st
 				}
 				uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
 			}
-			_, err = tx.Exec("UPDATE Users SET Username = ?, ProviderID = ? WHERE Email = ? AND Provider = ?",
-				uniqueUsername, providerID, email, provider)
+			_, err = tx.Exec(updateUserProviderIDAndUsernameQuery, uniqueUsername, providerID, email, provider)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// Just update the ProviderID if the username doesn't need to change
-			_, err = tx.Exec("UPDATE Users SET ProviderID = ? WHERE Email = ? AND Provider = ?",
-				providerID, email, provider)
+			_, err = tx.Exec(updateUserProviderIDQuery, providerID, email, provider)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	err = tx.Get(user, "SELECT * FROM Users WHERE Email = ? AND Provider = ?", email, provider)
+	err = tx.Get(user, selectUserAfterUpdateQuery, email, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +327,7 @@ func (s *AuthService) ResetPassword(token string, newPassword string) error {
 		return err // Token not found or expired
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword(util.StringToBytes(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
@@ -334,8 +339,7 @@ func (s *AuthService) ResetPassword(token string, newPassword string) error {
 	}
 
 	// Use the transaction (tx) to delete the reset token
-	const deleteQuery = deleteResetTokenQuery
-	_, err = tx.Exec(deleteQuery, token)
+	_, err = tx.Exec(deleteResetTokenQuery, token)
 	if err != nil {
 		return err
 	}
@@ -369,6 +373,11 @@ func (s *AuthService) GeneratePasswordResetToken(email string) (string, error) {
 // VerifyNaverEmail can check naver email existence before sending
 func (s *AuthService) VerifyNaverEmail(naverAddress string) (bool, error) {
 	naverAddress = strings.Split(naverAddress, "@naver.com")[0]
+	// Make sure the username part is well-formed (length, characters, etc.)
+	if len(naverAddress) == 0 {
+		return false, fmt.Errorf("invalid naver username")
+	}
+
 	reqURL := fmt.Sprintf("%s=%s", s.Config.NaverEmailVerifyURL, naverAddress)
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
@@ -405,10 +414,12 @@ func (s *AuthService) VerifyNaverEmail(naverAddress string) (bool, error) {
 
 // private
 func hashPassword(password string) (string, error) {
-	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	// Use StringToBytes to convert the password string to a byte slice without extra allocation
+	hashedBytes, err := bcrypt.GenerateFromPassword(util.StringToBytes(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
 	}
+	// Convert the resulting hashed byte slice back to a string
 	return string(hashedBytes), nil
 }
 

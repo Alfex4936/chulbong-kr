@@ -297,7 +297,8 @@ func NewFiberApp(
 		Except: []string{csrf.ConfigDefault.CookieName, "Etag"}, // exclude CSRF cookie
 	}))
 
-	app.Use("/debug/pprof", authMiddleware.CheckAdmin, pprof.New())
+	// app.Use("/debug/pprof", authMiddleware.CheckAdmin, pprof.New())
+	app.Use("/debug/pprof", pprof.New())
 	app.Use("/debug/fgprof", authMiddleware.CheckAdmin, fgprof.New())
 
 	app.Use(compress.New(compress.Config{
@@ -315,8 +316,8 @@ func NewFiberApp(
 		Next: func(c *fiber.Ctx) bool {
 			// Skip rate limiting for /users/logout and /users/me
 			path := c.Path()
-			if path == "/api/v1/auth/logout" || path == "/api/v1/users/me" {
-				return true // Returning true skips the limiter
+			if path == "/api/v1/auth/logout" || path == "/api/v1/users/me" || path == "/api/v1/markers/save-offline" {
+				return true // Returning true skips this limiter
 			}
 			return false // Apply the limiter for all other paths
 		},
@@ -702,7 +703,9 @@ func main() {
 			service.RegisterSchedulerLifecycle,
 			util.RegisterPdfInitLifecycle,
 			service.RegisterMarkerLifecycle,
+			service.RegisterMarkerLocationLifecycle,
 			service.RegisterAuthLifecycle,
+			service.RegisteBleveLifecycle,
 		), // func(diGraph fx.DotGraph) {
 		// logger.Debug("➡️", diGraph)
 		// }

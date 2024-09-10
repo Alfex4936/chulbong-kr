@@ -2,11 +2,12 @@ package handler
 
 import (
 	"log"
-	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/facade"
 	"github.com/Alfex4936/chulbong-kr/middleware"
+	"github.com/Alfex4936/chulbong-kr/service"
+	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -14,15 +15,19 @@ type UserHandler struct {
 	UserFacadeService *facade.UserFacadeService
 
 	AuthMiddleware *middleware.AuthMiddleware
+
+	CacheService *service.MarkerCacheService
 }
 
 // NewUserHandler creates a new UserHandler with dependencies injected
-func NewUserHandler(authMiddleware *middleware.AuthMiddleware, facade *facade.UserFacadeService,
+func NewUserHandler(authMiddleware *middleware.AuthMiddleware, facade *facade.UserFacadeService, c *service.MarkerCacheService,
 ) *UserHandler {
 	return &UserHandler{
 		UserFacadeService: facade,
 
 		AuthMiddleware: authMiddleware,
+
+		CacheService: c,
 	}
 }
 
@@ -62,7 +67,17 @@ func (h *UserHandler) HandleUpdateUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	h.UserFacadeService.ResetUserFavCache(userData.UserID)
+	// Marshal the updated user profile to byte array
+	userProfileData, err := sonic.Marshal(user)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode user profile"})
+	}
+
+	// Update the user profile cache
+	go h.CacheService.SetUserProfileCache(userData.UserID, userProfileData)
+
+	// TODO: reset favorite markers cache if profile update affects them
+	// h.UserFacadeService.ResetUserFavCache(userData.UserID)
 
 	return c.JSON(user)
 }
@@ -86,30 +101,28 @@ func (h *UserHandler) HandleDeleteUser(c *fiber.Ctx) error {
 func (h *UserHandler) HandleProfile(c *fiber.Ctx) error {
 	userData, err := h.UserFacadeService.GetUserFromContext(c)
 	if err != nil {
-		return err // fiber err
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to get user from context"})
 	}
+
+	c.Append("Content-Type", "application/json")
 
 	chulbong, _ := c.Locals("chulbong").(bool)
 
-	userProfileKey := h.UserFacadeService.GetUserProfileKey(userData.UserID)
-
-	var cachedUser *dto.UserResponse
-	// Try to get the user profile from the cache first
-	cacheErr := h.UserFacadeService.GetUserCache(userProfileKey, &cachedUser)
-	if cacheErr == nil && cachedUser != nil {
-		// Cache hit, return the cached user
+	// Try to get the user profile as byte data from the cache first
+	cachedData, cacheErr := h.CacheService.GetUserProfileCache(userData.UserID)
+	if cacheErr == nil && len(cachedData) > 0 {
+		// Cache hit, return the cached data as JSON directly
 		c.Append("X-Cache", "hit")
-		return c.JSON(cachedUser)
+		return c.Send(cachedData)
 	}
 
 	// If the cache doesn't have the user profile, fetch it from the database
 	user, err := h.UserFacadeService.GetUserById(userData.UserID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Invalid user"})
 	}
 
 	contributions, creations, err := h.UserFacadeService.UserService.GetUserStatistics(userData.UserID)
-
 	if err == nil {
 		user.ReportCount = contributions
 		user.MarkerCount = creations
@@ -126,10 +139,17 @@ func (h *UserHandler) HandleProfile(c *fiber.Ctx) error {
 		user.Chulbong = true
 	}
 
-	// After fetching from the database
-	h.UserFacadeService.SetRedisCache(userProfileKey, user, 15*time.Minute)
+	// Marshal the user profile directly into byte data
+	userProfileData, err := sonic.Marshal(user)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to marshal user profile"})
+	}
 
-	return c.JSON(user)
+	// Cache the marshalled user profile for future requests
+	go h.CacheService.SetUserProfileCache(userData.UserID, userProfileData)
+
+	// Return the user profile
+	return c.Send(userProfileData)
 }
 
 func (h *UserHandler) HandleGetFavorites(c *fiber.Ctx) error {
@@ -138,14 +158,11 @@ func (h *UserHandler) HandleGetFavorites(c *fiber.Ctx) error {
 		return err // fiber err
 	}
 
-	userFavKey := h.UserFacadeService.GetUserFavKey(userData.UserID, userData.Username)
-
-	var cachedFav []dto.MarkerSimpleWithDescrption
-
 	// Try to get the user fav from the cache first
-	cacheErr := h.UserFacadeService.GetUserCache(userFavKey, &cachedFav)
+	cachedFav, cacheErr := h.CacheService.GetUserFavorites(userData.UserID)
 	if cacheErr == nil && cachedFav != nil {
 		// Cache hit, return the cached fav
+		c.Append("X-Cache", "hit")
 		return c.JSON(cachedFav)
 	}
 
@@ -155,7 +172,7 @@ func (h *UserHandler) HandleGetFavorites(c *fiber.Ctx) error {
 	}
 
 	// After fetching from the database
-	h.UserFacadeService.SetRedisCache(userFavKey, favorites, 10*time.Minute)
+	go h.CacheService.AddFavoritesToCache(userData.UserID, favorites)
 
 	return c.JSON(favorites)
 }

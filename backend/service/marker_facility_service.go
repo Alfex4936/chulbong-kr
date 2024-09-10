@@ -38,11 +38,12 @@ const (
 )
 
 type MarkerFacilityService struct {
-	Config       *config.AppConfig
-	KakaoConfig  *config.KakaoConfig
-	DB           *sqlx.DB
-	HTTPClient   *http.Client
-	RedisService *RedisService
+	Config      *config.AppConfig
+	KakaoConfig *config.KakaoConfig
+	DB          *sqlx.DB
+	HTTPClient  *http.Client
+
+	CacheService *MarkerCacheService
 }
 
 func NewMarkerFacilityService(
@@ -50,13 +51,13 @@ func NewMarkerFacilityService(
 	kakaoConfig *config.KakaoConfig,
 	db *sqlx.DB,
 	httpClient *http.Client,
-	redisService *RedisService) *MarkerFacilityService {
+	c *MarkerCacheService) *MarkerFacilityService {
 	return &MarkerFacilityService{
 		Config:       config,
 		KakaoConfig:  kakaoConfig,
 		DB:           db,
 		HTTPClient:   httpClient,
-		RedisService: redisService,
+		CacheService: c,
 	}
 }
 
@@ -94,7 +95,7 @@ func (s *MarkerFacilityService) SetMarkerFacilities(markerID int, facilities []d
 		return err
 	}
 
-	s.RedisService.ResetCache(fmt.Sprintf("facilities:%d", markerID))
+	s.CacheService.InvalidateFacilities(markerID)
 
 	return nil
 }

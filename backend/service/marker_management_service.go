@@ -187,6 +187,8 @@ type MarkerManageService struct {
 
 	byteCache *gocache.Cache[[]byte]
 
+	CacheService *MarkerCacheService
+
 	GetMarkerStmt             *sqlx.Stmt
 	GetAllPhotosForMarkerStmt *sqlx.Stmt
 	GetNewTop10PicturesStmt   *sqlx.Stmt
@@ -206,6 +208,7 @@ type MarkerManageServiceParams struct {
 	BadWordUtil        *util.BadWordUtil
 	LocalCacheStorage  *ristretto_store.RistrettoStore
 	Logger             *zap.Logger
+	CacheService       *MarkerCacheService
 }
 
 // NewMarkerManageService creates a new instance of MarkerManageService.
@@ -234,6 +237,8 @@ func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
 		GetAllPhotosForMarkerStmt: getAllPhotosForMarkerStmt,
 		GetNewTop10PicturesStmt:   getNewTop10PicturesStmt,
 		GenerateRSSQueryStmt:      generateRSSQueryStmt,
+
+		CacheService: p.CacheService,
 	}
 }
 
@@ -604,7 +609,9 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 
 	}(markerID, markerDto.Latitude, markerDto.Longitude)
 
-	go s.MarkerLocationService.Redis.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
+	// go s.MarkerLocationService.Redis.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
+	go s.CacheService.RemoveUserMarker(userID, int(markerID))
+	go s.CacheService.InvalidateFullMarkersCache()
 
 	// Construct and return the response
 	return &dto.MarkerResponse{

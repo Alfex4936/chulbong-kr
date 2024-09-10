@@ -23,6 +23,8 @@ const (
 	NAVER_USER_INFO_URL  = "https://openapi.naver.com/v1/nid/me"
 )
 
+type SimpleErrorResponse dto.SimpleErrorResponse
+
 type AuthHandler struct {
 	AuthService  *service.AuthService
 	UserService  *service.UserService
@@ -108,16 +110,16 @@ func RegisterAuthRoutes(api fiber.Router, handler *AuthHandler, authMiddleaware 
 func (h *AuthHandler) HandleSignUp(c *fiber.Ctx) error {
 	var signUpReq dto.SignUpRequest
 	if err := c.BodyParser(&signUpReq); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse JSON, wrong sign up form."})
+		return c.Status(fiber.StatusBadRequest).JSON(SimpleErrorResponse{Error: "Cannot parse JSON, wrong sign up form."})
 	}
 
 	// Check if the token is verified before proceeding
 	verified, err := h.TokenService.IsTokenVerified(signUpReq.Email)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to check verification status"})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to check verification status"})
 	}
 	if !verified {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Email not verified"})
+		return c.Status(fiber.StatusBadRequest).JSON(SimpleErrorResponse{Error: "Email not verified"})
 	}
 
 	signUpReq.Provider = "website"
@@ -126,10 +128,10 @@ func (h *AuthHandler) HandleSignUp(c *fiber.Ctx) error {
 	if err != nil {
 		// Handle the duplicate email error
 		if strings.Contains(err.Error(), "already registered") {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(fiber.StatusConflict).JSON(SimpleErrorResponse{Error: "Duplicate email address"})
 		}
 		// For other errors, return a generic error message
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "An error occurred while creating the user: " + err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "An error occurred while creating the user"})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(user)
@@ -158,19 +160,19 @@ func (h *AuthHandler) HandleLogin(c *fiber.Ctx) error {
 	var request dto.LoginRequest
 	if err := c.BodyParser(&request); err != nil {
 		h.Logger.Error("Failed to parse login request body", zap.Error(err))
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(SimpleErrorResponse{Error: "Invalid login request"})
 	}
 
 	user, err := h.AuthService.Login(request.Email, request.Password)
 	if err != nil {
 		h.Logger.Warn("Login failed", zap.Error(err))
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
+		return c.Status(fiber.StatusUnauthorized).JSON(SimpleErrorResponse{Error: "Invalid email or password"})
 	}
 
 	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
 	if err != nil {
 		h.Logger.Error("Failed to generate token", zap.Error(err))
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	}
 
 	// Create a response object that includes both the user and the token
@@ -246,13 +248,13 @@ func (h *AuthHandler) HandleGoogleOAuth(c *fiber.Ctx) error {
 	user, err := h.AuthService.SaveOAuthUser("google", userInfo.ID, userInfo.Email, userInfo.Name)
 	if err != nil {
 		h.Logger.Warn("OAuth Login failed", zap.Error(err))
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Failed to login with Google"})
+		return c.Status(fiber.StatusUnauthorized).JSON(SimpleErrorResponse{Error: "Failed to login with Google"})
 	}
 
 	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
 	if err != nil {
 		h.Logger.Error("Failed to generate token for google login", zap.Error(err))
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	}
 
 	// responseData := dto.LoginResponse{
@@ -331,13 +333,13 @@ func (h *AuthHandler) HandleKakaoOAuth(c *fiber.Ctx) error {
 	user, err := h.AuthService.SaveOAuthUser("kakao", strconv.FormatInt(userInfo.ID, 10), userInfo.KakaoAccount.Email, userInfo.KakaoAccount.Profile.Nickname)
 	if err != nil {
 		h.Logger.Warn("OAuth Kakao Login failed", zap.Error(err))
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Failed to login with Google"})
+		return c.Status(fiber.StatusUnauthorized).JSON(SimpleErrorResponse{Error: "Failed to login with Google"})
 	}
 
 	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
 	if err != nil {
 		h.Logger.Error("Failed to generate token for kakao login", zap.Error(err))
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	}
 
 	cookie := h.TokenUtil.GenerateLoginCookie(token)
@@ -404,13 +406,13 @@ func (h *AuthHandler) HandleNaverOAuth(c *fiber.Ctx) error {
 	user, err := h.AuthService.SaveOAuthUser("naver", userInfo.Response.ID, userInfo.Response.Email, userInfo.Response.Nickname)
 	if err != nil {
 		h.Logger.Warn("OAuth Login failed", zap.Error(err))
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Failed to login with Naver"})
+		return c.Status(fiber.StatusUnauthorized).JSON(SimpleErrorResponse{Error: "Failed to login with Naver"})
 	}
 
 	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
 	if err != nil {
 		h.Logger.Error("Failed to generate token for Naver login", zap.Error(err))
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	}
 
 	cookie := h.TokenUtil.GenerateLoginCookie(token)
@@ -522,13 +524,13 @@ func (h *AuthHandler) HandleGitHubOAuth(c *fiber.Ctx) error {
 	user, err := h.AuthService.SaveOAuthUser("github", strconv.FormatInt(userInfo.ID, 10), userInfo.Email, userInfo.Login)
 	if err != nil {
 		h.Logger.Warn("OAuth GitHub Login failed", zap.Error(err))
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Failed to login with GitHub"})
+		return c.Status(fiber.StatusUnauthorized).JSON(SimpleErrorResponse{Error: "Failed to login with GitHub"})
 	}
 
 	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
 	if err != nil {
 		h.Logger.Error("Failed to generate token for GitHub login", zap.Error(err))
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	}
 
 	cookie := h.TokenUtil.GenerateLoginCookie(token)
@@ -598,26 +600,26 @@ func (h *AuthHandler) HandleSendVerificationEmail(c *fiber.Ctx) error {
 	_, err := h.UserService.GetUserByEmail(userEmail)
 	if err == nil {
 		// If GetUserByEmail does not return an error, it means the email is already in use
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already registered"})
+		return c.Status(fiber.StatusConflict).JSON(SimpleErrorResponse{Error: "Email already registered"})
 	} else if err != sql.ErrNoRows {
 		// if db couldn't find a user, then it's valid. other errors are bad.
 		h.Logger.Error("Unexpected error occurred while checking email", zap.Error(err))
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "An unexpected error occurred"})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "An unexpected error occurred"})
 	}
 
 	// No matter if it's verified, send again.
 	// Check if there's already a verified token for this user
 	// verified, err := services.IsTokenVerified(userEmail)
 	// if err != nil {
-	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to check verification status"})
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to check verification status"})
 	// }
 	// if verified {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Email already verified"})
+	// 	return c.Status(fiber.StatusBadRequest).JSON(SimpleErrorResponse{Error: "Email already verified"})
 	// }
 
 	// token, err := services.GenerateAndSaveSignUpToken(userEmail)
 	// if err != nil {
-	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	// }
 
 	// Use a goroutine to send the email without blocking
@@ -671,11 +673,11 @@ func (h *AuthHandler) HandleValidateToken(c *fiber.Ctx) error {
 	valid, err := h.TokenService.ValidateToken(token, email)
 	if err != nil {
 		// If err is not nil, it could be a database error or token not found
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error validating token"})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Error validating token"})
 	}
 	if !valid {
 		// Handle both not found and expired cases
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid or expired token"})
+		return c.Status(fiber.StatusBadRequest).JSON(SimpleErrorResponse{Error: "Invalid or expired token"})
 	}
 
 	return c.SendStatus(fiber.StatusOK)
@@ -703,7 +705,7 @@ func (h *AuthHandler) HandleRequestResetPassword(c *fiber.Ctx) error {
 	// Generate the password reset token
 	token, err := h.AuthService.GeneratePasswordResetToken(email)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to request reset password: " + err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to request reset password"})
 	}
 
 	// Use a goroutine to send the email without blocking
@@ -744,7 +746,7 @@ func (h *AuthHandler) HandleResetPassword(c *fiber.Ctx) error {
 
 	err := h.AuthService.ResetPassword(token, newPassword)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to reset password"})
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to reset password"})
 	}
 
 	return c.SendStatus(fiber.StatusOK)

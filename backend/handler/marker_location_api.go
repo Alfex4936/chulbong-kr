@@ -1,15 +1,13 @@
 package handler
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
-	"github.com/Alfex4936/chulbong-kr/dto/kakao"
 	"github.com/Alfex4936/chulbong-kr/util"
+	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -43,26 +41,35 @@ func (h *MarkerHandler) HandleFindCloseMarkers(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid query parameters"})
 	}
 
-	if params.Distance > 10000 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Distance cannot be greater than 10,000m (10km)"})
+	if params.Distance > 50000 {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Distance cannot be greater than 15,000m (15km)"})
 	}
 
 	// Set default page to 1 if not specified
 	if params.Page < 1 {
 		params.Page = 1
 	}
-
 	if params.PageSize < 1 {
 		params.PageSize = 4
 	}
 
 	offset := (params.Page - 1) * params.PageSize
 
-	// Find nearby markers within the specified distance and page
-	markers, total, err := h.MarkerFacadeService.FindClosestNMarkersWithinDistance(params.Latitude, params.Longitude, params.Distance, params.PageSize, offset)
+	// Generate a cache key based on the query parameters
+	cacheKey := fmt.Sprintf("close_markers:%f:%f:%d:%d:%d", params.Latitude, params.Longitude, params.Distance, params.Page, params.PageSize)
 
+	// Attempt to fetch from cache
+	cachedData, err := h.CacheService.GetCloseMarkersCache(cacheKey)
+	if err == nil && len(cachedData) > 0 {
+		// Cache hit, return the cached data
+		c.Append("X-Cache", "hit")
+		return c.Send(cachedData)
+	}
+
+	// Cache miss: Find nearby markers within the specified distance and page
+	markers, total, err := h.MarkerFacadeService.FindClosestNMarkersWithinDistance(params.Latitude, params.Longitude, params.Distance, params.PageSize, offset)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve markers"})
 	}
 
 	// Calculate total pages
@@ -79,13 +86,25 @@ func (h *MarkerHandler) HandleFindCloseMarkers(c *fiber.Ctx) error {
 		params.Page = 1 // Ensure page is set to 1 if totalPages calculates to 0 (i.e., no markers found)
 	}
 
-	// Return the found markers along with pagination info
-	return c.JSON(fiber.Map{
-		"markers":      markers,
-		"currentPage":  params.Page,
-		"totalPages":   totalPages,
-		"totalMarkers": total,
-	})
+	// Prepare the response data
+	response := dto.MarkersClose{
+		Markers:      markers,
+		CurrentPage:  params.Page,
+		TotalPages:   totalPages,
+		TotalMarkers: total,
+	}
+
+	// Marshal the response for caching
+	responseJSON, err := sonic.Marshal(response)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode response"})
+	}
+
+	// Cache the response for future use
+	go h.CacheService.SetCloseMarkersCache(cacheKey, responseJSON, 10*time.Minute)
+
+	// Return the response to the client
+	return c.Send(responseJSON)
 }
 
 func (h *MarkerHandler) HandleGetCurrentAreaMarkerRanking(c *fiber.Ctx) error {
@@ -152,13 +171,8 @@ func (h *MarkerHandler) HandleGetWeatherByWGS84(c *fiber.Ctx) error {
 	}
 
 	// Generate a short cache key by hashing the lat/long combination
-	coordinateStr := fmt.Sprintf("%f,%f", lat, long)
-	hash := sha256.New()
-	hash.Write([]byte(coordinateStr))
-	cacheKey := fmt.Sprintf("markers:weather:%s", hex.EncodeToString(hash.Sum(nil))[:16])
 
-	var weather *kakao.WeatherRequest
-	cacheErr := h.MarkerFacadeService.GetRedisCache(cacheKey, &weather)
+	weather, cacheErr := h.CacheService.GetWcongCache(lat, long)
 	if cacheErr == nil && weather != nil {
 		c.Append("X-Cache", "hit")
 		// Cache hit, return cached weather (10mins)
@@ -171,7 +185,7 @@ func (h *MarkerHandler) HandleGetWeatherByWGS84(c *fiber.Ctx) error {
 	}
 
 	// Cache the result for future requests
-	go h.MarkerFacadeService.SetRedisCache(cacheKey, result, WEATHER_MINUTES)
+	go h.CacheService.SetWcongCache(lat, long, result)
 
 	return c.JSON(result)
 }

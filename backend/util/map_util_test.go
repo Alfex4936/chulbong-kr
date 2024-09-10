@@ -313,7 +313,7 @@ func TestDistance(t *testing.T) {
 			long1:          126.56218600000001,
 			lat2:           33.23596,
 			long2:          126.56208600000001,
-			expectedResult: 0, // Expecting the result to be close to 45 meters
+			expectedResult: 9, // Expecting the result to be close to 9 meters
 		},
 	}
 
