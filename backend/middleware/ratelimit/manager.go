@@ -14,6 +14,7 @@ import (
 //
 // go:generate msgp
 type Item struct {
+	Mu       sync.Mutex
 	CurrHits int
 	PrevHits int
 	Exp      uint64

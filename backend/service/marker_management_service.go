@@ -15,6 +15,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/Alfex4936/chulbong-kr/protos"
 	"github.com/Alfex4936/chulbong-kr/util"
+	"github.com/gammazero/workerpool"
 	"github.com/gofiber/fiber/v2"
 
 	gocache "github.com/eko/gocache/lib/v4/cache"
@@ -185,7 +186,8 @@ type MarkerManageService struct {
 	// markersLocalCache []byte // 400 kb is fine here
 	// cacheMutex        sync.RWMutex
 
-	byteCache *gocache.Cache[[]byte]
+	byteCache  *gocache.Cache[[]byte]
+	workerPool *workerpool.WorkerPool
 
 	CacheService *MarkerCacheService
 
@@ -231,7 +233,9 @@ func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
 		MapUtil:            p.MapUtil,
 		BadWordUtil:        p.BadWordUtil,
 		Logger:             p.Logger,
-		byteCache:          byteCache,
+
+		byteCache:  byteCache,
+		workerPool: workerpool.New(15),
 
 		GetMarkerStmt:             getMarkerStmt,
 		GetAllPhotosForMarkerStmt: getAllPhotosForMarkerStmt,
@@ -254,6 +258,7 @@ func RegisterMarkerLifecycle(lifecycle fx.Lifecycle, service *MarkerManageServic
 			service.GetMarkerStmt.Close()
 			service.GetNewTop10PicturesStmt.Close()
 			service.GenerateRSSQueryStmt.Close()
+			service.workerPool.StopWait()
 			return nil
 		},
 	})
@@ -481,35 +486,43 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 	markerID, _ := res.LastInsertId()
 	folder := fmt.Sprintf("markers/%d", markerID)
 
-	// After successfully creating the marker, process and upload the files
-	var wg sync.WaitGroup
+	// Channel to collect errors
 	errorChan := make(chan error, len(form.File["photos"]))
 
 	// Process file uploads from the multipart form
 	files := form.File["photos"]
-	// Limit to a maximum of 5 files
 	if len(files) > 5 {
-		files = files[:5]
+		files = files[:5] // Limit to 5 files
 	}
 
+	var wg sync.WaitGroup
+
+	// Submit the tasks to the worker pool
 	for _, file := range files {
 		wg.Add(1)
-		go func(file *multipart.FileHeader) {
+		file := file // Ensure file is correctly captured in the closure
+
+		s.workerPool.Submit(func() {
 			defer wg.Done()
+
+			// Upload the file to S3
 			fileURL, err := s.S3Service.UploadFileToS3(folder, file)
 			if err != nil {
 				errorChan <- err
 				return
 			}
+
+			// Insert photo into the database
 			if _, err := tx.Exec(insertPhotoQuery, markerID, fileURL); err != nil {
 				errorChan <- err
 				return
 			}
-		}(file)
+		})
 	}
 
-	// Wait for all uploads to complete
+	// Wait for all jobs to finish
 	wg.Wait()
+
 	close(errorChan)
 
 	// Check for errors

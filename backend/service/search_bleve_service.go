@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
+	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/Alfex4936/dkssud"
 	"github.com/blevesearch/bleve/v2"
 	bleve_search "github.com/blevesearch/bleve/v2/search"
@@ -86,6 +86,19 @@ var (
 			return &query.MatchPhraseQuery{}
 		},
 	}
+
+	boolQueryPool = sync.Pool{
+		New: func() any {
+			return &query.BooleanQuery{}
+		},
+	}
+
+	bufferPool = sync.Pool{
+		New: func() interface{} {
+			b := make([]byte, 0, 256)
+			return &b
+		},
+	}
 )
 
 type BleveSearchService struct {
@@ -155,40 +168,15 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 
 	terms[0] = standardizeInitials(terms[0])
 
-	results := make(chan *bleve_search.DocumentMatch, len(terms)*10)
-	tookTimes := make(chan time.Duration, len(terms))
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// Channels to receive search results and the time taken
+	resultsChan := make(chan *bleve_search.DocumentMatch, 100)
+	tookTimesChan := make(chan time.Duration, 1)
 
-	var wg sync.WaitGroup
-	termChan := make(chan string, len(terms))
-
-	// -- Use runtime.GOMAXPROCS(0) to determine the number of workers
-	workerCount := runtime.NumCPU() // Limit goroutines to number of CPU cores
-	for i := 0; i < workerCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for term := range termChan {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					performSearch(s.Index, term, results, tookTimes)
-				}
-			}
-		}()
-	}
-
-	for _, term := range terms {
-		termChan <- term
-	}
-	close(termChan)
-
+	// Launch a single goroutine to perform the search
 	go func() {
-		wg.Wait()
-		close(results)
-		close(tookTimes)
+		performWholeQuerySearch(s.Index, t, terms, resultsChan, tookTimesChan)
+		close(resultsChan)
+		close(tookTimesChan)
 	}()
 
 	// Get a pointer to a slice from the pool
@@ -198,21 +186,21 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 
 	for {
 		select {
-		case result, ok := <-results:
+		case result, ok := <-resultsChan:
 			if !ok {
-				results = nil
+				resultsChan = nil
 			} else if result != nil {
 				allResults = append(allResults, result)
 			}
-		case took, ok := <-tookTimes:
+		case took, ok := <-tookTimesChan:
 			if !ok {
-				tookTimes = nil
+				tookTimesChan = nil
 			} else {
 				totalTook += took
 			}
 		}
 
-		if results == nil && tookTimes == nil {
+		if resultsChan == nil && tookTimesChan == nil {
 			break
 		}
 	}
@@ -220,7 +208,10 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 	// Sort and ensure diverse results
 	// diverseResults := ensureDiversity(allResults, 10)
 
-	if len(allResults) == 0 {
+	// Remove duplicates by keeping only the highest scoring result per document ID
+	allResults = removeDuplicatesAndKeepHighestScore(allResults)
+
+	if len(allResults) == 0 { // or if len <= 3?
 		// If no results, try fuzzy search with controlled fuzziness
 		fuzzyResults, fuzzyTook := performFuzzySearch(s.Index, terms)
 		allResults = fuzzyResults
@@ -415,14 +406,6 @@ func (s *BleveSearchService) MarkerExists(markerID int) (bool, error) {
 func performSearch(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
 	var queries []query.Query
 
-	// Use a buffer pool for reduced allocations
-	bufferPool := sync.Pool{
-		New: func() interface{} {
-			b := make([]byte, 0, 256) // Increased initial capacity
-			return &b
-		},
-	}
-
 	bufferPtr := bufferPool.Get().(*[]byte)
 	defer bufferPool.Put(bufferPtr)
 	buffer := (*bufferPtr)[:0]
@@ -519,7 +502,7 @@ func performSearch(index bleve.Index, term string, results chan<- *bleve_search.
 		prefixQueryCity := prefixQueryPool.Get().(*query.PrefixQuery)
 		defer prefixQueryPool.Put(prefixQueryCity) // Put back into pool after use
 		prefixQueryCity.SetField("city")
-		prefixQueryCity.SetBoost(15.0)
+		prefixQueryCity.SetBoost(20.0)
 		prefixQueryCity.Prefix = appendString(term)
 		queries = append(queries, prefixQueryCity)
 
@@ -527,17 +510,9 @@ func performSearch(index bleve.Index, term string, results chan<- *bleve_search.
 		defer matchQueryPool.Put(matchQueryCity) // Put back into pool after use
 		matchQueryCity.SetField("city")
 		matchQueryCity.Analyzer = Analyzer
-		matchQueryCity.SetBoost(15.0)
+		matchQueryCity.SetBoost(30.0)
 		matchQueryCity.Match = appendString(term) // Correct usage of appendString
 		queries = append(queries, matchQueryCity)
-
-		matchQueryDistrict := matchQueryPool.Get().(*query.MatchQuery)
-		defer matchQueryPool.Put(matchQueryDistrict) // Put back into pool after use
-		matchQueryDistrict.SetField("district")
-		matchQueryDistrict.Analyzer = Analyzer
-		matchQueryDistrict.SetBoost(10.0)
-		matchQueryDistrict.Match = appendString(term)
-		queries = append(queries, matchQueryDistrict)
 
 		prefixQueryAddr := prefixQueryPool.Get().(*query.PrefixQuery)
 		defer prefixQueryPool.Put(prefixQueryAddr) // Put back into pool after use
@@ -559,11 +534,176 @@ func performSearch(index bleve.Index, term string, results chan<- *bleve_search.
 	}
 
 	disjunctionQuery := bleve.NewDisjunctionQuery(queries...)
-	searchRequest := bleve.NewSearchRequestOptions(disjunctionQuery, 15, 0, false)
+	searchRequest := bleve.NewSearchRequestOptions(disjunctionQuery, 10, 0, false)
 	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
 	searchRequest.Size = 10
 	searchRequest.Highlight = bleve.NewHighlightWithStyle("html")
 	searchRequest.SortBy([]string{"_score", "markerId"})
+
+	searchResult, err := index.Search(searchRequest)
+	if err != nil {
+		return
+	}
+
+	tookTimes <- searchResult.Took
+	for _, hit := range searchResult.Hits {
+		results <- hit
+	}
+}
+
+func performWholeQuerySearch(index bleve.Index, t string, terms []string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
+	// Pre-process terms to assign them to fields
+	termAssignments := assignTermsToFields(terms)
+
+	// Create a BooleanQuery
+	boolQuery := bleve.NewBooleanQuery()
+
+	// Add a MatchPhraseQuery on fullAddress for the entire search term with high boost
+	matchPhraseQuery := bleve.NewMatchPhraseQuery(t)
+	matchPhraseQuery.SetField("fullAddress")
+	matchPhraseQuery.SetBoost(300.0) // Higher boost for exact phrase
+	boolQuery.AddShould(matchPhraseQuery)
+
+	var perTermDisjunctions []query.Query
+	var provinceTerm, cityTerm string
+	hasProvince := false
+	hasCity := false
+
+	for _, assignment := range termAssignments {
+		var termQueries []query.Query
+
+		termStr := assignment.Term
+		field := assignment.Field
+
+		var matchBoost, prefixBoost float64
+
+		switch field {
+		case "province":
+			matchBoost = 200.0
+			prefixBoost = 180.0
+			hasProvince = true
+			provinceTerm = termStr
+		case "city":
+			matchBoost = 180.0
+			prefixBoost = 160.0
+			hasCity = true
+			cityTerm = termStr
+		case "address":
+			matchBoost = 130.0
+			prefixBoost = 110.0
+		case "initialConsonants":
+			matchBoost = 30.0
+			prefixBoost = 20.0
+		default:
+			matchBoost = 100.0
+			prefixBoost = 80.0
+		}
+
+		// MatchQuery for the assigned field
+		matchQuery := matchQueryPool.Get().(*query.MatchQuery)
+		*matchQuery = query.MatchQuery{Match: termStr}
+		matchQuery.SetField(field)
+		matchQuery.SetBoost(matchBoost)
+		termQueries = append(termQueries, matchQuery)
+
+		// PrefixQuery for the assigned field
+		prefixQuery := prefixQueryPool.Get().(*query.PrefixQuery)
+		*prefixQuery = query.PrefixQuery{Prefix: termStr}
+		prefixQuery.SetField(field)
+		prefixQuery.SetBoost(prefixBoost)
+		termQueries = append(termQueries, prefixQuery)
+
+		// WildcardQuery for the assigned field (optional)
+		wildcardQuery := wildcardQueryPool.Get().(*query.WildcardQuery)
+		*wildcardQuery = query.WildcardQuery{Wildcard: "*" + termStr + "*"}
+		wildcardQuery.SetField(field)
+		wildcardQuery.SetBoost(prefixBoost / 2) // Lower boost for wildcard
+		termQueries = append(termQueries, wildcardQuery)
+
+		// Include matching in fullAddress with lower boosts
+		matchQueryFullAddress := matchQueryPool.Get().(*query.MatchQuery)
+		*matchQueryFullAddress = query.MatchQuery{Match: termStr}
+		matchQueryFullAddress.SetField("fullAddress")
+		matchQueryFullAddress.SetBoost(70.0)
+		termQueries = append(termQueries, matchQueryFullAddress)
+
+		prefixQueryFullAddress := prefixQueryPool.Get().(*query.PrefixQuery)
+		*prefixQueryFullAddress = query.PrefixQuery{Prefix: termStr}
+		prefixQueryFullAddress.SetField("fullAddress")
+		prefixQueryFullAddress.SetBoost(50.0)
+		termQueries = append(termQueries, prefixQueryFullAddress)
+
+		// Combine the term queries into a DisjunctionQuery (logical OR)
+		termDisjunction := bleve.NewDisjunctionQuery()
+		termDisjunction.Disjuncts = append(termDisjunction.Disjuncts, termQueries...)
+
+		perTermDisjunctions = append(perTermDisjunctions, termDisjunction)
+
+		// After using the queries, reset and put them back to the pool
+		defer func(q1 *query.MatchQuery, q2 *query.PrefixQuery, q3 *query.WildcardQuery, q4 *query.MatchQuery, q5 *query.PrefixQuery) {
+			*q1 = query.MatchQuery{}
+			matchQueryPool.Put(q1)
+
+			*q2 = query.PrefixQuery{}
+			prefixQueryPool.Put(q2)
+
+			*q3 = query.WildcardQuery{}
+			wildcardQueryPool.Put(q3)
+
+			*q4 = query.MatchQuery{}
+			matchQueryPool.Put(q4)
+
+			*q5 = query.PrefixQuery{}
+			prefixQueryPool.Put(q5)
+		}(matchQuery, prefixQuery, wildcardQuery, matchQueryFullAddress, prefixQueryFullAddress)
+	}
+
+	// Combine all per-term disjunctions into a ConjunctionQuery (logical AND)
+	overallConjunction := bleve.NewConjunctionQuery(perTermDisjunctions...)
+	boolQuery.AddMust(overallConjunction)
+
+	// If both province and city are present, boost documents where both terms match
+	if hasProvince && hasCity {
+		combinedMatchQuery := bleve.NewBooleanQuery()
+
+		// Match province
+		provinceMatch := matchQueryPool.Get().(*query.MatchQuery)
+		*provinceMatch = query.MatchQuery{Match: provinceTerm}
+		provinceMatch.SetField("province")
+		provinceMatch.SetBoost(500.0) // High boost for matching province
+		combinedMatchQuery.AddMust(provinceMatch)
+
+		// Match city
+		cityMatch := matchQueryPool.Get().(*query.MatchQuery)
+		*cityMatch = query.MatchQuery{Match: cityTerm}
+		cityMatch.SetField("city")
+		cityMatch.SetBoost(500.0) // High boost for matching city
+		combinedMatchQuery.AddMust(cityMatch)
+
+		// Combine into a boosting query
+		combinedShouldQuery := bleve.NewBooleanQuery()
+		combinedShouldQuery.AddMust(combinedMatchQuery)
+		combinedShouldQuery.SetBoost(800.0) // Extra boost for matching both
+
+		// Add to the main query
+		boolQuery.AddShould(combinedShouldQuery)
+
+		// After using the queries, reset and put them back to the pool
+		defer func(q1 *query.MatchQuery, q2 *query.MatchQuery) {
+			*q1 = query.MatchQuery{}
+			matchQueryPool.Put(q1)
+
+			*q2 = query.MatchQuery{}
+			matchQueryPool.Put(q2)
+		}(provinceMatch, cityMatch)
+	}
+
+	// Build the search request
+	searchRequest := bleve.NewSearchRequestOptions(boolQuery, 15, 0, false)
+	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
+	searchRequest.Size = 15
+	searchRequest.Highlight = bleve.NewHighlightWithStyle("html")
+	searchRequest.SortBy([]string{"-_score", "markerId"}) // Sort by descending score
 
 	searchResult, err := index.Search(searchRequest)
 	if err != nil {
@@ -693,6 +833,7 @@ func performFuzzySearch(index bleve.Index, terms []string) ([]*bleve_search.Docu
 		searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
 		searchRequest.Size = 10
 		searchRequest.Highlight = bleve.NewHighlightWithStyle("html")
+		searchRequest.SortBy([]string{"-_score", "markerId"})
 		searchResult, err := index.Search(searchRequest)
 		if err != nil {
 			log.Printf("Error fuzzy searching marker: %v", err)
@@ -870,4 +1011,71 @@ func sortResultsByScore(results []*bleve_search.DocumentMatch) {
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
 	})
+}
+
+func removeDuplicatesAndKeepHighestScore(results []*bleve_search.DocumentMatch) []*bleve_search.DocumentMatch {
+	// Map to store the highest scoring DocumentMatch for each unique document ID
+	docMap := make(map[string]*bleve_search.DocumentMatch)
+
+	// Iterate through the results and keep the highest score for each document ID
+	for _, result := range results {
+		if existing, found := docMap[result.ID]; found {
+			// If the document ID exists, compare the scores and keep the higher one
+			if result.Score > existing.Score {
+				docMap[result.ID] = result
+			}
+		} else {
+			// If the document ID is not in the map, add it
+			docMap[result.ID] = result
+		}
+	}
+
+	// Convert the map back to a slice
+	uniqueResults := make([]*bleve_search.DocumentMatch, 0, len(docMap))
+	for _, result := range docMap {
+		uniqueResults = append(uniqueResults, result)
+	}
+
+	return uniqueResults
+}
+
+type TermAssignment struct {
+	Term  string
+	Field string
+}
+
+func assignTermsToFields(terms []string) []TermAssignment {
+	assignments := make([]TermAssignment, 0, len(terms))
+
+	for _, term := range terms {
+		if util.IsProvince(term) {
+			assignments = append(assignments, TermAssignment{Term: term, Field: "province"})
+		} else if util.IsCity(term) {
+			assignments = append(assignments, TermAssignment{Term: term, Field: "city"})
+		} else if isNumeric(term) {
+			assignments = append(assignments, TermAssignment{Term: term, Field: "address"})
+		} else if isInitialConsonant(term) {
+			assignments = append(assignments, TermAssignment{Term: term, Field: "initialConsonants"})
+		} else {
+			assignments = append(assignments, TermAssignment{Term: term, Field: "address"})
+		}
+	}
+
+	return assignments
+}
+
+// Check if a string is numeric
+func isNumeric(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
+}
+
+// Check if a string consists of only Korean initial consonants
+func isInitialConsonant(s string) bool {
+	for _, r := range s {
+		if !unicode.Is(unicode.Hangul, r) && !strings.ContainsRune("ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ", r) {
+			return false
+		}
+	}
+	return true
 }

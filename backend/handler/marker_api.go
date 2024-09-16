@@ -68,7 +68,7 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 	api.Get("/markers/location-check", handler.HandleIsInSouthKorea)
 	api.Get("/markers/weather", handler.HandleGetWeatherByWGS84)
 
-	api.Get("/markers/save-offline-test", handler.HandleTestDynamic)
+	// api.Get("/markers/save-offline-test", handler.HandleTestDynamic)
 	api.Get("/markers/save-offline", authMiddleware.Verify, limiter.New(limiter.Config{
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return handler.MarkerFacadeService.ChatUtil.GetUserIP(c)
@@ -92,7 +92,7 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 	api.Get("/markers/new-pictures", handler.HandleGet10NewPictures)
 
 	api.Post("/markers/upload", authMiddleware.CheckAdmin, handler.HandleUploadMarkerPhotoToS3)
-	api.Post("/markers/refresh", authMiddleware.CheckAdmin, handler.HandleRefreshMarkerCache)
+	// api.Post("/markers/refresh", authMiddleware.CheckAdmin, handler.HandleRefreshMarkerCache)
 
 	markerGroup := api.Group("/markers")
 	{

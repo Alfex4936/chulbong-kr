@@ -27,7 +27,7 @@ func TestSlidingWindowRateLimiting(t *testing.T) {
 	app := setupApp(limiter.Config{
 		Max:               5,
 		Expiration:        time.Second * 10,
-		KeyGenerator:      func(c *fiber.Ctx) string { return c.IP() },
+		KeyGenerator:      keyGenerator,
 		LimiterMiddleware: &SlidingWindow{},
 		LimitReached: func(c *fiber.Ctx) error {
 			c.Set(fiber.HeaderContentType, fiber.MIMETextPlainCharsetUTF8)
@@ -145,7 +145,7 @@ func BenchmarkLimiterSlidingWindow(b *testing.B) {
 	cfg := limiter.Config{
 		Max:               5,
 		Expiration:        time.Second * 10,
-		KeyGenerator:      func(c *fiber.Ctx) string { return c.IP() },
+		KeyGenerator:      keyGenerator,
 		LimiterMiddleware: &SlidingWindow{},
 		LimitReached: func(c *fiber.Ctx) error {
 			c.Status(429).SendString("Too Many Requests")
@@ -159,7 +159,7 @@ func BenchmarkLimiterOriginal(b *testing.B) {
 	cfg := limiter.Config{
 		Max:               5,
 		Expiration:        time.Second * 10,
-		KeyGenerator:      func(c *fiber.Ctx) string { return c.IP() },
+		KeyGenerator:      keyGenerator,
 		LimiterMiddleware: limiter.SlidingWindow{},
 		LimitReached: func(c *fiber.Ctx) error {
 			c.Status(429).SendString("Too Many Requests")
