@@ -255,7 +255,9 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 	defer tx.Rollback() // Ensure the transaction is rolled back in case of error
 
 	// Insert the main report record
-	res, err := tx.Exec(insertReportQuery, report.MarkerID, report.UserID, fmt.Sprintf("POINT(%f %f)", report.Latitude, report.Longitude), fmt.Sprintf("POINT(%f %f)", report.NewLatitude, report.NewLongitude), report.Description, report.DoesExist)
+	point := formatPoint(report.Latitude, report.Longitude)
+	newPoint := formatPoint(report.NewLatitude, report.NewLongitude)
+	res, err := tx.Exec(insertReportQuery, report.MarkerID, report.UserID, point, newPoint, report.Description, report.DoesExist)
 	if err != nil {
 		return fmt.Errorf("failed to insert report: %w", err)
 	}

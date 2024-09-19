@@ -14,6 +14,8 @@ import (
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/Alfex4936/dkssud"
+	"github.com/adrg/strutil"
+	"github.com/adrg/strutil/metrics"
 	"github.com/blevesearch/bleve/v2"
 	bleve_search "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
@@ -27,8 +29,8 @@ import (
 
 const Analyzer = "koCJKEdgeNgram"
 
-// Map of Hangul initial consonant Unicode values to their corresponding Korean consonants.
 var (
+	// Map of Hangul initial consonant Unicode values to their corresponding Korean consonants.
 	initialConsonantMap = map[rune]rune{
 		0x1100: 'ㄱ', 0x1101: 'ㄲ', 0x1102: 'ㄴ', 0x1103: 'ㄷ', 0x1104: 'ㄸ',
 		0x1105: 'ㄹ', 0x1106: 'ㅁ', 0x1107: 'ㅂ', 0x1108: 'ㅃ', 0x1109: 'ㅅ',
@@ -81,24 +83,26 @@ var (
 		},
 	}
 
-	matchPhraseQueryPool = sync.Pool{
-		New: func() any {
-			return &query.MatchPhraseQuery{}
-		},
-	}
+	// matchPhraseQueryPool = sync.Pool{
+	// 	New: func() any {
+	// 		return &query.MatchPhraseQuery{}
+	// 	},
+	// }
 
-	boolQueryPool = sync.Pool{
-		New: func() any {
-			return &query.BooleanQuery{}
-		},
-	}
+	// boolQueryPool = sync.Pool{
+	// 	New: func() any {
+	// 		return &query.BooleanQuery{}
+	// 	},
+	// }
 
-	bufferPool = sync.Pool{
-		New: func() interface{} {
-			b := make([]byte, 0, 256)
-			return &b
-		},
-	}
+	// bufferPool = sync.Pool{
+	// 	New: func() interface{} {
+	// 		b := make([]byte, 0, 256)
+	// 		return &b
+	// 	},
+	// }
+
+	levenshtein = metrics.NewLevenshtein()
 )
 
 type BleveSearchService struct {
@@ -120,6 +124,10 @@ func NewBleveSearchService(
 	searchCache := gocache.New[dto.MarkerSearchResponse](localCacheStorage)
 
 	getMarkerStmt, _ := db.Preparex("SELECT MarkerID, Address FROM Markers")
+	levenshtein.CaseSensitive = false
+	levenshtein.InsertCost = 1
+	levenshtein.ReplaceCost = 2
+	levenshtein.DeleteCost = 1
 
 	return &BleveSearchService{Index: index, Shards: shards,
 		searchCache: searchCache, Logger: logger, DB: db,
@@ -218,6 +226,9 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 		totalTook += fuzzyTook
 	}
 
+	// Adjust scores based on similarity
+	adjustScoresBySimilarity(allResults, t)
+
 	sortResultsByScore(allResults)
 	response.Took = int(totalTook.Milliseconds())
 	response.Markers = extractMarkers(allResults)
@@ -236,6 +247,7 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 	return response, nil
 }
 
+// TODO: use DAWG
 func (s *BleveSearchService) AutoComplete(term string) ([]string, error) {
 	var suggestions []string
 
@@ -403,153 +415,153 @@ func (s *BleveSearchService) MarkerExists(markerID int) (bool, error) {
 	return false, nil
 }
 
-func performSearch(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
-	var queries []query.Query
+// func performSearch(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
+// 	var queries []query.Query
 
-	bufferPtr := bufferPool.Get().(*[]byte)
-	defer bufferPool.Put(bufferPtr)
-	buffer := (*bufferPtr)[:0]
+// 	bufferPtr := bufferPool.Get().(*[]byte)
+// 	defer bufferPool.Put(bufferPtr)
+// 	buffer := (*bufferPtr)[:0]
 
-	// Helper function to reset and reuse the buffer
-	resetBuffer := func() {
-		buffer = buffer[:0]
-	}
+// 	// Helper function to reset and reuse the buffer
+// 	resetBuffer := func() {
+// 		buffer = buffer[:0]
+// 	}
 
-	// Helper function to append string to buffer and get string back
-	appendString := func(s string) string {
-		resetBuffer()
-		buffer = append(buffer, s...)
-		return string(buffer)
-	}
+// 	// Helper function to append string to buffer and get string back
+// 	appendString := func(s string) string {
+// 		resetBuffer()
+// 		buffer = append(buffer, s...)
+// 		return string(buffer)
+// 	}
 
-	// Exact match queries with higher boosts
-	matchQueryFullAddress := matchQueryPool.Get().(*query.MatchQuery)
-	defer matchQueryPool.Put(matchQueryFullAddress) // Put back into pool after use
-	matchQueryFullAddress.SetField("fullAddress")
-	matchQueryFullAddress.Analyzer = Analyzer
-	matchQueryFullAddress.SetBoost(50.0)
-	matchQueryFullAddress.Match = appendString(term)
-	queries = append(queries, matchQueryFullAddress)
+// 	// Exact match queries with higher boosts
+// 	matchQueryFullAddress := matchQueryPool.Get().(*query.MatchQuery)
+// 	defer matchQueryPool.Put(matchQueryFullAddress) // Put back into pool after use
+// 	matchQueryFullAddress.SetField("fullAddress")
+// 	matchQueryFullAddress.Analyzer = Analyzer
+// 	matchQueryFullAddress.SetBoost(50.0)
+// 	matchQueryFullAddress.Match = appendString(term)
+// 	queries = append(queries, matchQueryFullAddress)
 
-	// Phrase match query for exact phrases
-	matchPhraseQueryFullAddress := matchPhraseQueryPool.Get().(*query.MatchPhraseQuery)
-	defer matchPhraseQueryPool.Put(matchPhraseQueryFullAddress) // Put back into pool after use
-	matchPhraseQueryFullAddress.SetField("fullAddress")
-	matchPhraseQueryFullAddress.Analyzer = Analyzer
-	matchPhraseQueryFullAddress.SetBoost(30.0)
-	matchPhraseQueryFullAddress.MatchPhrase = appendString(term) // Correct usage of appendString
-	queries = append(queries, matchPhraseQueryFullAddress)
+// 	// Phrase match query for exact phrases
+// 	matchPhraseQueryFullAddress := matchPhraseQueryPool.Get().(*query.MatchPhraseQuery)
+// 	defer matchPhraseQueryPool.Put(matchPhraseQueryFullAddress) // Put back into pool after use
+// 	matchPhraseQueryFullAddress.SetField("fullAddress")
+// 	matchPhraseQueryFullAddress.Analyzer = Analyzer
+// 	matchPhraseQueryFullAddress.SetBoost(30.0)
+// 	matchPhraseQueryFullAddress.MatchPhrase = appendString(term) // Correct usage of appendString
+// 	queries = append(queries, matchPhraseQueryFullAddress)
 
-	// Wildcard queries with lower boosts
-	resetBuffer()
-	buffer = append(buffer, '*')
-	buffer = append(buffer, term...)
-	buffer = append(buffer, '*')
-	wildcardQueryFullAddress := wildcardQueryPool.Get().(*query.WildcardQuery)
-	defer wildcardQueryPool.Put(wildcardQueryFullAddress) // Put back into pool after use
-	wildcardQueryFullAddress.SetField("fullAddress")
-	wildcardQueryFullAddress.SetBoost(10.0)
-	wildcardQueryFullAddress.Wildcard = string(buffer)
-	queries = append(queries, wildcardQueryFullAddress)
+// 	// Wildcard queries with lower boosts
+// 	resetBuffer()
+// 	buffer = append(buffer, '*')
+// 	buffer = append(buffer, term...)
+// 	buffer = append(buffer, '*')
+// 	wildcardQueryFullAddress := wildcardQueryPool.Get().(*query.WildcardQuery)
+// 	defer wildcardQueryPool.Put(wildcardQueryFullAddress) // Put back into pool after use
+// 	wildcardQueryFullAddress.SetField("fullAddress")
+// 	wildcardQueryFullAddress.SetBoost(10.0)
+// 	wildcardQueryFullAddress.Wildcard = string(buffer)
+// 	queries = append(queries, wildcardQueryFullAddress)
 
-	prefixQueryFullAddress := prefixQueryPool.Get().(*query.PrefixQuery)
-	defer prefixQueryPool.Put(prefixQueryFullAddress) // Put back into pool after use
-	prefixQueryFullAddress.SetField("fullAddress")
-	prefixQueryFullAddress.SetBoost(20.0)
-	prefixQueryFullAddress.Prefix = appendString(term)
-	queries = append(queries, prefixQueryFullAddress)
+// 	prefixQueryFullAddress := prefixQueryPool.Get().(*query.PrefixQuery)
+// 	defer prefixQueryPool.Put(prefixQueryFullAddress) // Put back into pool after use
+// 	prefixQueryFullAddress.SetField("fullAddress")
+// 	prefixQueryFullAddress.SetBoost(20.0)
+// 	prefixQueryFullAddress.Prefix = appendString(term)
+// 	queries = append(queries, prefixQueryFullAddress)
 
-	// Additional fields and queries
-	brokenConsonants := appendString(SegmentConsonants(term))
+// 	// Additional fields and queries
+// 	brokenConsonants := appendString(SegmentConsonants(term))
 
-	matchQueryInitialConsonants := matchQueryPool.Get().(*query.MatchQuery)
-	defer matchQueryPool.Put(matchQueryInitialConsonants) // Put back into pool after use
-	matchQueryInitialConsonants.SetField("initialConsonants")
-	matchQueryInitialConsonants.Analyzer = Analyzer
-	matchQueryInitialConsonants.SetBoost(10.0)
-	matchQueryInitialConsonants.Match = brokenConsonants // Correct usage of appendString previously done
-	queries = append(queries, matchQueryInitialConsonants)
+// 	matchQueryInitialConsonants := matchQueryPool.Get().(*query.MatchQuery)
+// 	defer matchQueryPool.Put(matchQueryInitialConsonants) // Put back into pool after use
+// 	matchQueryInitialConsonants.SetField("initialConsonants")
+// 	matchQueryInitialConsonants.Analyzer = Analyzer
+// 	matchQueryInitialConsonants.SetBoost(10.0)
+// 	matchQueryInitialConsonants.Match = brokenConsonants // Correct usage of appendString previously done
+// 	queries = append(queries, matchQueryInitialConsonants)
 
-	resetBuffer()
-	buffer = append(buffer, '*')
-	buffer = append(buffer, brokenConsonants...)
-	buffer = append(buffer, '*')
+// 	resetBuffer()
+// 	buffer = append(buffer, '*')
+// 	buffer = append(buffer, brokenConsonants...)
+// 	buffer = append(buffer, '*')
 
-	wildcardQueryInitialConsonants := wildcardQueryPool.Get().(*query.WildcardQuery)
-	defer wildcardQueryPool.Put(wildcardQueryInitialConsonants) // Put back into pool after use
-	wildcardQueryInitialConsonants.SetField("initialConsonants")
-	wildcardQueryInitialConsonants.SetBoost(7.0)
-	wildcardQueryInitialConsonants.Wildcard = string(buffer)
-	queries = append(queries, wildcardQueryInitialConsonants)
+// 	wildcardQueryInitialConsonants := wildcardQueryPool.Get().(*query.WildcardQuery)
+// 	defer wildcardQueryPool.Put(wildcardQueryInitialConsonants) // Put back into pool after use
+// 	wildcardQueryInitialConsonants.SetField("initialConsonants")
+// 	wildcardQueryInitialConsonants.SetBoost(7.0)
+// 	wildcardQueryInitialConsonants.Wildcard = string(buffer)
+// 	queries = append(queries, wildcardQueryInitialConsonants)
 
-	prefixQueryInitialConsonants := prefixQueryPool.Get().(*query.PrefixQuery)
-	defer prefixQueryPool.Put(prefixQueryInitialConsonants) // Put back into pool after use
-	prefixQueryInitialConsonants.SetField("initialConsonants")
-	prefixQueryInitialConsonants.SetBoost(12.0)
-	prefixQueryInitialConsonants.Prefix = brokenConsonants
-	queries = append(queries, prefixQueryInitialConsonants)
+// 	prefixQueryInitialConsonants := prefixQueryPool.Get().(*query.PrefixQuery)
+// 	defer prefixQueryPool.Put(prefixQueryInitialConsonants) // Put back into pool after use
+// 	prefixQueryInitialConsonants.SetField("initialConsonants")
+// 	prefixQueryInitialConsonants.SetBoost(12.0)
+// 	prefixQueryInitialConsonants.Prefix = brokenConsonants
+// 	queries = append(queries, prefixQueryInitialConsonants)
 
-	standardizedProvince := appendString(standardizeProvince(term))
-	if standardizedProvince != term {
-		matchQueryProvince := prefixQueryPool.Get().(*query.PrefixQuery)
-		defer prefixQueryPool.Put(matchQueryProvince) // Put back into pool after use
-		matchQueryProvince.SetField("province")
-		matchQueryProvince.SetBoost(8.0)
-		matchQueryProvince.Prefix = standardizedProvince
-		queries = append(queries, matchQueryProvince)
-	} else {
-		// Reuse queries for city, district, etc.
-		prefixQueryCity := prefixQueryPool.Get().(*query.PrefixQuery)
-		defer prefixQueryPool.Put(prefixQueryCity) // Put back into pool after use
-		prefixQueryCity.SetField("city")
-		prefixQueryCity.SetBoost(20.0)
-		prefixQueryCity.Prefix = appendString(term)
-		queries = append(queries, prefixQueryCity)
+// 	standardizedProvince := appendString(standardizeProvince(term))
+// 	if standardizedProvince != term {
+// 		matchQueryProvince := prefixQueryPool.Get().(*query.PrefixQuery)
+// 		defer prefixQueryPool.Put(matchQueryProvince) // Put back into pool after use
+// 		matchQueryProvince.SetField("province")
+// 		matchQueryProvince.SetBoost(8.0)
+// 		matchQueryProvince.Prefix = standardizedProvince
+// 		queries = append(queries, matchQueryProvince)
+// 	} else {
+// 		// Reuse queries for city, district, etc.
+// 		prefixQueryCity := prefixQueryPool.Get().(*query.PrefixQuery)
+// 		defer prefixQueryPool.Put(prefixQueryCity) // Put back into pool after use
+// 		prefixQueryCity.SetField("city")
+// 		prefixQueryCity.SetBoost(20.0)
+// 		prefixQueryCity.Prefix = appendString(term)
+// 		queries = append(queries, prefixQueryCity)
 
-		matchQueryCity := matchQueryPool.Get().(*query.MatchQuery)
-		defer matchQueryPool.Put(matchQueryCity) // Put back into pool after use
-		matchQueryCity.SetField("city")
-		matchQueryCity.Analyzer = Analyzer
-		matchQueryCity.SetBoost(30.0)
-		matchQueryCity.Match = appendString(term) // Correct usage of appendString
-		queries = append(queries, matchQueryCity)
+// 		matchQueryCity := matchQueryPool.Get().(*query.MatchQuery)
+// 		defer matchQueryPool.Put(matchQueryCity) // Put back into pool after use
+// 		matchQueryCity.SetField("city")
+// 		matchQueryCity.Analyzer = Analyzer
+// 		matchQueryCity.SetBoost(30.0)
+// 		matchQueryCity.Match = appendString(term) // Correct usage of appendString
+// 		queries = append(queries, matchQueryCity)
 
-		prefixQueryAddr := prefixQueryPool.Get().(*query.PrefixQuery)
-		defer prefixQueryPool.Put(prefixQueryAddr) // Put back into pool after use
-		prefixQueryAddr.SetField("address")
-		prefixQueryAddr.SetBoost(15.0)
-		prefixQueryAddr.Prefix = appendString(term)
-		queries = append(queries, prefixQueryAddr)
+// 		prefixQueryAddr := prefixQueryPool.Get().(*query.PrefixQuery)
+// 		defer prefixQueryPool.Put(prefixQueryAddr) // Put back into pool after use
+// 		prefixQueryAddr.SetField("address")
+// 		prefixQueryAddr.SetBoost(15.0)
+// 		prefixQueryAddr.Prefix = appendString(term)
+// 		queries = append(queries, prefixQueryAddr)
 
-		resetBuffer()
-		buffer = append(buffer, '*')
-		buffer = append(buffer, term...)
-		buffer = append(buffer, '*')
-		wildcardQueryAddr := wildcardQueryPool.Get().(*query.WildcardQuery)
-		defer wildcardQueryPool.Put(wildcardQueryAddr) // Put back into pool after use
-		wildcardQueryAddr.SetField("address")
-		wildcardQueryAddr.SetBoost(7.0)
-		wildcardQueryAddr.Wildcard = string(buffer)
-		queries = append(queries, wildcardQueryAddr)
-	}
+// 		resetBuffer()
+// 		buffer = append(buffer, '*')
+// 		buffer = append(buffer, term...)
+// 		buffer = append(buffer, '*')
+// 		wildcardQueryAddr := wildcardQueryPool.Get().(*query.WildcardQuery)
+// 		defer wildcardQueryPool.Put(wildcardQueryAddr) // Put back into pool after use
+// 		wildcardQueryAddr.SetField("address")
+// 		wildcardQueryAddr.SetBoost(7.0)
+// 		wildcardQueryAddr.Wildcard = string(buffer)
+// 		queries = append(queries, wildcardQueryAddr)
+// 	}
 
-	disjunctionQuery := bleve.NewDisjunctionQuery(queries...)
-	searchRequest := bleve.NewSearchRequestOptions(disjunctionQuery, 10, 0, false)
-	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
-	searchRequest.Size = 10
-	searchRequest.Highlight = bleve.NewHighlightWithStyle("html")
-	searchRequest.SortBy([]string{"_score", "markerId"})
+// 	disjunctionQuery := bleve.NewDisjunctionQuery(queries...)
+// 	searchRequest := bleve.NewSearchRequestOptions(disjunctionQuery, 10, 0, false)
+// 	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
+// 	searchRequest.Size = 10
+// 	searchRequest.Highlight = bleve.NewHighlightWithStyle("html")
+// 	searchRequest.SortBy([]string{"_score", "markerId"})
 
-	searchResult, err := index.Search(searchRequest)
-	if err != nil {
-		return
-	}
+// 	searchResult, err := index.Search(searchRequest)
+// 	if err != nil {
+// 		return
+// 	}
 
-	tookTimes <- searchResult.Took
-	for _, hit := range searchResult.Hits {
-		results <- hit
-	}
-}
+// 	tookTimes <- searchResult.Took
+// 	for _, hit := range searchResult.Hits {
+// 		results <- hit
+// 	}
+// }
 
 func performWholeQuerySearch(index bleve.Index, t string, terms []string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
 	// Pre-process terms to assign them to fields
@@ -1005,6 +1017,23 @@ func ensureDiversity(results []*bleve_search.DocumentMatch, limit int) []*bleve_
 	}
 
 	return diverseResults
+}
+
+func adjustScoresBySimilarity(allResults []*bleve_search.DocumentMatch, query string) {
+	for _, result := range allResults {
+		address := result.Fields["fullAddress"].(string)
+
+		// Calculate similarity between the query and the address
+		similarity := strutil.Similarity(query, address, levenshtein)
+
+		// Adjust the result score by adding the similarity score
+		if similarity > 0.5 {
+			result.Score += similarity * 0.5
+		} else {
+			result.Score -= similarity * 0.5
+
+		}
+	}
 }
 
 func sortResultsByScore(results []*bleve_search.DocumentMatch) {

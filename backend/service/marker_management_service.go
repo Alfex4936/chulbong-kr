@@ -471,11 +471,12 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 	if err != nil {
 		return nil, err
 	}
+	point := formatPoint(markerDto.Latitude, markerDto.Longitude)
 
 	// Insert the marker into the database
 	res, err := tx.Exec(
 		insertMarkerQuery,
-		userID, fmt.Sprintf("POINT(%f %f)", markerDto.Latitude, markerDto.Longitude), markerDto.Description,
+		userID, point, markerDto.Description,
 	)
 
 	if err != nil {
@@ -785,7 +786,7 @@ func (s *MarkerManageService) CheckNearbyMarkersInDB() ([]dto.MarkerGroup, error
 	var markerGroups []dto.MarkerGroup
 
 	for _, marker := range markers {
-		point := fmt.Sprintf("POINT(%f %f)", marker.Latitude, marker.Longitude)
+		point := formatPoint(marker.Latitude, marker.Longitude)
 
 		var nearbyMarkers []dto.MarkerWithDistance
 		err := s.DB.Select(&nearbyMarkers, findCloseMarkersAdminQuery, point, point, 10)

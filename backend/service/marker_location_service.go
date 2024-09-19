@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"path"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -98,8 +100,29 @@ WHERE MBRContains(
     Location)
 AND ST_Distance_Sphere(Location, ST_GeomFromText(?, 4326)) <= ?
 GROUP BY m.MarkerID
-ORDER BY distance ASC`
+ORDER BY distance ASC
+LIMIT ? OFFSET ?`
 )
+
+type PooledMarkers struct {
+	Markers []dto.MarkerWithDistanceAndPhoto
+	pool    *sync.Pool
+}
+
+// Method to release the markers back to the pool
+func (pm *PooledMarkers) Release() {
+	// Clear the slice before putting it back
+	pm.Markers = pm.Markers[:0]
+	pm.pool.Put(pm)
+}
+
+var markerPool = sync.Pool{
+	New: func() interface{} {
+		return &PooledMarkers{
+			Markers: make([]dto.MarkerWithDistanceAndPhoto, 0, 100),
+		}
+	},
+}
 
 type MarkerLocationService struct {
 	DB                   *sqlx.DB
@@ -146,7 +169,7 @@ func RegisterMarkerLocationLifecycle(lifecycle fx.Lifecycle, service *MarkerLoca
 // meters_per_degree = 40075000 / 360 / 1000
 // IsMarkerNearby checks if there's a marker within n meters of the given latitude and longitude
 func (s *MarkerLocationService) IsMarkerNearby(lat, long float64, bufferDistanceMeters int) (bool, error) {
-	point := fmt.Sprintf("POINT(%f %f)", lat, long)
+	point := formatPoint(lat, long)
 
 	// Execute the query
 	var nearby bool
@@ -160,7 +183,7 @@ func (s *MarkerLocationService) IsMarkerNearby(lat, long float64, bufferDistance
 
 // IsMarkerNearby checks if there's a marker within n meters of the given latitude and longitude
 func (s *MarkerLocationService) IsMarkerInRestrictedArea(lat, long float64) (string, bool, error) {
-	point := fmt.Sprintf("POINT(%f %f)", lat, long)
+	point := formatPoint(lat, long)
 
 	var name string
 	err := s.DB.Get(&name, isInRestrictedAreaQuery, point, point)
@@ -177,7 +200,6 @@ func (s *MarkerLocationService) IsMarkerInRestrictedArea(lat, long float64) (str
 	return name, true, nil
 }
 
-// TODO cache
 // FindClosestNMarkersWithinDistance
 func (s *MarkerLocationService) FindClosestNMarkersWithinDistance(lat, long float64, distance, pageSize, offset int) ([]dto.MarkerWithDistanceAndPhoto, int, error) {
 	// Calculate bounding box
@@ -188,19 +210,32 @@ func (s *MarkerLocationService) FindClosestNMarkersWithinDistance(lat, long floa
 	minLon := long - radDist*180/(math.Pi*math.Cos(radLat))
 	maxLon := long + radDist*180/(math.Pi*math.Cos(radLat))
 
-	point := fmt.Sprintf("POINT(%f %f)", lat, long)
+	point := formatPoint(lat, long)
 
-	var allMarkers []dto.MarkerWithDistanceAndPhoto
-	err := s.FindCloseMarkersStmt.Select(&allMarkers, point, minLon, minLat, maxLon, minLat, maxLon, maxLat, minLon, maxLat, minLon, minLat, point, distance)
+	pooledMarkers := markerPool.Get().(*PooledMarkers)
+
+	err := s.FindCloseMarkersStmt.Select(
+		&pooledMarkers.Markers,
+		point,
+		minLon, minLat,
+		maxLon, minLat,
+		maxLon, maxLat,
+		minLon, maxLat,
+		minLon, minLat,
+		point,
+		distance,
+		pageSize, // LIMIT
+		offset,   // OFFSET
+	)
 	if err != nil {
-		return nil, 0, fmt.Errorf("error checking for nearby markers: %w", err)
+		pooledMarkers.Release()
+		return nil, 0, errors.New("error fetching nearby markers")
 	}
 
-	// Implementing pagination in application logic
-	markers := paginateMarkers(allMarkers, pageSize, offset)
-	total := len(allMarkers)
+	// Attach the pool reference for later use
+	pooledMarkers.pool = &markerPool
 
-	return markers, total, nil
+	return pooledMarkers.Markers, len(pooledMarkers.Markers), nil
 }
 
 func (s *MarkerLocationService) FindRankedMarkersInCurrentArea(lat, long float64, distance, limit int) ([]dto.MarkerWithDistanceAndPhoto, error) {
@@ -501,4 +536,17 @@ func (s *MarkerLocationService) TestDynamic(latitude, longitude, zoomScale float
 
 	resultImagePath, _ := util.PlaceMarkersOnImageDynamic(baseImageFilePath, markers, mapWcon.X, mapWcon.Y, zoomScale)
 	fmt.Println(resultImagePath)
+}
+
+func formatPoint(lat, long float64) string {
+	// Format the latitude and longitude with 6 decimal places
+	latStr := strconv.FormatFloat(lat, 'f', 6, 64)
+	longStr := strconv.FormatFloat(long, 'f', 6, 64)
+	var sb strings.Builder
+	sb.WriteString("POINT(")
+	sb.WriteString(latStr)
+	sb.WriteString(" ")
+	sb.WriteString(longStr)
+	sb.WriteString(")")
+	return sb.String()
 }

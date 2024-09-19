@@ -69,7 +69,7 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 	api.Get("/markers/weather", handler.HandleGetWeatherByWGS84)
 
 	// api.Get("/markers/save-offline-test", handler.HandleTestDynamic)
-	api.Get("/markers/save-offline", authMiddleware.Verify, limiter.New(limiter.Config{
+	api.Get("/markers/save-offline", limiter.New(limiter.Config{
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return handler.MarkerFacadeService.ChatUtil.GetUserIP(c)
 		},
