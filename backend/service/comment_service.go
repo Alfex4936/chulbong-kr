@@ -58,7 +58,7 @@ func (s *MarkerCommentService) CreateComment(markerID, userID int, userName, com
 		return nil, fmt.Errorf("error checking if marker exists: %w", err)
 	}
 	if !exists {
-		return nil, fmt.Errorf("marker with ID %d does not exist", markerID)
+		return nil, ErrMarkerNotFound
 	}
 
 	// Check if the user has already commented 3 times on this marker
@@ -68,7 +68,7 @@ func (s *MarkerCommentService) CreateComment(markerID, userID int, userName, com
 		return nil, fmt.Errorf("error checking comment count: %w", err)
 	}
 	if commentCount >= 3 {
-		return nil, fmt.Errorf("user with ID %d has already commented 3 times on marker with ID %d", userID, markerID)
+		return nil, ErrMaxCommentsReached
 	}
 
 	// Create the comment instance

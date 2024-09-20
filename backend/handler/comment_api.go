@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"errors"
 	"strconv"
-	"strings"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/middleware"
@@ -55,11 +55,16 @@ func (h *CommentHandler) HandlePostComment(c *fiber.Ctx) error {
 
 	comment, err := h.CommentService.CreateComment(req.MarkerID, userID, userName, req.CommentText)
 	if err != nil {
-		if strings.Contains(err.Error(), "already commented") {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "you have already commented 3 times on this marker"})
+		switch {
+		case errors.Is(err, service.ErrMaxCommentsReached):
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "You have already commented 3 times on this marker"})
+		case errors.Is(err, service.ErrMarkerNotFound):
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Marker not found"})
+		default:
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create comment"})
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create comment"})
 	}
+
 	return c.Status(fiber.StatusOK).JSON(comment)
 }
 

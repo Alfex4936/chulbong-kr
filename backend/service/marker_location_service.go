@@ -539,14 +539,11 @@ func (s *MarkerLocationService) TestDynamic(latitude, longitude, zoomScale float
 }
 
 func formatPoint(lat, long float64) string {
-	// Format the latitude and longitude with 6 decimal places
-	latStr := strconv.FormatFloat(lat, 'f', 6, 64)
-	longStr := strconv.FormatFloat(long, 'f', 6, 64)
 	var sb strings.Builder
 	sb.WriteString("POINT(")
-	sb.WriteString(latStr)
+	sb.WriteString(strconv.FormatFloat(lat, 'f', 6, 64))
 	sb.WriteString(" ")
-	sb.WriteString(longStr)
+	sb.WriteString(strconv.FormatFloat(long, 'f', 6, 64))
 	sb.WriteString(")")
 	return sb.String()
 }
