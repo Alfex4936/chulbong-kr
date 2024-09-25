@@ -22,18 +22,36 @@
 
 로그인한 다른 사용자는 해당 마커에 댓글을 남길 수 있어, 정보 공유 및 소통이 용이합니다.
 
+- 백엔드
+  - https://github.com/Alfex4936/chulbong-kr
+- 프론트엔드
+  - https://github.com/2YH02/k-pullup
+
 ![0](https://github.com/Alfex4936/chulbong-kr/assets/2356749/c0f58f73-d568-4ef7-8fa1-1f20820b8fff)
 
-|                                                                                                                                                                 |                                                                                                                                                                  |
-| :-------------------------------------------------------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-|           <img width="1604" alt="main" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/2ac3ffb2-f22e-4476-bf4b-ebc1bc58b1a4"> 메인 화면            |             <img width="1604" alt="2" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/30967ec3-9921-4910-9c1a-293d950d50ef"> 마커 정보              |
-| <img width="1604" alt="road view" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/0a26c86a-6da9-42c8-803a-57d5904dea29"> 거리뷰 (가장 가까운 위치) |             <img width="1604" alt="comment" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a8d69589-4b7f-435b-8084-ef87419eed09"> 댓글             |
-|          <img width="1604" alt="nearby" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a878595b-d613-4e22-aa95-2d8fee65b578"> 주변 철봉           | <img width="1604" alt="offline-pdf" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a7eb993e-f847-40c8-9b93-d367f4c6a3f8"> 오프라인 저장 (카카오맵) |
-|          <img width="500" alt="consonant" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/d240d3d2-d42c-4136-b483-2805a03231a1"> 철봉 주소 검색 (초성 지원)           | <img width="500" alt="offline-pdf" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/566ac319-4bd9-4acf-8bf4-eb5a05c21b0f"> 정보 수정 제안 |
+## 🖼️ 구현 UI
+
+|      메인 화면      |      검색 (주변 검색, 초성 지원)      |      위치 채팅      |
+|:-------------------:|:----------------------------------:|:-------------------:|
+| <img width="350" alt="main" src="https://github.com/user-attachments/assets/be4dfef3-c42b-4dc9-9df8-e10069ce35d2"> | <img width="350" alt="search" src="https://github.com/user-attachments/assets/22875f67-c5d3-43d4-8164-74cebeb54f63"> | <img width="350" alt="chat" src="https://github.com/user-attachments/assets/6a20b8b7-8ab6-4cfe-b3fd-49e22348a033"> |
+
+|  거리뷰 (가장 가까운 위치)  |      댓글      |    오프라인 저장 (카카오맵)     |
+|:-------------------:|:-------------:|:-----------------------------:|
+| <img width="350" alt="road view" src="https://github.com/user-attachments/assets/7b7e7f6c-2cc1-4175-8153-a8a3727bc5a5"> | <img width="350" alt="comment" src="https://github.com/user-attachments/assets/ac60be05-07a4-4a39-be45-346e5727f079"> | <img width="350" alt="offline-pdf" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/a7eb993e-f847-40c8-9b93-d367f4c6a3f8"> |
+
+|   공유, 북마크   |  이미지 상세  |    위치 등록    |
+|:----------------:|:-------------:|:---------------------:|
+| <img width="350" alt="share bookmark" src="https://github.com/user-attachments/assets/45211feb-32d1-4452-9472-f7436efa5115"> | <img width="350" alt="image detail" src="https://github.com/user-attachments/assets/ea5efb8d-c5c6-4739-8a9a-50224b1db051"> | <img width="350" alt="set location" src="https://github.com/user-attachments/assets/a05f7f3b-b2ce-467d-8e84-0b1dfd8faa72"> |
+
+|   위치 삭제   |    지도 이동   |  마이페이지, 설정  |
+|:-------------:|:-------------:|:--------------------:|
+| <img width="350" alt="delete location" src="https://github.com/user-attachments/assets/23b9c5f2-9aea-4a17-81c0-ee3e6757144a"> | <img width="350" alt="move map" src="https://github.com/user-attachments/assets/f8b3784a-4c7a-49ef-8998-4c53d1be949f"> | <img width="350" alt="mypage config" src="https://github.com/user-attachments/assets/5b069293-5501-450a-841c-6fc1449e4386"> |
+
+|   정보 수정 요청   |   수정 요청 승인  |  반응형  |
+|:-------------:|:-------------:|:-------------:|
+| <img width="350" alt="report" src="https://github.com/user-attachments/assets/782de329-311f-457f-b40b-d8686a7a26cd"> | <img width="350" alt="approve report" src="https://github.com/user-attachments/assets/22735cf2-c18a-40ec-8538-29a9bf4f9a6e"> | <img width="350" alt="responsive web" src="https://github.com/user-attachments/assets/9435ac37-6d47-4998-a2b0-33afce3b2c29"> |
 
 ![slack](https://github.com/Alfex4936/chulbong-kr/assets/2356749/5ec03f6a-871f-4556-90c3-13bb44769f13)
-
-<img width="500" alt="chatting" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/53e4f587-e155-49c7-b28b-d56e150f1fe2">
 
 ### 기능
 
@@ -124,7 +142,7 @@ sequenceDiagram
 
 ### pullup/dips bar detection
 
-"A nimble AI model, trained on 300 images in August 2024, striving to expertly detect bars with precision."
+"A nimble AI model, trained on 700 images in August 2024, striving to expertly detect bars with precision." (YOLO v8)
 
 ![image](https://github.com/user-attachments/assets/d822d93a-9985-480f-acfc-ba44eb4e96dc)
 
@@ -136,7 +154,7 @@ https://github.com/Alfex4936/chulbong-kr/assets/2356749/913b113c-4a8d-4df1-bb5a-
 
 - **백엔드**: Go언어 Fiber v2, MySQL, AWS S3, LavinMQ (RabbitMQ), Redis, Bleve (Apache Lucene-like, ZincSearch에서 직접 검색 인덱싱으로 변경)
   - 메인: Go, 서브: Java (전체 프로젝트 자바로도 작성 중)
-- **프론트엔드**: React -> NextJS (TypeScript)
+- **프론트엔드**: NextJS (TypeScript), Tailwind css, Storybook, Zustand, Yarn Berry
 - **개발 & 운영 효율성**: pprof, flamegraph, Uber's zap logger, Swagger OpenAPI, Prometheus+Grafana
 - **AI**: YOLO v8, gpt-4o mini
 - **협업**: Slack (+ Slack API)
