@@ -5,13 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/Alfex4936/chulbong-kr/util"
-	"github.com/iancoleman/orderedmap"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
@@ -85,6 +83,8 @@ ORDER BY Markers.CreatedAt DESC` // Order by CreatedAt in descending order
 	countQueryHowManyMarkersAUserMakesQuery = "SELECT COUNT(*) AS MarkerCount FROM Markers WHERE UserID = ?"
 
 	sumContributionScoresForAUserQuery = "SELECT SUM(Points) AS TotalPoints FROM UserContributions WHERE UserID = ?"
+
+	getUsernameByIdQuery = "SELECT Username FROM Users WHERE UserID = ?"
 )
 
 var ContributionLevelNames = []struct {
@@ -332,30 +332,23 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedRe
 		})
 	}
 
-	markersWithLatestReports := make([]dto.MarkerWithLatestReport, 0, len(groupedReports))
+	// Build a slice of markers with reports
+	markersWithReports := make([]dto.MarkerWithReports, 0, len(groupedReports))
 	for markerID, reports := range groupedReports {
-		if len(reports) > 0 {
-			markersWithLatestReports = append(markersWithLatestReports, dto.MarkerWithLatestReport{
-				MarkerID:   markerID,
-				LatestDate: reports[0].CreatedAt,
-			})
-		}
+		markersWithReports = append(markersWithReports, dto.MarkerWithReports{
+			MarkerID: markerID,
+			Reports:  reports,
+		})
 	}
 
 	// Sort markers by the date of their latest report
-	sort.SliceStable(markersWithLatestReports, func(i, j int) bool {
-		return markersWithLatestReports[i].LatestDate.After(markersWithLatestReports[j].LatestDate)
+	sort.SliceStable(markersWithReports, func(i, j int) bool {
+		return markersWithReports[i].Reports[0].CreatedAt.After(markersWithReports[j].Reports[0].CreatedAt)
 	})
-
-	// Construct the response in the sorted order of markers
-	sortedGroupedReports := orderedmap.New()
-	for _, marker := range markersWithLatestReports {
-		sortedGroupedReports.Set(strconv.Itoa(marker.MarkerID), groupedReports[marker.MarkerID])
-	}
 
 	response := dto.GroupedReportsResponse{
 		TotalReports: len(reportMap),
-		Markers:      sortedGroupedReports,
+		Markers:      markersWithReports,
 	}
 
 	return response, nil

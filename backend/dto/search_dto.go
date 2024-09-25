@@ -42,6 +42,7 @@ type HitDetail struct {
 type ZincMarker struct {
 	Timestamp string `json:"@timestamp,omitempty"`
 	Address   string `json:"address"`
+	Highlight string `json:"highlight,omitempty"`
 	MarkerID  int    `json:"markerId"`
 }
 

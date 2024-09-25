@@ -67,7 +67,7 @@ func (s *MarkerCommentService) CreateComment(markerID, userID int, userName, com
 	if err != nil {
 		return nil, fmt.Errorf("error checking comment count: %w", err)
 	}
-	if commentCount >= 3 {
+	if userID != 1 && commentCount >= 3 { // k-pullup can comment more than 3
 		return nil, ErrMaxCommentsReached
 	}
 
@@ -152,4 +152,41 @@ func (s *MarkerCommentService) LoadCommentsForMarker(markerID, pageSize, offset 
 	}
 
 	return comments, total, nil
+}
+
+func (s *MarkerCommentService) CreateCommentTx(tx *sqlx.Tx, markerID, userID int, username, commentText string) (*dto.CommentWithUsername, error) {
+	// Check if the marker exists
+	var exists bool
+	err := tx.Get(&exists, markerCheckQuery, markerID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if marker exists: %w", err)
+	}
+	if !exists {
+		return nil, ErrMarkerNotFound
+	}
+
+	// Create the comment instance
+	comment := dto.CommentWithUsername{
+		MarkerID:    markerID,
+		UserID:      userID,
+		CommentText: commentText,
+		PostedAt:    time.Now(),
+		UpdatedAt:   time.Now(),
+		Username:    username,
+	}
+
+	// Insert into database
+	res, err := tx.Exec(insertCommentQuery, comment.MarkerID, comment.UserID, comment.CommentText, comment.PostedAt, comment.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the last inserted ID
+	lastID, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	comment.CommentID = int(lastID)
+
+	return &comment, nil
 }

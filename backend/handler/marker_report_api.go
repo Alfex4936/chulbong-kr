@@ -1,13 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"strconv"
-	"strings"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/middleware"
+	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 
 	"github.com/gofiber/fiber/v2"
@@ -143,17 +144,28 @@ func (h *MarkerHandler) HandleCreateReport(c *fiber.Ctx) error {
 		DoesExist:    doesExist,
 	}, form)
 	if err != nil {
-		if strings.Contains(err.Error(), "an error during file") {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "an error during file upload"})
-		} else if strings.Contains(err.Error(), "no files file") {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "upload at least one picture to prove"})
-		} else if strings.Contains(err.Error(), "Error 1452 (23000)") {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "check if a marker exists"})
-		} else if strings.Contains(err.Error(), "no photos") {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "upload at least one photo"})
+		var status int
+		var response dto.SimpleErrorResponse
+
+		switch {
+		case errors.Is(err, service.ErrNoPhotos):
+			status = fiber.StatusConflict
+			response = dto.SimpleErrorResponse{Error: "upload at least one photo"}
+
+		case errors.Is(err, service.ErrFileUpload):
+			status = fiber.StatusConflict
+			response = dto.SimpleErrorResponse{Error: "an error occurred during file upload"}
+
+		case errors.Is(err, service.ErrMarkerDoesNotExist):
+			status = fiber.StatusConflict
+			response = dto.SimpleErrorResponse{Error: "check if the marker exists"}
+
+		default:
+			status = fiber.StatusInternalServerError
+			response = dto.SimpleErrorResponse{Error: "failed to create report"}
 		}
 
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create report" + err.Error()})
+		return c.Status(status).JSON(response)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "report created successfully"})
@@ -169,7 +181,7 @@ func (h *MarkerHandler) HandleApproveReport(c *fiber.Ctx) error {
 	userID, _ := c.Locals("userID").(int)
 
 	if err := h.MarkerFacadeService.ApproveReport(reportID, userID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to approve report: " + err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to approve report"})
 	}
 
 	return c.SendStatus(fiber.StatusOK)
@@ -205,7 +217,7 @@ func (h *MarkerHandler) HandleDeleteReport(c *fiber.Ctx) error {
 	userID, _ := c.Locals("userID").(int)
 
 	if err := h.MarkerFacadeService.DeleteReport(reportID, userID, markerID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to remove report: " + err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Unable to remove report"})
 	}
 	return c.SendStatus(fiber.StatusOK)
 }

@@ -2,8 +2,6 @@ package dto
 
 import (
 	"time"
-
-	"github.com/iancoleman/orderedmap"
 )
 
 type MarkerReportRequest struct {
@@ -45,10 +43,10 @@ type ReportsResponse struct {
 }
 
 // GroupedReportsResponse represents the response structure for grouped reports by MarkerID
-type GroupedReportsResponse struct {
-	TotalReports int                    `json:"totalReports"`
-	Markers      *orderedmap.OrderedMap `json:"markers"`
-}
+// type GroupedReportsResponse struct {
+// 	TotalReports int                    `json:"totalReports"`
+// 	Markers      *orderedmap.OrderedMap `json:"markers"`
+// }
 
 // ReportWithPhotos is a data transfer object for reports including photos
 type ReportWithPhotos struct {
@@ -70,4 +68,14 @@ type MarkerWithLatestReport struct {
 type Location struct {
 	Latitude  float64 `db:"Latitude"`
 	Longitude float64 `db:"Longitude"`
+}
+
+type MarkerWithReports struct {
+	MarkerID int                `json:"markerID"`
+	Reports  []ReportWithPhotos `json:"reports"`
+}
+
+type GroupedReportsResponse struct {
+	TotalReports int                 `json:"totalReports"`
+	Markers      []MarkerWithReports `json:"markers"`
 }

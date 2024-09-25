@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -59,10 +61,10 @@ func RegisterAuthRoutes(api fiber.Router, handler *AuthHandler, authMiddleaware 
 	authGroup := api.Group("/auth")
 	{
 		// OAuth2
-		authGroup.Get("/google", handler.HandleGoogleOAuth)
-		authGroup.Get("/naver", handler.HandleNaverOAuth)
-		authGroup.Get("/kakao", handler.HandleKakaoOAuth)
-		authGroup.Get("/github", handler.HandleGitHubOAuth)
+		authGroup.Get("/google", handler.HandleOAuthProvider("google"))
+		authGroup.Get("/naver", handler.HandleOAuthProvider("naver"))
+		authGroup.Get("/kakao", handler.HandleOAuthProvider("kakao"))
+		// authGroup.Get("/github", handler.HandleOAuthProvider("github"))
 
 		authGroup.Post("/signup", handler.HandleSignUp)
 		authGroup.Post("/login", handler.HandleLogin)
@@ -197,82 +199,95 @@ func (h *AuthHandler) HandleGoogleOAuth(c *fiber.Ctx) error {
 
 	if state == "" || code == "" {
 		// Start the OAuth flow
-		state, err := h.TokenUtil.GenerateOpaqueToken(16)
+		stateToken, err := h.TokenUtil.GenerateOpaqueToken(16)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
 		}
 
-		// Store the state value in the session or a temporary store
+		// Store the state value in the cookie with minimal allocations
 		c.Cookie(&fiber.Cookie{
-			Name:  "oauth_state",
-			Value: state,
+			Name:     "oauth_state",
+			Value:    stateToken,
+			Path:     "/",
+			HTTPOnly: true,
 		})
 
-		url := h.AuthService.OAuthConfig.GoogleOAuth.AuthCodeURL(state)
-		c.Status(fiber.StatusSeeOther)
-		return c.Redirect(url)
+		// Generate the AuthCodeURL
+		url := h.AuthService.OAuthConfig.GoogleOAuth.AuthCodeURL(stateToken)
+		return c.Redirect(url, fiber.StatusSeeOther)
 	}
 
 	// Validate the state parameter
-	storedState := c.Cookies("oauth_state")
+	storedState := c.Cookies("oauth_state", "")
 	if state != storedState {
 		return c.Status(fiber.StatusUnauthorized).SendString("Invalid state parameter")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Create a context with a timeout, reusing the context from Fiber if possible
+	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Second)
 	defer cancel()
 
 	// Exchange the code for a token
 	otoken, err := h.AuthService.OAuthConfig.GoogleOAuth.Exchange(ctx, code)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to exchange code for token")
 	}
 
 	client := h.AuthService.OAuthConfig.GoogleOAuth.Client(ctx, otoken)
-	response, err := client.Get(GOOGLE_USER_INFO_URL)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}
-	defer response.Body.Close()
 
-	body, err := io.ReadAll(response.Body)
+	// Create the request with context
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, GOOGLE_USER_INFO_URL, nil)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to create request")
 	}
 
+	// Make the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
+	}
+
+	// Use sonic's decoder to decode directly from the response body
 	var userInfo dto.OAuthGoogleUser
-	if err := sonic.Unmarshal(body, &userInfo); err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to parse user info")
 	}
 
+	// Save or update the OAuth user
 	user, err := h.AuthService.SaveOAuthUser("google", userInfo.ID, userInfo.Email, userInfo.Name)
 	if err != nil {
 		h.Logger.Warn("OAuth Login failed", zap.Error(err))
 		return c.Status(fiber.StatusUnauthorized).JSON(SimpleErrorResponse{Error: "Failed to login with Google"})
 	}
 
+	// Generate and save the token
 	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
 	if err != nil {
-		h.Logger.Error("Failed to generate token for google login", zap.Error(err))
+		h.Logger.Error("Failed to generate token for Google login", zap.Error(err))
 		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	}
 
-	// responseData := dto.LoginResponse{
-	// 	User:  user,
-	// 	Token: token,
-	// }
-
-	cookie := h.TokenUtil.GenerateLoginCookie(token)
-	c.Cookie(&cookie)
+	// Generate the login cookie
+	loginCookie := h.TokenUtil.GenerateLoginCookie(token)
+	c.Cookie(&loginCookie)
 
 	h.Logger.Info("Google user logged in successfully", zap.Int("userID", user.UserID))
 
-	customRedirectUrl := c.Query("returnUrl")
+	// Build the redirect URL efficiently
+	customRedirectUrl := c.Query("returnUrl", "")
+	redirectURL := h.AuthService.OAuthConfig.FrontendURL
 	if customRedirectUrl == "" {
-		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + "/mypage")
+		redirectURL += "/mypage"
 	} else {
-		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + customRedirectUrl) // should be like "/pullup/1234"
+		redirectURL += customRedirectUrl
 	}
+
+	return c.Redirect(redirectURL)
 }
 
 func (h *AuthHandler) HandleKakaoOAuth(c *fiber.Ctx) error {
@@ -282,20 +297,22 @@ func (h *AuthHandler) HandleKakaoOAuth(c *fiber.Ctx) error {
 
 	if state == "" || code == "" {
 		// Start the OAuth flow
-		state, err := h.TokenUtil.GenerateOpaqueToken(16)
+		stateToken, err := h.TokenUtil.GenerateOpaqueToken(16)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
 		}
 
-		// Store the state value in the session or a temporary store
+		// Store the state value in the cookie with minimal allocations
 		c.Cookie(&fiber.Cookie{
-			Name:  "oauth_state",
-			Value: state,
+			Name:     "oauth_state",
+			Value:    stateToken,
+			Path:     "/",
+			HTTPOnly: true,
 		})
 
-		url := h.AuthService.OAuthConfig.KakaoOAuth.AuthCodeURL(state)
-		c.Status(fiber.StatusSeeOther)
-		return c.Redirect(url)
+		// Generate the AuthCodeURL
+		url := h.AuthService.OAuthConfig.GoogleOAuth.AuthCodeURL(stateToken)
+		return c.Redirect(url, fiber.StatusSeeOther)
 	}
 
 	// Validate the state parameter
@@ -304,30 +321,38 @@ func (h *AuthHandler) HandleKakaoOAuth(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).SendString("Invalid state parameter")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Create a context with a timeout, reusing the context from Fiber if possible
+	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Second)
 	defer cancel()
 
 	// Exchange the code for a token
 	otoken, err := h.AuthService.OAuthConfig.KakaoOAuth.Exchange(ctx, code)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to exchange code for kakao token")
 	}
 
 	client := h.AuthService.OAuthConfig.KakaoOAuth.Client(ctx, otoken)
-	response, err := client.Get(KAKAO_USER_INFO_URL)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}
-	defer response.Body.Close()
 
-	body, err := io.ReadAll(response.Body)
+	// Create the request with context
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, KAKAO_USER_INFO_URL, nil)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to create request")
+	}
+
+	// Make the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
 	}
 
 	var userInfo dto.OAuthKakaoUser
-	if err := sonic.Unmarshal(body, &userInfo); err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to parse user info")
 	}
 
 	user, err := h.AuthService.SaveOAuthUser("kakao", strconv.FormatInt(userInfo.ID, 10), userInfo.KakaoAccount.Email, userInfo.KakaoAccount.Profile.Nickname)
@@ -342,18 +367,22 @@ func (h *AuthHandler) HandleKakaoOAuth(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	}
 
-	cookie := h.TokenUtil.GenerateLoginCookie(token)
-	c.Cookie(&cookie)
+	// Generate the login cookie
+	loginCookie := h.TokenUtil.GenerateLoginCookie(token)
+	c.Cookie(&loginCookie)
 
 	h.Logger.Info("Kakao user logged in successfully", zap.Int("userID", user.UserID))
 
-	// Redirect to the frontend with a token
-	customRedirectUrl := c.Query("returnUrl")
+	// Build the redirect URL efficiently
+	customRedirectUrl := c.Query("returnUrl", "")
+	redirectURL := h.AuthService.OAuthConfig.FrontendURL
 	if customRedirectUrl == "" {
-		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + "/mypage")
+		redirectURL += "/mypage"
 	} else {
-		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + customRedirectUrl) // should be like "/pullup/1234"
+		redirectURL += customRedirectUrl
 	}
+
+	return c.Redirect(redirectURL)
 }
 
 func (h *AuthHandler) HandleNaverOAuth(c *fiber.Ctx) error {
@@ -361,46 +390,62 @@ func (h *AuthHandler) HandleNaverOAuth(c *fiber.Ctx) error {
 	code := c.Query("code")
 
 	if state == "" || code == "" {
-		state, err := h.TokenUtil.GenerateOpaqueToken(16)
+		// Start the OAuth flow
+		stateToken, err := h.TokenUtil.GenerateOpaqueToken(16)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
 		}
 
+		// Store the state value in the cookie with minimal allocations
 		c.Cookie(&fiber.Cookie{
-			Name:  "oauth_state",
-			Value: state,
+			Name:     "oauth_state",
+			Value:    stateToken,
+			Path:     "/",
+			HTTPOnly: true,
 		})
 
-		url := h.AuthService.OAuthConfig.NaverOAuth.AuthCodeURL(state)
-		c.Status(fiber.StatusSeeOther)
-		return c.Redirect(url)
+		// Generate the AuthCodeURL
+		url := h.AuthService.OAuthConfig.GoogleOAuth.AuthCodeURL(stateToken)
+		return c.Redirect(url, fiber.StatusSeeOther)
 	}
 
-	storedState := c.Cookies("oauth_state")
+	// Validate the state parameter
+	storedState := c.Cookies("oauth_state", "")
 	if state != storedState {
 		return c.Status(fiber.StatusUnauthorized).SendString("Invalid state parameter")
 	}
 
-	otoken, err := h.AuthService.OAuthConfig.NaverOAuth.Exchange(context.Background(), code)
+	// Create a context with a timeout, reusing the context from Fiber if possible
+	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Second)
+	defer cancel()
+
+	otoken, err := h.AuthService.OAuthConfig.NaverOAuth.Exchange(ctx, code)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to exchange code for token")
 	}
 
 	client := h.AuthService.OAuthConfig.NaverOAuth.Client(context.Background(), otoken)
-	response, err := client.Get(NAVER_USER_INFO_URL)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}
-	defer response.Body.Close()
 
-	body, err := io.ReadAll(response.Body)
+	// Create the request with context
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, NAVER_USER_INFO_URL, nil)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to create naver oauth request")
+	}
+
+	// Make the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
 	}
 
 	var userInfo dto.OAuthNaverUser
-	if err := sonic.Unmarshal(body, &userInfo); err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to parse user info")
 	}
 
 	user, err := h.AuthService.SaveOAuthUser("naver", userInfo.Response.ID, userInfo.Response.Email, userInfo.Response.Nickname)
@@ -415,17 +460,22 @@ func (h *AuthHandler) HandleNaverOAuth(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	}
 
-	cookie := h.TokenUtil.GenerateLoginCookie(token)
-	c.Cookie(&cookie)
+	// Generate the login cookie
+	loginCookie := h.TokenUtil.GenerateLoginCookie(token)
+	c.Cookie(&loginCookie)
 
 	h.Logger.Info("Naver user logged in successfully", zap.Int("userID", user.UserID))
 
-	customRedirectUrl := c.Query("returnUrl")
+	// Build the redirect URL efficiently
+	customRedirectUrl := c.Query("returnUrl", "")
+	redirectURL := h.AuthService.OAuthConfig.FrontendURL
 	if customRedirectUrl == "" {
-		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + "/mypage")
+		redirectURL += "/mypage"
 	} else {
-		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + customRedirectUrl) // should be like "/pullup/1234"
+		redirectURL += customRedirectUrl
 	}
+
+	return c.Redirect(redirectURL)
 }
 
 func (h *AuthHandler) HandleGitHubOAuth(c *fiber.Ctx) error {
@@ -538,13 +588,170 @@ func (h *AuthHandler) HandleGitHubOAuth(c *fiber.Ctx) error {
 
 	h.Logger.Info("GitHub user logged in successfully", zap.Int("userID", user.UserID))
 
-	// Redirect to the frontend with a token
-	customRedirectUrl := c.Query("returnUrl")
+	// Build the redirect URL efficiently
+	customRedirectUrl := c.Query("returnUrl", "")
+	redirectURL := h.AuthService.OAuthConfig.FrontendURL
 	if customRedirectUrl == "" {
-		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + "/mypage")
+		redirectURL += "/mypage"
 	} else {
-		return c.Redirect(h.AuthService.OAuthConfig.FrontendURL + customRedirectUrl) // should be like "/pullup/1234"
+		redirectURL += customRedirectUrl
 	}
+
+	return c.Redirect(redirectURL)
+}
+
+func (h *AuthHandler) HandleOAuthProvider(provider string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		return h.handleOAuth(c, provider)
+	}
+}
+
+func (h *AuthHandler) handleOAuth(c *fiber.Ctx, provider string) error {
+	var (
+		oauthConfig *oauth2.Config
+		userInfoURL string
+		userInfo    interface{}
+	)
+
+	// Map provider-specific configurations
+	switch provider {
+	case "google":
+		oauthConfig = h.AuthService.OAuthConfig.GoogleOAuth
+		userInfoURL = GOOGLE_USER_INFO_URL
+		userInfo = &dto.OAuthGoogleUser{}
+	case "kakao":
+		oauthConfig = h.AuthService.OAuthConfig.KakaoOAuth
+		userInfoURL = KAKAO_USER_INFO_URL
+		userInfo = &dto.OAuthKakaoUser{}
+	case "naver":
+		oauthConfig = h.AuthService.OAuthConfig.NaverOAuth
+		userInfoURL = NAVER_USER_INFO_URL
+		userInfo = &dto.OAuthNaverUser{}
+	// case "github":
+	// 	oauthConfig = h.AuthService.OAuthConfig.GitHubOAuth
+	// 	userInfoURL = GITHUB_USER_INFO_URL
+	// 	userInfo = &dto.OAuthGitHubUser{}
+	default:
+		return c.Status(fiber.StatusBadRequest).SendString("Unsupported provider")
+	}
+
+	// Retrieve query parameters with default values
+	state := c.Query("state", "")
+	code := c.Query("code", "")
+
+	if state == "" || code == "" {
+		// Start the OAuth flow
+		stateToken, err := h.TokenUtil.GenerateOpaqueToken(16)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
+		}
+
+		// Store the state value in the cookie with minimal allocations
+		c.Cookie(&fiber.Cookie{
+			Name:     "oauth_state",
+			Value:    stateToken,
+			Path:     "/",
+			HTTPOnly: true,
+		})
+
+		// Generate the AuthCodeURL
+		url := oauthConfig.AuthCodeURL(stateToken)
+		return c.Redirect(url, fiber.StatusSeeOther)
+	}
+
+	// Validate the state parameter
+	storedState := c.Cookies("oauth_state", "")
+	if state != storedState {
+		return c.Status(fiber.StatusUnauthorized).SendString("Invalid state parameter")
+	}
+
+	// Create a context with a timeout, reusing the context from Fiber if possible
+	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Second)
+	defer cancel()
+
+	// Exchange the code for a token
+	otoken, err := oauthConfig.Exchange(ctx, code)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to exchange code for token")
+	}
+
+	client := oauthConfig.Client(ctx, otoken)
+
+	// Create the request with context
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, userInfoURL, nil)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to create request")
+	}
+
+	// Make the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
+	}
+
+	// Use sonic's decoder to decode directly from the response body
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(userInfo); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to parse user info")
+	}
+
+	// Extract user information based on the provider
+	var email, id, name string
+	switch u := userInfo.(type) {
+	case *dto.OAuthGoogleUser:
+		email = u.Email
+		id = u.ID
+		name = u.Name
+	case *dto.OAuthKakaoUser:
+		email = u.KakaoAccount.Email
+		id = strconv.FormatInt(u.ID, 10)
+		name = u.KakaoAccount.Profile.Nickname
+	case *dto.OAuthNaverUser:
+		email = u.Response.Email
+		id = u.Response.ID
+		name = u.Response.Nickname
+	// case *dto.OAuthGitHubUser:
+	// 	email = u.Email
+	// 	id = strconv.Itoa(u.ID)
+	// 	name = u.Name
+	default:
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to parse user info")
+	}
+
+	// Save or update the OAuth user
+	user, err := h.AuthService.SaveOAuthUser(provider, id, email, name)
+	if err != nil {
+		h.Logger.Warn("OAuth Login failed", zap.String("provider", provider), zap.Error(err))
+		return c.Status(fiber.StatusUnauthorized).JSON(SimpleErrorResponse{Error: "Failed to login with " + provider})
+	}
+
+	// Generate and save the token
+	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
+	if err != nil {
+		h.Logger.Error("Failed to generate token for login", zap.String("provider", provider), zap.Error(err))
+		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
+	}
+
+	// Generate the login cookie
+	loginCookie := h.TokenUtil.GenerateLoginCookie(token)
+	c.Cookie(&loginCookie)
+
+	h.Logger.Info("OAuth2 User logged in successfully", zap.String("provider", provider), zap.Int("userID", user.UserID))
+
+	// Build the redirect URL efficiently
+	customRedirectUrl := c.Query("returnUrl", "")
+	redirectURL := h.AuthService.OAuthConfig.FrontendURL
+	if customRedirectUrl == "" {
+		redirectURL += "/mypage"
+	} else {
+		redirectURL += customRedirectUrl
+	}
+
+	return c.Redirect(redirectURL)
 }
 
 func (h *AuthHandler) HandleLogout(c *fiber.Ctx) error {

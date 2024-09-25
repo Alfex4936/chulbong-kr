@@ -166,7 +166,7 @@ func (h *MarkerHandler) HandleGetAllMarkersLocal(c *fiber.Ctx) error {
 	}
 
 	// Marshal the markers to JSON for caching and response
-	markersJSON, err := sonic.Marshal(markers)
+	markersJSON, err := sonic.ConfigFastest.Marshal(markers)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode markers"})
 	}
@@ -226,7 +226,7 @@ func (h *MarkerHandler) HandleGetAllNewMarkers(c *fiber.Ctx) error {
 	// Call the service to get markers
 	markers, err := h.MarkerFacadeService.GetAllNewMarkers(page, pageSize)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not fetch markers"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not fetch markers: " + err.Error()})
 	}
 
 	return c.JSON(markers)

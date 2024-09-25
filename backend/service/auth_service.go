@@ -14,6 +14,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
 	"github.com/Alfex4936/chulbong-kr/util"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/fx"
 	"golang.org/x/crypto/bcrypt"
@@ -149,11 +150,7 @@ func (s *AuthService) SaveUser(signUpReq *dto.SignUpRequest) (*model.User, error
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		}
-	}()
+	defer tx.Rollback() // rollback unless tx.Commit() is called
 
 	// /(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}/
 	// at least one digit (?=.*\d), one lowercase letter (?=.*[a-z]), and one uppercase letter (?=.*[A-Z]), all within a string of at least 8 characters.
@@ -221,86 +218,84 @@ func (s *AuthService) SaveOAuthUser(provider string, providerID string, email st
 		return nil, fmt.Errorf("email and username are required")
 	}
 
-	tx, err := s.DB.Beginx()
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		}
-	}()
-
 	if username == "" {
 		username = strings.Split(email, "@")[0]
 	}
 
+	tx, err := s.DB.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() // rollback unless tx.Commit() is called
+
 	user := &model.User{}
 	err = tx.Get(user, selectUserByEmailAndProviderQuery, email, provider)
 	if err != nil && err != sql.ErrNoRows {
-		return nil, err
+		return nil, fmt.Errorf("error fetching user: %w", err)
 	}
 
 	if err == sql.ErrNoRows {
 		// New user
-		uniqueUsername := username
-		for {
-			var count int
-			err = tx.Get(&count, selectCountByUsernameQuery, uniqueUsername)
+		const maxRetries = 5
+		for i := 0; i < maxRetries; i++ {
+			uniqueUsername := username
+			if i > 0 {
+				uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
+			}
+
+			_, err = tx.Exec(insertNewUserQuery, uniqueUsername, email, provider, providerID)
 			if err != nil {
-				return nil, err
+				if me, ok := err.(*mysql.MySQLError); ok && me.Number == 1062 {
+					// Duplicate entry error code
+					continue
+				}
+				return nil, fmt.Errorf("error inserting user: %w", err)
 			}
-			if count == 0 {
-				break
-			}
-			uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
+			break
 		}
-		_, err = tx.Exec(insertNewUserQuery, uniqueUsername, email, provider, providerID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to insert user after retries: %w", err)
 		}
 	} else {
 		// Existing user
-		// Check if the current username is different from the new one
-		currentUsername := user.Username
-		baseUsername := currentUsername
-		if idx := strings.LastIndex(currentUsername, "_"); idx != -1 {
-			baseUsername = currentUsername[:idx]
-		}
+		if user.Username != username {
+			// Update username and ProviderID
+			const maxRetries = 5
+			for i := 0; i < maxRetries; i++ {
+				uniqueUsername := username
+				if i > 0 {
+					uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
+				}
 
-		if baseUsername != username {
-			uniqueUsername := username
-			for {
-				var count int
-				err = tx.Get(&count, selectCountByUsernameQuery, uniqueUsername)
+				_, err = tx.Exec(updateUserProviderIDAndUsernameQuery, uniqueUsername, providerID, email, provider)
 				if err != nil {
-					return nil, err
+					if me, ok := err.(*mysql.MySQLError); ok && me.Number == 1062 {
+						// Duplicate entry error code
+						continue
+					}
+					return nil, fmt.Errorf("error updating user: %w", err)
 				}
-				if count == 0 {
-					break
-				}
-				uniqueUsername = username + "_" + s.TokenUtil.GenerateRandomString(4)
+				break
 			}
-			_, err = tx.Exec(updateUserProviderIDAndUsernameQuery, uniqueUsername, providerID, email, provider)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to update user after retries: %w", err)
 			}
 		} else {
-			// Just update the ProviderID if the username doesn't need to change
+			// Just update the ProviderID
 			_, err = tx.Exec(updateUserProviderIDQuery, providerID, email, provider)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error updating provider ID: %w", err)
 			}
 		}
 	}
 
 	err = tx.Get(user, selectUserAfterUpdateQuery, email, provider)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error fetching updated user: %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error committing transaction: %w", err)
 	}
 
 	return user, nil
@@ -438,8 +433,8 @@ func (s *AuthService) insertUserWithRetry(tx *sqlx.Tx, signUpReq *dto.SignUpRequ
 		res, err := tx.Exec(insertUserQuery,
 			username, signUpReq.Email, hashedPassword, signUpReq.Provider, signUpReq.ProviderID)
 		if err != nil {
-			if strings.Contains(err.Error(), "Duplicate entry") && strings.Contains(err.Error(), "for key 'idx_users_username'") {
-				username = fmt.Sprintf("%s-%s", username, s.TokenUtil.GenerateRandomString(5))
+			if me, ok := err.(*mysql.MySQLError); ok && me.Number == 1062 { // Duplicate entry
+				username = username + "-" + s.TokenUtil.GenerateRandomString(5)
 				continue
 			}
 			return 0, fmt.Errorf("error registering user: %w", err)
@@ -455,14 +450,22 @@ func normalizeUsername(signUpReq *dto.SignUpRequest) {
 		return
 	}
 
-	// Normalize the username to lowercase for case-insensitive comparison
-	username := strings.ToLower(*signUpReq.Username)
+	// Convert to lowercase once
+	originalUsername := *signUpReq.Username
+	usernameLower := strings.ToLower(originalUsername)
 
-	// Replace if any of the patterns match
 	for pattern, replacement := range nameReplacements {
-		if strings.Contains(username, pattern) {
-			*signUpReq.Username = strings.ReplaceAll(*signUpReq.Username, pattern, replacement)
-			break // stop after the first replacement
+		patternLower := strings.ToLower(pattern)
+		if strings.Contains(usernameLower, patternLower) {
+			// Use strings.Builder to minimize allocations
+			var sb strings.Builder
+			sb.Grow(len(originalUsername))
+			idx := strings.Index(usernameLower, patternLower)
+			sb.WriteString(originalUsername[:idx])
+			sb.WriteString(replacement)
+			sb.WriteString(originalUsername[idx+len(pattern):])
+			*signUpReq.Username = sb.String()
+			break
 		}
 	}
 }

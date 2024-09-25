@@ -37,3 +37,9 @@ type OAuthNaverUser struct {
 		ProfileImage string `json:"profile_image,omitempty"`
 	} `json:"response"`
 }
+
+type OAuthGitHubUser struct {
+	ID    int    `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}

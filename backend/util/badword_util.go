@@ -16,11 +16,14 @@ import (
 	"go.uber.org/zap"
 )
 
+var urlRegex = regexp.MustCompile(`https?://[^\s]+`)
+
 type BadWordUtil struct {
 	BadWordsListByte [][]byte
 	BadWordsList     []string
 	BadWordRegex     *regexp.Regexp
 	Matcher          *ahocorasick.Matcher
+	ByteMatcher      *ahocorasick.Matcher
 }
 
 func NewBadWordUtil() *BadWordUtil {
@@ -168,11 +171,63 @@ func (b *BadWordUtil) ReplaceBadWords(input string) (string, error) {
 	return string(runes), nil
 }
 
+func (b *BadWordUtil) ReplaceBadWordsInBytes(input []byte) ([]byte, error) {
+	if b.Matcher == nil {
+		b.ByteMatcher = ahocorasick.CompileByteSlices(b.BadWordsListByte)
+		return input, errors.New("bad words matcher not initialized")
+	}
+
+	matches := b.Matcher.FindAllByteSlice(input)
+	if len(matches) == 0 {
+		return input, nil // No matches, return original input
+	}
+
+	// Create a map to mark bytes that are part of matches
+	matchedBytes := make([]bool, len(input))
+	for _, match := range matches {
+		for i := match.Index; i < match.Index+len(match.Word); i++ {
+			matchedBytes[i] = true
+		}
+	}
+
+	// Process the input bytes, decoding runes, and building output bytes
+	var output []byte
+	i := 0
+	for i < len(input) {
+		if matchedBytes[i] {
+			// Replace the entire rune with '*'
+			_, size := utf8.DecodeRune(input[i:])
+			output = append(output, '*')
+			i += size
+			// Skip any additional bytes that are part of the matched word
+			// These are already accounted for in matchedBytes
+			// No need to do anything else here
+		} else {
+			// Copy the rune as is
+			_, size := utf8.DecodeRune(input[i:])
+			output = append(output, input[i:i+size]...)
+			i += size
+		}
+	}
+
+	return output, nil
+}
+
+func (b *BadWordUtil) ProcessChatMessage(message []byte) ([]byte, error) {
+	// Remove URLs directly from []byte
+	message = RemoveURLsFromBytes(message)
+
+	// Replace bad words directly in []byte
+	return b.ReplaceBadWordsInBytes(message)
+}
+
 func RemoveURLs(input string) string {
-	// Compile the regular expression for matching URLs
-	urlRegex := regexp.MustCompile(`\bhttps?:\/\/\S+\b`)
 	// Replace URLs with an empty string
 	return urlRegex.ReplaceAllString(input, "")
+}
+
+func RemoveURLsFromBytes(message []byte) []byte {
+	return urlRegex.ReplaceAll(message, []byte(""))
 }
 
 // func CheckForBadWords(input string) (bool, error) {
@@ -245,15 +300,16 @@ func (b *BadWordUtil) LoadBadWordsByte(filePath string) error {
 	scanner.Buffer(buf, maxCapacity)
 
 	for scanner.Scan() {
-		word := scanner.Bytes()
-		b.BadWordsListByte = append(b.BadWordsListByte, append([]byte(nil), word...)) // Make a copy of the word bytes
+		word := make([]byte, len(scanner.Bytes()))
+		copy(word, scanner.Bytes())
+		b.BadWordsListByte = append(b.BadWordsListByte, word)
 	}
 
 	if err := scanner.Err(); err != nil {
 		return err
 	}
 
-	b.BadWordsListByte = append([][]byte{}, b.BadWordsListByte...)
+	b.ByteMatcher = ahocorasick.CompileByteSlices(b.BadWordsListByte)
 	return nil
 }
 

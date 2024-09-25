@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 
+	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
 
@@ -69,7 +70,7 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 	// clientID := c.Locals("userID").(int)
 	// clientNickname := c.Locals("username").(string)
 	if markerID == "" || strings.Contains(markerID, "&") {
-		c.WriteJSON(fiber.Map{"error": "wrong marker id"})
+		c.WriteJSON(dto.SimpleErrorResponse{Error: "wrong marker id"})
 		c.Close()
 		return
 	}
@@ -77,7 +78,7 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 
 	exists, _ := h.ChatService.CheckDuplicateConnectionByLocal(markerID, clientID)
 	if exists {
-		c.WriteJSON(fiber.Map{"error": "duplicate connection"})
+		c.WriteJSON(dto.SimpleErrorResponse{Error: "duplicate connection"})
 		c.Close()
 		return
 	}
@@ -86,9 +87,13 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 
 	// clientNickname := "user-" + uuid.New().String()
 	clientNickname := h.ChatUtil.GenerateKoreanNickname()
+	saved, _ := h.ChatService.SaveConnection(markerID, clientID, clientNickname, c)
+	if !saved {
+		c.WriteJSON(dto.SimpleErrorResponse{Error: "Failed to save connection"})
+		c.Close()
+		return
+	}
 
-	// WsRoomManager = connections *haxmap.Map[string, []*websocket.Conn] // concurrent map
-	h.ChatService.SaveConnection(markerID, clientID, c) // saves to local websocket conncetions
 	// services.AddConnectionRoomToRedis(markerID, clientID, clientNickname) // saves to redis, "room:%s:connections"
 
 	// Broadcast join message
@@ -98,14 +103,18 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 	h.ChatService.BroadcastUserCountToRoomByLocal(markerID) // sends how many users in the room
 
 	defer func() {
-		// On disconnect, remove the client from the room
-		h.ChatService.RemoveWsFromRoom(markerID, clientID)
-		// services.RemoveConnectionFromRedis(markerID, reqID)
+		// Get the nickname before removing the connection
+		nickname, err := h.ChatService.GetNickname(markerID, clientID)
 
-		// Broadcast leave message
-		// services.PublishMessageToAMQP(context.Background(), markerID, clientNickname+" 님이 퇴장하셨습니다.", clientNickname, clientID)
-		h.ChatService.BroadcastMessageToRoom(markerID, clientNickname+" 님이 퇴장하셨습니다.", clientNickname, clientID)
-		h.ChatService.BroadcastUserCountToRoomByLocal(markerID) // sends how many users in the room
+		// Remove the client from the room
+		h.ChatService.RemoveWsFromRoom(markerID, clientID)
+
+		if err == nil {
+			// Broadcast leave message after removing the connection
+			h.ChatService.BroadcastMessageToRoom(markerID, nickname+" 님이 퇴장하셨습니다.", nickname, clientID)
+			// Broadcast updated user count
+			h.ChatService.BroadcastUserCountToRoomByLocal(markerID)
+		}
 	}()
 
 	// c.SetPingHandler(func(appData string) error {
@@ -125,7 +134,7 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 
 		if bytes.Equal(message, []byte(`{"type":"ping"}`)) {
 			// if mType == 9 || mType == 10 {
-			h.ChatService.UpdateLastPing(markerID, c)
+			h.ChatService.UpdateLastPing(markerID, clientID)
 			// if err := c.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
 			// 	log.Printf("Error sending 'pong': %v", err)
 			// }
@@ -137,28 +146,21 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 			continue
 		}
 
-		messageString := string(message) // Convert to string only when necessary
-
-		// First, remove URLs from the message
-		messageWithoutURLs := util.RemoveURLs(messageString)
-
 		// Then, replace bad words with asterisks in the message string
-		cleanMessage, err := h.BadWordUtil.ReplaceBadWords(messageWithoutURLs)
-		if err != nil {
+		cleanMessage, err := h.BadWordUtil.ReplaceBadWordsInBytes(message)
+		if len(cleanMessage) == 0 && err != nil {
 			// log.Printf("Error replacing bad words: %v", err)
 			continue
 		}
 
-		if cleanMessage == "" {
-			continue
-		}
+		// log.Printf("❤️ received message: %v", cleanMessage)
 
 		// Publish the valid message to the RabbitMQ queue for this chat room
 		// services.PublishMessageToAMQP(context.Background(), markerID, cleanMessage, clientNickname, clientID)
 
 		// Broadcast received message
-		h.ChatService.UpdateLastPing(markerID, c)
-		if err := h.ChatService.BroadcastMessageToRoom(markerID, cleanMessage, clientNickname, clientID); err != nil {
+		h.ChatService.UpdateLastPing(markerID, clientID)
+		if err := h.ChatService.BroadcastMessageToRoom(markerID, util.BytesToString(cleanMessage), clientNickname, clientID); err != nil {
 			break
 		}
 	}

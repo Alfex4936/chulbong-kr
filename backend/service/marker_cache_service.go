@@ -332,7 +332,7 @@ func (s *MarkerCacheService) SetUserProfileCache(userID int, userProfileData []b
 	userProfileKey := fmt.Sprintf("user_profile:%d", userID)
 
 	// Set the cache entry in Redis with the specified TTL
-	return s.RedisService.SetCacheEntry(userProfileKey, userProfileData, 30*time.Minute)
+	return s.RedisService.SetCacheEntry(userProfileKey, userProfileData, 3*time.Hour)
 }
 
 // ResetUserProfileCache invalidates the user profile cache.

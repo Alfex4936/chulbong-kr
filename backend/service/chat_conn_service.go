@@ -9,6 +9,7 @@ import (
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/util"
+	"github.com/puzpuzpuz/xsync/v3"
 
 	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/contrib/websocket"
@@ -16,59 +17,46 @@ import (
 	"github.com/redis/rueidis"
 )
 
+// LAVINMQ: Ensure only one subscription per room
+// if _, exists := ActiveSubscriptions.Load(key); !exists {
+// 	go SubscribeAndBroadcastFromAMQP(markerID)
+// 	ActiveSubscriptions.Store(key, struct{}{}) // marker_%s
+// }
+
 // SaveConnection stores a WebSocket connection associated with a markerID in app memory
-func (s *ChatService) SaveConnection(markerID, clientID string, conn *websocket.Conn) {
-	// s.WebSocketManager.mu.Lock()         // Lock at the start of the method
-	// defer s.WebSocketManager.mu.Unlock() // Unlock when the method returns
+func (s *ChatService) SaveConnection(markerID, clientID, clientNickname string, conn *websocket.Conn) (bool, error) {
+	// s.Logger.Info("Saving connection", zap.String("markerID", markerID), zap.String("clientID", clientID))
 
-	key := fmt.Sprintf("marker_%s", markerID)
+	// Get or create the inner map for the room
+	roomConns, _ := s.WebSocketManager.rooms.LoadOrCompute(markerID, func() *xsync.MapOf[string, *ChulbongConn] {
+		return xsync.NewMapOf[string, *ChulbongConn]()
+	})
 
-	newConn := &ChulbongConn{
-		Socket:       conn,
-		UserID:       clientID,
-		Send:         make(chan []byte, 10), // Buffered channel
-		InActiveChan: make(chan struct{}),
-	}
-	newConn.UpdateLastSeen()
-
-	// newConn.Socket.SetPongHandler(func(string) error {
-	// 	newConn.LastSeen = time.Now()
-	// 	return nil
-	// })
-
-	go newConn.writePump()
-
-	// Check if there's already a connection list for this markerID
-	// s.WebSocketManager.connections.SetIfAbsent(key, []*ChulbongConn{newConn}) // csmap
-
-	conns, loaded := s.WebSocketManager.connections.LoadOrStore(key, []*ChulbongConn{newConn})
-	if !loaded {
-		return
-	}
-
-	// conns, ok := s.WebSocketManager.connections.Load(key) // Doesn't have GetOrSet
-	// if !ok {
-	// 	return
-	// }
-
-	// LAVINMQ: Ensure only one subscription per room
-	// if _, exists := ActiveSubscriptions.Load(key); !exists {
-	// 	go SubscribeAndBroadcastFromAMQP(markerID)
-	// 	ActiveSubscriptions.Store(key, struct{}{}) // marker_%s
-	// }
-
-	// If we reach here, it means the list existed, so we must check for duplicates and append if necessary
-	for _, item := range conns {
-		if item.UserID == clientID {
-			// Connection for clientID already exists, avoid adding a duplicate
-			return
+	// Check if the clientID already exists in the inner map
+	_, loaded := roomConns.LoadOrStore(clientID, func() *ChulbongConn {
+		// Create the new connection object
+		newConn := &ChulbongConn{
+			Socket:       conn,
+			UserID:       clientID,
+			Nickname:     clientNickname,
+			Send:         make(chan []byte, 10), // Buffered channel
+			InActiveChan: make(chan struct{}),
 		}
+		newConn.UpdateLastSeen()
+
+		// Start the writePump in a separate goroutine
+		go newConn.writePump()
+
+		return newConn
+	}())
+
+	if loaded {
+		// Connection for clientID already exists, avoid adding a duplicate
+		return false, fmt.Errorf("duplicate connection")
 	}
 
-	updatedConns := append(conns, newConn)
-
-	// Update the map with the new or modified slice
-	s.WebSocketManager.connections.Store(key, updatedConns)
+	// No duplicate found, connection has been added successfully
+	return true, nil
 }
 
 // REDIS
@@ -126,34 +114,20 @@ func (s *ChatService) CheckDuplicateConnection(markerID, userID string) (bool, e
 	return exists, nil
 }
 
-func (s *ChatService) CheckDuplicateConnectionByLocal(markerID, userID string) (bool, error) {
-	key := fmt.Sprintf("marker_%s", markerID)
-
-	// Retrieve the current list of connections for the room.
-	if conns, ok := s.WebSocketManager.connections.Load(key); ok {
-		// Find and remove the specified connection from the slice.
-		for _, c := range conns {
-			if c.UserID == userID {
-				return true, nil
-			}
-		}
+func (s *ChatService) CheckDuplicateConnectionByLocal(markerID, clientID string) (bool, error) {
+	roomConns, ok := s.WebSocketManager.rooms.Load(markerID)
+	if !ok {
+		return false, nil // No room found, so no duplicate
 	}
 
-	return false, nil
+	_, exists := roomConns.Load(clientID)
+	return exists, nil
 }
 
-func (s *ChatService) UpdateLastPing(markerID string, conn *websocket.Conn) {
-
-	key := fmt.Sprintf("marker_%s", markerID)
-
-	// Retrieve the current list of connections for the room.
-	if conns, ok := s.WebSocketManager.connections.Load(key); ok {
-		// Find and remove the specified connection from the slice.
-		for _, c := range conns {
-			if c.Socket == conn {
-				c.UpdateLastSeen()
-				return
-			}
+func (s *ChatService) UpdateLastPing(markerID, clientID string) {
+	if roomConns, ok := s.WebSocketManager.rooms.Load(markerID); ok {
+		if conn, ok := roomConns.Load(clientID); ok {
+			conn.UpdateLastSeen()
 		}
 	}
 }
@@ -161,6 +135,7 @@ func (s *ChatService) UpdateLastPing(markerID string, conn *websocket.Conn) {
 func (s *RoomConnectionManager) StartConnectionChecker() {
 	ticker := time.NewTicker(30 * time.Minute)
 	go func() {
+		defer ticker.Stop()
 		for range ticker.C {
 			s.CheckConnections()
 		}
@@ -170,36 +145,24 @@ func (s *RoomConnectionManager) StartConnectionChecker() {
 // CheckConnections iterates over all connections and sends a ping message.
 // Connections that fail to respond can be considered inactive and removed.
 func (s *RoomConnectionManager) CheckConnections() {
-	// s.WebSocketManager.mu.Lock()         // Lock at the start of the method
-	// defer s.WebSocketManager.mu.Unlock() // Unlock when the method returns
-
 	gracePeriod := 10 * time.Minute
 	now := time.Now()
 
-	// It is safe to modify the map while iterating it
-	s.connections.Range(func(id string, conns []*ChulbongConn) bool {
-		var activeConns []*ChulbongConn // Store active connections
-
-		for _, conn := range conns {
-
+	s.rooms.Range(func(markerID string, roomConns *xsync.MapOf[string, *ChulbongConn]) bool {
+		roomConns.Range(func(clientID string, conn *ChulbongConn) bool {
 			if now.Sub(conn.GetLastSeen()) > gracePeriod {
 				select {
 				case conn.InActiveChan <- struct{}{}:
-					// Message enqueued to be sent by writePump goroutine
+					// Inactive signal sent
 				default:
-					// Handle full send channel, e.g., by logging or closing the connection
+					// Channel is full; handle accordingly
 				}
-			} else {
-				activeConns = append(activeConns, conn)
+				roomConns.Delete(clientID)
 			}
-
-		}
-
-		// Decide whether to update or delete the marker based on active connections
-		if len(activeConns) > 0 {
-			s.connections.Store(id, activeConns)
-		} else {
-			s.connections.Delete(id)
+			return true
+		})
+		if roomConns.Size() == 0 {
+			s.rooms.Delete(markerID)
 		}
 		return true
 	})
@@ -217,63 +180,43 @@ func (s *ChatService) RemoveConnectionFromRedis(markerID, xRequestID string) {
 }
 
 // RemoveConnection removes a WebSocket connection associated with a id
-func (s *ChatService) RemoveWsFromRoom(markerID, clientID string) {
-	// s.WebSocketManager.mu.Lock()         // Lock at the start of the method
-	// defer s.WebSocketManager.mu.Unlock() // Unlock when the method returns
+func (s *ChatService) RemoveWsFromRoom(markerID, clientID string) (string, error) {
+	if roomConns, ok := s.WebSocketManager.rooms.Load(markerID); ok {
+		if conn, ok := roomConns.Load(clientID); ok {
+			clientNickname := conn.Nickname
+			close(conn.Send)
+			close(conn.InActiveChan)
+			conn.Socket.Close()
+			roomConns.Delete(clientID)
 
-	markerIDStr := fmt.Sprintf("marker_%s", markerID)
+			// s.Logger.Info("Connection closed", zap.String("markerID", markerID), zap.String("clientID", clientID))
 
-	// Retrieve the current list of connections for the room.
-	if conns, ok := s.WebSocketManager.connections.Load(markerIDStr); ok {
-		// Find and remove the specified connection from the slice.
-		for i, c := range conns {
-			if c.UserID == clientID {
-				close(c.Send)
-				close(c.InActiveChan)
-
-				conns = append(conns[:i], conns[i+1:]...)
-				break
+			if roomConns.Size() == 0 {
+				s.WebSocketManager.rooms.Delete(markerID)
 			}
-		}
-
-		// If the slice is empty after removal, delete the entry from the map.
-		if len(conns) == 0 {
-			s.WebSocketManager.connections.Delete(markerIDStr)
-			// LAVINMQ:
-			// ActiveSubscriptions.Delete(markerIDStr)
-			// StopSubscriptionForRoom(markerIDStr)
-		} else {
-			// Otherwise, update the map with the modified slice.
-			s.WebSocketManager.connections.Store(markerIDStr, conns)
+			return clientNickname, nil
 		}
 	}
+	return "", fmt.Errorf("connection not found")
 }
 
 // KickUserFromRoom closes the connection for a user in a specified room.
-func (s *ChatService) KickUserFromRoom(markerID, userID string) error {
-	key := fmt.Sprintf("marker_%s", markerID)
-	conns, ok := s.WebSocketManager.connections.Load(key)
-	if !ok {
-		return errors.New("room not found")
-	}
-
-	// Iterate over the connections to find the user
-	for i, conn := range conns {
-		if conn.UserID == userID {
-			// Close the connection
-			close(conn.Send) // Signal the writePump goroutine to exit
+func (s *ChatService) KickUserFromRoom(markerID, clientID string) error {
+	if roomConns, ok := s.WebSocketManager.rooms.Load(markerID); ok {
+		if conn, ok := roomConns.Load(clientID); ok {
+			close(conn.Send)
+			close(conn.InActiveChan)
 			conn.Socket.Close()
+			roomConns.Delete(clientID)
 
-			// Remove the connection from the slice
-			if len(conns) == 0 {
-				s.WebSocketManager.connections.Delete(key)
-			} else {
-				s.WebSocketManager.connections.Store(key, append(conns[:i], conns[i+1:]...))
+			if roomConns.Size() == 0 {
+				s.WebSocketManager.rooms.Delete(markerID)
 			}
 			return nil
 		}
+		return errors.New("user not found in room")
 	}
-	return errors.New("user not found in room")
+	return errors.New("room not found")
 }
 
 func (s *ChatService) GetUserCountInRoom(ctx context.Context, markerID string) (int64, error) {
@@ -285,13 +228,10 @@ func (s *ChatService) GetUserCountInRoom(ctx context.Context, markerID string) (
 }
 
 func (s *ChatService) GetUserCountInRoomByLocal(markerID string) (int, error) {
-	markerIDStr := fmt.Sprintf("marker_%s", markerID)
-	conns, ok := s.WebSocketManager.connections.Load(markerIDStr)
-	if !ok {
-		return 0, nil
+	if roomConns, ok := s.WebSocketManager.rooms.Load(markerID); ok {
+		return int(roomConns.Size()), nil
 	}
-
-	return len(conns), nil
+	return 0, nil
 }
 
 // GetAllRedisConnectionsFromRoom retrieves all connection information for a given room.

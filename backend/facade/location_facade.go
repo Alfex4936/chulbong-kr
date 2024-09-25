@@ -6,10 +6,10 @@ import (
 )
 
 // Get
-func (mfs *MarkerFacadeService) FindClosestNMarkersWithinDistance(lat, lng float64, distance, pageSize, offset int) ([]dto.MarkerWithDistance, int, error) {
+func (mfs *MarkerFacadeService) FindClosestNMarkersWithinDistance(lat, lng float64, distance, pageSize, offset int) ([]dto.MarkerWithDistanceAndPhoto, int, error) {
 	return mfs.LocationService.FindClosestNMarkersWithinDistance(lat, lng, distance, pageSize, offset)
 }
-func (mfs *MarkerFacadeService) FindRankedMarkersInCurrentArea(lat, lng float64, distance, limit int) ([]dto.MarkerWithDistance, error) {
+func (mfs *MarkerFacadeService) FindRankedMarkersInCurrentArea(lat, lng float64, distance, limit int) ([]dto.MarkerWithDistanceAndPhoto, error) {
 	return mfs.LocationService.FindRankedMarkersInCurrentArea(lat, lng, distance, limit)
 }
 

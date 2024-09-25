@@ -1,7 +1,6 @@
 package facade
 
 import (
-	"fmt"
 	"mime/multipart"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
@@ -24,8 +23,7 @@ func (mfs *MarkerFacadeService) ApproveReport(reportID, userID int) error {
 	if err := mfs.ReportService.ApproveReport(reportID, userID); err != nil {
 		return err
 	}
-	go mfs.LocationService.Redis.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
-	go mfs.SetMarkerCache(nil)
+
 	return nil
 }
 

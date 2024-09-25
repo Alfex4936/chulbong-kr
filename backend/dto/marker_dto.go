@@ -69,9 +69,10 @@ type MarkerNewResponse struct {
 	Latitude  float64 `json:"latitude" db:"Latitude"`
 	Longitude float64 `json:"longitude" db:"Longitude"`
 	Address   string  `json:"address,omitempty" db:"Address"`
-	Username  int     `json:"username" db:"Username"`
-	MarkerID  int     `json:"markerId" db:"MarkerID"`
 	HasPhoto  bool    `json:"hasPhoto,omitempty" db:"HasPhoto"`
+	MarkerID  int     `json:"markerId" db:"MarkerID"`
+	Username  int     `json:"username,omitempty" db:"Username"`
+	UserID    int     `json:"userId,omitempty" db:"UserID"`
 }
 
 type MarkerSimpleWithDescrption struct {

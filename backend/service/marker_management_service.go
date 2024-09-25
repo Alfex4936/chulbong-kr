@@ -152,7 +152,7 @@ ORDER BY distance ASC`
 
 	generateRSSQuery = "SELECT MarkerID, UpdatedAt, Address FROM Markers ORDER BY UpdatedAt DESC"
 
-	getNewTop10PicturesQuery      = "SELECT DISTINCT(MarkerID), PhotoURL FROM chulbong.Photos ORDER BY UploadedAt DESC LIMIT 10"
+	getNewTop10PicturesQuery      = "SELECT MarkerID, PhotoURL FROM Photos GROUP BY MarkerID, PhotoURL ORDER BY MAX(UploadedAt) DESC LIMIT 10"
 	getNewTop10PicturesExtraQuery = `
 SELECT p.MarkerID, p.PhotoURL, m.Address, ST_X(m.Location) AS Latitude, ST_Y(m.Location) AS Longitude
 FROM Photos p
@@ -254,10 +254,10 @@ func RegisterMarkerLifecycle(lifecycle fx.Lifecycle, service *MarkerManageServic
 			return nil
 		},
 		OnStop: func(context.Context) error {
-			service.GetAllPhotosForMarkerStmt.Close()
-			service.GetMarkerStmt.Close()
-			service.GetNewTop10PicturesStmt.Close()
-			service.GenerateRSSQueryStmt.Close()
+			_ = service.GetAllPhotosForMarkerStmt.Close()
+			_ = service.GetMarkerStmt.Close()
+			_ = service.GetNewTop10PicturesStmt.Close()
+			_ = service.GenerateRSSQueryStmt.Close()
 			service.workerPool.StopWait()
 			return nil
 		},

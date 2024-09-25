@@ -18,8 +18,8 @@ type BroadcastMessage struct {
 	// IsOwner      bool   `json:"isOwner,omitempty"`
 }
 
-type BroadcastRoomInfoMessage struct {
-	Timestamp  int64  `json:"timestamp"`
-	RoomID     string `json:"roomID"`
-	TotalUsers string `json:"totalUsers"`
+type UserCountMessage struct {
+	RoomID       string `json:"roomID"`
+	UserNickname string `json:"userNickname"`
+	UserCount    int    `json:"userCount"`
 }

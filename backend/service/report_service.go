@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"mime/multipart"
+	"strings"
 	"sync"
 	"time"
 
@@ -140,20 +141,27 @@ FROM Reports r
 LEFT JOIN ReportPhotos p ON r.ReportID = p.ReportID
 WHERE r.Status = 'PENDING'
 ORDER BY r.CreatedAt DESC`
+
+	getReportByMarkerUserIdsQuery = "SELECT MarkerID, UserID FROM Reports WHERE ReportID = ?"
 )
 
 type ReportService struct {
 	DB              *sqlx.DB
 	S3Service       *S3Service
 	LocationService *MarkerLocationService
+	CacheService    *MarkerCacheService
 	Logger          *zap.Logger
 }
 
-func NewReportService(db *sqlx.DB, s3Service *S3Service, location *MarkerLocationService, logger *zap.Logger) *ReportService {
+func NewReportService(db *sqlx.DB, s3Service *S3Service,
+	location *MarkerLocationService,
+	cache *MarkerCacheService,
+	logger *zap.Logger) *ReportService {
 	return &ReportService{
 		DB:              db,
 		S3Service:       s3Service,
 		LocationService: location,
+		CacheService:    cache,
 		Logger:          logger,
 	}
 }
@@ -247,10 +255,57 @@ func (s *ReportService) GetAllReportsBy(markerID int) ([]dto.MarkerReportRespons
 
 // CreateReport handles the logic for creating a report and uploading photos related to that report.
 func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *multipart.Form) error {
+	// Process file uploads from the multipart form
+	files := form.File["photos"]
+	if len(files) == 0 {
+		return ErrNoPhotos
+	}
+
+	// Channels for collecting file URLs and errors
+	fileURLChan := make(chan string, len(files))
+	errorChan := make(chan error, len(files))
+
+	var wg sync.WaitGroup
+
+	// Concurrently upload files to S3
+	for _, file := range files {
+		wg.Add(1)
+		go func(file *multipart.FileHeader) {
+			defer wg.Done()
+			fileURL, err := s.S3Service.UploadFileToS3("reports", file)
+			if err != nil {
+				errorChan <- fmt.Errorf("%w: %v", ErrFileUpload, err)
+				return
+			}
+			fileURLChan <- fileURL
+		}(file)
+	}
+
+	// Wait for all uploads to finish
+	wg.Wait()
+	close(fileURLChan)
+	close(errorChan)
+
+	// Check for errors in file uploads
+	if len(errorChan) > 0 {
+		// Collect all errors
+		var uploadErrors []string
+		for err := range errorChan {
+			uploadErrors = append(uploadErrors, err.Error())
+		}
+		return fmt.Errorf("file upload errors: %s", strings.Join(uploadErrors, "; "))
+	}
+
+	// Collect all uploaded file URLs
+	fileURLs := make([]string, 0, len(files))
+	for url := range fileURLChan {
+		fileURLs = append(fileURLs, url)
+	}
+
 	// Begin a transaction for database operations
 	tx, err := s.DB.Beginx()
 	if err != nil {
-		return fmt.Errorf("could not begin transaction: %w", err)
+		return fmt.Errorf("%w: %v", ErrBeginTransaction, err)
 	}
 	defer tx.Rollback() // Ensure the transaction is rolled back in case of error
 
@@ -259,58 +314,25 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 	newPoint := formatPoint(report.NewLatitude, report.NewLongitude)
 	res, err := tx.Exec(insertReportQuery, report.MarkerID, report.UserID, point, newPoint, report.Description, report.DoesExist)
 	if err != nil {
-		return fmt.Errorf("failed to insert report: %w", err)
+		return fmt.Errorf("%w: %v", ErrInsertReport, err)
 	}
 
 	// Get the last inserted ID for the report
 	reportID, err := res.LastInsertId()
 	if err != nil {
-		return fmt.Errorf("failed to get last insert ID: %w", err)
+		return fmt.Errorf("%w: %v", ErrLastInsertID, err)
 	}
 
-	// Process file uploads from the multipart form
-	files := form.File["photos"]
-	if len(files) == 0 {
-		return fmt.Errorf("no photos to process")
-	}
-
-	var wg sync.WaitGroup
-	errorChan := make(chan error, 1)
-
-	for _, file := range files {
-		wg.Add(1)
-		go func(file *multipart.FileHeader) {
-			defer wg.Done()
-			fileURL, err := s.S3Service.UploadFileToS3("reports", file)
-			if err != nil {
-				select {
-				case errorChan <- fmt.Errorf("failed to upload file to S3: %w", err):
-				default: // Do nothing if the channel is already full
-				}
-				return
-			}
-			if _, err := tx.Exec(insertReportPhotoQuery, reportID, fileURL); err != nil {
-				select {
-				case errorChan <- fmt.Errorf("failed to execute database operation: %w", err):
-				default: // Do nothing if the channel is already full
-				}
-				return
-			}
-		}(file)
-	}
-
-	// Wait for all goroutines to finish
-	wg.Wait()
-	close(errorChan)
-
-	// Check for errors in the error channel
-	if err, ok := <-errorChan; ok {
-		return err // Return the first error encountered
+	// Insert photo URLs into the database
+	for _, fileURL := range fileURLs {
+		if _, err := tx.Exec(insertReportPhotoQuery, reportID, fileURL); err != nil {
+			return fmt.Errorf("%w: %v", ErrInsertReportPhoto, err)
+		}
 	}
 
 	// Commit the transaction after all operations succeed
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("could not commit transaction: %w", err)
+		return fmt.Errorf("%w: %v", ErrCommitTransaction, err)
 	}
 
 	return nil
@@ -322,28 +344,67 @@ func (s *ReportService) ApproveReport(reportID, userID int) error {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Approve the report
 	res, err := tx.Exec(approveReportQuery, reportID, userID, reportID, userID)
 	if err != nil {
-		tx.Rollback()
 		return fmt.Errorf("error approving report: %w", err)
 	}
 
 	if count, _ := res.RowsAffected(); count == 0 {
-		tx.Rollback()
 		return fmt.Errorf("no report updated, either report does not exist or user is not the owner")
 	}
 
+	// Update the marker with report details
 	if err := s.UpdateMarkerWithReportDetailsTx(tx, reportID); err != nil {
-		tx.Rollback()
 		return err
 	}
 
+	// Fetch report details
+	var report struct {
+		MarkerID int `db:"MarkerID"`
+		UserID   int `db:"UserID"`
+	}
+	err = tx.Get(&report, getReportByMarkerUserIdsQuery, reportID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch report details: %w", err)
+	}
+
+	// Determine comment text
+	var commentText string
+	if report.UserID == 0 {
+		commentText = "🔉 익명 정보 제공 업데이트"
+	} else {
+		// Fetch username
+		var username string
+		err = tx.Get(&username, getUsernameByIdQuery, report.UserID)
+		if err != nil {
+			return fmt.Errorf("failed to fetch username: %w", err)
+		}
+		commentText = fmt.Sprintf("🔉 %s님께서 정보 제공", username)
+	}
+
+	// Add comment as admin
+	commentService := NewMarkerCommentService(s.DB)
+	_, err = commentService.CreateCommentTx(tx, report.MarkerID, 1, "k-pullup", commentText)
+	if err != nil {
+		return fmt.Errorf("failed to create comment: %w", err)
+	}
+
+	// Commit transaction
 	if err := tx.Commit(); err != nil {
-		tx.Rollback()
 		return fmt.Errorf("error committing transaction: %w", err)
 	}
 
+	// Update location and invalidate cache
 	s.UpdateDbLocation(reportID)
+	s.CacheService.InvalidateFullMarkersCache()
+
 	return nil
 }
 
@@ -356,6 +417,7 @@ func (s *ReportService) DenyReport(reportID, userID int) error {
 	if count, _ := res.RowsAffected(); count == 0 {
 		return fmt.Errorf("no report updated, either report does not exist or user is not the owner")
 	}
+
 	return nil
 }
 

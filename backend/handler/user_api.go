@@ -64,17 +64,19 @@ func (h *UserHandler) HandleUpdateUser(c *fiber.Ctx) error {
 
 	user, err := h.UserFacadeService.UpdateUserProfile(userData.UserID, &updateReq)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not update user profile"})
 	}
 
 	// Marshal the updated user profile to byte array
-	userProfileData, err := sonic.Marshal(user)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode user profile"})
-	}
+	// userProfileData, err := sonic.Marshal(user)
+	// if err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode user profile"})
+	// }
 
 	// Update the user profile cache
-	go h.CacheService.SetUserProfileCache(userData.UserID, userProfileData)
+	// h.CacheService.SetUserProfileCache(userData.UserID, userProfileData)
+
+	go h.CacheService.ResetUserProfileCache(userData.UserID)
 
 	// TODO: reset favorite markers cache if profile update affects them
 	// h.UserFacadeService.ResetUserFavCache(userData.UserID)

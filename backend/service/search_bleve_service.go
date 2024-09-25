@@ -51,6 +51,8 @@ var (
 		'ㄿ': {'ㄹ', 'ㅍ'}, 'ㅀ': {'ㄹ', 'ㅎ'}, 'ㅄ': {'ㅂ', 'ㅅ'},
 	}
 
+	initials = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+
 	documentMatchPool = &sync.Pool{
 		New: func() any {
 			slice := make([]*bleve_search.DocumentMatch, 0, 100)
@@ -862,9 +864,15 @@ func extractMarkers(allResults []*bleve_search.DocumentMatch) []dto.ZincMarker {
 	markers := make([]dto.ZincMarker, 0, len(allResults))
 	for _, hit := range allResults {
 		intID, _ := strconv.Atoi(hit.ID)
+		var address string
+		if fragments, ok := hit.Fragments["fullAddress"]; ok && len(fragments) > 0 {
+			address = fragments[0]
+		} else {
+			address = hit.Fields["fullAddress"].(string)
+		}
 		markers = append(markers, dto.ZincMarker{
 			MarkerID: intID,
-			Address:  hit.Fields["fullAddress"].(string),
+			Address:  address,
 		})
 	}
 	return markers
@@ -1077,6 +1085,12 @@ func assignTermsToFields(terms []string) []TermAssignment {
 	assignments := make([]TermAssignment, 0, len(terms))
 
 	for _, term := range terms {
+		log.Printf(" ❤️ converted to QwertyHangul %v for %s", dkssud.IsQwertyHangul(term), term)
+		if dkssud.IsQwertyHangul(term) {
+			term = dkssud.QwertyToHangul(term)
+			log.Printf(" ❤️ converted to QwertyHangul %s", term)
+		}
+
 		if util.IsProvince(term) {
 			assignments = append(assignments, TermAssignment{Term: term, Field: "province"})
 		} else if util.IsCity(term) {
@@ -1102,7 +1116,7 @@ func isNumeric(s string) bool {
 // Check if a string consists of only Korean initial consonants
 func isInitialConsonant(s string) bool {
 	for _, r := range s {
-		if !unicode.Is(unicode.Hangul, r) && !strings.ContainsRune("ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ", r) {
+		if !unicode.Is(unicode.Hangul, r) && !strings.ContainsRune(initials, r) {
 			return false
 		}
 	}
