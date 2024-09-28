@@ -255,7 +255,7 @@ func (s *ChatService) GetAllRedisConnectionsFromRoom(markerID string) ([]dto.Con
 		// Use StringToBytes to avoid unnecessary memory allocation
 		jsonBytes := util.StringToBytes(jsonConnInfo)
 
-		if err := sonic.Unmarshal(jsonBytes, &connInfo); err != nil {
+		if err := sonic.ConfigFastest.Unmarshal(jsonBytes, &connInfo); err != nil {
 			log.Printf("Error unmarshaling connection info: %v", err)
 			continue
 		}

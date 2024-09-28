@@ -44,7 +44,8 @@ func (h *CommentHandler) HandlePostComment(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(int)
 	userName := c.Locals("username").(string)
 	var req dto.CommentRequest
-	if err := c.BodyParser(&req); err != nil {
+
+	if err := util.JsonBodyParser(c, &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 

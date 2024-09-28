@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"log"
-
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/facade"
 	"github.com/Alfex4936/chulbong-kr/middleware"
@@ -87,14 +85,14 @@ func (h *UserHandler) HandleUpdateUser(c *fiber.Ctx) error {
 // DeleteUserHandler deletes the currently authenticated user
 func (h *UserHandler) HandleDeleteUser(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
-	if !ok {
+	if !ok || userID == 1 { // Prevent deletion of the admin user
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User ID not found"})
 	}
 
-	log.Printf("[DEBUG][HANDLER] Deleting user %v", userID)
+	// log.Printf("[DEBUG][HANDLER] Deleting user %v", userID)
 
 	if err := h.UserFacadeService.DeleteUserWithRelatedData(c.Context(), userID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete user"})
 	}
 
 	return c.SendStatus(fiber.StatusNoContent) // 204 for successful deletion with no content in response

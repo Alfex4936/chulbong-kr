@@ -1085,10 +1085,8 @@ func assignTermsToFields(terms []string) []TermAssignment {
 	assignments := make([]TermAssignment, 0, len(terms))
 
 	for _, term := range terms {
-		log.Printf(" ❤️ converted to QwertyHangul %v for %s", dkssud.IsQwertyHangul(term), term)
 		if dkssud.IsQwertyHangul(term) {
 			term = dkssud.QwertyToHangul(term)
-			log.Printf(" ❤️ converted to QwertyHangul %s", term)
 		}
 
 		if util.IsProvince(term) {

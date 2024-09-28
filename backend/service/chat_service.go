@@ -233,7 +233,7 @@ func (s *ChatService) BroadcastMessage(message []byte, userID, roomID, userNickn
 		Timestamp:    time.Now().UnixMilli(),
 	}
 	// Serialize the message struct to JSON
-	msgJSON, err := sonic.Marshal(broadcastMsg)
+	msgJSON, err := sonic.ConfigFastest.Marshal(broadcastMsg)
 	if err != nil {
 		// s.Logger.Error("Error marshalling message to JSON", zap.Error(err))
 		return
