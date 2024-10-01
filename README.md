@@ -1,13 +1,12 @@
 # chulbong- :kr:
 <p align="center">
   <img width="100" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/6236863a-11e1-45d5-b2e2-9bcf40363e1d" alt="k-pullup logo"/></br>
-  <img width="1024" alt="2024-09-25 pullupbars" src="https://github.com/user-attachments/assets/88854ec1-51e7-4c02-b946-feff9e098598" />
+  <img width="1024" alt="2024-10-01 pullupbars" src="https://github.com/user-attachments/assets/aba29eb7-59bd-4263-87d5-98912052ad40" />
   <img alt="GitHub commit activity (branch)" src="https://img.shields.io/github/commit-activity/w/Alfex4936/chulbong-kr/main">
   <img alt="Go)" src="https://img.shields.io/badge/Go-1.2x-lightblue">
   <img alt="MySQL" src="https://img.shields.io/badge/MySQL-8.x-brightgreen">
   <img alt="Redis" src="https://img.shields.io/badge/Dragonfly-1.x-red">
 </p>
-
 
 > [!NOTE]  
 > The service is running with [Go as backend](https://github.com/Alfex4936/chulbong-kr/tree/main/backend) but [Spring boot 3](https://github.com/Alfex4936/chulbong-kr/tree/main/backend-spring) is also available. (WIP)
