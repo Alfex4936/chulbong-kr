@@ -67,6 +67,7 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 	api.Get("/markers/convert", handler.HandleConvertWGS84ToWCONGNAMUL)
 	api.Get("/markers/location-check", handler.HandleIsInSouthKorea)
 	api.Get("/markers/weather", handler.HandleGetWeatherByWGS84)
+	api.Get("/markers/verify", handler.HandleVerifyMarker)
 
 	// api.Get("/markers/save-offline-test", handler.HandleTestDynamic)
 	api.Get("/markers/save-offline", limiter.New(limiter.Config{
@@ -652,6 +653,29 @@ func (h *MarkerHandler) HandleRefreshMarkerCache(c *fiber.Ctx) error {
 	// Update cache
 	h.MarkerFacadeService.SetMarkerCache(markersJSON)
 	return c.SendString("refreshed")
+}
+
+// HandleGetAllMarkers handles the HTTP request to get all markers
+func (h *MarkerHandler) HandleVerifyMarker(c *fiber.Ctx) error {
+	latParam := c.Query("latitude")
+	longParam := c.Query("longitude")
+
+	lat, err := strconv.ParseFloat(latParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+	}
+
+	lng, err := strconv.ParseFloat(longParam, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+	}
+
+	merr := h.MarkerFacadeService.CheckMarkerValidity(lat, lng, "")
+	if merr != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": merr.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).SendString("OK")
 }
 
 func (h *MarkerHandler) HandleGetRoadViewPicDate(c *fiber.Ctx) error {

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"time"
 
 	myconfig "github.com/Alfex4936/chulbong-kr/config"
+	"github.com/Alfex4936/chulbong-kr/util"
 	"go.uber.org/zap"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -19,17 +19,28 @@ import (
 )
 
 type S3Service struct {
-	Config *myconfig.S3Config
-	Redis  *RedisService
+	Config   *myconfig.S3Config
+	Redis    *RedisService
+	s3Client *s3.Client
 
 	logger *zap.Logger
 }
 
-func NewS3Service(config *myconfig.S3Config, redis *RedisService, logger *zap.Logger) *S3Service {
+func NewS3Service(c *myconfig.S3Config, redis *RedisService, logger *zap.Logger) *S3Service {
+	// Load the AWS credentials once
+	awsCfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(c.AwsRegion))
+	if err != nil {
+		return nil
+	}
+
+	// Create the S3 client once
+	s3Client := s3.NewFromConfig(awsCfg)
+
 	return &S3Service{
-		Config: config,
-		Redis:  redis,
-		logger: logger,
+		Config:   c,
+		Redis:    redis,
+		logger:   logger,
+		s3Client: s3Client,
 	}
 }
 
@@ -41,30 +52,33 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader) (s
 	}
 	defer fileData.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Load the AWS credentials
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(s.Config.AwsRegion))
-	if err != nil {
-		return "", fmt.Errorf("could not load AWS credentials: %w", err)
-	}
-
-	// Create an S3 client
-	s3Client := s3.NewFromConfig(cfg)
-
 	// Generate a UUID for a unique filename
 	uuid, err := uuid.NewRandom()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate UUID: %w", err)
 	}
+
+	// Extract and lowercase the file extension
+	ext := filepathExtLower(file.Filename)
+
 	// Use the original file's extension but with a new UUID as the filename
-	fileExtension := strings.ToLower(filepath.Ext(file.Filename))
-	randomName := uuid.String()
-	key := fmt.Sprintf("%s/%s%s", folder, randomName, fileExtension)
+	// Estimate the key length: folder + '/' + UUID + ext
+	keyLen := len(folder) + 1 + 36 + len(ext)
+	keyBytes := make([]byte, 0, keyLen)
+	keyBytes = append(keyBytes, folder...)
+	keyBytes = append(keyBytes, '/')
+	keyBytes = appendUUID(keyBytes, uuid)
+	keyBytes = append(keyBytes, ext...)
+
+	// Convert keyBytes to string without allocation
+	key := util.BytesToString(keyBytes)
+
+	// Create a context with a timeout if necessary
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	// Upload the file to S3
-	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
+	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: &s.Config.S3BucketName,
 		Key:    &key,
 		Body:   fileData,
@@ -74,7 +88,16 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader) (s
 	}
 
 	// Construct the file URL
-	fileURL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", s.Config.S3BucketName, key)
+	// Estimate the URL length: "https://" + bucket + ".s3.amazonaws.com/" + key
+	urlLen := 8 + len(s.Config.S3BucketName) + 17 + len(key)
+	urlBytes := make([]byte, 0, urlLen)
+	urlBytes = append(urlBytes, "https://"...)
+	urlBytes = append(urlBytes, s.Config.S3BucketName...)
+	urlBytes = append(urlBytes, ".s3.amazonaws.com/"...)
+	urlBytes = append(urlBytes, keyBytes...)
+
+	// Convert urlBytes to string without allocation
+	fileURL := util.BytesToString(urlBytes)
 
 	return fileURL, nil
 }
@@ -254,4 +277,50 @@ func isImage(ext string) bool {
 	default:
 		return false
 	}
+}
+
+// appendUUID appends the UUID in standard string format to the dst byte slice.
+func appendUUID(dst []byte, u uuid.UUID) []byte {
+	const hex = "0123456789abcdef"
+	for i, b := range u {
+		// Insert dashes at positions 8, 13, 18, and 23.
+		if i == 4 || i == 6 || i == 8 || i == 10 {
+			dst = append(dst, '-')
+		}
+		dst = append(dst, hex[b>>4], hex[b&0x0f])
+	}
+	return dst
+}
+
+// toLowerASCII converts ASCII uppercase letters to lowercase in the byte slice.
+// It modifies the slice in place and returns the modified slice.
+func toLowerASCII(b []byte) []byte {
+	for i := 0; i < len(b); i++ {
+		if b[i] >= 'A' && b[i] <= 'Z' {
+			b[i] += 'a' - 'A'
+		}
+	}
+	return b
+}
+
+// filepathExtLower extracts the file extension and converts it to lowercase without allocations.
+func filepathExtLower(filename string) string {
+	ext := filepathExt(filename)
+	if len(ext) == 0 {
+		return ""
+	}
+	extBytes := []byte(ext)
+	extBytes = toLowerASCII(extBytes)
+	return util.BytesToString(extBytes)
+}
+
+// filepathExt is a simplified version of filepath.Ext.
+// It returns the extension including the dot, or an empty string if none.
+func filepathExt(filename string) string {
+	for i := len(filename) - 1; i >= 0; i-- {
+		if filename[i] == '.' {
+			return filename[i:]
+		}
+	}
+	return ""
 }

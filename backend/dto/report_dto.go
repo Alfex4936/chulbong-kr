@@ -71,8 +71,9 @@ type Location struct {
 }
 
 type MarkerWithReports struct {
-	MarkerID int                `json:"markerID"`
 	Reports  []ReportWithPhotos `json:"reports"`
+	Address  string             `json:"address,omitempty"`
+	MarkerID int                `json:"markerID"`
 }
 
 type GroupedReportsResponse struct {

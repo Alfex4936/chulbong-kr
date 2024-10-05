@@ -279,7 +279,7 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedRe
 	groupedReports := make(map[int][]dto.ReportWithPhotos, 0)
 	reportMap := make(map[int]*dto.MarkerReportResponse)
 	// Map to track if address is already added for a marker
-	addressAdded := make(map[int]struct{})
+	addressAdded := make(map[int]string)
 
 	for rows.Next() {
 		var r dto.MarkerReportResponse
@@ -312,8 +312,8 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedRe
 				NewLongitude: r.NewLongitude,
 			}
 			if _, added := addressAdded[r.MarkerID]; !added {
-				reportWithPhotos.Address = r.Address
-				addressAdded[r.MarkerID] = struct{}{}
+				// reportWithPhotos.Address = r.Address
+				addressAdded[r.MarkerID] = r.Address
 			}
 			groupedReports[r.MarkerID] = append(groupedReports[r.MarkerID], reportWithPhotos)
 		}
@@ -337,6 +337,7 @@ func (s *UserService) GetAllReportsForMyMarkersByUser(userID int) (dto.GroupedRe
 	for markerID, reports := range groupedReports {
 		markersWithReports = append(markersWithReports, dto.MarkerWithReports{
 			MarkerID: markerID,
+			Address:  addressAdded[markerID],
 			Reports:  reports,
 		})
 	}
