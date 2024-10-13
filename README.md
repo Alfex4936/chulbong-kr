@@ -1,7 +1,7 @@
 # chulbong- :kr:
 <p align="center">
   <img width="100" src="https://github.com/Alfex4936/chulbong-kr/assets/2356749/6236863a-11e1-45d5-b2e2-9bcf40363e1d" alt="k-pullup logo"/></br>
-  <img width="1024" alt="2024-10-01 pullupbars" src="https://github.com/user-attachments/assets/aba29eb7-59bd-4263-87d5-98912052ad40" />
+  <img width="1024" alt="2024-10-13 pullupbars" src="https://github.com/user-attachments/assets/8d26f8b4-fc75-49e6-a758-28bce08f1ac1" />
   <img alt="GitHub commit activity (branch)" src="https://img.shields.io/github/commit-activity/w/Alfex4936/chulbong-kr/main">
   <img alt="Go)" src="https://img.shields.io/badge/Go-1.2x-lightblue">
   <img alt="MySQL" src="https://img.shields.io/badge/MySQL-8.x-brightgreen">
