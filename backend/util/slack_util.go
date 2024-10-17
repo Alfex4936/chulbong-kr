@@ -1,9 +1,9 @@
 package util
 
 import (
-	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/slack-go/slack"
@@ -18,97 +18,96 @@ var (
 	SLACK_BOT_TOKEN          = os.Getenv("SLACK_BOT_TOKEN")
 	SLACK_CHANNEL_ID         = os.Getenv("SLACK_CHANNEL_ID")
 	SLACK_CHANNEL_PENDING_ID = os.Getenv("SLACK_CHANNEL_PENDING_ID")
+	slackClient              = slack.New(SLACK_BOT_TOKEN)
 )
 
 func SendSlackNotification(duration time.Duration, statusCode int, clientIP, method, path, userAgent, queryParams, referer string) {
-	client := slack.New(SLACK_BOT_TOKEN)
-
 	currentTime := time.Now().Format(TIME_FORMAT_STR)
 
 	// Header section with bold text and warning emoji
-	headerText := slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Performance Alert* (threshold: %.2f s) :warning:", DELAY_THRESHOLD), false, false)
-	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+	headerSection := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", "*Performance Alert* (threshold: "+strconv.FormatFloat(DELAY_THRESHOLD, 'f', 2, 64)+" s) :warning:", false, false),
+		nil, nil)
 
 	// Divider to separate header from body
 	dividerSection := slack.NewDividerBlock()
 
 	// Fields for detailed information
-	fields := make([]*slack.TextBlockObject, 0)
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Method:*\n`%s`", method), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Path:*\n`%s`", path), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Query:*\n`%s`", queryParams), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Status:*\n`%d`", statusCode), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Duration:*\n`%s`", duration), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Client IP:*\n`%s`", clientIP), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*User-Agent:*\n`%s`", userAgent), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Referer:*\n`%s`", referer), false, false))
+	fields := make([]*slack.TextBlockObject, 8)
+	fields[0] = slack.NewTextBlockObject("mrkdwn", "*Method:*\n`"+method+"`", false, false)
+	fields[1] = slack.NewTextBlockObject("mrkdwn", "*Path:*\n`"+path+"`", false, false)
+	fields[2] = slack.NewTextBlockObject("mrkdwn", "*Query:*\n`"+queryParams+"`", false, false)
+	fields[3] = slack.NewTextBlockObject("mrkdwn", "*Status:*\n`"+strconv.Itoa(statusCode)+"`", false, false)
+	fields[4] = slack.NewTextBlockObject("mrkdwn", "*Duration:*\n`"+duration.String()+"`", false, false)
+	fields[5] = slack.NewTextBlockObject("mrkdwn", "*Client IP:*\n`"+clientIP+"`", false, false)
+	fields[6] = slack.NewTextBlockObject("mrkdwn", "*User-Agent:*\n`"+userAgent+"`", false, false)
+	fields[7] = slack.NewTextBlockObject("mrkdwn", "*Referer:*\n`"+referer+"`", false, false)
 	bodySection := slack.NewSectionBlock(nil, fields, nil)
 
 	// Time section
-	timeText := slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*At Server Time:*\n`%s`", currentTime), false, false)
-	timeSection := slack.NewSectionBlock(timeText, nil, nil)
+	timeSection := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", "*At Server Time:*\n`"+currentTime+"`", false, false),
+		nil, nil)
 
 	// Combine the message blocks
 	msg := slack.MsgOptionBlocks(headerSection, dividerSection, bodySection, timeSection)
 
 	// Post the message to Slack
-	_, _, err := client.PostMessage(SLACK_CHANNEL_ID, msg)
+	_, _, err := slackClient.PostMessage(SLACK_CHANNEL_ID, msg)
 	if err != nil {
 		log.Printf("Error sending message to Slack: %v\n", err)
 	}
 }
 
 func SendDeploymentSuccessNotification(serverName, environment string) {
-	client := slack.New(SLACK_BOT_TOKEN)
-
 	currentTime := time.Now().Format(TIME_FORMAT_STR)
 
 	// Header section with bold text and celebration emoji
-	headerText := slack.NewTextBlockObject("mrkdwn", "*Deployment Success* :tada:", false, false)
-	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+	headerSection := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", "*Deployment Success* :tada:", false, false),
+		nil, nil)
 
 	// Divider to separate header from body
 	dividerSection := slack.NewDividerBlock()
 
 	// Fields for detailed information about the deployment
-	fields := make([]*slack.TextBlockObject, 0)
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Server:*\n`%s`", serverName), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Environment:*\n`%s`", environment), false, false))
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("*Deployed At:*\n`%s` (UTC+9)", currentTime), false, false))
+	fields := make([]*slack.TextBlockObject, 3)
+	fields[0] = slack.NewTextBlockObject("mrkdwn", "*Server:*\n`"+serverName+"`", false, false)
+	fields[1] = slack.NewTextBlockObject("mrkdwn", "*Environment:*\n`"+environment+"`", false, false)
+	fields[2] = slack.NewTextBlockObject("mrkdwn", "*Deployed At:*\n`"+currentTime+"` (UTC)", false, false)
 	bodySection := slack.NewSectionBlock(nil, fields, nil)
 
 	// Combine the message blocks
 	msg := slack.MsgOptionBlocks(headerSection, dividerSection, bodySection)
 
 	// Post the message to Slack
-	_, _, err := client.PostMessage(SLACK_CHANNEL_ID, msg)
+	_, _, err := slackClient.PostMessage(SLACK_CHANNEL_ID, msg)
 	if err != nil {
 		log.Printf("Error sending deployment success message to Slack: %v\n", err)
 	}
 }
 
 func SendSlackReportNotification(reportDetails string) {
-	client := slack.New(SLACK_BOT_TOKEN)
-
 	currentTime := time.Now().Format(TIME_FORMAT_STR)
 
 	// Header section with bold text and information emoji
-	headerText := slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("(`%s`) *Daily Pending Reports* :information_source:", currentTime), false, false)
-	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+	headerSection := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", "(`"+currentTime+"`) *Daily Pending Reports* :information_source:", false, false),
+		nil, nil)
 
 	// Divider to separate header from body
 	dividerSection := slack.NewDividerBlock()
 
 	// Fields for detailed information
-	fields := make([]*slack.TextBlockObject, 0)
-	fields = append(fields, slack.NewTextBlockObject("mrkdwn", reportDetails, false, false))
-	bodySection := slack.NewSectionBlock(nil, fields, nil)
+	bodySection := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", reportDetails, false, false),
+		nil, nil)
 
 	// Combine the message blocks
 	msg := slack.MsgOptionBlocks(headerSection, dividerSection, bodySection)
 
 	// Post the message to Slack
-	_, _, err := client.PostMessage(SLACK_CHANNEL_PENDING_ID, msg)
+	_, _, err := slackClient.PostMessage(SLACK_CHANNEL_PENDING_ID, msg)
 	if err != nil {
 		log.Printf("Error sending message to Slack: %v\n", err)
 	}

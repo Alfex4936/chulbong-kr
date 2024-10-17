@@ -2,6 +2,9 @@ package util
 
 import (
 	"bytes"
+	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
@@ -73,6 +76,69 @@ func ToLower(b []byte) {
 			b[i] += 'a' - 'A'
 		}
 	}
+}
+
+// JsonBodyParserStrict parses the JSON body into the provided struct and ensures no extra fields are present.
+func JsonBodyParserStrict(c *fiber.Ctx, out interface{}) error {
+	// Retrieve and validate Content-Type
+	contentType := c.Get("Content-Type")
+	if contentType == "" || !strings.HasPrefix(strings.ToLower(contentType), "application/json") {
+		return fiber.ErrUnprocessableEntity
+	}
+
+	// Read the body
+	body := c.Body()
+
+	// Unmarshal into a map to check for unknown fields
+	var tempMap map[string]interface{}
+	if err := sonic.ConfigFastest.Unmarshal(body, &tempMap); err != nil {
+		return fmt.Errorf("invalid JSON format: %w", err)
+	}
+
+	// Get the expected fields from the struct tags
+	expectedFields, err := getJSONTags(out)
+	if err != nil {
+		return fmt.Errorf("failed to get JSON tags: %w", err)
+	}
+
+	// Check for unknown fields
+	for key := range tempMap {
+		if _, ok := expectedFields[key]; !ok {
+			return fmt.Errorf("unknown field: %s", key)
+		}
+	}
+
+	// Unmarshal into the actual struct
+	if err := sonic.ConfigFastest.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON into struct: %w", err)
+	}
+
+	return nil
+}
+
+// getJSONTags extracts the JSON tags from the struct fields.
+func getJSONTags(obj interface{}) (map[string]struct{}, error) {
+	t := reflect.TypeOf(obj)
+	if t.Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("expected pointer to struct")
+	}
+	t = t.Elem()
+	if t.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("expected pointer to struct")
+	}
+
+	tags := make(map[string]struct{})
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("json")
+		if tag == "-" || tag == "" {
+			continue
+		}
+		// Handle omitempty and other tag options
+		tagName := strings.Split(tag, ",")[0]
+		tags[tagName] = struct{}{}
+	}
+	return tags, nil
 }
 
 // ParseVendorSpecificContentType efficiently parses vendor-specific content types.
