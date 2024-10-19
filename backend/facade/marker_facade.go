@@ -27,6 +27,7 @@ type MarkerFacadeService struct {
 	ManageService   *service.MarkerManageService
 	RankService     *service.MarkerRankService
 	FacilityService *service.MarkerFacilityService
+	StoryService    *service.StoryService
 	RedisService    *service.RedisService
 	ReportService   *service.ReportService
 
@@ -50,6 +51,7 @@ type MarkerFacadeParams struct {
 	FacilityService *service.MarkerFacilityService
 	RedisService    *service.RedisService
 	ReportService   *service.ReportService
+	StoryService    *service.StoryService
 
 	UserService *service.UserService
 
@@ -74,6 +76,7 @@ func NewMarkerFacadeService(
 		RedisService:    p.RedisService,
 		ReportService:   p.ReportService,
 		UserService:     p.UserService,
+		StoryService:    p.StoryService,
 		ChatUtil:        p.ChatUtil,
 		BadWordUtil:     p.BadWordUtil,
 		MapUtil:         p.MapUtil,

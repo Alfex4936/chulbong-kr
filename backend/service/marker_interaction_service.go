@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -17,6 +18,8 @@ const (
 	insertFavQuery        = "INSERT INTO Favorites (UserID, MarkerID) VALUES (?, ?)"
 	checkMarkerOwnerQuery = "SELECT UserID FROM Markers WHERE MarkerID = ?"
 	deleteFavQuery        = "DELETE FROM Favorites WHERE UserID = ? AND MarkerID = ?"
+
+	getMarkersAfterIDQuery = "SELECT ST_X(Location) AS Latitude, ST_Y(Location) AS Longitude, Address, MarkerID, COALESCE(U.Username, '알 수 없는 사용자') AS Username, M.UserID FROM Markers M LEFT JOIN Users U ON M.UserID = U.UserID WHERE MarkerID > ? ORDER BY MarkerID ASC"
 )
 
 type MarkerInteractService struct {
@@ -132,4 +135,10 @@ func (s *MarkerInteractService) RemoveFavorite(userID, markerID int) error {
 		return fmt.Errorf("error removing favorite: %w", err)
 	}
 	return nil
+}
+
+func (s *MarkerInteractService) GetMarkersAfterID(lastMarkerID int) ([]dto.MarkersKakaoBot, error) {
+	markers := []dto.MarkersKakaoBot{}
+	err := s.DB.Select(&markers, getMarkersAfterIDQuery, lastMarkerID)
+	return markers, err
 }

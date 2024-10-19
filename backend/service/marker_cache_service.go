@@ -424,6 +424,14 @@ func (s *MarkerCacheService) SetKakaoMarkerSearchCache(utterance string, json in
 	s.RedisService.SetCacheEntry(s.RedisService.RedisConfig.KakaoSearchMarkersKey+utterance, json, 1*time.Hour)
 }
 
+// func GetStoryCacheKey(markerID int, page int) string {
+//     return fmt.Sprintf("stories:%d:page:%d", markerID, page)
+// }
+
+// func GetStoryCachePattern(markerID int) string {
+//     return fmt.Sprintf("stories:%d:*", markerID)
+// }
+
 // HELPERS
 
 // generateCacheKey generates a unique cache key based on latitude and longitude.

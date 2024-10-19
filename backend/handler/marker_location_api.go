@@ -108,18 +108,10 @@ func (h *MarkerHandler) HandleFindCloseMarkers(c *fiber.Ctx) error {
 }
 
 func (h *MarkerHandler) HandleGetCurrentAreaMarkerRanking(c *fiber.Ctx) error {
-	latParam := c.Query("latitude")
-	longParam := c.Query("longitude")
 	limitParam := c.Query("limit", "10") // Default limit
-
-	lat, err := strconv.ParseFloat(latParam, 64)
+	lat, lng, err := GetLatLong(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
-	}
-
-	long, err := strconv.ParseFloat(longParam, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	limit, err := strconv.Atoi(limitParam)
@@ -130,7 +122,7 @@ func (h *MarkerHandler) HandleGetCurrentAreaMarkerRanking(c *fiber.Ctx) error {
 	// "current area"
 	const currentAreaDistance = 10000 // Meters
 
-	markers, err := h.MarkerFacadeService.FindRankedMarkersInCurrentArea(lat, long, currentAreaDistance, limit)
+	markers, err := h.MarkerFacadeService.FindRankedMarkersInCurrentArea(lat, lng, currentAreaDistance, limit)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve markers"})
 	}
@@ -157,92 +149,60 @@ func (h *MarkerHandler) HandleGetWeatherByWGS84(c *fiber.Ctx) error {
 	// 	return c.Redirect("https://k-pullup.com", fiber.StatusFound) // Use HTTP 302 for standard redirection
 	// }
 
-	latParam := c.Query("latitude")
-	longParam := c.Query("longitude")
-
-	lat, err := strconv.ParseFloat(latParam, 64)
+	lat, lng, err := GetLatLong(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
-	}
-
-	long, err := strconv.ParseFloat(longParam, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	// Generate a short cache key by hashing the lat/long combination
-
-	weather, cacheErr := h.CacheService.GetWcongCache(lat, long)
+	weather, cacheErr := h.CacheService.GetWcongCache(lat, lng)
 	if cacheErr == nil && weather != nil {
 		c.Append("X-Cache", "hit")
 		// Cache hit, return cached weather (10mins)
 		return c.JSON(weather)
 	}
 
-	result, err := h.MarkerFacadeService.FetchWeatherFromAddress(lat, long)
+	result, err := h.MarkerFacadeService.FetchWeatherFromAddress(lat, lng)
 	if err != nil {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Failed to fetch weather from address"})
 	}
 
 	// Cache the result for future requests
-	go h.CacheService.SetWcongCache(lat, long, result)
+	go h.CacheService.SetWcongCache(lat, lng, result)
 
 	return c.JSON(result)
 }
 
 func (h *MarkerHandler) HandleConvertWGS84ToWCONGNAMUL(c *fiber.Ctx) error {
-	latParam := c.Query("latitude")
-	longParam := c.Query("longitude")
-
-	lat, err := strconv.ParseFloat(latParam, 64)
+	lat, lng, err := GetLatLong(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	long, err := strconv.ParseFloat(longParam, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
-	}
-
-	result := util.ConvertWGS84ToWCONGNAMUL(lat, long)
+	result := util.ConvertWGS84ToWCONGNAMUL(lat, lng)
 
 	return c.JSON(result)
 }
 
 func (h *MarkerHandler) HandleIsInSouthKorea(c *fiber.Ctx) error {
-	latParam := c.Query("latitude")
-	longParam := c.Query("longitude")
-
-	lat, err := strconv.ParseFloat(latParam, 64)
+	lat, lng, err := GetLatLong(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	long, err := strconv.ParseFloat(longParam, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
-	}
-
-	result := h.MarkerFacadeService.IsInSouthKoreaPrecisely(lat, long)
+	result := h.MarkerFacadeService.IsInSouthKoreaPrecisely(lat, lng)
 
 	return c.JSON(fiber.Map{"result": result})
 }
 
 // DEPRECATED: Use version 2
 func (h *MarkerHandler) HandleSaveOfflineMap(c *fiber.Ctx) error {
-	latParam := c.Query("latitude")
-	longParam := c.Query("longitude")
-
-	lat, err := strconv.ParseFloat(latParam, 64)
+	lat, lng, err := GetLatLong(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
-	}
-	long, err := strconv.ParseFloat(longParam, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	pdf, err := h.MarkerFacadeService.SaveOfflineMap(lat, long)
+	pdf, err := h.MarkerFacadeService.SaveOfflineMap(lat, lng)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create a PDF: " + err.Error()})
 	}
@@ -251,15 +211,9 @@ func (h *MarkerHandler) HandleSaveOfflineMap(c *fiber.Ctx) error {
 }
 
 func (h *MarkerHandler) HandleTestDynamic(c *fiber.Ctx) error {
-	latParam := c.Query("latitude")
-	longParam := c.Query("longitude")
-	lat, err := strconv.ParseFloat(latParam, 64)
+	lat, lng, err := GetLatLong(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
-	}
-	long, err := strconv.ParseFloat(longParam, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	sParam := c.Query("scale")
@@ -278,24 +232,17 @@ func (h *MarkerHandler) HandleTestDynamic(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
 	}
 
-	h.MarkerFacadeService.TestDynamic(lat, long, scale, width, height)
+	h.MarkerFacadeService.TestDynamic(lat, lng, scale, width, height)
 	return c.SendString("Dynamic API test")
 }
 
 func (h *MarkerHandler) HandleSaveOfflineMap2(c *fiber.Ctx) error {
-	latParam := c.Query("latitude")
-	longParam := c.Query("longitude")
-
-	lat, err := strconv.ParseFloat(latParam, 64)
+	lat, lng, err := GetLatLong(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
-	}
-	long, err := strconv.ParseFloat(longParam, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	pdf, err := h.MarkerFacadeService.SaveOfflineMap2(lat, long)
+	pdf, err := h.MarkerFacadeService.SaveOfflineMap2(lat, lng)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create a PDF"})
 	}

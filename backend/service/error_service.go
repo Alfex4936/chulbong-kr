@@ -18,4 +18,9 @@ var (
 	ErrInsertReportPhoto  = errors.New("failed to insert report photo")
 	ErrCommitTransaction  = errors.New("could not commit transaction")
 	ErrMarkerDoesNotExist = errors.New("marker does not exist")
+
+	// Stories
+	ErrUnauthorized     = errors.New("unauthorized")
+	ErrStoryNotFound    = errors.New("story not found")
+	ErrAlreadyStoryPost = errors.New("you have already posted a story for this marker")
 )

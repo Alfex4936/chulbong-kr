@@ -19,6 +19,7 @@ var (
 			handler.NewChatHandler,
 			handler.NewAuthHandler,
 			handler.NewAdminHandler,
+			handler.NewKakaoBotHandler,
 		),
 	)
 
@@ -46,6 +47,8 @@ var (
 			service.NewMarkerCommentService,
 			service.NewNotificationService,
 			service.NewReportService,
+			service.NewMarkerCacheService,
+			service.NewMarkerStoryService,
 		),
 	)
 

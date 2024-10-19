@@ -108,6 +108,7 @@ func (s *SchedulerService) RunAllCrons(logger *zap.Logger) {
 	s.CronProcessClickEventsBatch(RankUpdateTime, logger)
 	s.CronSendPendingReportsEmail(logger)
 	s.CronCheckMarkerIndex(logger)
+	s.CronDeleteExpiredStories(logger)
 
 	// reports, err := s.ReportService.GetPendingReports()
 	// if err != nil {
@@ -474,4 +475,73 @@ func (s *SchedulerService) cleanUpViewedNotifications() error {
 	}
 
 	return nil
+}
+
+func (s *SchedulerService) CronDeleteExpiredStories(logger *zap.Logger) {
+	_, err := s.Schedule("0 * * * *", func() { // Runs every hour
+		s.DeleteExpiredStories(logger)
+	})
+	if err != nil {
+		logger.Error("Error scheduling the delete expired stories job", zap.Error(err))
+	}
+}
+
+func (s *SchedulerService) DeleteExpiredStories(logger *zap.Logger) {
+	// Begin a transaction
+	tx, err := s.DB.Beginx()
+	if err != nil {
+		logger.Error("Failed to begin transaction", zap.Error(err))
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	// Select expired stories
+	var expiredStories []struct {
+		StoryID  int    `db:"StoryID"`
+		MarkerID int    `db:"MarkerID"`
+		PhotoURL string `db:"PhotoURL"`
+	}
+
+	err = tx.Select(&expiredStories, `
+        SELECT StoryID, MarkerID, PhotoURL
+        FROM Stories
+        WHERE ExpiresAt <= ?
+    `, time.Now())
+
+	if err != nil {
+		logger.Error("Failed to select expired stories", zap.Error(err))
+		return
+	}
+
+	if len(expiredStories) == 0 {
+		return
+	}
+
+	// Delete expired stories
+	_, err = tx.Exec("DELETE FROM Stories WHERE ExpiresAt <= ?", time.Now())
+	if err != nil {
+		logger.Error("Failed to delete expired stories", zap.Error(err))
+		return
+	}
+
+	// Delete associated photos from S3
+	for _, story := range expiredStories {
+		err = s.S3Service.DeleteDataFromS3(story.PhotoURL)
+		if err != nil {
+			logger.Error("Failed to delete photo from S3", zap.Error(err), zap.Int("StoryID", story.StoryID))
+		}
+
+		// Invalidate cache for the marker
+		s.RedisService.ResetAllCache(fmt.Sprintf("stories:%d:*", story.MarkerID))
+		s.RedisService.ResetAllCache("stories:all:*")
+	}
+
+	logger.Info("Expired stories cleanup executed successfully", zap.Int("DeletedStories", len(expiredStories)))
 }

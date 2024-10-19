@@ -70,8 +70,8 @@ type MarkerNewResponse struct {
 	Longitude float64 `json:"longitude" db:"Longitude"`
 	Address   string  `json:"address,omitempty" db:"Address"`
 	HasPhoto  bool    `json:"hasPhoto,omitempty" db:"HasPhoto"`
+	Username  string  `json:"username,omitempty" db:"Username"`
 	MarkerID  int     `json:"markerId" db:"MarkerID"`
-	Username  int     `json:"username,omitempty" db:"Username"`
 	UserID    int     `json:"userId,omitempty" db:"UserID"`
 }
 
@@ -154,4 +154,13 @@ type MarkersClose struct {
 	CurrentPage  int                          `json:"currentPage"`
 	TotalPages   int                          `json:"totalPages"`
 	TotalMarkers int                          `json:"totalMarkers"`
+}
+
+type MarkersKakaoBot struct {
+	Latitude  float64 `json:"latitude" db:"Latitude"`
+	Longitude float64 `json:"longitude" db:"Longitude"`
+	Address   string  `json:"address,omitempty" db:"Address"`
+	Username  string  `json:"username,omitempty" db:"Username"`
+	MarkerID  int     `json:"markerId" db:"MarkerID"`
+	UserID    int     `json:"userId,omitempty" db:"UserID"`
 }

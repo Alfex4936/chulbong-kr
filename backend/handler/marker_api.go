@@ -69,6 +69,8 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 	api.Get("/markers/weather", handler.HandleGetWeatherByWGS84)
 	api.Get("/markers/verify", handler.HandleVerifyMarker)
 
+	api.Get("/markers/new-markers", handler.HandleGetNewMarkers)
+
 	// api.Get("/markers/save-offline-test", handler.HandleTestDynamic)
 	api.Get("/markers/save-offline", limiter.New(limiter.Config{
 		KeyGenerator: func(c *fiber.Ctx) string {
@@ -95,6 +97,9 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 	api.Post("/markers/upload", authMiddleware.CheckAdmin, handler.HandleUploadMarkerPhotoToS3)
 	// api.Post("/markers/refresh", authMiddleware.CheckAdmin, handler.HandleRefreshMarkerCache)
 
+	api.Get("/markers/stories", handler.HandleGetAllStories)
+	api.Get("/markers/:markerID/stories", handler.HandleGetStories)
+
 	markerGroup := api.Group("/markers")
 	{
 		markerGroup.Use(authMiddleware.Verify)
@@ -113,6 +118,13 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 		markerGroup.Delete("/:markerID", handler.HandleDeleteMarker)
 		markerGroup.Delete("/:markerID/dislike", handler.HandleUndoDislike)
 		markerGroup.Delete("/:markerID/favorites", handler.HandleRemoveFavorite)
+
+		// Story routes
+		markerGroup.Post("/:markerID/stories", handler.HandleAddStory)
+		markerGroup.Delete("/:markerID/stories/:storyID", handler.HandleDeleteStory)
+		markerGroup.Post("/stories/:storyID/reactions", handler.HandleAddReaction)
+		markerGroup.Delete("/stories/:storyID/reactions", handler.HandleRemoveReaction)
+		markerGroup.Post("/stories/:storyID/report", handler.HandleReportStory)
 	}
 }
 
@@ -657,17 +669,9 @@ func (h *MarkerHandler) HandleRefreshMarkerCache(c *fiber.Ctx) error {
 
 // HandleGetAllMarkers handles the HTTP request to get all markers
 func (h *MarkerHandler) HandleVerifyMarker(c *fiber.Ctx) error {
-	latParam := c.Query("latitude")
-	longParam := c.Query("longitude")
-
-	lat, err := strconv.ParseFloat(latParam, 64)
+	lat, lng, err := GetLatLong(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
-	}
-
-	lng, err := strconv.ParseFloat(longParam, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	merr := h.MarkerFacadeService.CheckMarkerValidity(lat, lng, "")
@@ -679,20 +683,12 @@ func (h *MarkerHandler) HandleVerifyMarker(c *fiber.Ctx) error {
 }
 
 func (h *MarkerHandler) HandleGetRoadViewPicDate(c *fiber.Ctx) error {
-	latParam := c.Query("latitude")
-	longParam := c.Query("longitude")
-
-	lat, err := strconv.ParseFloat(latParam, 64)
+	lat, lng, err := GetLatLong(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid latitude"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	long, err := strconv.ParseFloat(longParam, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid longitude"})
-	}
-
-	date, err := h.MarkerFacadeService.FacilityService.FetchRoadViewPicDate(lat, long)
+	date, err := h.MarkerFacadeService.FacilityService.FetchRoadViewPicDate(lat, lng)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch road view date"})
 	}
@@ -700,8 +696,25 @@ func (h *MarkerHandler) HandleGetRoadViewPicDate(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"shot_date": date.Format(time.RFC3339)})
 }
 
+// 새로운 마커를 가져오는 엔드포인트
+func (h *MarkerHandler) HandleGetNewMarkers(c *fiber.Ctx) error {
+	lastMarkerIDStr := c.Query("lastMarkerID")
+	lastMarkerID, err := strconv.Atoi(lastMarkerIDStr)
+	if err != nil {
+		lastMarkerID = 0
+	}
+
+	markers, err := h.MarkerFacadeService.InteractService.GetMarkersAfterID(lastMarkerID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch markers" + err.Error()})
+	}
+
+	return c.JSON(markers)
+}
+
 // helpers
 
+// From FORM
 func GetLatLngFromForm(form *multipart.Form) (float64, float64, error) {
 	latStr, latOk := form.Value["latitude"]
 	longStr, longOk := form.Value["longitude"]
@@ -720,6 +733,33 @@ func GetLatLngFromForm(form *multipart.Form) (float64, float64, error) {
 	}
 
 	return latitude, longitude, nil
+}
+
+// FROM Query parameters
+func GetLatLong(c *fiber.Ctx) (float64, float64, error) {
+	latParam := c.Query("latitude")
+	longParam := c.Query("longitude")
+
+	lat, err := strconv.ParseFloat(latParam, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid latitude")
+	}
+
+	long, err := strconv.ParseFloat(longParam, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid longitude")
+	}
+
+	// Korea rough check
+	if lat < 32 || lat > 39 {
+		return 0, 0, fmt.Errorf("invalid latitude (Must be between 32 and 39)")
+	}
+
+	if long < 123 || long > 133 {
+		return 0, 0, fmt.Errorf("invalid longitude (Must be between 123 and 133)")
+	}
+
+	return lat, long, nil
 }
 
 func GetDescriptionFromForm(form *multipart.Form) string {

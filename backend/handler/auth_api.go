@@ -160,7 +160,8 @@ func (h *AuthHandler) HandleSignUp(c *fiber.Ctx) error {
 // @Router		/auth/login [post]
 func (h *AuthHandler) HandleLogin(c *fiber.Ctx) error {
 	var request dto.LoginRequest
-	if err := c.BodyParser(&request); err != nil {
+	// if err := c.BodyParser(&request); err != nil {
+	if err := util.JsonBodyParserFast(c, &request); err != nil {
 		h.Logger.Error("Failed to parse login request body", zap.Error(err))
 		return c.Status(fiber.StatusBadRequest).JSON(SimpleErrorResponse{Error: "Invalid login request"})
 	}

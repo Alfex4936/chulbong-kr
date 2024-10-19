@@ -463,6 +463,7 @@ func (s *MarkerManageService) CheckMarkerValidity(latitude, longitude float64, d
 	return nil
 }
 
+// TODO: _, err = tx.Exec("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
 func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
 	s.ClearCache()
 

@@ -9,6 +9,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/facade"
 	"github.com/Alfex4936/chulbong-kr/middleware"
 	"github.com/Alfex4936/chulbong-kr/service"
+	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gofiber/fiber/v2"
 
 	k "github.com/Alfex4936/kakao"
@@ -103,7 +104,8 @@ func (h *KakaoBotHandler) HandleKakaoSearchMarkers(c *fiber.Ctx) error {
 	var kakaoRequest k.Request
 
 	// Bind the request body
-	if err := c.BodyParser(&kakaoRequest); err != nil {
+	// if err := c.BodyParser(&kakaoRequest); err != nil {
+	if err := util.JsonBodyParserFast(c, &kakaoRequest); err != nil {
 		return c.Status(fiber.StatusOK).JSON(k.SimpleText{}.Build("잠시 후 다시 시도해주세요.", k.Kakao{
 			k.QuickReply{}.New("철봉 검색", "검색"),
 		}))

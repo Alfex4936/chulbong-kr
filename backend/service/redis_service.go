@@ -71,6 +71,10 @@ func (s *RedisService) GetCacheEntry(key string, target interface{}) error {
 	return err
 }
 
+func (s *RedisService) Delete(key string) error {
+	return s.ResetCache(key)
+}
+
 // ResetCache invalidates cache entries by deleting the specified key
 func (s *RedisService) ResetCache(key string) error {
 	ctx := context.Background()

@@ -281,42 +281,32 @@ func (s *ChatService) BanUser(markerID, userID string, duration time.Duration) e
 	return s.Redis.Core.Client.Do(ctx, cmd).Error()
 }
 
-func (s *ChatService) GetBanDetails(markerID, userID string) (banned bool, remainingTime time.Duration, err error) {
-	banKey := fmt.Sprintf("ban_%s_%s", markerID, userID)
+func (s *ChatService) GetBanDetails(markerID, userID string) (bool, time.Duration, error) {
+	banKey := "ban_" + markerID + "_" + userID
 	ctx := context.Background()
 
-	// Use HGETALL to retrieve all field-value pairs from the hash
-	cmd := s.Redis.Core.Client.B().Exists().Key(banKey).Build()
-
-	// Execute the command and get the result as a string map
-	exists, err := s.Redis.Core.Client.Do(ctx, cmd).AsBool()
+	// Use PTTL to get the remaining TTL in milliseconds
+	cmd := s.Redis.Core.Client.B().Pttl().Key(banKey).Build()
+	ttl, err := s.Redis.Core.Client.Do(ctx, cmd).AsInt64()
 	if err != nil {
 		return false, 0, err
 	}
-	if !exists {
+
+	if ttl == -2 {
+		// Key does not exist
 		return false, 0, nil
 	}
 
-	// Use TTL to get the remaining TTL of the ban
-	cmd = s.Redis.Core.Client.B().Ttl().Key(banKey).Build()
-
-	// Execute the command and get the result as a string map
-	ttl, err := s.Redis.Core.Client.Do(ctx, cmd).AsInt64()
-	if err != nil {
-		return true, 0, err
+	banned := true
+	var remainingTime time.Duration
+	if ttl == -1 {
+		// Key exists but no expiration is set (banned indefinitely)
+		remainingTime = 0
+	} else {
+		remainingTime = time.Duration(ttl) * time.Millisecond
 	}
 
-	// Check if the TTL indicates the key does not exist or has no expiration
-	if ttl == -2 {
-		return false, 0, nil // Key does not exist
-	} else if ttl == -1 {
-		return true, 0, nil // Key exists but no expiration is set
-	}
-
-	// Convert the TTL from seconds to time.Duration
-	duration := time.Duration(ttl) * time.Second
-
-	return true, duration, nil
+	return banned, remainingTime, nil
 }
 
 func (conn *ChulbongConn) writePump() {
