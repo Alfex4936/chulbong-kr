@@ -117,12 +117,14 @@ type BleveSearchService struct {
 	GetAllMarkersStmt *sqlx.Stmt
 
 	searchCache *gocache.Cache[dto.MarkerSearchResponse]
+
+	stationMap map[string]dto.KoreaStation
 }
 
 func NewBleveSearchService(
 	index bleve.Index, shards []bleve.Index,
 	localCacheStorage *ristretto_store.RistrettoStore, logger *zap.Logger,
-	db *sqlx.DB) *BleveSearchService {
+	db *sqlx.DB, stationMap map[string]dto.KoreaStation) *BleveSearchService {
 	searchCache := gocache.New[dto.MarkerSearchResponse](localCacheStorage)
 
 	getMarkerStmt, _ := db.Preparex("SELECT MarkerID, Address FROM Markers")
@@ -133,7 +135,7 @@ func NewBleveSearchService(
 
 	return &BleveSearchService{Index: index, Shards: shards,
 		searchCache: searchCache, Logger: logger, DB: db,
-		GetAllMarkersStmt: getMarkerStmt,
+		GetAllMarkersStmt: getMarkerStmt, stationMap: stationMap,
 	}
 }
 
@@ -184,7 +186,7 @@ func (s *BleveSearchService) SearchMarkerAddress(t string) (dto.MarkerSearchResp
 
 	// Launch a single goroutine to perform the search
 	go func() {
-		performWholeQuerySearch(s.Index, t, terms, resultsChan, tookTimesChan)
+		performWholeQuerySearch(s.Index, t, terms, resultsChan, tookTimesChan, s.stationMap)
 		close(resultsChan)
 		close(tookTimesChan)
 	}()
@@ -417,6 +419,44 @@ func (s *BleveSearchService) MarkerExists(markerID int) (bool, error) {
 	return false, nil
 }
 
+func (s *BleveSearchService) SearchMarkersNearLocation(t string) (dto.MarkerSearchResponse, error) {
+	// Preprocess the search term
+	s.Logger.Info("Preprocessed search term", zap.String("term", t))
+
+	var lat, lon float64
+	// Check if the term matches a station name
+	if station, ok := s.stationMap[t]; ok {
+		lat = station.Latitude
+		lon = station.Longitude
+
+		s.Logger.Info("Station name matches", zap.String("station", t), zap.Float64("lat", lat), zap.Float64("lon", lon))
+	}
+
+	response := dto.MarkerSearchResponse{Markers: make([]dto.ZincMarker, 0)}
+
+	// Create a geo-distance query
+	distance := "5km"
+	geoQuery := bleve.NewGeoDistanceQuery(lon, lat, distance)
+	geoQuery.SetField("coordinates")
+
+	// Build the search request
+	searchRequest := bleve.NewSearchRequestOptions(geoQuery, 15, 0, false)
+	searchRequest.Fields = []string{"fullAddress", "coordinates"}
+	searchRequest.SortBy([]string{"_score", "markerId"})
+
+	// Perform the search
+	searchResult, err := s.Index.Search(searchRequest)
+	if err != nil {
+		return response, err
+	}
+
+	// Process the search results
+	response.Took = int(searchResult.Took.Milliseconds())
+	response.Markers = extractMarkers(searchResult.Hits)
+
+	return response, nil
+}
+
 // func performSearch(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
 // 	var queries []query.Query
 
@@ -565,7 +605,7 @@ func (s *BleveSearchService) MarkerExists(markerID int) (bool, error) {
 // 	}
 // }
 
-func performWholeQuerySearch(index bleve.Index, t string, terms []string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {
+func performWholeQuerySearch(index bleve.Index, t string, terms []string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration, stationMap map[string]dto.KoreaStation) {
 	// Pre-process terms to assign them to fields
 	termAssignments := assignTermsToFields(terms)
 
@@ -582,6 +622,7 @@ func performWholeQuerySearch(index bleve.Index, t string, terms []string, result
 	var provinceTerm, cityTerm string
 	hasProvince := false
 	hasCity := false
+	nearDistance := "5km"
 
 	for _, assignment := range termAssignments {
 		var termQueries []query.Query
@@ -611,6 +652,15 @@ func performWholeQuerySearch(index bleve.Index, t string, terms []string, result
 		default:
 			matchBoost = 100.0
 			prefixBoost = 80.0
+		}
+
+		// Check if the term matches a station name
+		if station, ok := stationMap[t]; ok {
+			// geo-distance query
+			geoQuery := bleve.NewGeoDistanceQuery(station.Longitude, station.Latitude, nearDistance)
+			geoQuery.SetField("coordinates")
+
+			termQueries = append(termQueries, geoQuery)
 		}
 
 		// MatchQuery for the assigned field
@@ -1119,4 +1169,15 @@ func isInitialConsonant(s string) bool {
 		}
 	}
 	return true
+}
+
+// Preprocess the search term to remove common suffixes
+func preprocessSearchTerm(term string) string {
+	commonSuffixes := []string{"역", "동", "시", "구", "군", "읍", "면", "리"}
+	for _, suffix := range commonSuffixes {
+		if strings.HasSuffix(term, suffix) {
+			return strings.TrimSuffix(term, suffix)
+		}
+	}
+	return term
 }

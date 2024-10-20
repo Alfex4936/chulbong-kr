@@ -11,12 +11,14 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/config"
 	configfx "github.com/Alfex4936/chulbong-kr/configfx"
 	servicefx "github.com/Alfex4936/chulbong-kr/di"
+	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/handler"
 	"github.com/Alfex4936/chulbong-kr/middleware"
 	"github.com/Alfex4936/chulbong-kr/service"
@@ -33,6 +35,7 @@ import (
 	_ "github.com/blevesearch/bleve/v2/index/upsidedown/store/boltdb"
 	"github.com/dgraph-io/ristretto"
 	"github.com/spf13/viper"
+	"github.com/valyala/fasthttp/reuseport"
 
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
@@ -229,6 +232,10 @@ func NewFiberApp(
 	// 	os.Exit(1)
 	// }
 
+	// Set GOMAXPROCS to 1
+	// setting GOMAXPROCS=1 can simplify thread scheduling, reduce contention, and improve cache locality on each core.
+	runtime.GOMAXPROCS(1)
+
 	app := fiber.New(fiber.Config{
 		// TrustedProxies: ips,
 		// ProxyHeader:    fiber.HeaderXForwardedFor,
@@ -297,8 +304,7 @@ func NewFiberApp(
 		Except: []string{csrf.ConfigDefault.CookieName, "Etag"}, // exclude CSRF cookie
 	}))
 
-	// app.Use("/debug/pprof", authMiddleware.CheckAdmin, pprof.New())
-	app.Use("/debug/pprof", pprof.New())
+	app.Use("/debug/pprof", authMiddleware.CheckAdmin, pprof.New())
 	app.Use("/debug/fgprof", authMiddleware.CheckAdmin, fgprof.New())
 
 	app.Use(compress.New(compress.Config{
@@ -459,16 +465,16 @@ func NewFiberApp(
 
 	app.Get("/swagger/*", authMiddleware.CheckAdmin, swagger.HandlerDefault)
 
-	app.Post("/config/refresh/:config", authMiddleware.CheckAdmin, refreshHandler(
-		config.NewAppConfig,
-		config.NewKakaoConfig,
-		config.NewRedisConfig,
-		config.NewZincSearchConfig,
-		config.NewS3Config,
-		config.NewSmtpConfig,
-		config.NewTossPayConfig,
-		config.NewOAuthConfig,
-	))
+	// app.Post("/config/refresh/:config", authMiddleware.CheckAdmin, refreshHandler(
+	// 	config.NewAppConfig,
+	// 	config.NewKakaoConfig,
+	// 	config.NewRedisConfig,
+	// 	config.NewZincSearchConfig,
+	// 	config.NewS3Config,
+	// 	config.NewSmtpConfig,
+	// 	config.NewTossPayConfig,
+	// 	config.NewOAuthConfig,
+	// ))
 
 	// Set up routes
 	api := app.Group("/api/v1")
@@ -602,11 +608,66 @@ func NewRedis(lifecycle fx.Lifecycle, logger *zap.Logger) (*service.RedisClient,
 	return safeClient, nil
 }
 
+func NewStationData() (map[string]dto.KoreaStation, error) {
+	stationMap := make(map[string]dto.KoreaStation)
+
+	file, err := os.Open("./resource/stations.json")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Decode the JSON data
+	decoder := sonic.ConfigDefault.NewDecoder(file)
+	var data struct {
+		Data []struct {
+			BldnNm string `json:"bldn_nm"`
+			Lat    string `json:"lat"`
+			Lot    string `json:"lot"`
+		} `json:"DATA"`
+	}
+	if err := decoder.Decode(&data); err != nil {
+		return nil, err
+	}
+
+	// Populate the stationMap
+	for _, item := range data.Data {
+		lat, err := strconv.ParseFloat(item.Lat, 64)
+		if err != nil {
+			continue
+		}
+		lon, err := strconv.ParseFloat(item.Lot, 64)
+		if err != nil {
+			continue
+		}
+		name := item.BldnNm
+
+		// If the station name contains extra information in parentheses, strip it
+		if idx := strings.Index(name, "("); idx != -1 {
+			name = name[:idx]
+		}
+
+		// Ensure the station name ends with "역"
+		if !strings.HasSuffix(name, "역") {
+			name = name + "역"
+		}
+
+		stationMap[name] = dto.KoreaStation{
+			Name:      name,
+			Latitude:  lat,
+			Longitude: lon,
+		}
+	}
+
+	return stationMap, nil
+}
+
 func NewWsConfig() websocket.Config {
 	return websocket.Config{
 		// Set the handshake timeout to a reasonable duration to prevent slowloris attacks.
 		HandshakeTimeout: 5 * time.Second,
 
+		// TODO: PRODUCTION
 		Origins: []string{"https://test.k-pullup.com", "https://www.k-pullup.com"},
 
 		EnableCompression: true,
@@ -665,9 +726,6 @@ func main() {
 		godotenv.Overload()
 	}
 
-	// Set GOMAXPROCS to twice the number of logical CPUs
-	runtime.GOMAXPROCS(runtime.NumCPU() * 2)
-
 	// Create an Fx application with provided dependencies and lifecycle hooks
 	fx.New(
 		servicefx.FxMarkerModule,
@@ -686,6 +744,7 @@ func main() {
 			NewDatabase,
 			NewRedis,
 			NewWsConfig,
+			NewStationData,
 			NewTimeZoneFinder,
 			NewBleveIndex,
 			NewGoCacheLocalStorage,
@@ -722,7 +781,20 @@ func registerHooks(lc fx.Lifecycle,
 ) {
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			serverAddr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("SERVER_PORT"))
+			// Default to the port from the .env file
+			serverPort := os.Getenv("SERVER_PORT")
+
+			// Check if a command-line argument was provided for the port
+			if len(os.Args) > 1 {
+				serverPort = os.Args[1]
+			}
+
+			// Set a default port if not set by .env or command-line argument
+			if serverPort == "" {
+				serverPort = "8080" // Default port if none provided
+			}
+
+			serverAddr := fmt.Sprintf("0.0.0.0:%s", serverPort)
 
 			logger.Info("💖 Starting Fiber v2 server...")
 
@@ -741,7 +813,12 @@ func registerHooks(lc fx.Lifecycle,
 
 				// util.SendSlackReportNotification("test")
 
-				if err := app.Listen(serverAddr); err != nil {
+				ln, err := reuseport.Listen("tcp4", serverAddr)
+				if err != nil {
+					log.Fatalf("Error while setting up listener: %s", err)
+				}
+
+				if err := app.Listener(ln); err != nil {
 					logger.Fatal("Failed to start Fiber v2", zap.Error(err))
 				}
 			}()
