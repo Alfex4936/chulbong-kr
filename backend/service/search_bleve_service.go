@@ -27,7 +27,10 @@ import (
 	ristretto_store "github.com/eko/gocache/store/ristretto/v4"
 )
 
-const Analyzer = "koCJKEdgeNgram"
+const (
+	Analyzer     = "koCJKEdgeNgram"
+	nearDistance = "2km"
+)
 
 var (
 	// Map of Hangul initial consonant Unicode values to their corresponding Korean consonants.
@@ -622,7 +625,6 @@ func performWholeQuerySearch(index bleve.Index, t string, terms []string, result
 	var provinceTerm, cityTerm string
 	hasProvince := false
 	hasCity := false
-	nearDistance := "5km"
 
 	for _, assignment := range termAssignments {
 		var termQueries []query.Query

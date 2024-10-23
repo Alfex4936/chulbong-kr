@@ -272,7 +272,7 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 		wg.Add(1)
 		go func(file *multipart.FileHeader) {
 			defer wg.Done()
-			fileURL, err := s.S3Service.UploadFileToS3("reports", file)
+			fileURL, err := s.S3Service.UploadFileToS3("reports", file, false)
 			if err != nil {
 				errorChan <- fmt.Errorf("%w: %v", ErrFileUpload, err)
 				return

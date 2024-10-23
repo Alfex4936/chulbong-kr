@@ -144,9 +144,17 @@ func (h *KakaoBotHandler) HandleKakaoSearchMarkers(c *fiber.Ctx) error {
 	listCard.Title = utterance + " 결과"
 
 	for _, pullup := range response.Markers {
+		// Remove <mark> and </mark> tags from the address
+		cleanAddress := strings.ReplaceAll(pullup.Address, "<mark>", "")
+		cleanAddress = strings.ReplaceAll(cleanAddress, "</mark>", "")
+
+		// Add the cleaned address to the listCard
 		listCard.Items.Add(k.ListItemLink{}.New(
-			strconv.Itoa(pullup.MarkerID), pullup.Address, "",
-			"https://k-pullup.com/pullup/"+strconv.Itoa(pullup.MarkerID)))
+			strconv.Itoa(int(pullup.MarkerID)), // Ensure MarkerID is converted to string correctly
+			cleanAddress,
+			"",
+			"https://k-pullup.com/pullup/"+strconv.Itoa(int(pullup.MarkerID)),
+		))
 	}
 
 	listCard.Buttons.Add(k.ShareButton{}.New("공유하기"))

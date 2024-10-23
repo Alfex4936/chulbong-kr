@@ -119,7 +119,7 @@ func (s *StoryService) AddStory(markerID int, userID int, caption string, photo 
 
 	// Upload the photo to S3
 	folder := fmt.Sprintf("stories/%d", markerID)
-	photoURL, err := s.S3Service.UploadFileToS3(folder, photo)
+	photoURL, err := s.S3Service.UploadFileToS3(folder, photo, true)
 	if err != nil {
 		return nil, err
 	}

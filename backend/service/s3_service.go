@@ -1,20 +1,30 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
+	"io"
 	"mime/multipart"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
 	myconfig "github.com/Alfex4936/chulbong-kr/config"
 	"github.com/Alfex4936/chulbong-kr/util"
+	"github.com/chai2010/webp"
+	"github.com/disintegration/imaging"
 	"go.uber.org/zap"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 )
 
@@ -44,7 +54,7 @@ func NewS3Service(c *myconfig.S3Config, redis *RedisService, logger *zap.Logger)
 	}
 }
 
-func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader) (string, error) {
+func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader, thumbnail bool) (string, error) {
 	// Open the uploaded file
 	fileData, err := file.Open()
 	if err != nil {
@@ -77,6 +87,20 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader) (s
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// If thumbnail is requested and file is an image, generate the thumbnail
+	if thumbnail && isImage(ext) {
+		err = s.GenerateThumbnail(ctx, fileData, folder, uuid.String(), ext)
+		if err != nil {
+			s.logger.Error("failed to generate or upload thumbnail", zap.Error(err))
+		}
+
+		// Reset fileData to the beginning for uploading the original file
+		_, err = fileData.Seek(0, io.SeekStart)
+		if err != nil {
+			return "", fmt.Errorf("failed to seek fileData: %w", err)
+		}
+	}
+
 	// Upload the file to S3
 	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: &s.Config.S3BucketName,
@@ -102,7 +126,7 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader) (s
 	return fileURL, nil
 }
 
-// DeleteDataFromS3 deletes a photo from S3 given its URL.
+// DeleteDataFromS3 deletes a photo and its thumbnail from S3 given its URL.
 func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 	var bucketName, key string
 
@@ -126,35 +150,41 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 		return fmt.Errorf("invalid key")
 	}
 
-	// if isImage(filepath.Ext(key)) {
-	// 	s.Redis.ResetCache("image:" + key)
-	// }
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Load the AWS credentials
-	cfg, err := config.LoadDefaultConfig(
-		ctx,
-		config.WithRegion(s.Config.AwsRegion),
-	)
-	if err != nil {
-		return fmt.Errorf("could not load AWS credentials: %w", err)
+	// Delete the object(s)
+	keysToDelete := []string{key}
+
+	// Check if the key does not contain '_thumb' and is an image
+	ext := strings.ToLower(filepath.Ext(key))
+	if !strings.Contains(key, "_thumb") && isImage(ext) {
+		// Generate the thumbnail key
+		thumbKey := generateThumbnailKey(key)
+		keysToDelete = append(keysToDelete, thumbKey)
 	}
 
 	// Create an S3 client
-	s3Client := s3.NewFromConfig(cfg)
+	s3Client := s.s3Client // Reuse the existing client if available
 
-	// Delete the object
-	_, err = s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+	// Delete the objects
+	deleteObjectsInput := &s3.DeleteObjectsInput{
 		Bucket: &bucketName,
-		Key:    &key,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to delete object from S3: %w", err)
+		Delete: &types.Delete{
+			Objects: make([]types.ObjectIdentifier, len(keysToDelete)),
+			Quiet:   aws.Bool(true),
+		},
 	}
 
-	// Wait until the object is deleted
+	for i, k := range keysToDelete {
+		deleteObjectsInput.Delete.Objects[i] = types.ObjectIdentifier{Key: &k}
+	}
+
+	_, err = s3Client.DeleteObjects(ctx, deleteObjectsInput)
+	if err != nil {
+		return fmt.Errorf("failed to delete object(s) from S3: %w", err)
+	}
+
 	return nil
 }
 
@@ -266,6 +296,72 @@ func (s *S3Service) MoveFileInS3(sourceKey string, destinationKey string) error 
 	return nil
 }
 
+// GenerateThumbnail generates a thumbnail for an image and uploads it to S3
+func (s *S3Service) GenerateThumbnail(ctx context.Context, fileData multipart.File, folder, uuidStr, ext string) error {
+	// Reset the fileData to the beginning
+	_, err := fileData.Seek(0, io.SeekStart)
+	if err != nil {
+		return fmt.Errorf("failed to seek fileData: %w", err)
+	}
+
+	// Decode the image
+	img, _, err := image.Decode(fileData)
+	if err != nil {
+		return fmt.Errorf("failed to decode image: %w", err)
+	}
+
+	// Generate thumbnail
+	thumbImg := imaging.Thumbnail(img, 300, 300, imaging.Lanczos)
+
+	// Encode thumbnail to buffer
+	var buf bytes.Buffer
+	switch ext {
+	case ".jpg", ".jpeg":
+		err = jpeg.Encode(&buf, thumbImg, nil)
+	case ".png":
+		err = png.Encode(&buf, thumbImg)
+	case ".gif":
+		err = gif.Encode(&buf, thumbImg, nil)
+	case ".webp":
+		err = webp.Encode(&buf, thumbImg, nil)
+	default:
+		return fmt.Errorf("unsupported image format: %s", ext)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to encode thumbnail: %w", err)
+	}
+
+	// Generate thumbnail key (e.g., append "_thumb" before extension)
+	thumbKey := fmt.Sprintf("%s/%s_thumb%s", folder, uuidStr, ext)
+
+	// Upload thumbnail to S3
+	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: &s.Config.S3BucketName,
+		Key:    &thumbKey,
+		Body:   bytes.NewReader(buf.Bytes()),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload thumbnail to S3: %w", err)
+	}
+
+	return nil
+}
+
+// ObjectExists checks if an object exists in S3
+func (s *S3Service) ObjectExists(ctx context.Context, key string) (bool, error) {
+	_, err := s.s3Client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(s.Config.S3BucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "NotFound") || strings.Contains(err.Error(), "404") {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 // Helper function to determine if a file extension corresponds to an image
 func isImage(ext string) bool {
 	// Normalize the extension to lower case
@@ -323,4 +419,28 @@ func filepathExt(filename string) string {
 		}
 	}
 	return ""
+}
+
+// Helper function to generate the thumbnail key from the original key
+func generateThumbnailKey(originalKey string) string {
+	ext := filepath.Ext(originalKey)
+	baseName := strings.TrimSuffix(originalKey, ext)
+	thumbKey := fmt.Sprintf("%s_thumb%s", baseName, ext)
+	return thumbKey
+}
+
+// getContentType returns the MIME type based on file extension
+func getContentType(ext string) string {
+	switch ext {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	default:
+		return "application/octet-stream"
+	}
 }

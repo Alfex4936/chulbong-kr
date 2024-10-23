@@ -73,3 +73,9 @@ type MarkerIndexData struct {
 	FullAddress       string `json:"fullAddress"`
 	InitialConsonants string `json:"initialConsonants"` // 초성
 }
+
+type KoreaStation struct {
+	Name      string
+	Latitude  float64
+	Longitude float64
+}

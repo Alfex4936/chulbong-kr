@@ -75,10 +75,10 @@ SELECT m.MarkerID,
        m.Description, 
        ST_Distance_Sphere(m.Location, ST_GeomFromText(?, 4326)) AS Distance, 
        m.Address,
-	   MAX(p.PhotoURL) AS Thumbnail
+	   COALESCE(p.ThumbnailURL, p.PhotoURL) AS Thumbnail
 FROM Markers m
 LEFT JOIN (
-    SELECT p1.MarkerID, p1.PhotoURL
+    SELECT p1.MarkerID, p1.PhotoURL, p1.ThumbnailURL
     FROM Photos p1
     WHERE p1.UploadedAt = (
         SELECT MAX(p2.UploadedAt) 

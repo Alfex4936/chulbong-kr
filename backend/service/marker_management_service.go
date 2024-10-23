@@ -508,7 +508,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 			defer wg.Done()
 
 			// Upload the file to S3
-			fileURL, err := s.S3Service.UploadFileToS3(folder, file)
+			fileURL, err := s.S3Service.UploadFileToS3(folder, file, true)
 			if err != nil {
 				errorChan <- err
 				return
@@ -749,7 +749,7 @@ func (s *MarkerManageService) UploadMarkerPhotoToS3(markerID int, files []*multi
 	picUrls := make([]string, 0)
 	// Process file uploads from the multipart form
 	for _, file := range files {
-		fileURL, err := s.S3Service.UploadFileToS3(folder, file)
+		fileURL, err := s.S3Service.UploadFileToS3(folder, file, true)
 		if err != nil {
 			fmt.Printf("Failed to upload file to S3: %v\n", err)
 			continue // Skip this file and continue with the next
