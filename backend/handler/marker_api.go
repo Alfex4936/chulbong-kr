@@ -108,7 +108,9 @@ func RegisterMarkerRoutes(api fiber.Router, handler *MarkerHandler, authMiddlewa
 		markerGroup.Get("/:markerID/dislike-status", handler.HandleCheckDislikeStatus)
 		// markerGroup.Get("/:markerId", handlers.GetMarker)
 
+		markerGroup.Post("", handler.HandleCreateMarkerWithPhotos)
 		markerGroup.Post("/new", handler.HandleCreateMarkerWithPhotos)
+
 		markerGroup.Post("/facilities", handler.HandleSetMarkerFacilities)
 		markerGroup.Post("/:markerID/dislike", handler.HandleLeaveDislike)
 		markerGroup.Post("/:markerID/favorites", handler.HandleAddFavorite)

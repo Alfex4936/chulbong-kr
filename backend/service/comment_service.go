@@ -28,7 +28,9 @@ SELECT C.CommentID, C.MarkerID, C.UserID, C.CommentText, C.PostedAt, C.UpdatedAt
 FROM Comments C
 LEFT JOIN Users U ON C.UserID = U.UserID
 WHERE C.MarkerID = ? AND C.DeletedAt IS NULL
-ORDER BY C.PostedAt DESC
+ORDER BY 
+    (U.Username = 'k-pullup') DESC, 
+    C.PostedAt DESC
 LIMIT ? OFFSET ?`
 
 	countCommentQuery = `

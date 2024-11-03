@@ -54,18 +54,18 @@ func NewS3Service(c *myconfig.S3Config, redis *RedisService, logger *zap.Logger)
 	}
 }
 
-func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader, thumbnail bool) (string, error) {
+func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader, thumbnail bool) (string, string, error) {
 	// Open the uploaded file
 	fileData, err := file.Open()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer fileData.Close()
 
 	// Generate a UUID for a unique filename
 	uuid, err := uuid.NewRandom()
 	if err != nil {
-		return "", fmt.Errorf("failed to generate UUID: %w", err)
+		return "", "", fmt.Errorf("failed to generate UUID: %w", err)
 	}
 
 	// Extract and lowercase the file extension
@@ -87,9 +87,11 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader, th
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	var thumbnailURL string
+
 	// If thumbnail is requested and file is an image, generate the thumbnail
 	if thumbnail && isImage(ext) {
-		err = s.GenerateThumbnail(ctx, fileData, folder, uuid.String(), ext)
+		thumbnailURL, err = s.GenerateThumbnail(ctx, fileData, folder, uuid.String(), ext)
 		if err != nil {
 			s.logger.Error("failed to generate or upload thumbnail", zap.Error(err))
 		}
@@ -97,7 +99,7 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader, th
 		// Reset fileData to the beginning for uploading the original file
 		_, err = fileData.Seek(0, io.SeekStart)
 		if err != nil {
-			return "", fmt.Errorf("failed to seek fileData: %w", err)
+			return "", "", fmt.Errorf("failed to seek fileData: %w", err)
 		}
 	}
 
@@ -108,7 +110,7 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader, th
 		Body:   fileData,
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to upload file to S3: %w", err)
+		return "", "", fmt.Errorf("failed to upload file to S3: %w", err)
 	}
 
 	// Construct the file URL
@@ -123,7 +125,7 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader, th
 	// Convert urlBytes to string without allocation
 	fileURL := util.BytesToString(urlBytes)
 
-	return fileURL, nil
+	return fileURL, thumbnailURL, nil
 }
 
 // DeleteDataFromS3 deletes a photo and its thumbnail from S3 given its URL.
@@ -297,17 +299,17 @@ func (s *S3Service) MoveFileInS3(sourceKey string, destinationKey string) error 
 }
 
 // GenerateThumbnail generates a thumbnail for an image and uploads it to S3
-func (s *S3Service) GenerateThumbnail(ctx context.Context, fileData multipart.File, folder, uuidStr, ext string) error {
+func (s *S3Service) GenerateThumbnail(ctx context.Context, fileData multipart.File, folder, uuidStr, ext string) (string, error) {
 	// Reset the fileData to the beginning
 	_, err := fileData.Seek(0, io.SeekStart)
 	if err != nil {
-		return fmt.Errorf("failed to seek fileData: %w", err)
+		return "", fmt.Errorf("failed to seek fileData: %w", err)
 	}
 
 	// Decode the image
 	img, _, err := image.Decode(fileData)
 	if err != nil {
-		return fmt.Errorf("failed to decode image: %w", err)
+		return "", fmt.Errorf("failed to decode image: %w", err)
 	}
 
 	// Generate thumbnail
@@ -325,10 +327,10 @@ func (s *S3Service) GenerateThumbnail(ctx context.Context, fileData multipart.Fi
 	case ".webp":
 		err = webp.Encode(&buf, thumbImg, nil)
 	default:
-		return fmt.Errorf("unsupported image format: %s", ext)
+		return "", fmt.Errorf("unsupported image format: %s", ext)
 	}
 	if err != nil {
-		return fmt.Errorf("failed to encode thumbnail: %w", err)
+		return "", fmt.Errorf("failed to encode thumbnail: %w", err)
 	}
 
 	// Generate thumbnail key (e.g., append "_thumb" before extension)
@@ -341,10 +343,12 @@ func (s *S3Service) GenerateThumbnail(ctx context.Context, fileData multipart.Fi
 		Body:   bytes.NewReader(buf.Bytes()),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to upload thumbnail to S3: %w", err)
+		return "", fmt.Errorf("failed to upload thumbnail to S3: %w", err)
 	}
 
-	return nil
+	thumbURL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", s.Config.S3BucketName, thumbKey)
+
+	return thumbURL, nil
 }
 
 // ObjectExists checks if an object exists in S3

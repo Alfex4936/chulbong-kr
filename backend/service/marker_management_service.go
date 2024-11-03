@@ -123,8 +123,9 @@ LIMIT ? OFFSET ?`
 	// Query to get the total count of markers for the user
 	getTotalCountofMarkerQuery = "SELECT COUNT(DISTINCT Markers.MarkerID) FROM Markers WHERE Markers.UserID = ?"
 
-	insertMarkerQuery = "INSERT INTO Markers (UserID, Location, Description, CreatedAt, UpdatedAt) VALUES (?, ST_PointFromText(?, 4326), ?, NOW(), NOW())"
-	insertPhotoQuery  = "INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())"
+	insertMarkerQuery         = "INSERT INTO Markers (UserID, Location, Description, CreatedAt, UpdatedAt) VALUES (?, ST_PointFromText(?, 4326), ?, NOW(), NOW())"
+	insertPhotoQuery          = "INSERT INTO Photos (MarkerID, PhotoURL, UploadedAt) VALUES (?, ?, NOW())"
+	insertPhotoWithThumbQuery = "INSERT INTO Photos (MarkerID, PhotoURL, ThumbnailURL, UploadedAt) VALUES (?, ?, ?, NOW())"
 
 	deleteMarkerQuery = "DELETE FROM Markers WHERE MarkerID = ?"
 
@@ -152,9 +153,9 @@ ORDER BY distance ASC`
 
 	generateRSSQuery = "SELECT MarkerID, UpdatedAt, Address FROM Markers ORDER BY UpdatedAt DESC"
 
-	getNewTop10PicturesQuery      = "SELECT MarkerID, PhotoURL FROM Photos GROUP BY MarkerID, PhotoURL ORDER BY MAX(UploadedAt) DESC LIMIT 10"
+	getNewTop10PicturesQuery      = "SELECT MarkerID, COALESCE(ThumbnailURL, PhotoURL) AS PhotoURL FROM Photos GROUP BY MarkerID, PhotoURL ORDER BY MAX(UploadedAt) DESC LIMIT 10"
 	getNewTop10PicturesExtraQuery = `
-SELECT p.MarkerID, p.PhotoURL, m.Address, ST_X(m.Location) AS Latitude, ST_Y(m.Location) AS Longitude
+SELECT p.MarkerID, COALESCE(p.ThumbnailURL, p.PhotoURL) As PhotoURL, m.Address, ST_X(m.Location) AS Latitude, ST_Y(m.Location) AS Longitude
 FROM Photos p
 JOIN (
     SELECT MarkerID, MAX(UploadedAt) AS LatestUpload
@@ -489,7 +490,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 	folder := fmt.Sprintf("markers/%d", markerID)
 
 	// Channel to collect errors
-	errorChan := make(chan error, len(form.File["photos"]))
+	errorChan := make(chan error, 1) // Buffer of 1 to capture the first error
 
 	// Process file uploads from the multipart form
 	files := form.File["photos"]
@@ -498,25 +499,31 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 	}
 
 	var wg sync.WaitGroup
+	wg.Add(len(files))
 
 	// Submit the tasks to the worker pool
 	for _, file := range files {
-		wg.Add(1)
 		file := file // Ensure file is correctly captured in the closure
 
 		s.workerPool.Submit(func() {
 			defer wg.Done()
 
 			// Upload the file to S3
-			fileURL, err := s.S3Service.UploadFileToS3(folder, file, true)
+			fileURL, thumbnailURL, err := s.S3Service.UploadFileToS3(folder, file, true)
 			if err != nil {
-				errorChan <- err
+				select {
+				case errorChan <- err:
+				default:
+				}
 				return
 			}
 
 			// Insert photo into the database
-			if _, err := tx.Exec(insertPhotoQuery, markerID, fileURL); err != nil {
-				errorChan <- err
+			if _, err := tx.Exec(insertPhotoWithThumbQuery, markerID, fileURL, thumbnailURL); err != nil {
+				select {
+				case errorChan <- err:
+				default:
+				}
 				return
 			}
 		})
@@ -524,13 +531,12 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 
 	// Wait for all jobs to finish
 	wg.Wait()
-
 	close(errorChan)
 
 	// Check for errors
-	for range errorChan {
+	if err, ok := <-errorChan; ok {
 		tx.Rollback()
-		return nil, fmt.Errorf("encountered an error during file upload or DB operation")
+		return nil, fmt.Errorf("encountered an error during file upload or DB operation: %v", err)
 	}
 
 	// Commit the transaction after all operations succeed
@@ -538,7 +544,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 		return nil, fmt.Errorf("could not commit transaction: %w", err)
 	}
 
-	go func(markerID int64, latitude, longitude float64) {
+	go func(markerID int64, latitude, longitude float64, pics int) {
 		maxRetries := 3
 		retryDelay := 5 * time.Second // Delay between retries
 
@@ -604,6 +610,10 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 			s.Logger.Error("Failed to index address", zap.Int64("markerID", markerID), zap.Error(err))
 		}
 
+		if userID != 1 { // not for admin
+			util.SendSlackNewMarkerNotification(markerID, address, markerDto.Description, latitude, longitude, pics)
+		}
+
 		// userIDstr := strconv.Itoa(userID)
 		// updateMsg := fmt.Sprintf("새로운 철봉이 [ %s ]에 등록되었습니다!", address)
 		// metadata := notification.NotificationMarkerMetadata{
@@ -622,7 +632,7 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 		// 	PublishMarkerUpdate(updateMsg)
 		// }
 
-	}(markerID, markerDto.Latitude, markerDto.Longitude)
+	}(markerID, markerDto.Latitude, markerDto.Longitude, len(files))
 
 	// go s.MarkerLocationService.Redis.ResetAllCache(fmt.Sprintf("userMarkers:%d:page:*", userID))
 	go s.CacheService.RemoveUserMarker(userID, int(markerID))
@@ -749,14 +759,14 @@ func (s *MarkerManageService) UploadMarkerPhotoToS3(markerID int, files []*multi
 	picUrls := make([]string, 0)
 	// Process file uploads from the multipart form
 	for _, file := range files {
-		fileURL, err := s.S3Service.UploadFileToS3(folder, file, true)
+		fileURL, thumbnailURL, err := s.S3Service.UploadFileToS3(folder, file, true)
 		if err != nil {
 			fmt.Printf("Failed to upload file to S3: %v\n", err)
 			continue // Skip this file and continue with the next
 		}
 		picUrls = append(picUrls, fileURL)
 		// Associate each photo with the marker in the database
-		if _, err := tx.Exec(insertPhotoQuery, markerID, fileURL); err != nil {
+		if _, err := tx.Exec(insertPhotoWithThumbQuery, markerID, fileURL, thumbnailURL); err != nil {
 			// Attempt to delete the uploaded file from S3
 			if delErr := s.S3Service.DeleteDataFromS3(fileURL); delErr != nil {
 				fmt.Printf("Also failed to delete the file from S3: %v\n", delErr)

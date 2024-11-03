@@ -17,6 +17,7 @@ import (
 	"github.com/adrg/strutil"
 	"github.com/adrg/strutil/metrics"
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search"
 	bleve_search "github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/jmoiron/sqlx"
@@ -625,6 +626,8 @@ func performWholeQuerySearch(index bleve.Index, t string, terms []string, result
 	var provinceTerm, cityTerm string
 	hasProvince := false
 	hasCity := false
+	isStation := false
+	var stationLng, stationLat float64
 
 	for _, assignment := range termAssignments {
 		var termQueries []query.Query
@@ -663,6 +666,10 @@ func performWholeQuerySearch(index bleve.Index, t string, terms []string, result
 			geoQuery.SetField("coordinates")
 
 			termQueries = append(termQueries, geoQuery)
+
+			isStation = true
+			stationLng = station.Longitude
+			stationLat = station.Latitude
 		}
 
 		// MatchQuery for the assigned field
@@ -769,7 +776,14 @@ func performWholeQuerySearch(index bleve.Index, t string, terms []string, result
 	searchRequest.Fields = []string{"fullAddress", "address", "province", "city", "initialConsonants"}
 	searchRequest.Size = 15
 	searchRequest.Highlight = bleve.NewHighlightWithStyle("html")
-	searchRequest.SortBy([]string{"-_score", "markerId"}) // Sort by descending score
+
+	if isStation {
+		// TODO: Gotta update the main function to know not sort
+		sortGeo, _ := search.NewSortGeoDistance("location", "m", stationLng, stationLat, false)
+		searchRequest.SortByCustom(search.SortOrder{sortGeo})
+	} else {
+		searchRequest.SortBy([]string{"-_score", "markerId"}) // Sort by descending score
+	}
 
 	searchResult, err := index.Search(searchRequest)
 	if err != nil {

@@ -18,7 +18,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/nfnt/resize"
 	"go.uber.org/fx"
+
 	"golang.org/x/image/webp"
+	// "github.com/chai2010/webp"
 )
 
 const (
@@ -62,7 +64,7 @@ func RegisterPdfInitLifecycle(lifecycle fx.Lifecycle) {
 
 			// Load watermark image once
 			watermarkImagePath := "resource/logo-text.png"
-			watermarkImg, _, _ = loadImage(watermarkImagePath) // ignore error
+			watermarkImg, _, _ = loadImage(watermarkImagePath)
 			watermarkBounds := watermarkImg.Bounds()
 			watermarkWidth = watermarkBounds.Dx()
 			watermarkHeight = watermarkBounds.Dy()

@@ -1,7 +1,9 @@
 package util
 
 import (
+	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -15,10 +17,11 @@ const (
 )
 
 var (
-	SLACK_BOT_TOKEN          = os.Getenv("SLACK_BOT_TOKEN")
-	SLACK_CHANNEL_ID         = os.Getenv("SLACK_CHANNEL_ID")
-	SLACK_CHANNEL_PENDING_ID = os.Getenv("SLACK_CHANNEL_PENDING_ID")
-	slackClient              = slack.New(SLACK_BOT_TOKEN)
+	SLACK_BOT_TOKEN             = os.Getenv("SLACK_BOT_TOKEN")
+	SLACK_CHANNEL_ID            = os.Getenv("SLACK_CHANNEL_ID")
+	SLACK_CHANNEL_PENDING_ID    = os.Getenv("SLACK_CHANNEL_PENDING_ID")
+	SLACK_CHANNEL_NEW_MARKER_ID = os.Getenv("SLACK_CHANNEL_NEW_MARKER_ID")
+	slackClient                 = slack.New(SLACK_BOT_TOKEN)
 )
 
 func SendSlackNotification(duration time.Duration, statusCode int, clientIP, method, path, userAgent, queryParams, referer string) {
@@ -108,6 +111,47 @@ func SendSlackReportNotification(reportDetails string) {
 
 	// Post the message to Slack
 	_, _, err := slackClient.PostMessage(SLACK_CHANNEL_PENDING_ID, msg)
+	if err != nil {
+		log.Printf("Error sending message to Slack: %v\n", err)
+	}
+}
+
+func SendSlackNewMarkerNotification(markerID int64, address, description string, latitude, longitude float64, pics int) {
+	currentTime := time.Now().Add(time.Duration(time.Hour * 9)).Format("2006-01-02 15:04:05") // show as KST
+
+	// 마커 상세 페이지 링크
+	markerURL := fmt.Sprintf("https://k-pullup.com/pullup/%d", markerID)
+	markerLink := fmt.Sprintf("<%s|마커 상세 보기>", markerURL)
+
+	// Header section with bold text
+	headerText := "새로운 철봉이 등록되었습니다! :tada:"
+	headerSection := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", "*"+headerText+"*", false, false),
+		nil, nil)
+
+	// Divider
+	dividerSection := slack.NewDividerBlock()
+	naverUrl := "https://map.naver.com/?query=" + url.QueryEscape(address) + "&type=SITE_1&queryRank=0"
+	naverLink := fmt.Sprintf("<%s|%s>", naverUrl, address)
+	// https://map.naver.com/?query=\{encodedAddress}&type=SITE_1&queryRank=0
+
+	// Conditionally add "(사진: pics)" if pics > 0
+	picsText := ""
+	if pics > 0 {
+		picsText = fmt.Sprintf(" (사진: %d)", pics)
+	}
+
+	// Body section with details
+	bodyText := fmt.Sprintf(
+		"*주소:* %s\n*설명:* %s\n*위치:* %.6f, %.6f\n*마커 ID:* %d\n*등록 시각:* %s\n*링크:* %s%s",
+		naverLink, description, latitude, longitude, markerID, currentTime, markerLink, picsText)
+	bodySection := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", bodyText, false, false),
+		nil, nil,
+	)
+
+	msg := slack.MsgOptionBlocks(headerSection, dividerSection, bodySection)
+	_, _, err := slackClient.PostMessage(SLACK_CHANNEL_NEW_MARKER_ID, msg)
 	if err != nil {
 		log.Printf("Error sending message to Slack: %v\n", err)
 	}
