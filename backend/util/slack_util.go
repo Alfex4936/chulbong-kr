@@ -17,11 +17,12 @@ const (
 )
 
 var (
-	SLACK_BOT_TOKEN             = os.Getenv("SLACK_BOT_TOKEN")
-	SLACK_CHANNEL_ID            = os.Getenv("SLACK_CHANNEL_ID")
-	SLACK_CHANNEL_PENDING_ID    = os.Getenv("SLACK_CHANNEL_PENDING_ID")
-	SLACK_CHANNEL_NEW_MARKER_ID = os.Getenv("SLACK_CHANNEL_NEW_MARKER_ID")
-	slackClient                 = slack.New(SLACK_BOT_TOKEN)
+	SLACK_BOT_TOKEN              = os.Getenv("SLACK_BOT_TOKEN")
+	SLACK_CHANNEL_ID             = os.Getenv("SLACK_CHANNEL_ID")
+	SLACK_CHANNEL_PENDING_ID     = os.Getenv("SLACK_CHANNEL_PENDING_ID")
+	SLACK_CHANNEL_NEW_MARKER_ID  = os.Getenv("SLACK_CHANNEL_NEW_MARKER_ID")
+	SLACK_CHANNEL_NEW_COMMENT_ID = os.Getenv("SLACK_CHANNEL_NEW_COMMENT_ID")
+	slackClient                  = slack.New(SLACK_BOT_TOKEN)
 )
 
 func SendSlackNotification(duration time.Duration, statusCode int, clientIP, method, path, userAgent, queryParams, referer string) {
@@ -121,7 +122,7 @@ func SendSlackNewMarkerNotification(markerID int64, address, description string,
 
 	// 마커 상세 페이지 링크
 	markerURL := fmt.Sprintf("https://k-pullup.com/pullup/%d", markerID)
-	markerLink := fmt.Sprintf("<%s|마커 상세 보기>", markerURL)
+	markerLink := fmt.Sprintf("<%s|%d 상세 보기>", markerURL, markerID)
 
 	// Header section with bold text
 	headerText := "새로운 철봉이 등록되었습니다! :tada:"
@@ -143,8 +144,8 @@ func SendSlackNewMarkerNotification(markerID int64, address, description string,
 
 	// Body section with details
 	bodyText := fmt.Sprintf(
-		"*주소:* %s\n*설명:* %s\n*위치:* %.6f, %.6f\n*마커 ID:* %d\n*등록 시각:* %s\n*링크:* %s%s",
-		naverLink, description, latitude, longitude, markerID, currentTime, markerLink, picsText)
+		"*주소:* %s\n*설명:* %s\n*위치:* %.6f, %.6f\n*링크:* %s%s*등록 시각:* %s",
+		naverLink, description, latitude, longitude, markerLink, picsText, currentTime)
 	bodySection := slack.NewSectionBlock(
 		slack.NewTextBlockObject("mrkdwn", bodyText, false, false),
 		nil, nil,
@@ -152,6 +153,42 @@ func SendSlackNewMarkerNotification(markerID int64, address, description string,
 
 	msg := slack.MsgOptionBlocks(headerSection, dividerSection, bodySection)
 	_, _, err := slackClient.PostMessage(SLACK_CHANNEL_NEW_MARKER_ID, msg)
+	if err != nil {
+		log.Printf("Error sending message to Slack: %v\n", err)
+	}
+}
+
+func SendSlackNewComment(markerID int, userID int, userName, commentText string) {
+	// 현재 시간 (KST)
+	currentTime := time.Now().Add(time.Hour * 9).Format("2006-01-02 15:04:05")
+
+	// 마커 상세 페이지 링크
+	markerURL := fmt.Sprintf("https://k-pullup.com/pullup/%d", markerID)
+	markerLink := fmt.Sprintf("<%s|마커 댓글 보기>", markerURL)
+
+	// 헤더 섹션: 새로운 댓글 알림
+	headerText := ":speech_balloon: *새로운 댓글이 등록되었습니다!*"
+	headerSection := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", headerText, false, false),
+		nil, nil)
+
+	// 구분선
+	dividerSection := slack.NewDividerBlock()
+
+	// 본문 섹션: 상세 정보
+	bodyText := fmt.Sprintf(
+		"*마커 ID:* %d\n*작성자:* %s\n*등록 시각:* %s\n*댓글 내용:*\n> %s\n*링크:* %s",
+		markerID, userName, currentTime, commentText, markerLink)
+	bodySection := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", bodyText, false, false),
+		nil, nil,
+	)
+
+	// 메시지 조합
+	msg := slack.MsgOptionBlocks(headerSection, dividerSection, bodySection)
+
+	// 슬랙 채널로 메시지 전송
+	_, _, err := slackClient.PostMessage(SLACK_CHANNEL_NEW_COMMENT_ID, msg)
 	if err != nil {
 		log.Printf("Error sending message to Slack: %v\n", err)
 	}

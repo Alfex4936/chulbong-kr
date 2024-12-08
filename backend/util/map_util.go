@@ -489,15 +489,28 @@ func transformWGS84ToKoreaTM(aWGS84, flatteningFactor, dx, dy, k0, lat0, lon0, l
 	cosLat := math.Cos(latRad)
 	tanLat := sinLat / cosLat
 
-	// Handle w calculation and ensure proper calculation for different e values
-	w := 1 / flatteningFactor
-	if flatteningFactor > 1 {
-		w = flatteningFactor
-	}
+	// Precompute powers of cosLat
+	cosLat2 := cosLat * cosLat
+	cosLat3 := cosLat2 * cosLat
+	cosLat5 := cosLat3 * cosLat2
+	cosLat7 := cosLat5 * cosLat2
 
+	// Precompute repeated sines at multiple angles
+	sin2Lat := math.Sin(2 * latRad)
+	sin4Lat := math.Sin(4 * latRad)
+	sin6Lat := math.Sin(6 * latRad)
+	sin8Lat := math.Sin(8 * latRad)
+
+	sin2L := math.Sin(2 * lRad)
+	sin4L := math.Sin(4 * lRad)
+	sin6L := math.Sin(6 * lRad)
+	sin8L := math.Sin(8 * lRad)
+
+	// Since flatteningFactor < 1 for WGS84, we can remove the condition
+	w := 1 / flatteningFactor
 	z := aWGS84 * (w - 1) / w
-	zSquared := z * z
 	dSquared := aWGS84 * aWGS84
+	zSquared := z * z
 	G := 1 - zSquared/dSquared
 	w = (dSquared - zSquared) / zSquared
 
@@ -508,7 +521,6 @@ func transformWGS84ToKoreaTM(aWGS84, flatteningFactor, dx, dy, k0, lat0, lon0, l
 	z4 := z3 * z
 	z5 := z4 * z
 
-	// Precompute coefficients to avoid redundant calculations
 	E := aWGS84 * (1 - z + (5.0/4.0)*(z2-z3) + (81.0/64.0)*(z4-z5))
 	I := (3.0 / 2.0) * aWGS84 * (z - z2 + (7.0/8.0)*(z3-z4) + (55.0/64.0)*z5)
 	J := (15.0 / 16.0) * aWGS84 * (z2 - z3 + (3.0/4.0)*(z4-z5))
@@ -517,37 +529,39 @@ func transformWGS84ToKoreaTM(aWGS84, flatteningFactor, dx, dy, k0, lat0, lon0, l
 
 	D := lonRad - mRad
 
-	// u and o terms
-	u := E*lRad - I*math.Sin(2*lRad) + J*math.Sin(4*lRad) - L*math.Sin(6*lRad) + M*math.Sin(8*lRad)
-	z = u * k0
+	// Compute u for lRad
+	u_l := E*lRad - I*sin2L + J*sin4L - L*sin6L + M*sin8L
+	z = u_l * k0
 
-	// More optimizations on G
+	// G recalculated for lat
 	G = aWGS84 / math.Sqrt(1-G*sinLat*sinLat)
 
-	u = E*latRad - I*math.Sin(2*latRad) + J*math.Sin(4*latRad) - L*math.Sin(6*latRad) + M*math.Sin(8*latRad)
-	o := u * k0
+	// Compute u for latRad
+	u_lat := E*latRad - I*sin2Lat + J*sin4Lat - L*sin6Lat + M*sin8Lat
+	o := u_lat * k0
 
-	// Precompute powers of cosLat for reuse
-	cosLat3 := cosLat * cosLat * cosLat
-	cosLat5 := cosLat3 * cosLat * cosLat
-	cosLat7 := cosLat5 * cosLat * cosLat
+	// Compute polynomial expansions for easting (y)
+	E_y := G * sinLat * cosLat * k0 * 0.5
+	I_y := G * sinLat * cosLat3 * k0 * (5 - tanLat*tanLat + 9*w + 4*w*w) / 24
+	J_y := G * sinLat * cosLat5 * k0 * (61 - 58*tanLat*tanLat + (tanLat*tanLat)*(tanLat*tanLat) +
+		270*w - 330*tanLat*tanLat*w + 445*w*w + 324*w*w*w - 680*tanLat*tanLat*w*w + 88*w*w*w*w -
+		600*tanLat*tanLat*w*w*w - 192*tanLat*tanLat*w*w*w*w) / 720
+	H_y := G * sinLat * cosLat7 * k0 * (1385 - 3111*tanLat*tanLat + (tanLat*tanLat)*(tanLat*tanLat)*543 -
+		(tanLat*tanLat)*(tanLat*tanLat)*(tanLat*tanLat)*tanLat) / 40320
 
-	// Calculate E, I, J, H using optimized expressions
-	E = G * sinLat * cosLat * k0 * 0.5
-	I = G * sinLat * cosLat3 * k0 * (5 - tanLat*tanLat + 9*w + 4*w*w) / 24
-	J = G * sinLat * cosLat5 * k0 * (61 - 58*tanLat*tanLat + tanLat*tanLat*tanLat*tanLat + 270*w - 330*tanLat*tanLat*w + 445*w*w + 324*w*w*w - 680*tanLat*tanLat*w*w + 88*w*w*w*w - 600*tanLat*tanLat*w*w*w - 192*tanLat*tanLat*w*w*w*w) / 720
-	H := G * sinLat * cosLat7 * k0 * (1385 - 3111*tanLat*tanLat + 543*tanLat*tanLat*tanLat*tanLat - tanLat*tanLat*tanLat*tanLat*tanLat*tanLat) / 40320
-
-	o += D*D*E + D*D*D*I + D*D*D*D*D*J + D*D*D*D*D*D*D*H
+	o += D*D*E_y + D*D*D*I_y + D*D*D*D*D*J_y + D*D*D*D*D*D*D*H_y
 	y := o - z + dx
 
-	// Calculate x using optimized terms
-	o = G * cosLat * k0
-	z = G * cosLat3 * k0 * (1 - tanLat*tanLat + w) / 6
-	w = G * cosLat5 * k0 * (5 - 18*tanLat*tanLat + tanLat*tanLat*tanLat*tanLat + 14*w - 58*tanLat*tanLat*w + 13*w*w + 4*w*w*w - 64*tanLat*tanLat*w*w - 25*tanLat*tanLat*w*w*w) / 120
-	u = G * cosLat7 * k0 * (61 - 479*tanLat*tanLat + 179*tanLat*tanLat*tanLat*tanLat - tanLat*tanLat*tanLat*tanLat*tanLat*tanLat) / 5040
+	// Compute polynomial expansions for northing (x)
+	o_x := G * cosLat * k0
+	z_x := G * cosLat3 * k0 * (1 - tanLat*tanLat + w) / 6
+	w_x := G * cosLat5 * k0 * (5 - 18*tanLat*tanLat + (tanLat*tanLat)*(tanLat*tanLat) +
+		14*w - 58*tanLat*tanLat*w + 13*w*w + 4*w*w*w -
+		64*tanLat*tanLat*w*w - 25*tanLat*tanLat*w*w*w) / 120
+	u_x := G * cosLat7 * k0 * (61 - 479*tanLat*tanLat + (tanLat*tanLat)*(tanLat*tanLat)*179 -
+		(tanLat*tanLat)*(tanLat*tanLat)*(tanLat*tanLat)*tanLat) / 5040
 
-	x := dy + D*o + D*D*D*z + D*D*D*D*D*w + D*D*D*D*D*D*D*u
+	x := dy + D*o_x + D*D*D*z_x + D*D*D*D*D*w_x + D*D*D*D*D*D*D*u_x
 
 	return x, y
 }
