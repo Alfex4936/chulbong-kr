@@ -1,5 +1,4 @@
-// https://github.com/woltapp/blurhash
-
+// Package util provides encoding and decoding functions for Blurhash.
 package util
 
 import (
@@ -17,7 +16,7 @@ import (
 const characters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~"
 
 var (
-	sRGBToLinearTable  [256]float64
+	sRGBToLinearTable  [256]float32
 	linearToSRGBTable  [4096]int
 	decodeCharacterMap [128]int
 )
@@ -25,11 +24,11 @@ var (
 func init() {
 	// Initialize sRGB to Linear lookup table
 	for i := 0; i < 256; i++ {
-		v := float64(i) / 255
+		v := float32(i) / 255
 		if v <= 0.04045 {
 			sRGBToLinearTable[i] = v / 12.92
 		} else {
-			sRGBToLinearTable[i] = math.Pow((v+0.055)/1.055, 2.4)
+			sRGBToLinearTable[i] = float32(math.Pow(float64((v+0.055)/1.055), 2.4))
 		}
 	}
 
@@ -50,6 +49,36 @@ func init() {
 	for i, c := range characters {
 		decodeCharacterMap[c] = i
 	}
+}
+
+// Helper functions
+
+func maxFloat32(a, b float32) float32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func absFloat32(a float32) float32 {
+	if a < 0 {
+		return -a
+	}
+	return a
+}
+
+func maxFloat64(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func minFloat64(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // EncodeImage encodes an image.Image into a Blurhash string.
@@ -75,7 +104,7 @@ func EncodeImage(img image.Image, xComponents, yComponents int) string {
 	return Encode(xComponents, yComponents, width, height, pixels, bytesPerRow)
 }
 
-// Decode generates an image from a Blurhash string.
+// Decode generates raw RGB pixel data from a Blurhash string.
 func Decode(hash string, width, height, punch int) ([]uint8, error) {
 	if !IsValidBlurhash(hash) {
 		return nil, errors.New("invalid blurhash")
@@ -105,8 +134,8 @@ func Decode(hash string, width, height, punch int) ([]uint8, error) {
 	}
 
 	// Precompute cosines
-	cosX := precomputeCosinesDecode(width, numX)
-	cosY := precomputeCosinesDecode(height, numY)
+	cosX := precomputeCosinesFloat64(width, numX)
+	cosY := precomputeCosinesFloat64(height, numY)
 
 	// Decode the image
 	pixels := make([]uint8, width*height*3)
@@ -117,8 +146,9 @@ func Decode(hash string, width, height, punch int) ([]uint8, error) {
 			cosXComponent := cosX[x]
 			idx := 0
 			for j := 0; j < numY; j++ {
+				cosYComp := cosYComponent[j]
 				for i := 0; i < numX; i++ {
-					basis := cosXComponent[i] * cosYComponent[j]
+					basis := cosXComponent[i] * cosYComp
 					color := colors[idx]
 					r += color[0] * basis
 					g += color[1] * basis
@@ -142,21 +172,24 @@ func Encode(xComponents, yComponents, width, height int, pixels []uint8, bytesPe
 		return ""
 	}
 
-	// Precompute cosine values
+	// Precompute cosine values using float32
 	cosX := precomputeCosines(width, xComponents)
 	cosY := precomputeCosines(height, yComponents)
 
-	// Initialize factors
+	// Initialize factors as a flat slice
 	factorsCount := xComponents * yComponents
-	factors := make([][3]float64, factorsCount)
+	factors := make([]float32, factorsCount*3) // Each factor has R, G, B
 
 	// Compute the factors
 	for y := 0; y < height; y++ {
 		cosYComponents := cosY[y]
+		yOffset := y * bytesPerRow
 		for x := 0; x < width; x++ {
-			r := sRGBToLinear(int(pixels[y*bytesPerRow+x*3+0]))
-			g := sRGBToLinear(int(pixels[y*bytesPerRow+x*3+1]))
-			b := sRGBToLinear(int(pixels[y*bytesPerRow+x*3+2]))
+			// Access pixel data
+			pixelIndex := yOffset + x*3
+			r := sRGBToLinearTable[pixels[pixelIndex+0]]
+			g := sRGBToLinearTable[pixels[pixelIndex+1]]
+			b := sRGBToLinearTable[pixels[pixelIndex+2]]
 
 			cosXComponents := cosX[x]
 			idx := 0
@@ -164,9 +197,9 @@ func Encode(xComponents, yComponents, width, height int, pixels []uint8, bytesPe
 				cosYComponent := cosYComponents[j]
 				for i := 0; i < xComponents; i++ {
 					basis := cosXComponents[i] * cosYComponent
-					factors[idx][0] += basis * r
-					factors[idx][1] += basis * g
-					factors[idx][2] += basis * b
+					factors[idx*3+0] += basis * r
+					factors[idx*3+1] += basis * g
+					factors[idx*3+2] += basis * b
 					idx++
 				}
 			}
@@ -174,42 +207,50 @@ func Encode(xComponents, yComponents, width, height int, pixels []uint8, bytesPe
 	}
 
 	// Normalize the factors
-	for i := range factors {
-		normalization := 1.0
-		if i == 0 {
-			normalization = 1.0
-		} else {
-			normalization = 2.0
+	normalization := 1.0 / float32(width*height)
+	for i := 0; i < factorsCount; i++ {
+		scale := normalization
+		if i != 0 {
+			scale *= 2.0
 		}
-		scale := normalization / float64(width*height)
-		factors[i][0] *= scale
-		factors[i][1] *= scale
-		factors[i][2] *= scale
+		factors[i*3+0] *= scale
+		factors[i*3+1] *= scale
+		factors[i*3+2] *= scale
 	}
 
 	// Encode DC component
-	dc := factors[0]
-	dcValue := encodeDC(dc[0], dc[1], dc[2])
+	dcR := factors[0]
+	dcG := factors[1]
+	dcB := factors[2]
+	dcValue := encodeDC(float64(dcR), float64(dcG), float64(dcB))
 
 	// Encode AC components
-	maximumValue := 0.0
+	maximumValue := float32(0)
 	for i := 1; i < factorsCount; i++ {
-		maximumValue = math.Max(maximumValue, math.Abs(factors[i][0]))
-		maximumValue = math.Max(maximumValue, math.Abs(factors[i][1]))
-		maximumValue = math.Max(maximumValue, math.Abs(factors[i][2]))
+		r := factors[i*3+0]
+		g := factors[i*3+1]
+		b := factors[i*3+2]
+		maximumValue = maxFloat32(maximumValue, absFloat32(r))
+		maximumValue = maxFloat32(maximumValue, absFloat32(g))
+		maximumValue = maxFloat32(maximumValue, absFloat32(b))
 	}
 
-	quantizedMaxValue := int(math.Floor(maximumValue*166 - 0.5))
+	quantizedMaxValue := int(math.Floor(float64(maximumValue*166 - 0.5)))
 	if quantizedMaxValue < 0 {
 		quantizedMaxValue = 0
 	} else if quantizedMaxValue > 82 {
 		quantizedMaxValue = 82
 	}
-	maximumValue = (float64(quantizedMaxValue) + 1) / 166
+	if quantizedMaxValue > 0 {
+		maximumValue = (float32(quantizedMaxValue) + 1) / 166
+	}
 
 	acValues := make([]int, factorsCount-1)
 	for i := 1; i < factorsCount; i++ {
-		acValues[i-1] = encodeAC(factors[i][0], factors[i][1], factors[i][2], maximumValue)
+		r := factors[i*3+0]
+		g := factors[i*3+1]
+		b := factors[i*3+2]
+		acValues[i-1] = encodeAC(float64(r)/float64(maximumValue), float64(g)/float64(maximumValue), float64(b)/float64(maximumValue))
 	}
 
 	// Build the Blurhash string
@@ -225,20 +266,21 @@ func Encode(xComponents, yComponents, width, height int, pixels []uint8, bytesPe
 	return builder.String()
 }
 
-// Helper functions
-
-func precomputeCosines(size, components int) [][]float64 {
-	cosines := make([][]float64, size)
+// precomputeCosines generates a cosine table for given size and number of components using float32.
+func precomputeCosines(size, components int) [][]float32 {
+	cosines := make([][]float32, size)
 	for i := 0; i < size; i++ {
-		cosines[i] = make([]float64, components)
+		cosines[i] = make([]float32, components)
 		for j := 0; j < components; j++ {
-			cosines[i][j] = math.Cos(math.Pi * float64(j) * float64(i) / float64(size))
+			angle := (math.Pi * float64(i) * float64(j)) / float64(size)
+			cosines[i][j] = float32(math.Cos(angle))
 		}
 	}
 	return cosines
 }
 
-func precomputeCosinesDecode(size, components int) [][]float64 {
+// precomputeCosinesFloat64 generates a cosine table for decoding using float64.
+func precomputeCosinesFloat64(size, components int) [][]float64 {
 	cosines := make([][]float64, size)
 	for i := 0; i < size; i++ {
 		cosines[i] = make([]float64, components)
@@ -249,18 +291,13 @@ func precomputeCosinesDecode(size, components int) [][]float64 {
 	return cosines
 }
 
-func sRGBToLinear(value int) float64 {
-	return sRGBToLinearTable[value]
-}
-
 func linearToSRGB(value float64) int {
-	v := math.Max(0, math.Min(1, value))
-	index := int(v * 4095)
-	if index < 0 {
-		index = 0
-	} else if index > 4095 {
-		index = 4095
+	if value <= 0 {
+		return linearToSRGBTable[0]
+	} else if value >= 1 {
+		return linearToSRGBTable[4095]
 	}
+	index := int(value * 4095.0)
 	return linearToSRGBTable[index]
 }
 
@@ -279,6 +316,7 @@ func decodeInt(input string) (int, error) {
 	return result, nil
 }
 
+// IsValidBlurhash checks if the provided hash is a valid Blurhash.
 func IsValidBlurhash(hash string) bool {
 	if len(hash) < 6 {
 		return false
@@ -296,10 +334,10 @@ func IsValidBlurhash(hash string) bool {
 }
 
 func decodeDC(value int) (float64, float64, float64) {
-	r := sRGBToLinear(value >> 16)
-	g := sRGBToLinear((value >> 8) & 255)
-	b := sRGBToLinear(value & 255)
-	return r, g, b
+	r := sRGBToLinearTable[(value>>16)&255]
+	g := sRGBToLinearTable[(value>>8)&255]
+	b := sRGBToLinearTable[value&255]
+	return float64(r), float64(g), float64(b)
 }
 
 func decodeAC(value int, maximumValue float64) (float64, float64, float64) {
@@ -317,10 +355,10 @@ func encodeDC(r, g, b float64) int {
 	return (linearToSRGB(r) << 16) + (linearToSRGB(g) << 8) + linearToSRGB(b)
 }
 
-func encodeAC(r, g, b, maximumValue float64) int {
-	quantR := int(math.Max(0, math.Min(18, math.Floor(signPow(r/maximumValue, 0.5)*9+9.5))))
-	quantG := int(math.Max(0, math.Min(18, math.Floor(signPow(g/maximumValue, 0.5)*9+9.5))))
-	quantB := int(math.Max(0, math.Min(18, math.Floor(signPow(b/maximumValue, 0.5)*9+9.5))))
+func encodeAC(r, g, b float64) int {
+	quantR := int(maxFloat64(0, minFloat64(18, math.Floor(signPow(r, 0.5)*9+9.5))))
+	quantG := int(maxFloat64(0, minFloat64(18, math.Floor(signPow(g, 0.5)*9+9.5))))
+	quantB := int(maxFloat64(0, minFloat64(18, math.Floor(signPow(b, 0.5)*9+9.5))))
 	return quantR*19*19 + quantG*19 + quantB
 }
 
@@ -340,6 +378,8 @@ func encode83(value, length int) string {
 	}
 	return string(result)
 }
+
+// Remaining functions for image manipulation and EXIF orientation
 
 // Rotate90 rotates the image 90 degrees clockwise.
 func Rotate90(img image.Image) *image.RGBA {
@@ -391,6 +431,7 @@ func FixOrientation(img image.Image, orientation int) image.Image {
 	}
 }
 
+// GetOrientation retrieves the EXIF orientation of the image.
 func GetOrientation(file *os.File) int {
 	file.Seek(0, 0) // Reset file pointer
 	x, err := exif.Decode(file)
@@ -414,7 +455,7 @@ func GetOrientation(file *os.File) int {
 	return orientation
 }
 
-// PixelsToImage converts raw RGB pixel data into an *image.RGBA
+// PixelsToImage converts raw RGB pixel data into an *image.RGBA.
 func PixelsToImage(pixels []uint8, width, height int) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	pixelIndex := 0
@@ -430,9 +471,6 @@ func PixelsToImage(pixels []uint8, width, height int) *image.RGBA {
 			img.Set(x, y, color.RGBA{R: r, G: g, B: b, A: 255})
 		}
 	}
-
-	// img := image.NewRGBA(image.Rect(0, 0, width, height))
-	// copy(img.Pix, pixels)
 
 	return img
 }
