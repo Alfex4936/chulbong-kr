@@ -8,7 +8,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"strings"
 
 	"github.com/rwcarlsen/goexif/exif"
 )
@@ -83,23 +82,54 @@ func minFloat64(a, b float64) float64 {
 
 // EncodeImage encodes an image.Image into a Blurhash string.
 func EncodeImage(img image.Image, xComponents, yComponents int) string {
-	width := img.Bounds().Dx()
-	height := img.Bounds().Dy()
+	// Attempt to directly use *image.RGBA if possible.
+	rgba, ok := img.(*image.RGBA)
+	if !ok {
+		// Convert image to RGBA if not already
+		bounds := img.Bounds()
+		w := bounds.Dx()
+		h := bounds.Dy()
+		tmp := image.NewRGBA(bounds)
+		dstPix := tmp.Pix
+		stride := tmp.Stride
 
-	// Preallocate pixel slice
+		// Convert to RGBA in one pass
+		for y := 0; y < h; y++ {
+			off := y * stride
+			for x := 0; x < w; x++ {
+				c := img.At(x+bounds.Min.X, y+bounds.Min.Y)
+				r, g, b, a := c.RGBA()
+				// Convert from 16-bit to 8-bit
+				dstPix[off+0] = uint8(r >> 8)
+				dstPix[off+1] = uint8(g >> 8)
+				dstPix[off+2] = uint8(b >> 8)
+				dstPix[off+3] = uint8(a >> 8)
+				off += 4
+			}
+		}
+		rgba = tmp
+	}
+
+	width := rgba.Bounds().Dx()
+	height := rgba.Bounds().Dy()
+	stride := rgba.Stride
+	pix := rgba.Pix
+
+	// Extract RGB data into a continuous slice to pass to Encode.
+	// single allocation
 	pixels := make([]uint8, width*height*3)
 	idx := 0
 	for y := 0; y < height; y++ {
+		rowStart := y * stride
 		for x := 0; x < width; x++ {
-			r, g, b, _ := img.At(x, y).RGBA()
-			pixels[idx] = uint8(r >> 8)
-			pixels[idx+1] = uint8(g >> 8)
-			pixels[idx+2] = uint8(b >> 8)
+			p := rowStart + x*4
+			pixels[idx+0] = pix[p]
+			pixels[idx+1] = pix[p+1]
+			pixels[idx+2] = pix[p+2]
 			idx += 3
 		}
 	}
 
-	// Encode the pixel data
 	bytesPerRow := width * 3
 	return Encode(xComponents, yComponents, width, height, pixels, bytesPerRow)
 }
@@ -110,56 +140,104 @@ func Decode(hash string, width, height, punch int) ([]uint8, error) {
 		return nil, errors.New("invalid blurhash")
 	}
 
-	sizeFlag, _ := decodeInt(hash[:1])
+	sizeFlag, err := decodeInt(hash[:1])
+	if err != nil {
+		return nil, err
+	}
 	numY := (sizeFlag / 9) + 1
 	numX := (sizeFlag % 9) + 1
 
-	if len(hash) != 4+2*numX*numY {
+	expectedLength := 4 + 2*numX*numY
+	if len(hash) != expectedLength {
 		return nil, errors.New("invalid blurhash length")
 	}
 
-	quantizedMaxValue, _ := decodeInt(hash[1:2])
-	maxValue := (float64(quantizedMaxValue) + 1) / 166
+	quantizedMaxValue, err := decodeInt(hash[1:2])
+	if err != nil {
+		return nil, err
+	}
+	maxValue := (float64(quantizedMaxValue) + 1) / 166.0
 
 	colors := make([][3]float64, numX*numY)
-	for i := 0; i < numX*numY; i++ {
-		if i == 0 {
-			value, _ := decodeInt(hash[2:6])
-			colors[0][0], colors[0][1], colors[0][2] = decodeDC(value)
-		} else {
-			start := 4 + i*2
-			value, _ := decodeInt(hash[start : start+2])
-			colors[i][0], colors[i][1], colors[i][2] = decodeAC(value, maxValue*float64(punch))
+	// Decode DC & AC components
+	dcValue, err := decodeInt(hash[2:6])
+	if err != nil {
+		return nil, err
+	}
+	colors[0][0], colors[0][1], colors[0][2] = decodeDC(dcValue)
+
+	for i := 1; i < numX*numY; i++ {
+		start := 4 + i*2
+		val, err := decodeInt(hash[start : start+2])
+		if err != nil {
+			return nil, err
 		}
+		colors[i][0], colors[i][1], colors[i][2] = decodeAC(val, maxValue*float64(punch))
+	}
+
+	// Pre-split colors into separate arrays for faster index-based access
+	rColors := make([]float64, numX*numY)
+	gColors := make([]float64, numX*numY)
+	bColors := make([]float64, numX*numY)
+	for i := 0; i < numX*numY; i++ {
+		rColors[i] = colors[i][0]
+		gColors[i] = colors[i][1]
+		bColors[i] = colors[i][2]
 	}
 
 	// Precompute cosines
 	cosX := precomputeCosinesFloat64(width, numX)
 	cosY := precomputeCosinesFloat64(height, numY)
 
-	// Decode the image
 	pixels := make([]uint8, width*height*3)
+
+	// Decode loop with optimizations
 	for y := 0; y < height; y++ {
 		cosYComponent := cosY[y]
+		yOffset := y * width * 3
 		for x := 0; x < width; x++ {
-			r, g, b := 0.0, 0.0, 0.0
 			cosXComponent := cosX[x]
-			idx := 0
+
+			var r, g, b float64
+			// Combine loops efficiently
 			for j := 0; j < numY; j++ {
-				cosYComp := cosYComponent[j]
+				cy := cosYComponent[j]
+				jBase := j * numX
 				for i := 0; i < numX; i++ {
-					basis := cosXComponent[i] * cosYComp
-					color := colors[idx]
-					r += color[0] * basis
-					g += color[1] * basis
-					b += color[2] * basis
-					idx++
+					c := cosXComponent[i] * cy
+					idx := jBase + i
+					r += rColors[idx] * c
+					g += gColors[idx] * c
+					b += bColors[idx] * c
 				}
 			}
-			pixelIndex := (y*width + x) * 3
-			pixels[pixelIndex+0] = uint8(linearToSRGB(r))
-			pixels[pixelIndex+1] = uint8(linearToSRGB(g))
-			pixels[pixelIndex+2] = uint8(linearToSRGB(b))
+
+			// Inline linearToSRGB logic
+			if r < 0 {
+				r = 0
+			} else if r > 1 {
+				r = 1
+			}
+			ri := linearToSRGBTable[int(r*4095)]
+
+			if g < 0 {
+				g = 0
+			} else if g > 1 {
+				g = 1
+			}
+			gi := linearToSRGBTable[int(g*4095)]
+
+			if b < 0 {
+				b = 0
+			} else if b > 1 {
+				b = 1
+			}
+			bi := linearToSRGBTable[int(b*4095)]
+
+			pixelIndex := yOffset + x*3
+			pixels[pixelIndex] = uint8(ri)
+			pixels[pixelIndex+1] = uint8(gi)
+			pixels[pixelIndex+2] = uint8(bi)
 		}
 	}
 
@@ -178,92 +256,118 @@ func Encode(xComponents, yComponents, width, height int, pixels []uint8, bytesPe
 
 	// Initialize factors as a flat slice
 	factorsCount := xComponents * yComponents
-	factors := make([]float32, factorsCount*3) // Each factor has R, G, B
+	// Separate arrays for R, G, B factors
+	factorsR := make([]float32, factorsCount)
+	factorsG := make([]float32, factorsCount)
+	factorsB := make([]float32, factorsCount)
+
+	// Convert all sRGB pixels to linear float32 upfront
+	totalPixels := width * height * 3
+	linearPixels := make([]float32, totalPixels)
+	for i := 0; i < totalPixels; i++ {
+		linearPixels[i] = sRGBToLinearTable[pixels[i]]
+	}
 
 	// Compute the factors
 	for y := 0; y < height; y++ {
 		cosYComponents := cosY[y]
-		yOffset := y * bytesPerRow
+		// Row start in linearPixels
+		rowStart := y * bytesPerRow // bytesPerRow = width*3
 		for x := 0; x < width; x++ {
-			// Access pixel data
-			pixelIndex := yOffset + x*3
-			r := sRGBToLinearTable[pixels[pixelIndex+0]]
-			g := sRGBToLinearTable[pixels[pixelIndex+1]]
-			b := sRGBToLinearTable[pixels[pixelIndex+2]]
+			pIndex := rowStart + x*3
+			rLinear := linearPixels[pIndex]
+			gLinear := linearPixels[pIndex+1]
+			bLinear := linearPixels[pIndex+2]
 
 			cosXComponents := cosX[x]
-			idx := 0
+
+			// Instead of doing `idx` increments, we compute offsets directly:
+			// off = (j*xComponents + i)
+			// just do two nested loops and calculate off once.
+			// contribute contributions for each component
 			for j := 0; j < yComponents; j++ {
-				cosYComponent := cosYComponents[j]
+				cy := cosYComponents[j]
+				rowOffset := j * xComponents
 				for i := 0; i < xComponents; i++ {
-					basis := cosXComponents[i] * cosYComponent
-					factors[idx*3+0] += basis * r
-					factors[idx*3+1] += basis * g
-					factors[idx*3+2] += basis * b
-					idx++
+					c := cosXComponents[i] * cy
+					off := rowOffset + i
+					factorsR[off] += c * rLinear
+					factorsG[off] += c * gLinear
+					factorsB[off] += c * bLinear
 				}
 			}
 		}
 	}
 
 	// Normalize the factors
-	normalization := 1.0 / float32(width*height)
+	invCount := 1.0 / float32(width*height)
 	for i := 0; i < factorsCount; i++ {
-		scale := normalization
-		if i != 0 {
-			scale *= 2.0
-		}
-		factors[i*3+0] *= scale
-		factors[i*3+1] *= scale
-		factors[i*3+2] *= scale
+		factorsR[i] *= invCount
+		factorsG[i] *= invCount
+		factorsB[i] *= invCount
 	}
 
-	// Encode DC component
-	dcR := factors[0]
-	dcG := factors[1]
-	dcB := factors[2]
-	dcValue := encodeDC(float64(dcR), float64(dcG), float64(dcB))
-
-	// Encode AC components
-	maximumValue := float32(0)
+	// Find max AC component
+	var maxVal float32
 	for i := 1; i < factorsCount; i++ {
-		r := factors[i*3+0]
-		g := factors[i*3+1]
-		b := factors[i*3+2]
-		maximumValue = maxFloat32(maximumValue, absFloat32(r))
-		maximumValue = maxFloat32(maximumValue, absFloat32(g))
-		maximumValue = maxFloat32(maximumValue, absFloat32(b))
+		r := factorsR[i]
+		if r < 0 {
+			r = -r
+		}
+		if r > maxVal {
+			maxVal = r
+		}
+
+		g := factorsG[i]
+		if g < 0 {
+			g = -g
+		}
+		if g > maxVal {
+			maxVal = g
+		}
+
+		b := factorsB[i]
+		if b < 0 {
+			b = -b
+		}
+		if b > maxVal {
+			maxVal = b
+		}
 	}
 
-	quantizedMaxValue := int(math.Floor(float64(maximumValue*166 - 0.5)))
-	if quantizedMaxValue < 0 {
-		quantizedMaxValue = 0
-	} else if quantizedMaxValue > 82 {
-		quantizedMaxValue = 82
-	}
-	if quantizedMaxValue > 0 {
-		maximumValue = (float32(quantizedMaxValue) + 1) / 166
+	quantMax := 0
+	if maxVal > 0 {
+		q := float64(maxVal)*166.0 - 1.0
+		if q < 0 {
+			q = 0
+		} else if q > 82 {
+			q = 82
+		}
+		quantMax = int(q)
 	}
 
+	maxAc := (float64(quantMax) + 1) / 166.0
+
+	// Encode DC
+	dcValue := encodeDC(float64(factorsR[0]), float64(factorsG[0]), float64(factorsB[0]))
+
+	// Encode AC
 	acValues := make([]int, factorsCount-1)
 	for i := 1; i < factorsCount; i++ {
-		r := factors[i*3+0]
-		g := factors[i*3+1]
-		b := factors[i*3+2]
-		acValues[i-1] = encodeAC(float64(r)/float64(maximumValue), float64(g)/float64(maximumValue), float64(b)/float64(maximumValue))
+		acValues[i-1] = encodeAC(float64(factorsR[i])/maxAc, float64(factorsG[i])/maxAc, float64(factorsB[i])/maxAc)
 	}
 
-	// Build the Blurhash string
-	var builder strings.Builder
-	builder.Grow(2 + 4 + 2*(factorsCount-1)) // Preallocate the required size
-	builder.WriteString(encode83((xComponents-1)+(yComponents-1)*9, 1))
-	builder.WriteString(encode83(quantizedMaxValue, 1))
-	builder.WriteString(encode83(dcValue, 4))
-	for _, value := range acValues {
-		builder.WriteString(encode83(value, 2))
+	// Build Blurhash string
+	sizeFlag := (yComponents-1)*9 + (xComponents - 1)
+	var result []byte
+	result = append(result, encode83(sizeFlag, 1)...)
+	result = append(result, encode83(quantMax, 1)...)
+	result = append(result, encode83(dcValue, 4)...)
+	for _, ac := range acValues {
+		result = append(result, encode83(ac, 2)...)
 	}
 
-	return builder.String()
+	return string(result)
 }
 
 // precomputeCosines generates a cosine table for given size and number of components using float32.
