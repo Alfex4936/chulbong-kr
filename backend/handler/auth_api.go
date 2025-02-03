@@ -15,6 +15,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/util"
 	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 )
@@ -33,8 +34,9 @@ type AuthHandler struct {
 	TokenService *service.TokenService
 	SmtpService  *service.SmtpService
 
-	TokenUtil *util.TokenUtil
-	Logger    *zap.Logger
+	TokenUtil    *util.TokenUtil
+	Logger       *zap.Logger
+	LoginCounter prometheus.Counter
 }
 
 // NewAuthHandler creates a new AuthHandler with dependencies injected
@@ -45,6 +47,7 @@ func NewAuthHandler(
 	smtp *service.SmtpService,
 	tutil *util.TokenUtil,
 	logger *zap.Logger,
+	lc prometheus.Counter,
 ) *AuthHandler {
 	return &AuthHandler{
 		AuthService:  auth,
@@ -53,6 +56,7 @@ func NewAuthHandler(
 		SmtpService:  smtp,
 		TokenUtil:    tutil,
 		Logger:       logger,
+		LoginCounter: lc,
 	}
 }
 
@@ -188,6 +192,7 @@ func (h *AuthHandler) HandleLogin(c *fiber.Ctx) error {
 	cookie := h.TokenUtil.GenerateLoginCookie(token)
 	c.Cookie(&cookie)
 
+	h.LoginCounter.Inc() // Increment the login counter.
 	h.Logger.Info("User logged in successfully", zap.Int("userID", user.UserID))
 
 	return c.JSON(response)
@@ -200,7 +205,7 @@ func (h *AuthHandler) HandleGoogleOAuth(c *fiber.Ctx) error {
 
 	if state == "" || code == "" {
 		// Start the OAuth flow
-		stateToken, err := h.TokenUtil.GenerateOpaqueToken(16)
+		stateToken, err := h.TokenUtil.GenerateOpaqueToken(h.TokenUtil.Config.TokenLength)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
 		}
@@ -298,7 +303,7 @@ func (h *AuthHandler) HandleKakaoOAuth(c *fiber.Ctx) error {
 
 	if state == "" || code == "" {
 		// Start the OAuth flow
-		stateToken, err := h.TokenUtil.GenerateOpaqueToken(16)
+		stateToken, err := h.TokenUtil.GenerateOpaqueToken(h.TokenUtil.Config.TokenLength)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
 		}
@@ -392,7 +397,7 @@ func (h *AuthHandler) HandleNaverOAuth(c *fiber.Ctx) error {
 
 	if state == "" || code == "" {
 		// Start the OAuth flow
-		stateToken, err := h.TokenUtil.GenerateOpaqueToken(16)
+		stateToken, err := h.TokenUtil.GenerateOpaqueToken(h.TokenUtil.Config.TokenLength)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
 		}
@@ -486,7 +491,7 @@ func (h *AuthHandler) HandleGitHubOAuth(c *fiber.Ctx) error {
 
 	if state == "" || code == "" {
 		// Start the OAuth flow
-		state, err := h.TokenUtil.GenerateOpaqueToken(16)
+		state, err := h.TokenUtil.GenerateOpaqueToken(h.TokenUtil.Config.TokenLength)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
 		}
@@ -642,7 +647,7 @@ func (h *AuthHandler) handleOAuth(c *fiber.Ctx, provider string) error {
 
 	if state == "" || code == "" {
 		// Start the OAuth flow
-		stateToken, err := h.TokenUtil.GenerateOpaqueToken(16)
+		stateToken, err := h.TokenUtil.GenerateOpaqueToken(h.TokenUtil.Config.TokenLength)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
 		}
@@ -751,6 +756,8 @@ func (h *AuthHandler) handleOAuth(c *fiber.Ctx, provider string) error {
 	} else {
 		redirectURL += customRedirectUrl
 	}
+
+	h.LoginCounter.Inc() // Increment the login counter.
 
 	return c.Redirect(redirectURL)
 }

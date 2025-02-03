@@ -1,21 +1,21 @@
-// original code: https://github.com/RRethy/ahocorasick
-// edited version
 package util
 
 import (
-	"fmt"
 	"sort"
-	"unicode/utf8"
+	"unsafe"
 )
+
+//TODO: it won't find anything
 
 // Matcher is the pattern matching state machine.
 type Matcher struct {
-	base        []int        // base array in the double array trie
-	check       []int        // check array in the double array trie
+	base        []int        // base array in the double-array trie
+	check       []int        // check array in the double-array trie
 	fail        []int        // fail function
 	output      [][]int      // output function
-	runeIndices map[rune]int // mapping from runes to indices
+	runeIndices map[rune]int // mapping from runes to compact indices
 	runes       []rune       // list of unique runes
+	patterns    [][]rune     // store the patterns
 }
 
 // Match represents a matched pattern in the text.
@@ -24,24 +24,7 @@ type Match struct {
 	Index int    // the start index of the match
 }
 
-// CompileByteSlices compiles a Matcher from a slice of byte slices. This Matcher can be
-// used to find occurrences of each pattern in a text.
-func CompileByteSlices(words [][]byte) *Matcher {
-	wordRuneSlices := make([][]rune, len(words))
-	for i, word := range words {
-		runes, err := bytesToRunes(word)
-		if err != nil {
-			// Handle invalid UTF-8 by skipping the pattern or logging.
-			// For simplicity, we'll skip invalid patterns.
-			continue
-		}
-		wordRuneSlices[i] = runes
-	}
-	return compile(wordRuneSlices)
-}
-
-// CompileStrings compiles a Matcher from a slice of strings. This Matcher can
-// be used to find occurrences of each pattern in a text.
+// CompileStrings compiles a Matcher from a slice of strings.
 func CompileStrings(words []string) *Matcher {
 	wordRuneSlices := make([][]rune, len(words))
 	for i, word := range words {
@@ -50,12 +33,9 @@ func CompileStrings(words []string) *Matcher {
 	return compile(wordRuneSlices)
 }
 
+// compile compiles the patterns into the Matcher.
 func compile(words [][]rune) *Matcher {
 	m := &Matcher{
-		base:        []int{0},
-		check:       []int{0},
-		fail:        []int{0},
-		output:      [][]int{nil},
 		runeIndices: make(map[rune]int),
 	}
 
@@ -63,13 +43,22 @@ func compile(words [][]rune) *Matcher {
 	for _, word := range words {
 		for _, r := range word {
 			if _, exists := m.runeIndices[r]; !exists {
-				m.runeIndices[r] = len(m.runeIndices)
+				m.runeIndices[r] = len(m.runes)
 				m.runes = append(m.runes, r)
 			}
 		}
 	}
 
-	// Sort the words to ensure deterministic automaton construction.
+	m.patterns = words
+
+	// Initialize the base, check, fail, and output arrays
+	initialSize := 1
+	m.base = make([]int, initialSize)
+	m.check = make([]int, initialSize)
+	m.fail = make([]int, initialSize)
+	m.output = make([][]int, initialSize)
+
+	// Sort the words to ensure deterministic automaton construction
 	sort.Slice(words, func(i, j int) bool {
 		return lessRuneSlice(words[i], words[j])
 	})
@@ -94,22 +83,19 @@ func compile(words [][]rune) *Matcher {
 		edges := collectEdges(words, node.depth, node.start, node.end)
 
 		base := m.findBase(edges)
+		m.ensureStateCapacity(node.state)
 		m.base[node.state] = base
 
 		i := node.start
 		for _, edge := range edges {
-			offset, exists := m.runeIndices[edge]
-			if !exists {
-				continue // Skip if rune not in mapping
-			}
-
+			offset := m.runeIndices[edge]
 			newState := base + offset
 
 			m.ensureStateCapacity(newState)
 
 			m.check[newState] = node.state
 
-			// Add fail links
+			// Set fail link
 			var failState int
 			if node.depth == 0 {
 				failState = 0
@@ -126,15 +112,15 @@ func compile(words [][]rune) *Matcher {
 			// Add output for complete words
 			newNodeStart := i
 			newNodeEnd := i
-			for i < node.end && words[i][node.depth] == edge {
+			for i < node.end && node.depth < len(words[i]) && words[i][node.depth] == edge {
 				if node.depth+1 == len(words[i]) {
-					m.output[newState] = append(m.output[newState], len(words[i]))
+					m.output[newState] = append(m.output[newState], i) // Store pattern index
 				}
 				i++
 				newNodeEnd++
 			}
 
-			// Enqueue the next trie node if necessary
+			// Enqueue the next trie node
 			if newNodeStart < newNodeEnd {
 				queue = append(queue, trieNode{
 					state: newState,
@@ -203,17 +189,14 @@ func (m *Matcher) getFailState(failState, offset int) int {
 
 // findBase finds a suitable base value for the given edges.
 func (m *Matcher) findBase(edges []rune) int {
-	var base int
+	base := 1 // Start from 1 to avoid conflicts with initial state
 search:
 	for {
-		base++
 		for _, edge := range edges {
-			offset, exists := m.runeIndices[edge]
-			if !exists {
-				continue search
-			}
+			offset := m.runeIndices[edge]
 			state := base + offset
 			if state < len(m.check) && m.check[state] != 0 {
+				base++
 				continue search
 			}
 		}
@@ -230,18 +213,27 @@ func (m *Matcher) hasEdge(state, offset int) bool {
 
 // FindAllString finds all instances of the patterns in the text.
 func (m *Matcher) FindAllString(text string) []*Match {
-	return m.FindAllRuneSlice([]rune(text))
+	// Convert string to rune slice without allocation
+	textRunes := *(*[]rune)(unsafe.Pointer(&text))
+	return m.findAll(textRunes)
 }
 
-// FindAllRuneSlice finds all instances of the patterns in the rune slice.
-func (m *Matcher) FindAllRuneSlice(text []rune) []*Match {
-	var matches []*Match
+// findAll finds all matches in the given text.
+func (m *Matcher) findAll(text []rune) []*Match {
+	matches := make([]*Match, 0)
 	state := 0
 	for i, r := range text {
 		offset, exists := m.runeIndices[r]
 		if !exists {
-			state = 0
-			continue
+			// Follow fail links until we reach the root or find a match
+			for state != 0 && !exists {
+				state = m.fail[state]
+				exists = m.hasEdge(state, offset)
+			}
+			if !exists {
+				state = 0
+				continue
+			}
 		}
 		for state != 0 && !m.hasEdge(state, offset) {
 			state = m.fail[state]
@@ -252,11 +244,13 @@ func (m *Matcher) FindAllRuneSlice(text []rune) []*Match {
 			state = 0
 		}
 		if len(m.output[state]) > 0 {
-			for _, length := range m.output[state] {
+			for _, idx := range m.output[state] {
+				pattern := m.patterns[idx]
+				length := len(pattern)
 				start := i - length + 1
 				if start >= 0 {
 					matches = append(matches, &Match{
-						Word:  string(text[start : i+1]),
+						Word:  string(pattern),
 						Index: start,
 					})
 				}
@@ -264,18 +258,4 @@ func (m *Matcher) FindAllRuneSlice(text []rune) []*Match {
 		}
 	}
 	return matches
-}
-
-// bytesToRunes converts a byte slice to a rune slice, ensuring valid UTF-8 encoding.
-func bytesToRunes(text []byte) ([]rune, error) {
-	var runes []rune
-	for len(text) > 0 {
-		r, size := utf8.DecodeRune(text)
-		if r == utf8.RuneError && size == 1 {
-			return nil, fmt.Errorf("invalid UTF-8 encoding")
-		}
-		runes = append(runes, r)
-		text = text[size:]
-	}
-	return runes, nil
 }

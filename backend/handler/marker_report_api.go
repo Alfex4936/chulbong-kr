@@ -226,17 +226,17 @@ func getNewLatLngFromForm(form *multipart.Form) (float64, float64, error) {
 	latStr, latOk := form.Value["newLatitude"]
 	longStr, longOk := form.Value["newLongitude"]
 	if !latOk || !longOk || len(latStr[0]) == 0 || len(longStr[0]) == 0 {
-		return 0, 0, fmt.Errorf("latitude and longitude are empty")
+		return 0, 0, errors.New("latitude and longitude are empty")
 	}
 
 	latitude, err := strconv.ParseFloat(latStr[0], 64)
 	if err != nil {
-		return -1, -1, fmt.Errorf("invalid latitude")
+		return -1, -1, errors.New("invalid latitude")
 	}
 
 	longitude, err := strconv.ParseFloat(longStr[0], 64)
 	if err != nil {
-		return -1, -1, fmt.Errorf("invalid longitude")
+		return -1, -1, errors.New("invalid longitude")
 	}
 
 	return latitude, longitude, nil

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math/rand/v2"
 	"strconv"
 	"time"
@@ -15,6 +14,7 @@ import (
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
 	"github.com/redis/rueidis"
 	"github.com/zeebo/xxh3"
+	"go.uber.org/zap"
 )
 
 const (
@@ -37,13 +37,15 @@ type MarkerRankService struct {
 	DB            *sqlx.DB
 	Redis         *RedisService
 	MarkerService *MarkerManageService
+	Logger        *zap.Logger
 }
 
-func NewMarkerRankService(db *sqlx.DB, redis *RedisService, markerService *MarkerManageService) *MarkerRankService {
+func NewMarkerRankService(db *sqlx.DB, redis *RedisService, markerService *MarkerManageService, logger *zap.Logger) *MarkerRankService {
 	return &MarkerRankService{
 		DB:            db,
 		Redis:         redis,
 		MarkerService: markerService,
+		Logger:        logger,
 	}
 }
 
@@ -145,7 +147,7 @@ func (s *MarkerRankService) IncrementMarkerClicks(markerClicks *csmap.CsMap[int,
 		// Build and execute the ZINCRBY command for each marker
 		zIncrCmd := s.Redis.Core.Client.B().Zincrby().Key("marker_clicks").Increment(scoreIncrement).Member(fmt.Sprintf("%d", markerID)).Build()
 		if err := s.Redis.Core.Client.Do(ctx, zIncrCmd).Error(); err != nil {
-			log.Printf("Error incrementing clicks for marker %d: %v", markerID, err)
+			s.Logger.Error("Error incrementing clicks", zap.Error(err), zap.Int("markerID", markerID))
 		} else {
 			// If successful, delete the marker from the map
 			markerClicks.Delete(markerID)
@@ -175,7 +177,7 @@ func (s *MarkerRankService) GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr 
 		Build()).AsZScores()
 
 	if err != nil {
-		log.Printf("Error retrieving top markers: %v", err)
+		s.Logger.Error("Error retrieving top markers", zap.Error(err))
 		return nil
 	}
 
@@ -193,7 +195,7 @@ func (s *MarkerRankService) GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr 
 	// Prepare an SQL query using IN clause with sqlx.In
 	query, args, err := sqlx.In(getTopMarkersQuery, markerIDs, markerIDs)
 	if err != nil {
-		log.Printf("Error preparing query: %v", err)
+		s.Logger.Error("Error preparing query", zap.Error(err))
 		return nil
 	}
 
@@ -203,7 +205,7 @@ func (s *MarkerRankService) GetTopMarkers(limit int) []dto.MarkerSimpleWithAddr 
 	markerRanks := make([]dto.MarkerSimpleWithAddr, 0, len(markerIDs))
 	err = s.DB.Select(&markerRanks, query, args...) // args here includes markerIDs for both IN and ORDER BY clauses.
 	if err != nil {
-		log.Printf("Error retrieving markers from DB: %v", err)
+		s.Logger.Error("Error retrieving markers from DB", zap.Error(err))
 		return nil
 	}
 
@@ -219,7 +221,7 @@ func (s *MarkerRankService) RemoveMarkerClick(markerID int) error {
 	// Remove the marker from the "marker_clicks" sorted set
 	err := s.Redis.Core.Client.Do(ctx, s.Redis.Core.Client.B().Zrem().Key("marker_clicks").Member(member).Build()).Error()
 	if err != nil {
-		log.Printf("Error removing marker click: %v", err)
+		s.Logger.Error("Error removing marker click", zap.Error(err))
 		return err
 	}
 
@@ -236,30 +238,37 @@ func (s *MarkerRankService) ResetAndRandomizeClickRanking() {
 		return
 	}
 	if cardResp > 1 {
-		log.Println("marker_clicks already has members. Skipping reset and randomization.")
+		s.Logger.Error("marker_clicks already has members. Skipping reset and randomization.")
 		return
 	}
 
 	markers, err := s.MarkerService.GetAllMarkers()
 	if err != nil {
-		log.Printf("Error fetching markers: %v", err)
+		s.Logger.Error("Error fetching markers", zap.Error(err))
 		return
 	}
 
+	// Filter markers with HasPhoto == true
+	var filteredMarkers []dto.MarkerSimple
+	for _, marker := range markers {
+		if marker.HasPhoto {
+			filteredMarkers = append(filteredMarkers, marker)
+		}
+	}
+
 	// Ensure the slice has markers, and if not, there's nothing more to do
-	if len(markers) == 0 {
-		log.Println("No markers found.")
+	if len(filteredMarkers) == 0 {
 		return
 	}
 
 	// Randomly pick up to marker IDs
-	rand.Shuffle(len(markers), func(i, j int) {
-		markers[i], markers[j] = markers[j], markers[i]
+	rand.Shuffle(len(filteredMarkers), func(i, j int) {
+		filteredMarkers[i], filteredMarkers[j] = filteredMarkers[j], filteredMarkers[i]
 	})
 
-	numMarkers := rand.IntN(100) + 10
+	numMarkers := rand.IntN(100) + 30 // Random number between 30 and 130
 
-	selectedMarkers := markers[:numMarkers]
+	selectedMarkers := filteredMarkers[:numMarkers]
 
 	// atomic
 	s.Redis.Core.Client.Dedicated(func(c rueidis.DedicatedClient) error {
@@ -272,18 +281,18 @@ func (s *MarkerRankService) ResetAndRandomizeClickRanking() {
 		// Re-populate "marker_clicks" with the selected markers
 		zaddCmd := c.B().Zadd().Key("marker_clicks").ScoreMember()
 		for _, marker := range selectedMarkers {
-			score := float64(30 + rand.IntN(6)) // Random score between 30 and 35
+			score := float64(30 + rand.IntN(10))
 			zaddCmd = zaddCmd.ScoreMember(score, strconv.Itoa(marker.MarkerID))
 		}
 		c.Do(ctx, zaddCmd.Build())
 
 		// Execute the transaction
 		if err := c.Do(ctx, c.B().Exec().Build()).Error(); err != nil {
-			log.Printf("Transaction failed: %v", err)
+			s.Logger.Error("Transaction failed", zap.Error(err))
 			return err
 		}
 		return nil
 	})
 
-	log.Printf("%d markers were randomly selected and added to Redis ranking.", numMarkers)
+	s.Logger.Info("Click ranking reset and randomization completed.", zap.Int("numMarkers", numMarkers))
 }

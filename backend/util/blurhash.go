@@ -3,11 +3,15 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
+	"io"
 	"log"
 	"math"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/rwcarlsen/goexif/exif"
 )
@@ -50,38 +54,8 @@ func init() {
 	}
 }
 
-// Helper functions
-
-func maxFloat32(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func absFloat32(a float32) float32 {
-	if a < 0 {
-		return -a
-	}
-	return a
-}
-
-func maxFloat64(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func minFloat64(a, b float64) float64 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// EncodeImage encodes an image.Image into a Blurhash string.
-func EncodeImage(img image.Image, xComponents, yComponents int) string {
+// EncodeBlurHashImage encodes an image.Image into a Blurhash string.
+func EncodeBlurHashImage(img image.Image, xComponents, yComponents int) string {
 	// Attempt to directly use *image.RGBA if possible.
 	rgba, ok := img.(*image.RGBA)
 	if !ok {
@@ -131,11 +105,48 @@ func EncodeImage(img image.Image, xComponents, yComponents int) string {
 	}
 
 	bytesPerRow := width * 3
-	return Encode(xComponents, yComponents, width, height, pixels, bytesPerRow)
+	return EncodeBlurHash(xComponents, yComponents, width, height, pixels, bytesPerRow)
 }
 
-// Decode generates raw RGB pixel data from a Blurhash string.
-func Decode(hash string, width, height, punch int) ([]uint8, error) {
+func EncodeBlurHashImageWithMeta(img image.Image, xComponents, yComponents int, extension string, orientation int) string {
+	blurhash := EncodeBlurHashImage(img, xComponents, yComponents)
+	w := img.Bounds().Dx()
+	h := img.Bounds().Dy()
+	// Format: width|height|orientation|ext|hash
+	return fmt.Sprintf("%d!%d!%d!%s!%s", w, h, orientation, extension, blurhash)
+}
+
+func DecodeBlurHashWithMeta(extendedHash string, punch int) ([]uint8, int, int, int, string, error) {
+	parts := strings.SplitN(extendedHash, "!", 5)
+	if len(parts) < 5 {
+		return nil, 0, 0, 1, "", errors.New("invalid extended blurhash format")
+	}
+
+	width, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return nil, 0, 0, 1, "", err
+	}
+	height, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, 0, 0, 1, "", err
+	}
+	orientation, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return nil, 0, 0, 1, "", err
+	}
+	extension := parts[3]
+	hash := parts[4]
+
+	pixels, err := DecodeBlurHash(hash, width, height, punch)
+	if err != nil {
+		return nil, 0, 0, 1, "", err
+	}
+
+	return pixels, width, height, orientation, extension, nil
+}
+
+// DecodeBlurHash generates raw RGB pixel data from a Blurhash string.
+func DecodeBlurHash(hash string, width, height, punch int) ([]uint8, error) {
 	if !IsValidBlurhash(hash) {
 		return nil, errors.New("invalid blurhash")
 	}
@@ -244,8 +255,8 @@ func Decode(hash string, width, height, punch int) ([]uint8, error) {
 	return pixels, nil
 }
 
-// Encode generates a Blurhash string for the given pixel data.
-func Encode(xComponents, yComponents, width, height int, pixels []uint8, bytesPerRow int) string {
+// EncodeBlurHash generates a Blurhash string for the given pixel data.
+func EncodeBlurHash(xComponents, yComponents, width, height int, pixels []uint8, bytesPerRow int) string {
 	if xComponents < 1 || xComponents > 9 || yComponents < 1 || yComponents > 9 {
 		return ""
 	}
@@ -437,6 +448,53 @@ func IsValidBlurhash(hash string) bool {
 	return len(hash) == expectedLength
 }
 
+func IsValidExtendedBlurhash(hash string) bool {
+	// Check if it follows the extended format: width!height!orientation!extension!blurhash
+	parts := strings.Split(hash, "!")
+	if len(parts) != 5 {
+		return false // Invalid if not exactly 5 parts
+	}
+
+	// Validate width and height
+	width, err := strconv.Atoi(parts[0])
+	if err != nil || width <= 0 {
+		return false
+	}
+
+	height, err := strconv.Atoi(parts[1])
+	if err != nil || height <= 0 {
+		return false
+	}
+
+	extension := parts[2]
+	if len(extension) == 0 {
+		return false // Extension must not be empty
+	}
+
+	// orientation := parts[3]
+	// if len(orientation) == 0 {
+
+	// }
+
+	blurhash := parts[4]
+	return IsValidBlurhash(blurhash)
+}
+
+// Helper functions
+func maxFloat64(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func minFloat64(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func decodeDC(value int) (float64, float64, float64) {
 	r := sRGBToLinearTable[(value>>16)&255]
 	g := sRGBToLinearTable[(value>>8)&255]
@@ -550,6 +608,35 @@ func GetOrientation(file *os.File) int {
 		return 1 // Default orientation
 	}
 
+	orientation, err := orientationTag.Int(0)
+	if err != nil {
+		log.Println("Error reading orientation value:", err)
+		return 1 // Default orientation
+	}
+
+	return orientation
+}
+
+// GetOrientationByReader retrieves the EXIF orientation of the image.
+func GetOrientationByReader(file io.ReadSeeker) int {
+	// Reset file pointer to the beginning
+	file.Seek(0, 0)
+
+	// Decode EXIF data
+	x, err := exif.Decode(file)
+	if err != nil {
+		log.Println("No EXIF data found or error decoding EXIF:", err)
+		return 1 // Default orientation
+	}
+
+	// Retrieve the orientation tag
+	orientationTag, err := x.Get(exif.Orientation)
+	if err != nil {
+		log.Println("No orientation tag found in EXIF:", err)
+		return 1 // Default orientation
+	}
+
+	// Convert orientation to integer
 	orientation, err := orientationTag.Int(0)
 	if err != nil {
 		log.Println("Error reading orientation value:", err)

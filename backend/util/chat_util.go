@@ -5,11 +5,11 @@ import (
 	"math/rand/v2"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 )
 
 type ChatUtil struct {
@@ -90,23 +90,31 @@ var names = []string{
 
 // GenerateKoreanNickname generates random user nickname
 func (c *ChatUtil) GenerateKoreanNickname() string {
-
 	// Select a random
 	adjective := adjectives[rand.IntN(len(adjectives))]
 
 	name := names[rand.IntN(len(names))]
+	randomValue := rand.Uint32()
 
-	// Generate a unique identifier
-	uid := uuid.New().String()
+	// Convert the uint32 to a hex string without padding
+	shortUID := strconv.FormatUint(uint64(randomValue), 16)
 
-	// Use the first 8 characters of the UUID to keep it short
-	shortUID := uid[:8]
+	var builder strings.Builder
+	builder.Grow(len(adjective) + len(name) + len(shortUID) + 4)
+
+	builder.WriteString(adjective)
+	builder.WriteString(" ")
+	builder.WriteString(name)
+	builder.WriteString(" [")
+	builder.WriteString(shortUID)
+	builder.WriteString("]")
 
 	// possibilities for conflict
 	// highly unlikely.
 	// 25 * 9 * 16^8 (UUID first 8 characters)
 	// UUID can conflict by root(16*8) = 65,536
-	return fmt.Sprintf("%s %s [%s]", adjective, name, shortUID)
+	// return fmt.Sprintf("%s %s [%s]", adjective, name, shortUID)
+	return builder.String()
 }
 
 func (cu *ChatUtil) GetUserIP(c *fiber.Ctx) string {

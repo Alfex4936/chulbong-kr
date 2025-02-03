@@ -17,6 +17,7 @@ import (
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/gammazero/workerpool"
 	"github.com/gofiber/fiber/v2"
+	"github.com/rs/xid"
 
 	gocache "github.com/eko/gocache/lib/v4/cache"
 
@@ -176,6 +177,7 @@ type MarkerManageService struct {
 	// ZincSearchService     *ZincSearchService
 	BleveSearchService *BleveSearchService
 	RedisService       *RedisService
+	ChatService        *ChatService
 
 	MapUtil           *util.MapUtil
 	BadWordUtil       *util.BadWordUtil
@@ -207,6 +209,7 @@ type MarkerManageServiceParams struct {
 	// ZincSearchService     *ZincSearchService
 	BleveSearchService *BleveSearchService
 	RedisService       *RedisService
+	ChatService        *ChatService
 	MapUtil            *util.MapUtil
 	BadWordUtil        *util.BadWordUtil
 	LocalCacheStorage  *ristretto_store.RistrettoStore
@@ -231,12 +234,13 @@ func NewMarkerManageService(p MarkerManageServiceParams) *MarkerManageService {
 		// ZincSearchService:     p.ZincSearchService,
 		BleveSearchService: p.BleveSearchService,
 		RedisService:       p.RedisService,
+		ChatService:        p.ChatService,
 		MapUtil:            p.MapUtil,
 		BadWordUtil:        p.BadWordUtil,
 		Logger:             p.Logger,
 
 		byteCache:  byteCache,
-		workerPool: workerpool.New(15),
+		workerPool: workerpool.New(30),
 
 		GetMarkerStmt:             getMarkerStmt,
 		GetAllPhotosForMarkerStmt: getAllPhotosForMarkerStmt,
@@ -465,7 +469,7 @@ func (s *MarkerManageService) CheckMarkerValidity(latitude, longitude float64, d
 }
 
 // TODO: _, err = tx.Exec("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
-func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
+func (s *MarkerManageService) CreateMarkerWithPhotos(ctx context.Context, markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
 	s.ClearCache()
 
 	// Begin a transaction for database operations
@@ -489,6 +493,10 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 	markerID, _ := res.LastInsertId()
 	folder := fmt.Sprintf("markers/%d", markerID)
 
+	// Create a cancellable context for the worker tasks.
+	taskCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Channel to collect errors
 	errorChan := make(chan error, 1) // Buffer of 1 to capture the first error
 
@@ -503,16 +511,20 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 
 	// Submit the tasks to the worker pool
 	for _, file := range files {
-		file := file // Ensure file is correctly captured in the closure
+		file := file // capture loop variable
 
 		s.workerPool.Submit(func() {
 			defer wg.Done()
 
-			// Upload the file to S3
-			fileURL, thumbnailURL, err := s.S3Service.UploadFileToS3(folder, file, true)
+			// Use a per-task timeout to prevent hanging tasks.
+			perTaskCtx, taskCancel := context.WithTimeout(taskCtx, 15*time.Second)
+			defer taskCancel()
+
+			// Upload the file to S3 using a context-aware method.
+			fileURL, thumbnailURL, err := s.S3Service.UploadFileToS3WithContext(perTaskCtx, folder, file, true)
 			if err != nil {
 				select {
-				case errorChan <- err:
+				case errorChan <- fmt.Errorf("S3 upload failed: %w", err):
 				default:
 				}
 				return
@@ -612,6 +624,26 @@ func (s *MarkerManageService) CreateMarkerWithPhotos(markerDto *dto.MarkerReques
 
 		if userID != 1 { // not for admin
 			util.SendSlackNewMarkerNotification(markerID, address, markerDto.Description, latitude, longitude, pics)
+		}
+
+		regionCode := getRegionCode(standardizedAddress)
+		if regionCode == "" {
+			s.Logger.Error("Failed to determine region code", zap.Int64("markerID", markerID), zap.String("address", standardizedAddress))
+		} else {
+			message := dto.BroadcastMessage{
+				Timestamp:    time.Now().UnixMilli(),
+				UID:          xid.New().String(),
+				Message:      fmt.Sprintf("새로운 철봉 (%d): %s", markerID, standardizedAddress),
+				UserID:       "1",
+				UserNickname: "k-pullup",
+				RoomID:       regionCode,
+			}
+
+			// Call SaveMessageToRedis
+			err := s.ChatService.SaveMessageToRedis(context.Background(), message)
+			if err != nil {
+				s.Logger.Error("Failed to save message to Redis", zap.Error(err))
+			}
 		}
 
 		// userIDstr := strconv.Itoa(userID)
@@ -1024,4 +1056,36 @@ func standardizeAddress(address string) string {
 		}
 	}
 	return strings.Join(addressParts, " ")
+}
+
+type Region struct {
+	Name string
+	Code string
+}
+
+var regions = []Region{
+	{Name: "제주특별자치도", Code: "jj"},
+	{Name: "전라남도", Code: "jn"},
+	{Name: "전라북도", Code: "jb"},
+	{Name: "경상남도", Code: "gn"},
+	{Name: "경상북도", Code: "gb"},
+	{Name: "대구광역시", Code: "dg"},
+	{Name: "울산광역시", Code: "us"},
+	{Name: "충청북도", Code: "cb"},
+	{Name: "충청남도", Code: "cn"},
+	{Name: "대전광역시", Code: "dj"},
+	{Name: "강원특별자치도", Code: "gw"},
+	{Name: "경기도", Code: "gg"},
+	{Name: "서울특별시", Code: "so"},
+	{Name: "인천광역시", Code: "ic"},
+	{Name: "부산광역시", Code: "bs"},
+}
+
+func getRegionCode(address string) string {
+	for _, region := range regions {
+		if strings.HasPrefix(address, region.Name) {
+			return region.Code
+		}
+	}
+	return ""
 }

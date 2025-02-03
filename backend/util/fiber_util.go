@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -120,11 +121,11 @@ func JsonBodyParserStrict(c *fiber.Ctx, out interface{}) error {
 func getJSONTags(obj interface{}) (map[string]struct{}, error) {
 	t := reflect.TypeOf(obj)
 	if t.Kind() != reflect.Ptr {
-		return nil, fmt.Errorf("expected pointer to struct")
+		return nil, errors.New("expected pointer to struct")
 	}
 	t = t.Elem()
 	if t.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("expected pointer to struct")
+		return nil, errors.New("expected pointer to struct")
 	}
 
 	tags := make(map[string]struct{})

@@ -1,39 +1,44 @@
 package service
 
 import (
+	"bytes"
 	"database/sql"
+	"errors"
 	"fmt"
+	"image"
+	"io"
 	"mime/multipart"
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
+	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
 const (
-	insertStoryQuery = "INSERT INTO Stories (MarkerID, UserID, Caption, PhotoURL, ExpiresAt) VALUES (?, ?, ?, ?, ?)"
+	insertStoryQuery = "INSERT INTO Stories (MarkerID, UserID, Caption, PhotoURL, Blurhash, Address, ExpiresAt) VALUES (?, ?, ?, ?, ?, ?, ?)"
 
 	selectStoriesQuery = `
-        SELECT 
-            s.StoryID, 
-            s.MarkerID, 
-            s.UserID, 
-            s.Caption, 
-            s.PhotoURL, 
-            s.CreatedAt, 
-            s.ExpiresAt, 
-            u.Username,
-            COALESCE(SUM(CASE WHEN r.ReactionType = 'thumbsup' THEN 1 ELSE 0 END), 0) AS ThumbsUp,
-            COALESCE(SUM(CASE WHEN r.ReactionType = 'thumbsdown' THEN 1 ELSE 0 END), 0) AS ThumbsDown
-        FROM Stories s
-        JOIN Users u ON s.UserID = u.UserID
-        LEFT JOIN Reactions r ON s.StoryID = r.StoryID
-        WHERE s.MarkerID = ? AND s.ExpiresAt > ?
-        GROUP BY s.StoryID
-        ORDER BY s.CreatedAt DESC
-        LIMIT ? OFFSET ?
+SELECT 
+	s.StoryID, 
+	s.MarkerID, 
+	s.UserID, 
+	s.Caption, 
+	s.PhotoURL, 
+	s.CreatedAt, 
+	s.ExpiresAt, 
+	s.Address, 
+	u.Username,
+	COALESCE(SUM(CASE WHEN r.ReactionType = 'thumbsup' THEN 1 ELSE 0 END), 0) AS ThumbsUp,
+	COALESCE(SUM(CASE WHEN r.ReactionType = 'thumbsdown' THEN 1 ELSE 0 END), 0) AS ThumbsDown
+FROM Stories s
+JOIN Users u ON s.UserID = u.UserID
+LEFT JOIN Reactions r ON s.StoryID = r.StoryID
+WHERE s.MarkerID = ? AND s.ExpiresAt > ?
+GROUP BY s.StoryID
+ORDER BY s.CreatedAt DESC
     `
 
 	selectUserIdFromStoriesQuery = "SELECT MarkerID, UserID FROM Stories WHERE StoryID = ?"
@@ -58,7 +63,7 @@ const (
     `
 
 	selectAllStoriesQuery = `
-        SELECT s.StoryID, s.MarkerID, s.UserID, s.Caption, s.PhotoURL, s.CreatedAt, s.ExpiresAt, u.Username
+        SELECT s.StoryID, s.MarkerID, s.UserID, s.Caption, s.PhotoURL, s.Blurhash, s.Address, s.CreatedAt, s.ExpiresAt, u.Username
         FROM Stories s
         JOIN Users u ON s.UserID = u.UserID
         WHERE s.ExpiresAt > ?
@@ -67,6 +72,9 @@ const (
     `
 
 	getMarkerIDFromStoryIDQuery = "SELECT MarkerID FROM Stories WHERE StoryID = ?"
+	checkExistingStoryIdQuery   = "SELECT EXISTS(SELECT 1 FROM Stories WHERE StoryID = ?)"
+
+	getMarkerAddressQuery = "SELECT Address FROM Markers WHERE MarkerID = ?"
 )
 
 type StoryService struct {
@@ -92,43 +100,67 @@ func NewMarkerStoryService(
 }
 
 func (s *StoryService) AddStory(markerID int, userID int, caption string, photo *multipart.FileHeader) (*dto.StoryResponse, error) {
-	// Check if the user already has an active story for this marker
-	var existingStoryID int
-	err := s.DB.Get(&existingStoryID, checkExistingStoryQuery, markerID, userID, time.Now())
-	if err == nil {
-		// User already has an active story
-		return nil, ErrAlreadyStoryPost
-	} else if err != sql.ErrNoRows {
-		// An unexpected error occurred
+	// Check Marker existence and get Address
+	var address string
+	err := s.DB.Get(&address, getMarkerAddressQuery, markerID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("marker does not exist")
+		}
 		return nil, err
 	}
-	// No existing story, proceed to insert a new one
 
-	// Begin a transaction
-	tx, err := s.DB.Beginx()
+	// Check if user already has active story
+	var existingStoryID int
+	err = s.DB.Get(&existingStoryID, checkExistingStoryQuery, markerID, userID, time.Now())
+	if err == nil {
+		return nil, ErrAlreadyStoryPost
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	// Handle file reading
+	file, err := photo.Open()
 	if err != nil {
 		return nil, err
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(fileBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: goroutine?
+	blurhashString := util.EncodeBlurHashImage(img, 6, 5)
+
+	// Upload the photo
+	folder := fmt.Sprintf("stories/%d", markerID)
+	photoURL, _, err := s.S3Service.UploadFileToS3(folder, photo, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// Begin transaction and insert story
+	tx, txErr := s.DB.Beginx()
+	if txErr != nil {
+		return nil, txErr
 	}
 	defer func() {
 		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
+			_ = tx.Rollback()
+		} else if commitErr := tx.Commit(); commitErr != nil {
+			err = commitErr
 		}
 	}()
 
-	// Upload the photo to S3
-	folder := fmt.Sprintf("stories/%d", markerID)
-	photoURL, _, err := s.S3Service.UploadFileToS3(folder, photo, false)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set the expiration time (1 day like Instagram)
 	expiresAt := time.Now().Add(24 * time.Hour)
-
-	// Insert the story into the database
-	res, err := tx.Exec(insertStoryQuery, markerID, userID, caption, photoURL, expiresAt)
+	res, err := tx.Exec(insertStoryQuery, markerID, userID, caption, photoURL, blurhashString, address, expiresAt)
 	if err != nil {
 		return nil, err
 	}
@@ -138,29 +170,28 @@ func (s *StoryService) AddStory(markerID int, userID int, caption string, photo 
 		return nil, err
 	}
 
-	// Invalidate cache
-	s.Redis.ResetAllCache(fmt.Sprintf("stories:%d:*", markerID))
-	s.Redis.ResetAllCache("stories:all:*")
-
-	// Fetch username for response
 	var username string
 	err = s.DB.Get(&username, getUsernameByIdQuery, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	storyResponse := &dto.StoryResponse{
+	// Invalidate caches
+	s.Redis.ResetAllCache(fmt.Sprintf("stories:%d:*", markerID))
+	s.Redis.ResetAllCache("stories:all:*")
+
+	return &dto.StoryResponse{
 		StoryID:   int(storyID),
 		MarkerID:  markerID,
 		UserID:    userID,
 		Username:  username,
 		Caption:   caption,
 		PhotoURL:  photoURL,
+		Blurhash:  &blurhashString,
 		CreatedAt: time.Now(),
 		ExpiresAt: expiresAt,
-	}
-
-	return storyResponse, nil
+		Address:   address,
+	}, nil
 }
 
 func (s *StoryService) GetAllStories(page int, pageSize int) ([]dto.StoryResponse, error) {
@@ -181,42 +212,74 @@ func (s *StoryService) GetAllStories(page int, pageSize int) ([]dto.StoryRespons
 	}
 
 	// Cache the result
-	s.Redis.SetCacheEntry(cacheKey, stories, time.Minute*10) // Cache for10 minutes
+	s.Redis.SetCacheEntry(cacheKey, stories, time.Minute*10) // Cache for 10 minutes
 
 	return stories, nil
 }
 
-func (s *StoryService) GetStories(markerID int, page int, pageSize int) ([]dto.StoryResponse, error) {
+func (s *StoryService) GetStories(markerID int, offset int, pageSize int) ([]dto.StoryResponse, error) {
 	// Check cache first
-	cacheKey := fmt.Sprintf("stories:%d:page:%d", markerID, page)
+	cacheKey := fmt.Sprintf("stories:%d:offset:%d", markerID, offset)
 	var stories []dto.StoryResponse
 	err := s.Redis.GetCacheEntry(cacheKey, &stories)
 	if err == nil {
 		return stories, nil
 	}
 
-	offset := (page - 1) * pageSize
+	// Fetch stories with pagination
+	args := []interface{}{markerID, time.Now().UTC()}
 
-	stories = []dto.StoryResponse{}
-	// maybe time.Now().UTC()?
-	err = s.DB.Select(&stories, selectStoriesQuery, markerID, time.Now(), pageSize, offset)
+	err = s.DB.Select(&stories, selectStoriesQuery, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	// Cache the result
-	s.Redis.SetCacheEntry(cacheKey, stories, time.Hour)
+	// Cache the result with expiration based on the earliest ExpiresAt
+	if len(stories) > 0 {
+		earliestExpiresAt := stories[0].ExpiresAt
+		for _, story := range stories {
+			if story.ExpiresAt.Before(earliestExpiresAt) {
+				earliestExpiresAt = story.ExpiresAt
+			}
+		}
+		duration := time.Until(earliestExpiresAt)
+		if duration > 0 {
+			s.Redis.SetCacheEntry(cacheKey, stories, duration)
+		}
+	} else {
+		// Cache empty result for a short duration to prevent cache stampede
+		s.Redis.SetCacheEntry(cacheKey, stories, time.Minute*5)
+	}
 
 	return stories, nil
 }
 
 func (s *StoryService) DeleteStory(markerID int, storyID int, userID int, userRole string) error {
-	// Step 1: Check if the story exists
+	// Begin a transaction
+	tx, txErr := s.DB.Beginx()
+	if txErr != nil {
+		return txErr
+	}
+	var err error
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				s.Logger.Error("Failed to rollback transaction", zap.Error(rollbackErr))
+			}
+		} else {
+			if commitErr := tx.Commit(); commitErr != nil {
+				s.Logger.Error("Failed to commit transaction", zap.Error(commitErr))
+				err = commitErr
+			}
+		}
+	}()
+
+	// Step 1: Check if the story exists and get details
 	var dbMarkerID int
 	var ownerID int
-	err := s.DB.QueryRow(selectUserIdFromStoriesQuery, storyID).Scan(&dbMarkerID, &ownerID)
+	err = tx.QueryRow(selectUserIdFromStoriesQuery, storyID).Scan(&dbMarkerID, &ownerID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ErrStoryNotFound // Story does not exist
 		}
 		return err // Some other error occurred
@@ -228,23 +291,9 @@ func (s *StoryService) DeleteStory(markerID int, storyID int, userID int, userRo
 	}
 
 	// Step 3: Check user permissions
-	// Admins can delete any story, but users can only delete their own stories
 	if userRole != "admin" && ownerID != userID {
 		return ErrUnauthorized
 	}
-
-	// Begin a transaction
-	tx, err := s.DB.Beginx()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
 
 	// Get the photo URL to delete from S3
 	var photoURL string
@@ -259,10 +308,16 @@ func (s *StoryService) DeleteStory(markerID int, storyID int, userID int, userRo
 		return err
 	}
 
+	// Commit the transaction before deleting from S3
+	if commitErr := tx.Commit(); commitErr != nil {
+		s.Logger.Error("Failed to commit transaction", zap.Error(commitErr))
+		return commitErr
+	}
+
 	// Delete the photo from S3
-	err = s.S3Service.DeleteDataFromS3(photoURL)
-	if err != nil {
-		s.Logger.Error("Failed to delete photo from S3", zap.Error(err))
+	if deleteErr := s.S3Service.DeleteDataFromS3(photoURL); deleteErr != nil {
+		s.Logger.Error("Failed to delete photo from S3", zap.Error(deleteErr))
+		// Depending on requirements, we might return an error or just log it
 	}
 
 	// Invalidate cache
@@ -273,15 +328,34 @@ func (s *StoryService) DeleteStory(markerID int, storyID int, userID int, userRo
 }
 
 func (s *StoryService) AddReaction(storyID int, userID int, reactionType string) error {
+	// Begin a transaction
+	tx, txErr := s.DB.Beginx()
+	if txErr != nil {
+		return txErr
+	}
+	var err error
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				s.Logger.Error("Failed to rollback transaction", zap.Error(rollbackErr))
+			}
+		} else {
+			if commitErr := tx.Commit(); commitErr != nil {
+				s.Logger.Error("Failed to commit transaction", zap.Error(commitErr))
+				err = commitErr
+			}
+		}
+	}()
+
 	// Insert or update the reaction
-	_, err := s.DB.Exec(addReactionToStoryQuery, storyID, userID, reactionType, reactionType)
+	_, err = tx.Exec(addReactionToStoryQuery, storyID, userID, reactionType, reactionType)
 	if err != nil {
 		return err
 	}
 
 	// Fetch the markerID using storyID
 	var markerID int
-	err = s.DB.Get(&markerID, getMarkerIDFromStoryIDQuery, storyID)
+	err = tx.Get(&markerID, getMarkerIDFromStoryIDQuery, storyID)
 	if err != nil {
 		return err
 	}
@@ -293,14 +367,33 @@ func (s *StoryService) AddReaction(storyID int, userID int, reactionType string)
 }
 
 func (s *StoryService) RemoveReaction(storyID int, userID int) error {
-	_, err := s.DB.Exec(deleteReactionFromStoryQuery, storyID, userID)
+	// Begin a transaction
+	tx, txErr := s.DB.Beginx()
+	if txErr != nil {
+		return txErr
+	}
+	var err error
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				s.Logger.Error("Failed to rollback transaction", zap.Error(rollbackErr))
+			}
+		} else {
+			if commitErr := tx.Commit(); commitErr != nil {
+				s.Logger.Error("Failed to commit transaction", zap.Error(commitErr))
+				err = commitErr
+			}
+		}
+	}()
+
+	_, err = tx.Exec(deleteReactionFromStoryQuery, storyID, userID)
 	if err != nil {
 		return err
 	}
 
 	// Fetch the markerID using storyID
 	var markerID int
-	err = s.DB.Get(&markerID, getMarkerIDFromStoryIDQuery, storyID)
+	err = tx.Get(&markerID, getMarkerIDFromStoryIDQuery, storyID)
 	if err != nil {
 		return err
 	}
@@ -314,7 +407,7 @@ func (s *StoryService) RemoveReaction(storyID int, userID int) error {
 func (s *StoryService) ReportStory(storyID int, userID int, reason string) error {
 	// Check if the story exists
 	var exists bool
-	err := s.DB.Get(&exists, "SELECT EXISTS(SELECT 1 FROM Stories WHERE StoryID = ?)", storyID)
+	err := s.DB.Get(&exists, checkExistingStoryIdQuery, storyID)
 	if err != nil {
 		return err
 	}

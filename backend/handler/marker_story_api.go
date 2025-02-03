@@ -70,13 +70,16 @@ func (h *MarkerHandler) HandleGetStories(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	pageSize, err := strconv.Atoi(c.Query("pageSize", "10"))
-	if err != nil {
-		page = 10
+	pageSize, err := strconv.Atoi(c.Query("pageSize", "30"))
+	if err != nil || pageSize < 1 {
+		pageSize = 30
 	}
 
+	// Calculate offset for pagination
+	offset := (page - 1) * pageSize
+
 	// Call the service to get stories
-	stories, err := h.MarkerFacadeService.StoryService.GetStories(markerID, page, pageSize)
+	stories, err := h.MarkerFacadeService.StoryService.GetStories(markerID, offset, pageSize)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get stories"})
 	}
@@ -100,7 +103,7 @@ func (h *MarkerHandler) HandleGetAllStories(c *fiber.Ctx) error {
 	// Call the service to get all stories
 	stories, err := h.MarkerFacadeService.StoryService.GetAllStories(page, pageSize)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get stories"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get stories" + err.Error()})
 	}
 
 	return c.JSON(stories)

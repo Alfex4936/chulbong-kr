@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"math"
 	"mime/multipart"
 	"os"
@@ -291,6 +292,9 @@ func (h *MarkerHandler) HandleGetAllMarkersWithAddr(c *fiber.Ctx) error {
 }
 
 func (h *MarkerHandler) HandleCreateMarkerWithPhotos(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	// Parse the multipart form
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -315,7 +319,7 @@ func (h *MarkerHandler) HandleCreateMarkerWithPhotos(c *fiber.Ctx) error {
 	// no errors
 	userID := c.Locals("userID").(int)
 
-	marker, err := h.MarkerFacadeService.CreateMarkerWithPhotos(&dto.MarkerRequest{
+	marker, err := h.MarkerFacadeService.CreateMarkerWithPhotos(ctx, &dto.MarkerRequest{
 		Latitude:    latitude,
 		Longitude:   longitude,
 		Description: description,
@@ -721,17 +725,17 @@ func GetLatLngFromForm(form *multipart.Form) (float64, float64, error) {
 	latStr, latOk := form.Value["latitude"]
 	longStr, longOk := form.Value["longitude"]
 	if !latOk || !longOk || len(latStr[0]) == 0 || len(longStr[0]) == 0 {
-		return 0, 0, fmt.Errorf("latitude and longitude are required")
+		return 0, 0, errors.New("latitude and longitude are required")
 	}
 
 	latitude, err := strconv.ParseFloat(latStr[0], 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid latitude")
+		return 0, 0, errors.New("invalid latitude")
 	}
 
 	longitude, err := strconv.ParseFloat(longStr[0], 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid longitude")
+		return 0, 0, errors.New("invalid longitude")
 	}
 
 	return latitude, longitude, nil
@@ -744,21 +748,21 @@ func GetLatLong(c *fiber.Ctx) (float64, float64, error) {
 
 	lat, err := strconv.ParseFloat(latParam, 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid latitude")
+		return 0, 0, errors.New("invalid latitude")
 	}
 
 	long, err := strconv.ParseFloat(longParam, 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid longitude")
+		return 0, 0, errors.New("invalid longitude")
 	}
 
 	// Korea rough check
 	if lat < 32 || lat > 39 {
-		return 0, 0, fmt.Errorf("invalid latitude (Must be between 32 and 39)")
+		return 0, 0, errors.New("invalid latitude (Must be between 32 and 39)")
 	}
 
 	if long < 123 || long > 133 {
-		return 0, 0, fmt.Errorf("invalid longitude (Must be between 123 and 133)")
+		return 0, 0, errors.New("invalid longitude (Must be between 123 and 133)")
 	}
 
 	return lat, long, nil

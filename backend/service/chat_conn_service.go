@@ -1,19 +1,24 @@
 package service
 
 import (
+	"bytes"
+	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/rs/xid"
+	"github.com/vmihailenco/msgpack/v5"
 
 	sonic "github.com/bytedance/sonic"
 	"github.com/gofiber/contrib/websocket"
-	"github.com/google/uuid"
 	"github.com/redis/rueidis"
 )
 
@@ -23,8 +28,12 @@ import (
 // 	ActiveSubscriptions.Store(key, struct{}{}) // marker_%s
 // }
 
+const (
+	MAX_MESSAGE_RETAIN = 10 * 24 // days*hours
+)
+
 // SaveConnection stores a WebSocket connection associated with a markerID in app memory
-func (s *ChatService) SaveConnection(markerID, clientID, clientNickname string, conn *websocket.Conn) (bool, error) {
+func (s *ChatService) SaveConnection(markerID, clientID, clientNickname string, conn *websocket.Conn) (*ChulbongConn, bool, error) {
 	// s.Logger.Info("Saving connection", zap.String("markerID", markerID), zap.String("clientID", clientID))
 
 	// Get or create the inner map for the room
@@ -33,13 +42,13 @@ func (s *ChatService) SaveConnection(markerID, clientID, clientNickname string, 
 	})
 
 	// Check if the clientID already exists in the inner map
-	_, loaded := roomConns.LoadOrStore(clientID, func() *ChulbongConn {
+	c, loaded := roomConns.LoadOrStore(clientID, func() *ChulbongConn {
 		// Create the new connection object
 		newConn := &ChulbongConn{
 			Socket:       conn,
 			UserID:       clientID,
 			Nickname:     clientNickname,
-			Send:         make(chan []byte, 10), // Buffered channel
+			Send:         make(chan []byte, 256), // Buffered channel
 			InActiveChan: make(chan struct{}),
 		}
 		newConn.UpdateLastSeen()
@@ -52,11 +61,11 @@ func (s *ChatService) SaveConnection(markerID, clientID, clientNickname string, 
 
 	if loaded {
 		// Connection for clientID already exists, avoid adding a duplicate
-		return false, fmt.Errorf("duplicate connection")
+		return nil, false, errors.New("duplicate connection")
 	}
 
 	// No duplicate found, connection has been added successfully
-	return true, nil
+	return c, true, nil
 }
 
 // REDIS
@@ -64,7 +73,7 @@ func (s *ChatService) SaveConnection(markerID, clientID, clientNickname string, 
 func (s *ChatService) AddConnectionRoomToRedis(markerID, userID, username string) error {
 	ctx := context.Background()
 	key := fmt.Sprintf("room:%s:connections", markerID)
-	connID := uuid.New().String() // unique identifier for the connection
+	connID := xid.New().String() // unique identifier for the connection
 
 	connInfo := dto.ConnectionInfo{
 		UserID:   userID,
@@ -132,14 +141,133 @@ func (s *ChatService) UpdateLastPing(markerID, clientID string) {
 	}
 }
 
+func (s *ChatService) GetRecentMessages(ctx context.Context, roomID string) ([]dto.BroadcastMessage, error) {
+	key := fmt.Sprintf("chat:room:%s:messages", roomID)
+	now := time.Now().UnixMilli()
+	sevenDaysAgo := now - MAX_MESSAGE_RETAIN*60*60*1000 // 7 days in milliseconds
+
+	min := strconv.FormatInt(sevenDaysAgo, 10)
+	max := strconv.FormatInt(now, 10)
+
+	// Build the ZRANGEBYSCORE command
+	zrangeCmd := s.Redis.Core.Client.B().Zrangebyscore().Key(key).Min(min).Max(max).Build()
+
+	// Execute the command and get the result as an array
+	redisResult, err := s.Redis.Core.Client.Do(ctx, zrangeCmd).ToArray()
+	if err != nil {
+		return nil, err
+	}
+
+	// Deserialize messages
+	messages := make([]dto.BroadcastMessage, len(redisResult))
+	for i, msgRedisMessage := range redisResult {
+		// Get the message data as []byte
+		msgData, err := msgRedisMessage.AsBytes()
+		if err != nil {
+			return nil, err
+		}
+
+		var msg dto.BroadcastMessage
+		// Decode the message
+		err = msgpack.Unmarshal(msgData, &msg)
+		if err != nil {
+			return nil, err
+		}
+
+		messages[i] = msg
+	}
+
+	// Deserialize messages
+	// messages := make([]dto.BroadcastMessage, len(result))
+	// for i, msgData := range result {
+	// 	compressedMsg := []byte(msgData)
+	// 	decompressedMsg, err := decompress(compressedMsg)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	var msg dto.BroadcastMessage
+	// 	if err := sonic.Unmarshal(decompressedMsg, &msg); err != nil {
+	// 		return nil, err
+	// 	}
+	// 	messages[i] = msg
+	// }
+
+	return messages, nil
+}
+
+func (s *ChatService) CleanupOldMessages(ctx context.Context, roomID string) error {
+	key := fmt.Sprintf("chat:room:%s:messages", roomID)
+	sevenDaysAgo := time.Now().Add(-MAX_MESSAGE_RETAIN * time.Hour).UnixMilli()
+
+	// Build the ZREMRANGEBYSCORE command
+	zremCmd := s.Redis.Core.Client.B().Zremrangebyscore().Key(key).Min("0").Max(strconv.FormatInt(sevenDaysAgo, 10)).Build()
+
+	// Execute the command
+	return s.Redis.Core.Client.Do(ctx, zremCmd).Error()
+}
+
+func (s *ChatService) CleanupAllRooms(ctx context.Context) {
+	s.WebSocketManager.rooms.Range(func(roomID string, _ *xsync.MapOf[string, *ChulbongConn]) bool {
+		_ = s.CleanupOldMessages(ctx, roomID)
+		return true
+	})
+}
+
+func (s *ChatService) SaveMessageToRedis(ctx context.Context, message dto.BroadcastMessage) error {
+	key := fmt.Sprintf("chat:room:%s:messages", message.RoomID)
+	score := float64(message.Timestamp)
+
+	// WAY: sonic json
+	// Serialize the message using Sonic
+	// msgJSON, err := sonic.ConfigFastest.Marshal(message)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// WAY: msgpack
+	// Create a buffer
+	var buf bytes.Buffer
+
+	// Create an encoder and set it to use array encoding
+	enc := msgpack.NewEncoder(&buf)
+	enc.UseArrayEncodedStructs(true)
+
+	// Serialize the message using MessagePack
+	if err := enc.Encode(message); err != nil {
+		return err
+	}
+	msgPackData := buf.Bytes()
+
+	// WAY: compress
+	// Compress the message
+	// compressedMsg, err := compress(msgJSON)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// Build the ZADD command
+	zaddCmd := s.Redis.Core.Client.B().Zadd().Key(key).ScoreMember().
+		ScoreMember(score, rueidis.BinaryString(msgPackData)).Build()
+
+	// Execute the command
+	return s.Redis.Core.Client.Do(ctx, zaddCmd).Error()
+}
+
+// TODO: call this before adding a new message to limit the number of messages in a room
+func (s *ChatService) EnforceMaxMessagesPerRoom(ctx context.Context, roomID string, maxMessages int64) error {
+	key := fmt.Sprintf("chat:room:%s:messages", roomID)
+	// Remove messages exceeding maxMessages
+	return s.Redis.Core.Client.Do(ctx,
+		s.Redis.Core.Client.B().Zremrangebyrank().Key(key).Start(0).Stop(-maxMessages-1).Build(),
+	).Error()
+}
+
 func (s *RoomConnectionManager) StartConnectionChecker() {
 	ticker := time.NewTicker(30 * time.Minute)
-	go func() {
-		defer ticker.Stop()
-		for range ticker.C {
-			s.CheckConnections()
-		}
-	}()
+	defer ticker.Stop()
+	for range ticker.C {
+		s.CheckConnections()
+	}
 }
 
 // CheckConnections iterates over all connections and sends a ping message.
@@ -197,7 +325,7 @@ func (s *ChatService) RemoveWsFromRoom(markerID, clientID string) (string, error
 			return clientNickname, nil
 		}
 	}
-	return "", fmt.Errorf("connection not found")
+	return "", errors.New("connection not found")
 }
 
 // KickUserFromRoom closes the connection for a user in a specified room.
@@ -331,4 +459,30 @@ func (conn *ChulbongConn) writePump() {
 			}
 		}
 	}
+}
+
+func compress(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	zw := zlib.NewWriter(&buf)
+	if _, err := zw.Write(data); err != nil {
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func decompress(data []byte) ([]byte, error) {
+	buf := bytes.NewBuffer(data)
+	zr, err := zlib.NewReader(buf)
+	if err != nil {
+		return nil, err
+	}
+	defer zr.Close()
+	decompressedData, err := io.ReadAll(zr)
+	if err != nil {
+		return nil, err
+	}
+	return decompressedData, nil
 }

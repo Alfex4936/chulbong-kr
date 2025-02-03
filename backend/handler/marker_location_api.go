@@ -242,7 +242,7 @@ func (h *MarkerHandler) HandleSaveOfflineMap2(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	pdf, err := h.MarkerFacadeService.SaveOfflineMap2(lat, lng)
+	pdf, _, err := h.MarkerFacadeService.SaveOfflineMap2(lat, lng)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create a PDF"})
 	}
@@ -250,5 +250,11 @@ func (h *MarkerHandler) HandleSaveOfflineMap2(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{"error": "no content for this location"})
 	}
 
-	return c.Download(pdf)
+	// Use Fiber's SendFile method
+	// err = c.SendFile(pdf, true) // 'true' to enable compression
+	// if err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to send file"})
+	// }
+	// return nil
+	return c.Download(pdf) // sendfile systemcall
 }

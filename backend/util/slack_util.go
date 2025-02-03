@@ -144,7 +144,7 @@ func SendSlackNewMarkerNotification(markerID int64, address, description string,
 
 	// Body section with details
 	bodyText := fmt.Sprintf(
-		"*주소:* %s\n*설명:* %s\n*위치:* %.6f, %.6f\n*링크:* %s%s*등록 시각:* %s",
+		"*주소:* %s\n*설명:* %s\n*위치:* %.6f, %.6f\n*링크:* %s%s\n*등록 시각:* %s",
 		naverLink, description, latitude, longitude, markerLink, picsText, currentTime)
 	bodySection := slack.NewSectionBlock(
 		slack.NewTextBlockObject("mrkdwn", bodyText, false, false),

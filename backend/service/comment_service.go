@@ -6,6 +6,7 @@ import (
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/model"
+	"github.com/Alfex4936/chulbong-kr/util"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -95,6 +96,10 @@ func (s *MarkerCommentService) CreateComment(markerID, userID int, userName, com
 		return nil, err
 	}
 	comment.CommentID = int(lastID)
+
+	if userID != 1 { // Send new comment to slack only if not admin
+		go util.SendSlackNewComment(markerID, userID, userName, commentText)
+	}
 
 	return &comment, nil
 }

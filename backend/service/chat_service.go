@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/jmoiron/sqlx"
+	"github.com/rs/xid"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
@@ -22,7 +24,6 @@ import (
 	"github.com/zeebo/xxh3"
 
 	sonic "github.com/bytedance/sonic"
-	"github.com/google/uuid"
 )
 
 type RemovalTask struct {
@@ -111,14 +112,7 @@ func NewRoomConnectionManager(lifecycle fx.Lifecycle) *RoomConnectionManager {
 
 	lifecycle.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			go func() {
-				ticker := time.NewTicker(30 * time.Minute)
-				defer ticker.Stop()
-
-				for range ticker.C {
-					manager.StartConnectionChecker()
-				}
-			}()
+			go manager.StartConnectionChecker()
 			return nil
 		},
 		OnStop: func(context.Context) error {
@@ -203,6 +197,26 @@ func (s *ChatService) BroadcastMessageToRoom(markerID, message, senderNickname, 
 	return nil
 }
 
+// BroadcastMessageToRoom sends a WebSocket message to all users in a specific room
+func (s *ChatService) BroadcastMessageToRoomByDTO(broadcastMsg dto.BroadcastMessage) error {
+	roomConns, ok := s.WebSocketManager.rooms.Load(broadcastMsg.RoomID)
+	if !ok {
+		return nil // No connections in room
+	}
+
+	payload := changePayloadToByte(broadcastMsg)
+	roomConns.Range(func(clientID string, conn *ChulbongConn) bool {
+		select {
+		case conn.Send <- payload:
+			// Message enqueued to be sent by writePump goroutine
+		default:
+			// Handle full send channel if necessary
+		}
+		return true
+	})
+	return nil
+}
+
 func (s *ChatService) BroadcastRawMessageToRoom(markerID, message string) {
 	roomConns, ok := s.WebSocketManager.rooms.Load(markerID)
 	if !ok {
@@ -225,7 +239,7 @@ func (s *ChatService) BroadcastRawMessageToRoom(markerID, message string) {
 // BroadcastMessage sends a WebSocket message to all users in all rooms
 func (s *ChatService) BroadcastMessage(message []byte, userID, roomID, userNickname string) {
 	broadcastMsg := dto.BroadcastMessage{
-		UID:          uuid.New().String(),
+		UID:          xid.New().String(),
 		Message:      string(message),
 		UserID:       userID,
 		UserNickname: userNickname,
@@ -311,7 +325,27 @@ func (s *ChatService) GetNickname(markerID, clientID string) (string, error) {
 			return conn.Nickname, nil
 		}
 	}
-	return "", fmt.Errorf("connection not found")
+	return "", errors.New("connection not found")
+}
+
+func changePayloadToByte(broadcastMsg dto.BroadcastMessage) []byte {
+	buf := jsonBufferPool.Get().(*bytes.Buffer)
+	defer func() {
+		buf.Reset()
+		jsonBufferPool.Put(buf)
+	}()
+
+	encoder := sonic.ConfigFastest.NewEncoder(buf)
+	if err := encoder.Encode(broadcastMsg); err != nil {
+		log.Printf("Error encoding broadcast message: %v", err)
+		return nil
+	}
+
+	// Make a copy of the bytes before resetting the buffer
+	payload := make([]byte, buf.Len())
+	copy(payload, buf.Bytes())
+
+	return payload
 }
 
 func createMessagePayload(markerID, message, senderNickname, senderUserID string) []byte {
@@ -322,7 +356,7 @@ func createMessagePayload(markerID, message, senderNickname, senderUserID string
 	}()
 
 	broadcastMsg := dto.BroadcastMessage{
-		UID:          uuid.New().String(),
+		UID:          xid.New().String(),
 		Message:      message,
 		UserID:       senderUserID,
 		UserNickname: senderNickname,

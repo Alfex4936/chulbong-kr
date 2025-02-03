@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -123,6 +124,10 @@ type BleveSearchService struct {
 	searchCache *gocache.Cache[dto.MarkerSearchResponse]
 
 	stationMap map[string]dto.KoreaStation
+
+	batchPool   []*bleve.Batch
+	batchLock   sync.Mutex
+	pendingDocs uint32
 }
 
 func NewBleveSearchService(
@@ -140,6 +145,7 @@ func NewBleveSearchService(
 	return &BleveSearchService{Index: index, Shards: shards,
 		searchCache: searchCache, Logger: logger, DB: db,
 		GetAllMarkersStmt: getMarkerStmt, stationMap: stationMap,
+		batchPool: make([]*bleve.Batch, len(shards)),
 	}
 }
 
@@ -281,6 +287,10 @@ func (s *BleveSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error 
 	shardIndex := indexBody.MarkerID % len(s.Shards)
 	selectedShard := s.Shards[shardIndex]
 
+	// Create or get batch for this shard
+	s.batchLock.Lock()
+	defer s.batchLock.Unlock()
+
 	province, city, rest := splitAddress(indexBody.Address)
 	indexBody.Province = province
 	indexBody.City = city
@@ -288,9 +298,30 @@ func (s *BleveSearchService) InsertMarkerIndex(indexBody MarkerIndexData) error 
 	indexBody.Address = rest
 	indexBody.InitialConsonants = ExtractInitialConsonants(indexBody.FullAddress)
 
-	err := selectedShard.Index(strconv.Itoa(indexBody.MarkerID), indexBody)
+	batch := s.batchPool[shardIndex]
+	if batch == nil {
+		batch = selectedShard.NewBatch()
+		s.batchPool[shardIndex] = batch
+	}
+
+	// Add to batch
+	err := batch.Index(strconv.Itoa(indexBody.MarkerID), indexBody)
 	if err != nil {
-		return fmt.Errorf("error indexing marker: %v", err)
+		return fmt.Errorf("error adding to batch: %v", err)
+	}
+
+	// Track pending documents
+	atomic.AddUint32(&s.pendingDocs, 1)
+
+	// Auto-commit when batch size reaches
+	if batch.Size() >= 5 {
+		err = selectedShard.Batch(batch)
+		if err != nil {
+			atomic.AddUint32(&s.pendingDocs, -uint32(batch.Size())) // Rollback
+			return err
+		}
+		atomic.AddUint32(&s.pendingDocs, -uint32(batch.Size()))
+		s.batchPool[shardIndex] = nil // Reset batch
 	}
 
 	// Invalidate search cache
@@ -439,7 +470,7 @@ func (s *BleveSearchService) SearchMarkersNearLocation(t string) (dto.MarkerSear
 	response := dto.MarkerSearchResponse{Markers: make([]dto.ZincMarker, 0)}
 
 	// Create a geo-distance query
-	distance := "5km"
+	distance := "4km"
 	geoQuery := bleve.NewGeoDistanceQuery(lon, lat, distance)
 	geoQuery.SetField("coordinates")
 
@@ -459,6 +490,43 @@ func (s *BleveSearchService) SearchMarkersNearLocation(t string) (dto.MarkerSear
 	response.Markers = extractMarkers(searchResult.Hits)
 
 	return response, nil
+}
+
+func (s *BleveSearchService) FlushAllBatches() error {
+	s.batchLock.Lock()
+	defer s.batchLock.Unlock()
+
+	totalFlushed := 0
+	for i, batch := range s.batchPool {
+		if batch != nil && batch.Size() > 0 {
+			err := s.Shards[i].Batch(batch)
+			if err != nil {
+				return fmt.Errorf("shard %d: %v", i, err)
+			}
+			flushed := batch.Size()
+			atomic.AddUint32(&s.pendingDocs, -uint32(flushed))
+			totalFlushed += flushed
+			s.batchPool[i] = nil
+		}
+	}
+	s.Logger.Info("Flushed batches", zap.Int("count", totalFlushed))
+	return nil
+}
+
+func (s *BleveSearchService) IndexAndRefresh(id int, data MarkerIndexData) error {
+	err := s.InsertMarkerIndex(data)
+	if err != nil {
+		return err
+	}
+
+	// Force flush and refresh
+	_ = s.FlushAllBatches()
+	shardIndex := id % len(s.Shards)
+	s.Shards[shardIndex].Close()
+	newShard, _ := bleve.Open(fmt.Sprintf("markers_shard_%d.bleve", shardIndex))
+	s.Shards[shardIndex] = newShard
+
+	return nil
 }
 
 // func performSearch(index bleve.Index, term string, results chan<- *bleve_search.DocumentMatch, tookTimes chan<- time.Duration) {

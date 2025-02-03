@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/blevesearch/bleve/v2"
 	"github.com/jmoiron/sqlx"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/fx"
@@ -39,6 +41,7 @@ type SchedulerService struct {
 	RedisService        *RedisService
 	SmtpService         *SmtpService
 	ReportService       *ReportService
+	ChatService         *ChatService
 	BleveSearchService  *BleveSearchService
 	cron                *cron.Cron
 	adminEmail          string
@@ -50,7 +53,7 @@ type SchedulerService struct {
 
 func NewSchedulerService(
 	db *sqlx.DB, tokenService *TokenService,
-	s3Service *S3Service, rankService *MarkerRankService,
+	s3Service *S3Service, rankService *MarkerRankService, chatService *ChatService,
 	markerService *MarkerManageService, redisService *RedisService,
 	smtpService *SmtpService, reportService *ReportService,
 	bleveService *BleveSearchService,
@@ -70,6 +73,7 @@ func NewSchedulerService(
 		RedisService:        redisService,
 		SmtpService:         smtpService,
 		ReportService:       reportService,
+		ChatService:         chatService,
 		BleveSearchService:  bleveService,
 		cron: cron.New(cron.WithChain(
 			cron.Recover(cron.DefaultLogger),
@@ -109,6 +113,8 @@ func (s *SchedulerService) RunAllCrons(logger *zap.Logger) {
 	s.CronSendPendingReportsEmail(logger)
 	s.CronCheckMarkerIndex(logger)
 	s.CronDeleteExpiredStories(logger)
+	s.CronDeleteExpiredMessages(logger)
+	s.CronBleveIndexBatch(logger)
 
 	// reports, err := s.ReportService.GetPendingReports()
 	// if err != nil {
@@ -486,6 +492,19 @@ func (s *SchedulerService) CronDeleteExpiredStories(logger *zap.Logger) {
 	}
 }
 
+/*
+Bleve's IndexAlias uses static references to shard readers created at startup.
+New documents are indexed, but existing readers in the alias don't see updates until refreshed.
+*/
+func (s *SchedulerService) CronBleveIndexBatch(logger *zap.Logger) {
+	_, err := s.Schedule("*/5 * * * *", func() { // Runs 5 min
+		s.RefreshBleveAlias(logger)
+	})
+	if err != nil {
+		logger.Error("Error scheduling the refresh bleve alias", zap.Error(err))
+	}
+}
+
 func (s *SchedulerService) DeleteExpiredStories(logger *zap.Logger) {
 	// Begin a transaction
 	tx, err := s.DB.Beginx()
@@ -544,4 +563,66 @@ func (s *SchedulerService) DeleteExpiredStories(logger *zap.Logger) {
 	}
 
 	logger.Info("Expired stories cleanup executed successfully", zap.Int("DeletedStories", len(expiredStories)))
+}
+
+func (s *SchedulerService) CronDeleteExpiredMessages(logger *zap.Logger) {
+	_, err := s.Schedule("0 * * * *", func() { // Runs every hour
+		s.ChatService.CleanupAllRooms(context.Background())
+	})
+	if err != nil {
+		logger.Error("Error scheduling the delete expired stories job", zap.Error(err))
+	}
+}
+
+func (s *SchedulerService) RefreshBleveAlias(logger *zap.Logger) {
+	// Check if there are pending documents
+	if atomic.LoadUint32(&s.BleveSearchService.pendingDocs) == 0 {
+		return // Skip refresh if no changes
+	}
+
+	// 1. Flush all remaining batches first
+	err := s.BleveSearchService.FlushAllBatches()
+	if err != nil {
+		logger.Error("Batch flush failed", zap.Error(err))
+	}
+
+	// 2. Close shards safely
+	for i, shard := range s.BleveSearchService.Shards {
+		if shard != nil {
+			err := shard.Close()
+			if err != nil {
+				logger.Error("Error closing shard",
+					zap.Int("shard", i),
+					zap.Error(err),
+				)
+			}
+		}
+	}
+
+	// 3. Reopen shards
+	var refreshedShards []bleve.Index
+	for i := 0; i < len(s.BleveSearchService.Shards); i++ {
+		indexShardName := fmt.Sprintf("markers_shard_%d.bleve", i)
+		index, err := bleve.Open(indexShardName)
+		if err != nil {
+			logger.Error("Failed shard reopen", zap.String("shard", indexShardName))
+			// Keep old shard as fallback
+			if i < len(s.BleveSearchService.Shards) {
+				refreshedShards = append(refreshedShards, s.BleveSearchService.Shards[i])
+			}
+			continue
+		}
+		refreshedShards = append(refreshedShards, index)
+	}
+
+	// 4. Rebuild index alias
+	newAlias := bleve.NewIndexAlias()
+	for _, shard := range refreshedShards {
+		newAlias.Add(shard)
+	}
+
+	// 5. Atomic swap
+	s.BleveSearchService.Index = newAlias
+	s.BleveSearchService.Shards = refreshedShards
+	atomic.StoreUint32(&s.BleveSearchService.pendingDocs, 0)
 }

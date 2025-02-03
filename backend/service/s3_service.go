@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/gif"
@@ -128,6 +129,76 @@ func (s *S3Service) UploadFileToS3(folder string, file *multipart.FileHeader, th
 	return fileURL, thumbnailURL, nil
 }
 
+func (s *S3Service) UploadFileToS3WithContext(ctx context.Context, folder string, file *multipart.FileHeader, thumbnail bool) (string, string, error) {
+	// Open the uploaded file
+	fileData, err := file.Open()
+	if err != nil {
+		return "", "", err
+	}
+	defer fileData.Close()
+
+	// Generate a UUID for a unique filename
+	uuid, err := uuid.NewRandom()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate UUID: %w", err)
+	}
+
+	// Extract and lowercase the file extension
+	ext := filepathExtLower(file.Filename)
+
+	// Use the original file's extension but with a new UUID as the filename
+	// Estimate the key length: folder + '/' + UUID + ext
+	keyLen := len(folder) + 1 + 36 + len(ext)
+	keyBytes := make([]byte, 0, keyLen)
+	keyBytes = append(keyBytes, folder...)
+	keyBytes = append(keyBytes, '/')
+	keyBytes = appendUUID(keyBytes, uuid)
+	keyBytes = append(keyBytes, ext...)
+
+	// Convert keyBytes to string without allocation
+	key := util.BytesToString(keyBytes)
+
+	var thumbnailURL string
+
+	// If thumbnail is requested and file is an image, generate the thumbnail
+	if thumbnail && isImage(ext) {
+		thumbnailURL, err = s.GenerateThumbnail(ctx, fileData, folder, uuid.String(), ext)
+		if err != nil {
+			s.logger.Error("failed to generate or upload thumbnail", zap.Error(err))
+		}
+
+		// Reset fileData to the beginning for uploading the original file
+		_, err = fileData.Seek(0, io.SeekStart)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to seek fileData: %w", err)
+		}
+	}
+
+	// Upload the file to S3
+	_, err = s.s3Client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: &s.Config.S3BucketName,
+		Key:    &key,
+		Body:   fileData,
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to upload file to S3: %w", err)
+	}
+
+	// Construct the file URL
+	// Estimate the URL length: "https://" + bucket + ".s3.amazonaws.com/" + key
+	urlLen := 8 + len(s.Config.S3BucketName) + 17 + len(key)
+	urlBytes := make([]byte, 0, urlLen)
+	urlBytes = append(urlBytes, "https://"...)
+	urlBytes = append(urlBytes, s.Config.S3BucketName...)
+	urlBytes = append(urlBytes, ".s3.amazonaws.com/"...)
+	urlBytes = append(urlBytes, keyBytes...)
+
+	// Convert urlBytes to string without allocation
+	fileURL := util.BytesToString(urlBytes)
+
+	return fileURL, thumbnailURL, nil
+}
+
 // DeleteDataFromS3 deletes a photo and its thumbnail from S3 given its URL.
 func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 	var bucketName, key string
@@ -138,7 +209,7 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 		// It's a valid URL
 		parts := strings.SplitN(parsedURL.Host, ".", 2)
 		if len(parts) < 2 {
-			return fmt.Errorf("invalid S3 URL format")
+			return errors.New("invalid S3 URL format")
 		}
 		bucketName = parts[0]
 		key = strings.TrimPrefix(parsedURL.Path, "/")
@@ -149,7 +220,7 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 	}
 
 	if key == "" {
-		return fmt.Errorf("invalid key")
+		return errors.New("invalid key")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -166,9 +237,6 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 		keysToDelete = append(keysToDelete, thumbKey)
 	}
 
-	// Create an S3 client
-	s3Client := s.s3Client // Reuse the existing client if available
-
 	// Delete the objects
 	deleteObjectsInput := &s3.DeleteObjectsInput{
 		Bucket: &bucketName,
@@ -182,7 +250,7 @@ func (s *S3Service) DeleteDataFromS3(dataURL string) error {
 		deleteObjectsInput.Delete.Objects[i] = types.ObjectIdentifier{Key: &k}
 	}
 
-	_, err = s3Client.DeleteObjects(ctx, deleteObjectsInput)
+	_, err = s.s3Client.DeleteObjects(ctx, deleteObjectsInput)
 	if err != nil {
 		return fmt.Errorf("failed to delete object(s) from S3: %w", err)
 	}
@@ -381,13 +449,12 @@ func isImage(ext string) bool {
 
 // appendUUID appends the UUID in standard string format to the dst byte slice.
 func appendUUID(dst []byte, u uuid.UUID) []byte {
-	const hex = "0123456789abcdef"
 	for i, b := range u {
 		// Insert dashes at positions 8, 13, 18, and 23.
 		if i == 4 || i == 6 || i == 8 || i == 10 {
 			dst = append(dst, '-')
 		}
-		dst = append(dst, hex[b>>4], hex[b&0x0f])
+		dst = append(dst, util.HexDigits[b>>4], util.HexDigits[b&0x0f])
 	}
 	return dst
 }

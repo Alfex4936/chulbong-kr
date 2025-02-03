@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"fmt"
@@ -8,19 +9,32 @@ import (
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/util"
+	"go.uber.org/fx"
 
 	"github.com/jmoiron/sqlx"
 )
 
 const (
-	countTokenQuery = "SELECT COUNT(*) FROM OpaqueTokens WHERE UserID = ?"
+	countTokenQuery = "SELECT COUNT(*) FROM OpaqueTokens WHERE UserID = ? AND ExpiresAt > NOW()"
 
 	// mysql8.0 does not support LIMIT in subqueries for DELETE statements
-	deleteTokenQuery = `
+	deleteTokenQueryOld = `
 WITH cte AS (
 	SELECT TokenID FROM OpaqueTokens WHERE UserID = ? ORDER BY CreatedAt ASC LIMIT ?
 )
 DELETE FROM OpaqueTokens WHERE TokenID IN (SELECT TokenID FROM cte)`
+
+	deleteTokenCTEQuery = `
+WITH cte AS (
+	SELECT TokenID
+	FROM OpaqueTokens
+	WHERE UserID = ? AND ExpiresAt > NOW()
+	ORDER BY CreatedAt ASC
+	LIMIT 1
+)
+DELETE FROM OpaqueTokens
+WHERE TokenID IN (SELECT TokenID FROM cte);
+`
 
 	insertOpaqueTokenQuery = "INSERT INTO OpaqueTokens (UserID, OpaqueToken, ExpiresAt) VALUES (?, ?, ?)"
 
@@ -49,33 +63,78 @@ ON DUPLICATE KEY UPDATE Token=VALUES(Token), ExpiresAt=VALUES(ExpiresAt), Verifi
 type TokenService struct {
 	DB        *sqlx.DB
 	TokenUtil *util.TokenUtil
-	TokenMax  int
+
+	insertOpaqueTokenStmt *sqlx.Stmt
+	deleteOpaqueTokenStmt *sqlx.Stmt
+	countOpaqueTokenStmt  *sqlx.Stmt
 }
 
 func NewTokenService(db *sqlx.DB, tokenUtil *util.TokenUtil) *TokenService {
+	prepareInsertOpaqueTokenStmt, _ := db.Preparex(insertOpaqueTokenQuery)
+	prepareDeleteOpaqueTokenStmt, _ := db.Preparex(deleteTokenCTEQuery)
+	prepareCountOpaqueTokenStmt, _ := db.Preparex(countTokenQuery)
+
 	return &TokenService{
 		DB:        db,
 		TokenUtil: tokenUtil,
-		TokenMax:  3, // 3 tokens per user
+
+		insertOpaqueTokenStmt: prepareInsertOpaqueTokenStmt,
+		deleteOpaqueTokenStmt: prepareDeleteOpaqueTokenStmt,
+		countOpaqueTokenStmt:  prepareCountOpaqueTokenStmt,
 	}
+}
+
+func RegisterTokenServiceLifecycle(lifecycle fx.Lifecycle, service *TokenService) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			_ = service.countOpaqueTokenStmt.Close()
+			_ = service.deleteOpaqueTokenStmt.Close()
+			_ = service.insertOpaqueTokenStmt.Close()
+			return nil
+		},
+	})
 }
 
 // GenerateAndSaveToken generates a new token for a user and saves it in the database.
 func (s *TokenService) GenerateAndSaveToken(userID int) (string, error) {
-	token, err := s.TokenUtil.GenerateOpaqueToken(16) // a secure, random token.
+	token, err := s.TokenUtil.GenerateOpaqueToken(s.TokenUtil.Config.TokenLength) // a secure, random token.
 	if err != nil {
 		return "", err
 	}
 
 	expiresAt := time.Now().Add(s.TokenUtil.Config.TokenExpirationTime) // Use the global duration.
 
-	// Ensure the token limit is enforced
-	err = s.EnforceTokenLimit(userID)
+	// Start a transaction so insert+delete remain consistent
+	tx, err := s.DB.Beginx()
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+
+	// 1) Insert the new token
+	// _, err = tx.Exec(insertOpaqueTokenQuery, userID, token, expiresAt)
+	_, err = tx.Stmtx(s.insertOpaqueTokenStmt).Exec(userID, token, expiresAt)
 	if err != nil {
 		return "", err
 	}
 
-	err = s.SaveOpaqueToken(userID, token, expiresAt)
+	// 2) Check token counts
+	var tokenCount int
+	// if err := tx.Get(&tokenCount, countTokenQuery, userID); err != nil {
+	if err := tx.Stmtx(s.countOpaqueTokenStmt).Get(&tokenCount, userID); err != nil {
+		return "", err
+	}
+
+	// 3) If the token count is at or above the limit, delete the oldest tokens
+	if tokenCount > s.TokenUtil.Config.TokenConcurrentMax {
+		tx.Stmtx(s.deleteOpaqueTokenStmt).Exec(userID)
+	}
+
+	// Commit everything
+	err = tx.Commit()
 	if err != nil {
 		return "", err
 	}
@@ -83,26 +142,26 @@ func (s *TokenService) GenerateAndSaveToken(userID int) (string, error) {
 	return token, nil
 }
 
-func (s *TokenService) EnforceTokenLimit(userID int) error {
-	var tokenCount int
+// func (s *TokenService) EnforceTokenLimit(userID int) error {
+// 	var tokenCount int
 
-	err := s.DB.QueryRow(countTokenQuery, userID).Scan(&tokenCount)
-	if err != nil {
-		return err
-	}
+// 	err := s.DB.QueryRow(countTokenQuery, userID).Scan(&tokenCount)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// If the token count is at or above the limit, delete the oldest tokens
-	if tokenCount >= s.TokenMax {
-		tokensToDelete := tokenCount - s.TokenMax + 1
+// 	// If the token count is at or above the limit, delete the oldest tokens
+// 	if tokenCount >= s.TokenUtil.Config.TokenConcurrentMax {
+// 		tokensToDelete := tokenCount - s.TokenUtil.Config.TokenConcurrentMax + 1
 
-		_, err := s.DB.Exec(deleteTokenQuery, userID, tokensToDelete)
-		if err != nil {
-			return err
-		}
-	}
+// 		_, err := s.DB.Exec(deleteTokenQuery, userID, tokensToDelete)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (s *TokenService) SaveOpaqueToken(userID int, token string, expiresAt time.Time) error {
 	_, err := s.DB.Exec(insertOpaqueTokenQuery, userID, token, expiresAt)

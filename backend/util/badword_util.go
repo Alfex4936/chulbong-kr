@@ -340,7 +340,11 @@ func (b *BadWordUtil) CheckForBadWordsUsingTrie(input string) (bool, error) {
 // Important: Do not modify the byte slice `b` after calling this function, as the string `s`
 // references the same memory, and changes to `b` will lead to undefined behavior.
 func BytesToString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	// if len(b) == 0 {
+	// 	return ""
+	// }
+	return unsafe.String(&b[0], len(b))
+	// return *(*string)(unsafe.Pointer(&b))
 }
 
 // StringToBytes converts a string to a byte slice without making a copy.
@@ -358,8 +362,7 @@ func BytesToString(b []byte) string {
 // Important: Do not modify the byte slice `b` after calling this function, as strings in Go
 // are immutable, and modifying the byte slice can lead to undefined behavior.
 func StringToBytes(s string) []byte {
-	stringData := unsafe.StringData(s)
-	return unsafe.Slice(stringData, len(s))
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
 
 // Precompute rune indices for the whole string to avoid recalculating repeatedly
@@ -374,4 +377,9 @@ func computeRuneIndices(input string) []int {
 	}
 	runeIndices[len(input)] = runeCount // End of string index
 	return runeIndices
+}
+
+// By official doc, Slice(ptr, len) => like (*[len]T)(ptr)[:]
+func SliceFromPointer[T any](base unsafe.Pointer, length int) []T {
+	return unsafe.Slice((*T)(base), length)
 }

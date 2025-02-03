@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"net/url"
 	"time"
 
 	"github.com/Alfex4936/chulbong-kr/util"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -29,6 +29,7 @@ func NewLogMiddleware(chatUtil *util.ChatUtil, db *sqlx.DB, logger *zap.Logger) 
 	}
 }
 
+// TODO: Decode unicode?
 func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Start timer
@@ -43,16 +44,7 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 		// Gather request/response details
 		statusCode := c.Response().StatusCode()
 		method := c.Method()
-
-		// Get the original URL (including query params)
-		encodedPath := c.OriginalURL()
-
-		// Decode URL to handle any percent-encoded characters (like Korean)
-		path, encodeErr := url.QueryUnescape(encodedPath)
-		if encodeErr != nil {
-			// If decoding fails, fallback to the original encoded path
-			path = encodedPath
-		}
+		path := c.Path()
 
 		clientIP := l.ChatUtil.GetUserIP(c)
 		//visitDate := time.Now().Format("2006-01-02")
@@ -72,27 +64,24 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 
 		userAgent := c.Get(fiber.HeaderUserAgent)
 		referer := c.Get(fiber.HeaderReferer)
-		queryParams := c.OriginalURL()[len(c.Path()):]
+		queryParams := string(c.Context().URI().QueryString())
 
 		if duration.Seconds() > util.DELAY_THRESHOLD {
 			go util.SendSlackNotification(duration, statusCode, clientIP, method, path, userAgent, queryParams, referer) // Send notification in a non-blocking way
 		}
 
 		// Choose the log level and construct the log message
-		level := zap.InfoLevel
-		if statusCode >= 500 {
-			level = zap.ErrorLevel
-		} else if statusCode >= 400 {
-			level = zap.WarnLevel
+		var level zapcore.Level
+		switch {
+		case statusCode >= 500:
+			level = zapcore.ErrorLevel
+		case statusCode >= 400:
+			level = zapcore.WarnLevel
+		default:
+			level = zapcore.InfoLevel
 		}
 
-		// Include error details if an error occurred
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		}
-
-		// Construct the structured log
+		// Log the request
 		logger.Check(level, processMsg).
 			Write(
 				zap.Int("status", statusCode),
@@ -101,10 +90,9 @@ func (l *LogMiddleware) ZapLogMiddleware(logger *zap.Logger) fiber.Handler {
 				zap.String("client_ip", clientIP),
 				zap.String("user_agent", userAgent),
 				zap.String("referer", referer),
+				zap.String("query_params", queryParams),
 				zap.Duration("duration", duration),
-				zap.String("error", errMsg), // Log the error message
-				// zap.Stack("stacktrace"),
-				// zap.Error(err), // Include the error if present
+				zap.Error(err),
 			)
 
 		return err

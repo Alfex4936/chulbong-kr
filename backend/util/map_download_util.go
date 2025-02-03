@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -12,11 +13,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/go-pdf/fpdf"
-	"github.com/google/uuid"
 	"github.com/nfnt/resize"
+	"github.com/rs/xid"
 	"go.uber.org/fx"
 
 	"golang.org/x/image/webp"
@@ -25,6 +27,10 @@ import (
 
 const (
 	watermarkScale = 0.8
+	pageWidth      = 190.0
+	fontName       = "NanumGothic"
+	baseURL        = "https://k-pullup.com/pullup/"
+	fontPath       = "resource/nanum.ttf"
 )
 
 // TODO: DI?
@@ -161,7 +167,7 @@ func PlaceMarkersOnImage(baseImageFile string, markers []WCONGNAMULCoord, center
 	// Draw the watermark image with the alpha mask at the center position
 	draw.DrawMask(resultImg, image.Rect(centerX, centerY, centerX+int(newWatermarkWidth), centerY+int(newWatermarkHeight)), resizedWatermarkImg, image.Point{}, alphaMask, image.Point{}, draw.Over)
 
-	resultPath := filepath.Join(filepath.Dir(baseImageFile), "result_with_markers.png")
+	resultPath := filepath.Join(filepath.Dir(baseImageFile), "result_"+xid.New().String()+"with_markers.png")
 	if err := saveImage(resultImg, resultPath); err != nil {
 		return "", fmt.Errorf("failed to save image with markers: %w", err)
 	}
@@ -222,54 +228,59 @@ func saveImage(img image.Image, path string) error {
 
 func GenerateMapPDF(imagePath, tempDir, title string, markerId int) (string, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
+	pdf.AddUTF8Font(fontName, "", fontPath)
+	pdf.SetFont(fontName, "", 10)
+
 	pdf.AddPage()
 
-	pdf.AddUTF8Font("NanumGothic", "", "resource/nanum.ttf")
-	// Set the Korean font
-	pdf.SetFont("NanumGothic", "", 10)
-	totalWidth := 190.0 // the full width of the page area used
-
-	// Print the date string, centered
+	// Build date string
 	now := time.Now()
-	dateString := fmt.Sprintf("%d년 %s월 %d일", now.Year(), monthsInKorean[now.Month()], now.Day())
-	pdf.CellFormat(totalWidth, 10, dateString, "0", 1, "C", false, 0, "")
+	monthName := monthsInKorean[now.Month()]
+	dateString := fmt.Sprintf("%d년 %s월 %d일", now.Year(), monthName, now.Day())
 
-	// Print the title, centered
-	pdf.SetFont("NanumGothic", "", 16) // Set font size to 16 for title
-	pdf.SetTextColor(0, 0, 0)          // Reset text color to black for the title
-	pdf.CellFormat(totalWidth, 10, title, "0", 1, "C", false, 0, "")
+	// Print the date (centered)
+	pdf.CellFormat(pageWidth, 10, dateString, "", 1, "C", false, 0, "")
 
-	url := fmt.Sprintf("https://k-pullup.com/pullup/%d", markerId)
+	// Print the title (centered)
+	pdf.SetFont(fontName, "", 16)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.CellFormat(pageWidth, 10, title, "", 1, "C", false, 0, "")
 
-	// Add image
-	pdf.ImageOptions(imagePath, 10, 40, totalWidth, 0, false, fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, url)
+	// URL for link
+	url := baseURL + strconv.Itoa(markerId)
 
-	// Print the "More at k-pullup.com" as one unit, centered
-	pdf.SetFont("NanumGothic", "", 8) // Reset the font size to 10 if needed
-	pdf.SetTextColor(0, 0, 0)         // Black color for "More at "
+	// Add image with clickable link
+	pdf.ImageOptions(
+		imagePath,
+		10, 40, pageWidth, 0,
+		false,
+		fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true},
+		0,
+		url,
+	)
+
+	// Print the "More at ..." text
+	pdf.SetFont(fontName, "", 8)
 	moreAtText := "More at "
 	fullLinkText := moreAtText + url
-	// fullLinkWidth := pdf.GetStringWidth(fullLinkText)
 
-	// Calculate starting X position to center the full link text
-	// linkStartX := (totalWidth - fullLinkWidth) / 2
-	// log.Printf("Starting X position to center the full link text: %f", linkStartX)
 	pdf.SetX(87)
 	pdf.SetY(200)
-	pdf.CellFormat(totalWidth, 10, fullLinkText, "0", 0, "R", false, 0, "")
+	pdf.CellFormat(pageWidth, 10, fullLinkText, "0", 0, "R", false, 0, "")
 	// Create an invisible link over "k-pullup.com"
 	pdf.LinkString(pdf.GetX()+pdf.GetStringWidth(moreAtText), pdf.GetY(), pdf.GetStringWidth(url), 10, url)
 
-	// Save the PDF
-	pdfName := fmt.Sprintf("kpullup-%s.pdf", uuid.New().String())
+	// Generate unique PDF filename
+	pdfName := "kpullup-" + xid.New().String() + ".pdf"
 	pdfPath := path.Join(tempDir, pdfName)
-	err := pdf.OutputFileAndClose(pdfPath)
-	if err != nil {
+
+	// Output and close
+	if err := pdf.OutputFileAndClose(pdfPath); err != nil {
 		return "", err
 	}
 
-	// Remove the temporary image file
-	os.Remove(imagePath)
+	// Clean up the temporary image file
+	_ = os.Remove(imagePath) // Ignore error if remove fails
 
 	return pdfPath, nil
 }
@@ -278,28 +289,28 @@ func GenerateMapPDF(imagePath, tempDir, title string, markerId int) (string, err
 func DownloadFile(URL, destPath string) error {
 	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
-		return fmt.Errorf("creating request: %w", err)
+		return err
 	}
 
 	resp, err := HTTPClientUtil.Do(req)
 	if err != nil {
-		return fmt.Errorf("executing request: %w", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return errors.New("unexpected status code")
 	}
 
-	// Create the file
 	out, err := os.Create(destPath)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
+	// Use a 32KB buffer for copying to reduce allocations in io.Copy
+	buf := make([]byte, 32*1024)
+	_, err = io.CopyBuffer(out, resp.Body, buf)
 	return err
 }
 

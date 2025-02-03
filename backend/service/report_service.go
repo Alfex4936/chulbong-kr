@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"strings"
@@ -273,7 +274,7 @@ func (s *ReportService) CreateReport(report *dto.MarkerReportRequest, form *mult
 		go func(file *multipart.FileHeader) {
 			defer wg.Done()
 			// TODO: Make thumbnail for report photos too
-			fileURL, _, err := s.S3Service.UploadFileToS3("reports", file, false)
+			fileURL, _, err := s.S3Service.UploadFileToS3("reports", file, true)
 			if err != nil {
 				errorChan <- fmt.Errorf("%w: %v", ErrFileUpload, err)
 				return
@@ -358,7 +359,7 @@ func (s *ReportService) ApproveReport(reportID, userID int) error {
 	}
 
 	if count, _ := res.RowsAffected(); count == 0 {
-		return fmt.Errorf("no report updated, either report does not exist or user is not the owner")
+		return errors.New("no report updated, either report does not exist or user is not the owner")
 	}
 
 	// Update the marker with report details

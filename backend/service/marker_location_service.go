@@ -20,8 +20,8 @@ import (
 	"github.com/Alfex4936/chulbong-kr/config"
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/util"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/rs/xid"
 	"go.uber.org/fx"
 )
 
@@ -330,7 +330,7 @@ func GeocodeAddress(address, apiKey string) (float64, float64, error) {
 	}
 
 	if geoResp.Status != "OK" || len(geoResp.Results) == 0 {
-		return 0, 0, fmt.Errorf("no results found")
+		return 0, 0, errors.New("no results found")
 	}
 
 	// Extract latitude and longitude
@@ -342,13 +342,13 @@ func GeocodeAddress(address, apiKey string) (float64, float64, error) {
 
 func (s *MarkerLocationService) SaveOfflineMap(lat, lng float64) (string, error) {
 	if !s.MapUtil.IsInSouthKoreaPrecisely(lat, lng) {
-		return "", fmt.Errorf("only allowed in South Korea")
+		return "", errors.New("only allowed in South Korea")
 	}
 
 	// 0. Get Address of lat/lng
 	address, _ := s.FacilityService.FetchAddressFromAPI(lat, lng)
 	if address == "-2" {
-		return "", fmt.Errorf("address not found")
+		return "", errors.New("address not found")
 	}
 	if address == "-1" {
 		address = "대한민국 철봉 지도"
@@ -365,7 +365,7 @@ func (s *MarkerLocationService) SaveOfflineMap(lat, lng float64) (string, error)
 	}
 	// defer os.RemoveAll(tempDir)
 
-	baseImageFile := fmt.Sprintf("base_map-%s.png", uuid.New().String())
+	baseImageFile := fmt.Sprintf("base_map-%s.png", xid.New().String())
 	baseImageFilePath := path.Join(tempDir, baseImageFile)
 	util.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f", s.KakaoConfig.KakaoStaticMap, mapWcon.X, mapWcon.Y), baseImageFilePath)
 
@@ -374,14 +374,14 @@ func (s *MarkerLocationService) SaveOfflineMap(lat, lng float64) (string, error)
 	// 1280*720 500m
 	nearbyMarkers, total, err := s.FindClosestNMarkersWithinDistance(lat, lng, 500, 15, 0) // meter, pageSize, offset
 	if err != nil {
-		return "", fmt.Errorf("failed to find nearby markers")
+		return "", errors.New("failed to find nearby markers")
 	}
 	if total == 0 {
 		return "", nil // Return nil to signify no markers in the area, reducing slice allocation
 	}
 
 	var wg sync.WaitGroup
-	errors := make(chan error, len(nearbyMarkers))
+	errs := make(chan error, len(nearbyMarkers))
 
 	// temporarily download each
 	tempImagePath := path.Join(tempDir, "marker_images")
@@ -396,16 +396,16 @@ func (s *MarkerLocationService) SaveOfflineMap(lat, lng float64) (string, error)
 			markerFile := path.Join(tempImagePath, fmt.Sprintf("marker-%d.png", i))
 			err := util.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f&CX=%f&CY=%f", s.KakaoConfig.KakaoStaticMap, mapWcon.X, mapWcon.Y, markerWcon.X, markerWcon.Y), markerFile)
 			if err != nil {
-				errors <- fmt.Errorf("failed to download marker %d: %w", i, err)
+				errs <- fmt.Errorf("failed to download marker %d: %w", i, err)
 				return
 			}
 		}(i, marker)
 	}
 
 	wg.Wait()
-	close(errors)
+	close(errs)
 
-	for err := range errors {
+	for err := range errs {
 		if err != nil {
 			return "", err
 		}
@@ -416,7 +416,7 @@ func (s *MarkerLocationService) SaveOfflineMap(lat, lng float64) (string, error)
 	// 4. Overlay them
 	resultImagePath, err := util.OverlayImages(baseImageFilePath, tempImagePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to overlay images")
+		return "", errors.New("failed to overlay images")
 	}
 
 	// 5. Make PDF
@@ -435,17 +435,21 @@ func (s *MarkerLocationService) SaveOfflineMap(lat, lng float64) (string, error)
 }
 
 // SaveOfflineMap2 draws markers with go rather than download images
-func (s *MarkerLocationService) SaveOfflineMap2(lat, lng float64) (string, error) {
+func (s *MarkerLocationService) SaveOfflineMap2(lat, lng float64) (string, string, error) {
 	if !s.MapUtil.IsInSouthKoreaPrecisely(lat, lng) {
-		return "", fmt.Errorf("only allowed in South Korea")
+		return "", "", errors.New("only allowed in South Korea")
 	}
 
-	// 0. Get Address of lat/lng
-	address, _ := s.FacilityService.FetchAddressFromAPI(lat, lng)
+	// 0. Fetch address - no formatting needed if simple
+	address, err := s.FacilityService.FetchAddressFromAPI(lat, lng)
+	if err != nil {
+		return "", "", err
+	}
 	if address == "-2" {
-		return "", fmt.Errorf("address not found")
+		return "", "", errors.New("address not found")
 	}
 	if address == "-1" {
+		// Use a default address if API error occurred
 		address = "대한민국 철봉 지도"
 	}
 
@@ -456,34 +460,51 @@ func (s *MarkerLocationService) SaveOfflineMap2(lat, lng float64) (string, error
 	// temporarily download from fmt.Sprintf("%s&MX=%f%MY=%f", KAKAO_STATIC, map_wcon.X, map_wcon.Y)
 	tempDir, err := os.MkdirTemp("", "chulbongkr-*") // Use "" for the system default temp directory
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp directory")
+		return "", "", errors.New("failed to create temp directory")
 	}
 	// defer os.RemoveAll(tempDir)
 
-	baseImageFile := fmt.Sprintf("base_map-%s.png", uuid.New().String())
+	// Build URL using strconv for performance
+	// Example: s.KakaoConfig.KakaoStaticMap + "&MX=" + strconv.FormatFloat(mapWcon.X,'f',6,64) + "&MY=" ...
+	var urlBuilder strings.Builder
+	urlBuilder.Grow(len(s.KakaoConfig.KakaoStaticMap) + 50) // pre-allocate capacity
+	urlBuilder.WriteString(s.KakaoConfig.KakaoStaticMap)
+	urlBuilder.WriteString("&MX=")
+	urlBuilder.WriteString(strconv.FormatFloat(mapWcon.X, 'f', 6, 64))
+	urlBuilder.WriteString("&MY=")
+	urlBuilder.WriteString(strconv.FormatFloat(mapWcon.Y, 'f', 6, 64))
+	baseMapURL := urlBuilder.String()
+
+	// Generate a short random name instead of full UUID to save cycles and memory
+	// (You could also use a global buffer or a simple counter)
+	baseImageFile := "base_map-" + xid.New().String() + ".png"
 	baseImageFilePath := path.Join(tempDir, baseImageFile)
-	util.DownloadFile(fmt.Sprintf("%s&MX=%f&MY=%f", s.KakaoConfig.KakaoStaticMap, mapWcon.X, mapWcon.Y), baseImageFilePath)
+
+	util.DownloadFile(baseMapURL, baseImageFilePath)
 
 	// 3. Load all close markers nearby map lat/lng
 	// Predefine capacity for slices based on known limits to avoid multiple allocations
 	// 1280*720 500m
 	nearbyMarkers, total, err := s.FindClosestNMarkersWithinDistance(lat, lng, 700, 30, 0) // meter, pageSize, offset
 	if err != nil {
-		return "", fmt.Errorf("failed to find nearby markers")
+		return "", "", errors.New("failed to find nearby markers")
 	}
 	if total == 0 {
-		return "", nil // Return nil to signify no markers in the area, reducing slice allocation
+		// TODO: consider returning just base image file as pdf
+		return "", "", nil // Return nil to signify no markers in the area, reducing slice allocation
 	}
 
-	markers := make([]util.WCONGNAMULCoord, len(nearbyMarkers))
-	for i, marker := range nearbyMarkers {
-		markers[i] = util.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
+	// Convert coordinates in-place
+	markers := make([]util.WCONGNAMULCoord, 0, total)
+	for i := range nearbyMarkers {
+		coord := util.ConvertWGS84ToWCONGNAMUL(nearbyMarkers[i].Latitude, nearbyMarkers[i].Longitude)
+		markers = append(markers, coord)
 	}
 
 	// 4. Place them
 	resultImagePath, err := util.PlaceMarkersOnImage(baseImageFilePath, markers, mapWcon.X, mapWcon.Y)
 	if err != nil {
-		return "", fmt.Errorf("failed to overlay images")
+		return "", "", errors.New("failed to overlay images")
 	}
 
 	os.Remove(baseImageFilePath) // Remove base image file
@@ -491,10 +512,10 @@ func (s *MarkerLocationService) SaveOfflineMap2(lat, lng float64) (string, error
 	// 5. Make PDF
 	downloadPath, err := util.GenerateMapPDF(resultImagePath, tempDir, address, nearbyMarkers[0].MarkerID)
 	if err != nil {
-		return "", fmt.Errorf("failed to make pdf file: " + err.Error())
+		return "", "", fmt.Errorf("failed to make pdf file: %w", err)
 	}
 
-	return downloadPath, nil
+	return downloadPath, tempDir, nil
 }
 
 // Simple pagination helper function
@@ -528,7 +549,7 @@ func (s *MarkerLocationService) TestDynamic(latitude, longitude, zoomScale float
 		markers[i] = util.ConvertWGS84ToWCONGNAMUL(marker.Latitude, marker.Longitude)
 	}
 	mapWcon := util.ConvertWGS84ToWCONGNAMUL(latitude, longitude)
-	baseImageFile := fmt.Sprintf("base_map-%s.png", uuid.New().String())
+	baseImageFile := fmt.Sprintf("base_map-%s.png", xid.New().String())
 	baseImageFilePath := path.Join("./tests", baseImageFile)
 
 	static := fmt.Sprintf("https://spi.maps.daum.net/map2/map/imageservice?IW=%d&IH=%d&SCALE=%f&service=open", width, height, zoomScale)
@@ -538,7 +559,7 @@ func (s *MarkerLocationService) TestDynamic(latitude, longitude, zoomScale float
 	fmt.Println(resultImagePath)
 }
 
-func formatPoint(lat, long float64) string {
+func formatPointOld(lat, long float64) string {
 	var sb strings.Builder
 	sb.WriteString("POINT(")
 	sb.WriteString(strconv.FormatFloat(lat, 'f', 6, 64))
@@ -546,4 +567,31 @@ func formatPoint(lat, long float64) string {
 	sb.WriteString(strconv.FormatFloat(long, 'f', 6, 64))
 	sb.WriteString(")")
 	return sb.String()
+}
+
+/*
+Execution Time:
+The optimized function is ~33% faster than the original implementation, reducing processing time from ~2565 ns/op to ~1728 ns/op.
+
+Memory Usage:
+The optimized version uses ~69% less memory per call (520 B reduced to 160 B).
+This is significant in memory-intensive or high-throughput scenarios.
+
+Allocations:
+The optimized version performs 80% fewer allocations (25 reduced to 5), which will reduce pressure on the garbage collector (GC), improving performance in scenarios with frequent calls.
+*/
+func formatPoint(lat, long float64) string {
+	// Pre-allocate enough space
+	// "POINT(" + lat + " " + long + ")"
+	// worst case ~ "POINT(-180.000000 -180.000000)" fits well in 64 bytes.
+	var buf [64]byte
+	b := buf[:0]
+
+	b = append(b, "POINT("...)
+	b = strconv.AppendFloat(b, lat, 'f', 6, 64)
+	b = append(b, ' ')
+	b = strconv.AppendFloat(b, long, 'f', 6, 64)
+	b = append(b, ')')
+
+	return string(b)
 }

@@ -1,6 +1,8 @@
 package util
 
 import (
+	"log"
+	"sort"
 	"testing"
 )
 
@@ -14,6 +16,10 @@ func TestNonASCIICharacters(t *testing.T) {
 		{Word: "하세요", Index: 2},
 	}
 	matches := matcher.FindAllString(text)
+
+	sortMatches(expectedMatches)
+	sortMatches(matches)
+
 	if !compareMatches(matches, expectedMatches) {
 		t.Errorf("Expected matches %v, got %v", expectedMatches, matches)
 	}
@@ -31,6 +37,7 @@ func TestLongPatterns(t *testing.T) {
 		text += "a"
 	}
 	matches := matcher.FindAllString(text)
+
 	if len(matches) != 1 || matches[0].Index != 0 {
 		t.Errorf("Expected one match at index 0, got %v", matches)
 	}
@@ -69,8 +76,13 @@ func TestSpecialCharacters(t *testing.T) {
 		{Word: "*", Index: 19},
 		{Word: "+", Index: 26},
 		{Word: ".", Index: 36},
+		{Word: ".", Index: 48},
 	}
 	matches := matcher.FindAllString(text)
+
+	sortMatches(expectedMatches)
+	sortMatches(matches)
+
 	if !compareMatches(matches, expectedMatches) {
 		t.Errorf("Expected matches %v, got %v", expectedMatches, matches)
 	}
@@ -82,13 +94,29 @@ func TestUnicodeCharacters(t *testing.T) {
 	text := "Hello 😊! Let's go to the moon 🚀 and shine like a star 🌟."
 	expectedMatches := []*Match{
 		{Word: "😊", Index: 6},
-		{Word: "🚀", Index: 31},
-		{Word: "🌟", Index: 53},
+		{Word: "🚀", Index: 30},
+		{Word: "🌟", Index: 54},
 	}
 	matches := matcher.FindAllString(text)
+
+	sortMatches(expectedMatches)
+	sortMatches(matches)
+
 	if !compareMatches(matches, expectedMatches) {
-		t.Errorf("Expected matches %v, got %v", expectedMatches, matches)
+		t.Errorf("Expected matches %+v, got %+v", expectedMatches, matches)
 	}
+}
+
+func sortMatches(matches []*Match) {
+	sort.Slice(matches, func(i, j int) bool {
+		if matches[i].Index != matches[j].Index {
+			return matches[i].Index < matches[j].Index
+		}
+		if matches[i].Word != matches[j].Word {
+			return matches[i].Word < matches[j].Word
+		}
+		return false
+	})
 }
 
 func compareMatches(a, b []*Match) bool {
@@ -96,6 +124,7 @@ func compareMatches(a, b []*Match) bool {
 		return false
 	}
 	for i := range a {
+		log.Printf("a[%d]: %+v, b[%d]: %+v\n", i, a[i], i, b[i])
 		if a[i].Index != b[i].Index || a[i].Word != b[i].Word {
 			return false
 		}

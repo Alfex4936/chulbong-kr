@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -92,7 +93,7 @@ func (s *NotificationService) GetNotifications(userID string) ([]NotificationRed
 
 	var wg sync.WaitGroup
 	results := make([]NotificationRedis, len(notifications))
-	errors := make(chan error, len(notifications))
+	errs := make(chan error, len(notifications))
 
 	for i, n := range notifications {
 		wg.Add(1)
@@ -105,7 +106,7 @@ func (s *NotificationService) GetNotifications(userID string) ([]NotificationRed
 			} else {
 				viewed, err := s.IsNotificationViewed(notif.NotificationId, userID)
 				if err != nil {
-					errors <- err
+					errs <- err
 					return
 				}
 				if !viewed {
@@ -115,10 +116,10 @@ func (s *NotificationService) GetNotifications(userID string) ([]NotificationRed
 		}(i, n)
 	}
 	wg.Wait()
-	close(errors)
+	close(errs)
 
-	if len(errors) > 0 {
-		return nil, fmt.Errorf("failed checking notification viewed status")
+	if len(errs) > 0 {
+		return nil, errors.New("failed checking notification viewed status")
 	}
 
 	filteredNotifications := []NotificationRedis{}

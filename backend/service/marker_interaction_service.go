@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -59,7 +60,7 @@ func (s *MarkerInteractService) UndoDislike(userID int, markerID int) error {
 		return fmt.Errorf("checking affected rows: %w", err)
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("no dislike found to undo")
+		return errors.New("no dislike found to undo")
 	}
 
 	return nil
@@ -89,7 +90,7 @@ func (s *MarkerInteractService) AddFavorite(userID, markerID int) error {
 
 	// Check if the user already has 10 favorites
 	if count >= 10 {
-		return fmt.Errorf("maximum number of favorites reached")
+		return errors.New("maximum number of favorites reached")
 	}
 
 	// If not, insert the new favorite
@@ -97,7 +98,7 @@ func (s *MarkerInteractService) AddFavorite(userID, markerID int) error {
 	if err != nil {
 		// Convert error to string and check if it contains the MySQL error code for duplicate entry
 		if strings.Contains(err.Error(), "1062") {
-			return fmt.Errorf("you have already favorited this marker")
+			return errors.New("you have already favorited this marker")
 		}
 		return fmt.Errorf("failed to add favorite: %w", err)
 	}

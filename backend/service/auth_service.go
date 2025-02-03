@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +26,10 @@ var (
 		"chulbong-kr": "user",
 		"k-pullup":    "user",
 		"admin":       "user",
+		"관리자":         "user",
+		"k-풀업":        "user",
+		"k풀업":         "user",
+		"익명":          "user",
 	}
 )
 
@@ -199,14 +204,14 @@ func (s *AuthService) Login(email, password string) (*model.User, error) {
 	// Check if the user was registered through an external provider
 	if user.Provider.Valid && user.Provider.String != "website" {
 		// The user did not register through the website's traditional sign-up process
-		return nil, fmt.Errorf("external provider login not supported here")
+		return nil, errors.New("external provider login not supported here")
 	}
 
 	// Use StringToBytes to avoid unnecessary allocation
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), util.StringToBytes(password)) // optimized
 	if err != nil {
 		// Password does not match
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, errors.New("invalid credentials")
 	}
 
 	return user, nil
@@ -215,7 +220,7 @@ func (s *AuthService) Login(email, password string) (*model.User, error) {
 // SaveOAuthUser saves or updates a user after OAuth2 authentication
 func (s *AuthService) SaveOAuthUser(provider string, providerID string, email string, username string) (*model.User, error) {
 	if email == "" {
-		return nil, fmt.Errorf("email and username are required")
+		return nil, errors.New("email and username are required")
 	}
 
 	if username == "" {
@@ -351,7 +356,7 @@ func (s *AuthService) GeneratePasswordResetToken(email string) (string, error) {
 		return "", err // User not found or db error
 	}
 
-	token, err := s.TokenUtil.GenerateOpaqueToken(16)
+	token, err := s.TokenUtil.GenerateOpaqueToken(s.TokenUtil.Config.TokenLength)
 	if err != nil {
 		return "", err
 	}
@@ -367,40 +372,46 @@ func (s *AuthService) GeneratePasswordResetToken(email string) (string, error) {
 
 // VerifyNaverEmail can check naver email existence before sending
 func (s *AuthService) VerifyNaverEmail(naverAddress string) (bool, error) {
-	naverAddress = strings.Split(naverAddress, "@naver.com")[0]
-	// Make sure the username part is well-formed (length, characters, etc.)
-	if len(naverAddress) == 0 {
-		return false, fmt.Errorf("invalid naver username")
+	const suffix = "@naver.com"
+	if !strings.HasSuffix(naverAddress, suffix) {
+		return false, errors.New("invalid naver username")
 	}
 
-	reqURL := fmt.Sprintf("%s=%s", s.Config.NaverEmailVerifyURL, naverAddress)
+	// Extract the username part
+	username := naverAddress[:len(naverAddress)-len(suffix)]
+	if len(username) == 0 {
+		return false, errors.New("invalid naver username")
+	}
+
+	// Build the request URL without fmt.Sprintf
+	reqURL := s.Config.NaverEmailVerifyURL + "=" + username
+
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
-		return false, fmt.Errorf("creating request: %w", err)
+		return false, err
 	}
 
-	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+	// Use Set instead of Add for known headers
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+
 	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("executing request: %w", err)
+		return false, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return false, errors.New("unexpected status code: " + strconv.Itoa(resp.StatusCode))
 	}
 
-	// Read the body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read the body: %v", err)
+		// Better to return err than crash the entire server with log.Fatal
+		return false, err
 	}
 
-	// Convert body bytes to a string
-	bodyString := string(bodyBytes)
-
-	// Check if the body is non-empty and ends with 'N'
-	if len(bodyString) > 0 && bodyString[len(bodyString)-1] == 'N' {
+	// Check the last byte directly without converting to string
+	if len(bodyBytes) > 0 && bodyBytes[len(bodyBytes)-1] == 'N' {
 		return true, nil
 	}
 
@@ -442,7 +453,7 @@ func (s *AuthService) insertUserWithRetry(tx *sqlx.Tx, signUpReq *dto.SignUpRequ
 		userID, _ := res.LastInsertId()
 		return userID, nil
 	}
-	return 0, fmt.Errorf("failed to insert user after retries")
+	return 0, errors.New("failed to insert user after retries")
 }
 
 func normalizeUsername(signUpReq *dto.SignUpRequest) {

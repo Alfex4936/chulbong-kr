@@ -2,10 +2,13 @@ package handler
 
 import (
 	"bytes"
+	"context"
 
 	"github.com/Alfex4936/chulbong-kr/dto"
 	"github.com/Alfex4936/chulbong-kr/service"
 	"github.com/Alfex4936/chulbong-kr/util"
+	sonic "github.com/bytedance/sonic"
+	"github.com/rs/xid"
 
 	"strings"
 	"time"
@@ -88,20 +91,14 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 
 	// clientNickname := "user-" + uuid.New().String()
 	clientNickname := h.ChatUtil.GenerateKoreanNickname()
-	saved, _ := h.ChatService.SaveConnection(markerID, clientID, clientNickname, c)
-	if !saved {
+	conn, saved, _ := h.ChatService.SaveConnection(markerID, clientID, clientNickname, c)
+	if !saved || conn == nil {
 		c.WriteJSON(dto.SimpleErrorResponse{Error: "Failed to save connection"})
 		c.Close()
 		return
 	}
 
 	// services.AddConnectionRoomToRedis(markerID, clientID, clientNickname) // saves to redis, "room:%s:connections"
-
-	// Broadcast join message
-	// broadcasts directly by app memory objects
-	// services.PublishMessageToAMQP(context.Background(), markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientID)
-	h.ChatService.BroadcastMessageToRoom(markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientID)
-	h.ChatService.BroadcastUserCountToRoomByLocal(markerID) // sends how many users in the room
 
 	defer func() {
 		// Get the nickname before removing the connection
@@ -122,6 +119,35 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 	// 	// Respond with a pong
 	// 	return c.WriteMessage(websocket.PongMessage, []byte(appData))
 	// })
+
+	// After saving the connection and broadcasting the join message
+	// Retrieve recent messages
+	ctx := context.Background()
+	messages, err := h.ChatService.GetRecentMessages(ctx, markerID)
+	if err != nil {
+		// Handle error
+	} else {
+		// Send recent messages to the user
+		for _, msg := range messages {
+			payload, err := sonic.Marshal(msg)
+			if err != nil {
+				// Handle error
+				continue
+			}
+			select {
+			case conn.Send <- payload:
+				// Message enqueued to be sent by writePump goroutine
+			default:
+				// Handle full send channel
+			}
+		}
+	}
+
+	// Broadcast join message
+	// broadcasts directly by app memory objects
+	// services.PublishMessageToAMQP(context.Background(), markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientID)
+	h.ChatService.BroadcastMessageToRoom(markerID, clientNickname+" 님이 입장하셨습니다.", clientNickname, clientID)
+	h.ChatService.BroadcastUserCountToRoomByLocal(markerID) // sends how many users in the room
 
 	for {
 		if err := c.SetReadDeadline(time.Now().Add(time.Second * 60)); err != nil {
@@ -161,7 +187,24 @@ func (h *ChatHandler) HandleChatRoom(c *websocket.Conn, markerID, reqID string) 
 
 		// Broadcast received message
 		h.ChatService.UpdateLastPing(markerID, clientID)
-		if err := h.ChatService.BroadcastMessageToRoom(markerID, util.BytesToString(cleanMessage), clientNickname, clientID); err != nil {
+
+		// Create the broadcast message
+		broadcastMsg := dto.BroadcastMessage{
+			UID:          xid.New().String(),
+			Message:      util.BytesToString(cleanMessage),
+			UserID:       clientID,
+			UserNickname: clientNickname,
+			RoomID:       markerID,
+			Timestamp:    time.Now().UnixMilli(),
+		}
+
+		// Save the message to Redis
+		if err := h.ChatService.SaveMessageToRedis(ctx, broadcastMsg); err != nil {
+			// Handle error
+		}
+
+		// Broadcast the message
+		if err := h.ChatService.BroadcastMessageToRoomByDTO(broadcastMsg); err != nil {
 			break
 		}
 	}

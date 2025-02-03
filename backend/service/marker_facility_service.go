@@ -134,42 +134,51 @@ func (s *MarkerFacilityService) UpdateMarkerAddress(markerID int, address string
 
 // FetchAddressFromAPI queries the external API to get the address for a given latitude and longitude.
 func (s *MarkerFacilityService) FetchAddressFromAPI(latitude, longitude float64) (string, error) {
-	reqURL := fmt.Sprintf("%s?x=%f&y=%f", s.KakaoConfig.KakaoCoord2Addr, longitude, latitude)
+	// Build URL manually
+	var urlBuilder strings.Builder
+	urlBuilder.Grow(len(s.KakaoConfig.KakaoCoord2Addr) + 50)
+	urlBuilder.WriteString(s.KakaoConfig.KakaoCoord2Addr)
+	urlBuilder.WriteString("?x=")
+	urlBuilder.WriteString(strconv.FormatFloat(longitude, 'f', 6, 64))
+	urlBuilder.WriteString("&y=")
+	urlBuilder.WriteString(strconv.FormatFloat(latitude, 'f', 6, 64))
+	reqURL := urlBuilder.String()
+
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
-		return "-1", fmt.Errorf("creating request: %w", err)
+		return "-1", err
 	}
-
 	req.Header.Add("Authorization", "KakaoAK "+s.KakaoConfig.KakaoAK)
+
 	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
-		return "-1", fmt.Errorf("executing request: %w", err)
+		return "-1", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "-1", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return "-1", errors.New("unexpected status code")
 	}
 
 	var apiResp kakao.KakaoResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		return "-1", fmt.Errorf("unmarshalling response: %w", err)
+		return "-1", err
 	}
 
 	if len(apiResp.Documents) == 0 {
-		// log.Print("No address found for the given coordinates")
-		return "", nil // Returning nil error to indicate absence of data rather than a failure
+		// No address found
+		return "", nil
 	}
 
 	doc := apiResp.Documents[0]
-	if doc.Address != nil {
+	if doc.Address != nil && doc.Address.AddressName != "" {
 		return doc.Address.AddressName, nil
 	}
-	if doc.RoadAddress != nil {
+	if doc.RoadAddress != nil && doc.RoadAddress.AddressName != "" {
 		return doc.RoadAddress.AddressName, nil
 	}
 
-	return "", nil // Address data is empty but no error occurred
+	return "", nil
 }
 
 // FetchAddressFromMap queries the external API to get the address for a given latitude and longitude. (KakaoMap)
@@ -212,7 +221,7 @@ func (s *MarkerFacilityService) FetchAddressFromMap(latitude, longitude float64)
 		return address, nil
 	}
 
-	return "", fmt.Errorf("no valid address found")
+	return "", errors.New("no valid address found")
 }
 
 // FetchXYFromAPI queries the external API to get the latitude and longitude for a given address.
@@ -249,12 +258,12 @@ func (s *MarkerFacilityService) FetchXYFromAPI(address string) (float64, float64
 
 		latitude, err := strconv.ParseFloat(*doc.X, 64)
 		if err != nil {
-			return 0, 0, fmt.Errorf("invalid latitude")
+			return 0, 0, errors.New("invalid latitude")
 		}
 
 		longitude, err := strconv.ParseFloat(*doc.Y, 64)
 		if err != nil {
-			return 0, 0, fmt.Errorf("invalid longitude")
+			return 0, 0, errors.New("invalid longitude")
 		}
 
 		return latitude, longitude, nil
@@ -377,7 +386,7 @@ func (s *MarkerFacilityService) FetchWeatherFromAddress(latitude, longitude floa
 
 	if apiResp.Codes.ResultCode != "OK" {
 		// log.Print("No weather found for this address")
-		return nil, fmt.Errorf("no weather found for this address")
+		return nil, errors.New("no weather found for this address")
 	}
 
 	icon := fmt.Sprintf("https://t1.daumcdn.net/localimg/localimages/07/2018/pc/weather/ico_weather%s.png", apiResp.WeatherInfos.Current.IconId)
@@ -510,7 +519,7 @@ func (s *MarkerFacilityService) FetchRoadViewPicDate(latitude, longitude float64
 	}
 
 	if len(apiResp.StreetView.StreetList) == 0 {
-		return time.Time{}, fmt.Errorf("no street view data available")
+		return time.Time{}, errors.New("no street view data available")
 	}
 
 	shotDateStr := apiResp.StreetView.StreetList[0].ShotDate
