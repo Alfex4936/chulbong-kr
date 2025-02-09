@@ -134,8 +134,8 @@ func (mfs *MarkerFacadeService) CheckMarkerValidity(latitude, longitude float64,
 	return mfs.ManageService.CheckMarkerValidity(latitude, longitude, description)
 }
 
-func (mfs *MarkerFacadeService) CreateMarkerWithPhotos(markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
-	return mfs.ManageService.CreateMarkerWithPhotos(markerDto, userID, form)
+func (mfs *MarkerFacadeService) CreateMarkerWithPhotos(ctx context.Context, markerDto *dto.MarkerRequest, userID int, form *multipart.Form) (*dto.MarkerResponse, error) {
+	return mfs.ManageService.CreateMarkerWithPhotos(ctx, markerDto, userID, form)
 }
 
 func (mfs *MarkerFacadeService) UpdateMarkerDescriptionOnly(markerID int, description string) error {

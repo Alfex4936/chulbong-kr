@@ -7,7 +7,6 @@ import (
 	"image"
 	"image/color"
 	"io"
-	"log"
 	"math"
 	"os"
 	"strconv"
@@ -23,6 +22,10 @@ var (
 	linearToSRGBTable  [4096]int
 	decodeCharacterMap [128]int
 )
+
+type factor struct {
+	r, g, b float32
+}
 
 func init() {
 	// Initialize sRGB to Linear lookup table
@@ -257,6 +260,7 @@ func DecodeBlurHash(hash string, width, height, punch int) ([]uint8, error) {
 
 // EncodeBlurHash generates a Blurhash string for the given pixel data.
 func EncodeBlurHash(xComponents, yComponents, width, height int, pixels []uint8, bytesPerRow int) string {
+	// Validate component ranges.
 	if xComponents < 1 || xComponents > 9 || yComponents < 1 || yComponents > 9 {
 		return ""
 	}
@@ -267,82 +271,69 @@ func EncodeBlurHash(xComponents, yComponents, width, height int, pixels []uint8,
 
 	// Initialize factors as a flat slice
 	factorsCount := xComponents * yComponents
-	// Separate arrays for R, G, B factors
-	factorsR := make([]float32, factorsCount)
-	factorsG := make([]float32, factorsCount)
-	factorsB := make([]float32, factorsCount)
 
-	// Convert all sRGB pixels to linear float32 upfront
-	totalPixels := width * height * 3
-	linearPixels := make([]float32, totalPixels)
-	for i := 0; i < totalPixels; i++ {
-		linearPixels[i] = sRGBToLinearTable[pixels[i]]
-	}
+	// Use a single slice of struct to store R, G, B factors.
+	factors := make([]factor, factorsCount)
 
-	// Compute the factors
+	// Process each pixel and accumulate contributions.
+	// Inline conversion from sRGB to linear using the lookup table.
 	for y := 0; y < height; y++ {
 		cosYComponents := cosY[y]
-		// Row start in linearPixels
-		rowStart := y * bytesPerRow // bytesPerRow = width*3
+		rowStart := y * bytesPerRow // bytesPerRow is assumed to be width*3.
 		for x := 0; x < width; x++ {
 			pIndex := rowStart + x*3
-			rLinear := linearPixels[pIndex]
-			gLinear := linearPixels[pIndex+1]
-			bLinear := linearPixels[pIndex+2]
+			rLinear := sRGBToLinearTable[pixels[pIndex]]
+			gLinear := sRGBToLinearTable[pixels[pIndex+1]]
+			bLinear := sRGBToLinearTable[pixels[pIndex+2]]
 
 			cosXComponents := cosX[x]
-
-			// Instead of doing `idx` increments, we compute offsets directly:
-			// off = (j*xComponents + i)
-			// just do two nested loops and calculate off once.
-			// contribute contributions for each component
+			// For each frequency component, add the contribution.
 			for j := 0; j < yComponents; j++ {
 				cy := cosYComponents[j]
 				rowOffset := j * xComponents
 				for i := 0; i < xComponents; i++ {
 					c := cosXComponents[i] * cy
 					off := rowOffset + i
-					factorsR[off] += c * rLinear
-					factorsG[off] += c * gLinear
-					factorsB[off] += c * bLinear
+					factors[off].r += c * rLinear
+					factors[off].g += c * gLinear
+					factors[off].b += c * bLinear
 				}
 			}
 		}
 	}
 
-	// Normalize the factors
+	// Normalize the factors and compute the maximum absolute value for AC components.
 	invCount := 1.0 / float32(width*height)
+	maxVal := float32(0)
 	for i := 0; i < factorsCount; i++ {
-		factorsR[i] *= invCount
-		factorsG[i] *= invCount
-		factorsB[i] *= invCount
-	}
-
-	// Find max AC component
-	var maxVal float32
-	for i := 1; i < factorsCount; i++ {
-		r := factorsR[i]
-		if r < 0 {
-			r = -r
+		factors[i].r *= invCount
+		factors[i].g *= invCount
+		factors[i].b *= invCount
+		// Skip DC (i==0) when finding the max for AC components.
+		if i == 0 {
+			continue
 		}
-		if r > maxVal {
-			maxVal = r
+		// Compute absolute values.
+		rAbs := factors[i].r
+		if rAbs < 0 {
+			rAbs = -rAbs
 		}
-
-		g := factorsG[i]
-		if g < 0 {
-			g = -g
+		gAbs := factors[i].g
+		if gAbs < 0 {
+			gAbs = -gAbs
 		}
-		if g > maxVal {
-			maxVal = g
+		bAbs := factors[i].b
+		if bAbs < 0 {
+			bAbs = -bAbs
 		}
-
-		b := factorsB[i]
-		if b < 0 {
-			b = -b
+		if rAbs > maxVal {
+			maxVal = rAbs
 		}
-		if b > maxVal {
-			maxVal = b
+		if gAbs > maxVal {
+			maxVal = gAbs
+		}
+		if bAbs > maxVal {
+			maxVal = bAbs
 		}
 	}
 
@@ -356,19 +347,22 @@ func EncodeBlurHash(xComponents, yComponents, width, height int, pixels []uint8,
 		}
 		quantMax = int(q)
 	}
-
 	maxAc := (float64(quantMax) + 1) / 166.0
 
-	// Encode DC
-	dcValue := encodeDC(float64(factorsR[0]), float64(factorsG[0]), float64(factorsB[0]))
+	// Encode the DC component.
+	dcValue := encodeDC(float64(factors[0].r), float64(factors[0].g), float64(factors[0].b))
 
-	// Encode AC
+	// Encode AC components.
 	acValues := make([]int, factorsCount-1)
 	for i := 1; i < factorsCount; i++ {
-		acValues[i-1] = encodeAC(float64(factorsR[i])/maxAc, float64(factorsG[i])/maxAc, float64(factorsB[i])/maxAc)
+		acValues[i-1] = encodeAC(
+			float64(factors[i].r)/maxAc,
+			float64(factors[i].g)/maxAc,
+			float64(factors[i].b)/maxAc,
+		)
 	}
 
-	// Build Blurhash string
+	// Build the Blurhash string.
 	sizeFlag := (yComponents-1)*9 + (xComponents - 1)
 	var result []byte
 	result = append(result, encode83(sizeFlag, 1)...)
@@ -598,19 +592,19 @@ func GetOrientation(file *os.File) int {
 	file.Seek(0, 0) // Reset file pointer
 	x, err := exif.Decode(file)
 	if err != nil {
-		log.Println("No EXIF data found or error decoding EXIF:", err)
+		// log.Println("No EXIF data found or error decoding EXIF:", err)
 		return 1 // Default orientation
 	}
 
 	orientationTag, err := x.Get(exif.Orientation)
 	if err != nil {
-		log.Println("No orientation tag found in EXIF:", err)
+		// log.Println("No orientation tag found in EXIF:", err)
 		return 1 // Default orientation
 	}
 
 	orientation, err := orientationTag.Int(0)
 	if err != nil {
-		log.Println("Error reading orientation value:", err)
+		// log.Println("Error reading orientation value:", err)
 		return 1 // Default orientation
 	}
 
@@ -625,21 +619,21 @@ func GetOrientationByReader(file io.ReadSeeker) int {
 	// Decode EXIF data
 	x, err := exif.Decode(file)
 	if err != nil {
-		log.Println("No EXIF data found or error decoding EXIF:", err)
+		// log.Println("No EXIF data found or error decoding EXIF:", err)
 		return 1 // Default orientation
 	}
 
 	// Retrieve the orientation tag
 	orientationTag, err := x.Get(exif.Orientation)
 	if err != nil {
-		log.Println("No orientation tag found in EXIF:", err)
+		// log.Println("No orientation tag found in EXIF:", err)
 		return 1 // Default orientation
 	}
 
 	// Convert orientation to integer
 	orientation, err := orientationTag.Int(0)
 	if err != nil {
-		log.Println("Error reading orientation value:", err)
+		// log.Println("Error reading orientation value:", err)
 		return 1 // Default orientation
 	}
 

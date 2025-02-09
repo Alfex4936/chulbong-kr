@@ -25,7 +25,7 @@ func (mfs *MarkerFacadeService) SaveOfflineMap(lat, lng float64) (string, error)
 	return mfs.LocationService.SaveOfflineMap(lat, lng)
 }
 
-func (mfs *MarkerFacadeService) SaveOfflineMap2(lat, lng float64) (string, error) {
+func (mfs *MarkerFacadeService) SaveOfflineMap2(lat, lng float64) (string, string, error) {
 	return mfs.LocationService.SaveOfflineMap2(lat, lng)
 }
 

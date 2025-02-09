@@ -161,7 +161,7 @@ func (s *MarkerFacilityService) FetchAddressFromAPI(latitude, longitude float64)
 	}
 
 	var apiResp kakao.KakaoResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return "-1", err
 	}
 
@@ -202,7 +202,7 @@ func (s *MarkerFacilityService) FetchAddressFromMap(latitude, longitude float64)
 	}
 
 	var apiResp kakao.KakaoMarkerData
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return "", fmt.Errorf("unmarshalling response: %w", err)
 	}
 
@@ -244,7 +244,7 @@ func (s *MarkerFacilityService) FetchXYFromAPI(address string) (float64, float64
 	}
 
 	var apiResp kakao.KakaoResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return 0.0, 0.0, fmt.Errorf("unmarshalling response: %w", err)
 	}
 
@@ -294,7 +294,7 @@ func (s *MarkerFacilityService) FetchRegionFromAPI(latitude, longitude float64) 
 	}
 
 	var apiResp kakao.KakaoRegionResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return "-1", fmt.Errorf("unmarshalling response: %w", err)
 	}
 
@@ -380,7 +380,8 @@ func (s *MarkerFacilityService) FetchWeatherFromAddress(latitude, longitude floa
 	}
 
 	var apiResp kakao.WeatherResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return nil, fmt.Errorf("unmarshalling response: %w", err)
 	}
 

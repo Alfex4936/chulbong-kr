@@ -611,85 +611,86 @@ func (h *AuthHandler) HandleOAuthProvider(provider string) fiber.Handler {
 		return h.handleOAuth(c, provider)
 	}
 }
-
 func (h *AuthHandler) handleOAuth(c *fiber.Ctx, provider string) error {
 	var (
 		oauthConfig *oauth2.Config
 		userInfoURL string
-		userInfo    interface{}
+		oauthUser   dto.OAuthUser // interface
 	)
 
-	// Map provider-specific configurations
+	// provider별 설정
 	switch provider {
 	case "google":
 		oauthConfig = h.AuthService.OAuthConfig.GoogleOAuth
 		userInfoURL = GOOGLE_USER_INFO_URL
-		userInfo = &dto.OAuthGoogleUser{}
+		oauthUser = &dto.OAuthGoogleUser{}
 	case "kakao":
 		oauthConfig = h.AuthService.OAuthConfig.KakaoOAuth
 		userInfoURL = KAKAO_USER_INFO_URL
-		userInfo = &dto.OAuthKakaoUser{}
+		oauthUser = &dto.OAuthKakaoUser{}
 	case "naver":
 		oauthConfig = h.AuthService.OAuthConfig.NaverOAuth
 		userInfoURL = NAVER_USER_INFO_URL
-		userInfo = &dto.OAuthNaverUser{}
-	// case "github":
-	// 	oauthConfig = h.AuthService.OAuthConfig.GitHubOAuth
-	// 	userInfoURL = GITHUB_USER_INFO_URL
-	// 	userInfo = &dto.OAuthGitHubUser{}
+		oauthUser = &dto.OAuthNaverUser{}
 	default:
 		return c.Status(fiber.StatusBadRequest).SendString("Unsupported provider")
 	}
 
-	// Retrieve query parameters with default values
-	state := c.Query("state", "")
-	code := c.Query("code", "")
-
-	if state == "" || code == "" {
-		// Start the OAuth flow
-		stateToken, err := h.TokenUtil.GenerateOpaqueToken(h.TokenUtil.Config.TokenLength)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
-		}
-
-		// Store the state value in the cookie with minimal allocations
-		c.Cookie(&fiber.Cookie{
-			Name:     "oauth_state",
-			Value:    stateToken,
-			Path:     "/",
-			HTTPOnly: true,
-		})
-
-		// Generate the AuthCodeURL
-		url := oauthConfig.AuthCodeURL(stateToken)
-		return c.Redirect(url, fiber.StatusSeeOther)
-	}
-
-	// Validate the state parameter
-	storedState := c.Cookies("oauth_state", "")
-	if state != storedState {
-		return c.Status(fiber.StatusUnauthorized).SendString("Invalid state parameter")
-	}
-
-	// Create a context with a timeout, reusing the context from Fiber if possible
+	// 5초 타임아웃 컨텍스트 생성
 	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Second)
 	defer cancel()
 
-	// Exchange the code for a token
-	otoken, err := oauthConfig.Exchange(ctx, code)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Failed to exchange code for token")
+	var otoken *oauth2.Token
+
+	// mobileToken이 있으면 모바일 플로우, 없으면 웹 플로우
+	mobileToken := c.Query("mobileToken", "")
+	if mobileToken != "" {
+		// 모바일: 이미 소셜 로그인에서 받은 access token 사용
+		otoken = &oauth2.Token{
+			AccessToken: mobileToken,
+			TokenType:   "Bearer", // TODO: check if all providers are same
+		}
+	} else {
+		// 웹: OAuth Code Flow 진행
+		state := c.Query("state", "")
+		code := c.Query("code", "")
+
+		// 아직 code가 없으면 OAuth 플로우 시작 (state 생성, 쿠키에 저장, 리다이렉트)
+		if state == "" || code == "" {
+			stateToken, err := h.TokenUtil.GenerateOpaqueToken(h.TokenUtil.Config.TokenLength)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).SendString("Failed to generate state")
+			}
+
+			c.Cookie(&fiber.Cookie{
+				Name:     "oauth_state",
+				Value:    stateToken,
+				Path:     "/",
+				HTTPOnly: true,
+			})
+			return c.Redirect(oauthConfig.AuthCodeURL(stateToken), fiber.StatusSeeOther)
+		}
+
+		// state 검증
+		storedState := c.Cookies("oauth_state", "")
+		if state != storedState {
+			return c.Status(fiber.StatusUnauthorized).SendString("Invalid state parameter")
+		}
+
+		var err error
+		otoken, err = oauthConfig.Exchange(ctx, code)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Failed to exchange code for token")
+		}
 	}
 
+	// 공통: oauth token(otoken)을 이용해 사용자 정보 요청
 	client := oauthConfig.Client(ctx, otoken)
-
-	// Create the request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, userInfoURL, nil)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("Failed to create request")
 	}
 
-	// Make the request
 	resp, err := client.Do(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
@@ -700,55 +701,38 @@ func (h *AuthHandler) handleOAuth(c *fiber.Ctx, provider string) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Failed to get user info")
 	}
 
-	// Use sonic's decoder to decode directly from the response body
-	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(userInfo); err != nil {
+	// JSON 응답을 각 DTO (OAuthUser 인터페이스 구현체)로 디코딩
+	if err := sonic.ConfigFastest.NewDecoder(resp.Body).Decode(oauthUser); err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("Failed to parse user info")
 	}
 
-	// Extract user information based on the provider
-	var email, id, name string
-	switch u := userInfo.(type) {
-	case *dto.OAuthGoogleUser:
-		email = u.Email
-		id = u.ID
-		name = u.Name
-	case *dto.OAuthKakaoUser:
-		email = u.KakaoAccount.Email
-		id = strconv.FormatInt(u.ID, 10)
-		name = u.KakaoAccount.Profile.Nickname
-	case *dto.OAuthNaverUser:
-		email = u.Response.Email
-		id = u.Response.ID
-		name = u.Response.Nickname
-	// case *dto.OAuthGitHubUser:
-	// 	email = u.Email
-	// 	id = strconv.Itoa(u.ID)
-	// 	name = u.Name
-	default:
-		return c.Status(fiber.StatusInternalServerError).SendString("Failed to parse user info")
-	}
+	// 인터페이스 메서드를 사용해 공통 정보 추출
+	id := oauthUser.GetID()
+	email := oauthUser.GetEmail()
+	name := oauthUser.GetName()
 
-	// Save or update the OAuth user
+	// OAuth 유저 저장 또는 업데이트
 	user, err := h.AuthService.SaveOAuthUser(provider, id, email, name)
 	if err != nil {
 		h.Logger.Warn("OAuth Login failed", zap.String("provider", provider), zap.Error(err))
 		return c.Status(fiber.StatusUnauthorized).JSON(SimpleErrorResponse{Error: "Failed to login with " + provider})
 	}
 
-	// Generate and save the token
+	// 서비스 전용 로그인 토큰 생성 및 저장
 	token, err := h.TokenService.GenerateAndSaveToken(user.UserID)
 	if err != nil {
 		h.Logger.Error("Failed to generate token for login", zap.String("provider", provider), zap.Error(err))
 		return c.Status(fiber.StatusInternalServerError).JSON(SimpleErrorResponse{Error: "Failed to generate token"})
 	}
 
-	// Generate the login cookie
+	// 로그인 쿠키 생성 및 설정 (React Native WebView에서도 쿠키 사용 가능)
 	loginCookie := h.TokenUtil.GenerateLoginCookie(token)
 	c.Cookie(&loginCookie)
 
 	h.Logger.Info("OAuth2 User logged in successfully", zap.String("provider", provider), zap.Int("userID", user.UserID))
+	h.LoginCounter.Inc() // 로그인 카운터 증가
 
-	// Build the redirect URL efficiently
+	// 리다이렉트 URL 빌드 (returnUrl 쿼리 파라미터가 있으면 사용)
 	customRedirectUrl := c.Query("returnUrl", "")
 	redirectURL := h.AuthService.OAuthConfig.FrontendURL
 	if customRedirectUrl == "" {
@@ -756,8 +740,6 @@ func (h *AuthHandler) handleOAuth(c *fiber.Ctx, provider string) error {
 	} else {
 		redirectURL += customRedirectUrl
 	}
-
-	h.LoginCounter.Inc() // Increment the login counter.
 
 	return c.Redirect(redirectURL)
 }

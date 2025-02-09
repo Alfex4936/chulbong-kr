@@ -8,6 +8,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"mime/multipart"
+	"net/http"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -29,8 +30,9 @@ type AdminHandler struct {
 	UserFacadeService *facade.UserFacadeService
 	UserService       *service.UserService
 
-	TokenUtil *util.TokenUtil
-	Logger    *zap.Logger
+	TokenUtil  *util.TokenUtil
+	Logger     *zap.Logger
+	HTTPClient *http.Client
 }
 
 // NewAdminHandler creates a new AdminHandler with dependencies injected
@@ -40,6 +42,7 @@ func NewAdminHandler(
 	user *service.UserService,
 	tutil *util.TokenUtil,
 	logger *zap.Logger,
+	httpClient *http.Client,
 ) *AdminHandler {
 	return &AdminHandler{
 		AdminFacade:       admin,
@@ -58,6 +61,10 @@ func RegisterAdminRoutes(api fiber.Router, handler *AdminHandler, authMiddleware
 	api.Get("/admin/blur-decode", handler.HandleDecodeBlurImage)
 
 	api.Get("/notices", handler.HandleListNotices)
+
+	// Mimic Next.js image optimization URL:
+	// e.g. /next/image?url=<encoded-image-url>&w=3840&q=75
+	api.Get("/next/image", handler.HandleNextImage)
 
 	adminGroup := api.Group("/admin")
 	{
@@ -487,4 +494,26 @@ func (h *AdminHandler) HandleDeletePhoto(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "photo deleted successfully",
 	})
+}
+
+// HandleNextImage mimics Next.js’s image optimization with caching.
+func (h *AdminHandler) HandleNextImage(c *fiber.Ctx) error {
+	srcURL := c.Query("url", "")
+	width, err := strconv.Atoi(c.Query("w", "0"))
+	if err != nil {
+		width = 0
+	}
+	quality, err := strconv.Atoi(c.Query("q", "75"))
+	if err != nil {
+		quality = 75
+	}
+
+	// Call the service to optimize the image.
+	resultBytes, contentType, err := h.AdminFacade.OptimizeImage(srcURL, width, quality, c.Get("Accept"))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	c.Set(fiber.HeaderContentType, contentType)
+	return c.Send(resultBytes)
 }
